@@ -576,7 +576,7 @@ function createTaskCard(task) {
   getCategories().forEach(category => {
     const option = document.createElement("option");
     option.value = category;
-    option.textContent = `Category: ${category}`;
+    option.textContent = category;
     option.selected = (task.category || "N/A") === category;
     categorySelect.appendChild(option);
   });
