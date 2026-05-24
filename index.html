@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Patrick Glanville Support Tracker</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <section class="collaboration-panel" aria-label="Collaboration access">
+    <div>
+      <h2>Collaboration</h2>
+      <p>Use the selected email to identify who is making task updates and comments.</p>
+    </div>
+    <label for="userSelect">Current user
+      <select id="userSelect"></select>
+    </label>
+    <div class="access-note">
+      <strong>Email-only access list</strong>
+      <span>dglanville@gmail.com, patrick.glanville@gmail.com, courtney.glanville@gmail.com, hemmgeor@gmail.com</span>
+    </div>
+  </section>
+
+  <header class="app-header">
+    <div>
+      <p class="eyebrow">Frisco, Texas support plan</p>
+      <h1>Patrick Glanville Issue Tracker</h1>
+      <p class="lede">A practical dashboard for tracking transportation, income, benefits, family communication, and home-safety tasks.</p>
+    </div>
+    <div class="header-actions" aria-label="Data actions">
+      <button id="pdfBtn" type="button" title="Create a PDF from the full tracker page">Create PDF</button>
+      <button id="historyBtn" type="button" title="Review all task updates">History</button>
+      <button id="exportBtn" type="button" title="Download current tracker data">Export</button>
+      <label class="import-label" title="Restore tracker data from a JSON export">
+        Import
+        <input id="importInput" type="file" accept="application/json">
+      </label>
+      <button id="resetBtn" type="button" class="ghost" title="Restore original sample tasks">Reset</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="overview" aria-label="Situation overview">
+      <article>
+        <span class="metric-label">Car repair estimate</span>
+        <strong>$6,000</strong>
+        <span>2023 Kia damaged while working Uber Eats</span>
+      </article>
+      <article>
+        <span class="metric-label">Loan balance</span>
+        <strong>$15,000</strong>
+        <span>Clarify lender, hardship options, and status</span>
+      </article>
+      <article>
+        <span class="metric-label">Primary risk</span>
+        <strong>No transport</strong>
+        <span>Use bicycle range for nearby work while vehicle path is found</span>
+      </article>
+      <article>
+        <span class="metric-label">Support needs</span>
+        <strong>Anxiety</strong>
+        <span>Track mental health, honesty, and Plan B steps</span>
+      </article>
+    </section>
+
+    <section class="controls" aria-label="Task controls">
+      <div class="search-wrap">
+        <label for="searchInput">Search tasks</label>
+        <input id="searchInput" type="search" placeholder="Search by task, notes, owner, category">
+      </div>
+      <div>
+        <label for="statusFilter">Status</label>
+        <select id="statusFilter">
+          <option value="all">All</option>
+          <option value="Not started">Not started</option>
+          <option value="In progress">In progress</option>
+          <option value="Waiting">Waiting</option>
+          <option value="Blocked">Blocked</option>
+          <option value="Done">Done</option>
+        </select>
+      </div>
+      <div>
+        <label for="priorityFilter">Priority</label>
+        <select id="priorityFilter">
+          <option value="all">All</option>
+          <option value="Urgent">Urgent</option>
+          <option value="High">High</option>
+          <option value="Medium">Medium</option>
+          <option value="Low">Low</option>
+        </select>
+      </div>
+      <button id="addTaskBtn" type="button">Add task</button>
+    </section>
+
+    <section class="progress-band" aria-label="Progress summary">
+      <div>
+        <span id="completeCount">0</span>
+        <small>completed</small>
+      </div>
+      <div>
+        <span id="activeCount">0</span>
+        <small>active</small>
+      </div>
+      <div>
+        <span id="blockedCount">0</span>
+        <small>blocked</small>
+      </div>
+      <div class="progress-meter" aria-label="Overall completion">
+        <span id="progressFill"></span>
+      </div>
+    </section>
+
+    <section id="taskList" class="task-grid" aria-live="polite"></section>
+
+    <section class="notes-panel" aria-label="Shared notes">
+      <div>
+        <h2>Running Notes</h2>
+        <p>Use this space for calls, dates, documents requested, account numbers, and family updates. Avoid storing full Social Security numbers, bank logins, or passwords here.</p>
+      </div>
+      <textarea id="globalNotes" rows="8" placeholder="Example: 2026-05-22 called Kia of Frisco, asked about storage fees..."></textarea>
+    </section>
+  </main>
+
+  <dialog id="taskDialog">
+    <form method="dialog" id="taskForm">
+      <div class="dialog-head">
+        <h2 id="dialogTitle">Edit task</h2>
+        <button type="button" id="closeDialog" class="icon-button" aria-label="Close">x</button>
+      </div>
+      <input id="taskId" type="hidden">
+      <label>Task title
+        <input id="taskTitle" required>
+      </label>
+      <div class="form-row">
+        <label>Category
+          <input id="taskCategory">
+        </label>
+        <label>Owner
+          <input id="taskOwner" placeholder="Patrick, brother, both">
+        </label>
+      </div>
+      <div class="form-row">
+        <label>Status
+          <select id="taskStatus">
+            <option>Not started</option>
+            <option>In progress</option>
+            <option>Waiting</option>
+            <option>Blocked</option>
+            <option>Done</option>
+          </select>
+        </label>
+        <label>Priority
+          <select id="taskPriority">
+            <option>Urgent</option>
+            <option>High</option>
+            <option>Medium</option>
+            <option>Low</option>
+          </select>
+        </label>
+      </div>
+      <div class="form-row">
+        <label>Due date
+          <input id="taskDue" type="date">
+        </label>
+        <label>Percent complete
+          <input id="taskPercent" type="number" min="0" max="100" step="5">
+        </label>
+      </div>
+      <label>Next step
+        <input id="taskNext">
+      </label>
+      <div class="form-row">
+        <label>Add comment
+          <textarea id="taskComment" rows="4" placeholder="Add a dated update, call note, or blocker"></textarea>
+        </label>
+        <label>Notes
+          <textarea id="taskNotes" rows="4"></textarea>
+        </label>
+      </div>
+      <section class="dialog-history" aria-label="Task comments">
+        <h3>Task Comments</h3>
+        <div id="taskComments"></div>
+      </section>
+      <div class="dialog-actions">
+        <button id="deleteTaskBtn" type="button" class="danger">Delete</button>
+        <span></span>
+        <button type="button" id="cancelTaskBtn" class="ghost">Cancel</button>
+        <button type="submit">Save task</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="historyDialog">
+    <div class="history-dialog">
+      <div class="dialog-head">
+        <h2>Update History</h2>
+        <button type="button" id="closeHistoryDialog" class="icon-button" aria-label="Close">x</button>
+      </div>
+      <div id="historyList" class="history-list"></div>
+    </div>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
