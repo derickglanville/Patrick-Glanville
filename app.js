@@ -22,6 +22,7 @@ const baseCategories = [
   "Transportation - Turo rental",
   "Vehicle"
 ];
+const statusOptions = ["N/A", "Not started", "In progress", "Waiting", "Blocked", "Done"];
 
 const seedData = {
   notes: "",
@@ -481,7 +482,7 @@ function createTaskCard(task) {
 
   const select = document.createElement("select");
   select.className = "status-select";
-  ["Not started", "In progress", "Waiting", "Blocked", "Done"].forEach(status => {
+  statusOptions.forEach(status => {
     const option = document.createElement("option");
     option.value = status;
     option.textContent = status;
