@@ -186,7 +186,7 @@ small {
   margin: 20px 0 14px;
   padding: 14px;
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) 170px 170px auto;
+  grid-template-columns: minmax(220px, 1fr) 150px 150px 210px auto;
   gap: 12px;
   align-items: end;
 }
@@ -351,14 +351,21 @@ textarea {
 
 .task-card footer {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 10px;
   align-items: center;
 }
 
-.status-select {
+.status-select,
+.category-select {
   max-width: 150px;
   padding: 8px;
+}
+
+.category-select {
+  max-width: 230px;
+  flex: 1 1 190px;
 }
 
 .notes-panel {

@@ -259,6 +259,7 @@ const taskList = document.querySelector("#taskList");
 const searchInput = document.querySelector("#searchInput");
 const statusFilter = document.querySelector("#statusFilter");
 const priorityFilter = document.querySelector("#priorityFilter");
+const categoryFilter = document.querySelector("#categoryFilter");
 const globalNotes = document.querySelector("#globalNotes");
 const taskDialog = document.querySelector("#taskDialog");
 const taskForm = document.querySelector("#taskForm");
@@ -371,12 +372,14 @@ function render() {
   const query = searchInput.value.trim().toLowerCase();
   const status = statusFilter.value;
   const priority = priorityFilter.value;
+  const category = categoryFilter.value;
 
   const filtered = state.tasks.filter(task => {
     const haystack = Object.values(task).join(" ").toLowerCase();
     return (!query || haystack.includes(query))
       && (status === "all" || task.status === status)
-      && (priority === "all" || task.priority === priority);
+      && (priority === "all" || task.priority === priority)
+      && (category === "all" || (task.category || "N/A") === category);
   });
 
   taskList.innerHTML = "";
@@ -391,13 +394,25 @@ function populateCategories() {
   state.tasks.forEach(task => {
     if (task.category) categories.add(task.category);
   });
+  const currentFilter = categoryFilter.value || "all";
   fields.category.innerHTML = "";
+  categoryFilter.innerHTML = "";
+  const allOption = document.createElement("option");
+  allOption.value = "all";
+  allOption.textContent = "All";
+  categoryFilter.appendChild(allOption);
   [...categories].sort((a, b) => a.localeCompare(b)).forEach(category => {
     const option = document.createElement("option");
     option.value = category;
     option.textContent = category;
     fields.category.appendChild(option);
+
+    const filterOption = option.cloneNode(true);
+    categoryFilter.appendChild(filterOption);
   });
+  categoryFilter.value = [...categoryFilter.options].some(option => option.value === currentFilter)
+    ? currentFilter
+    : "all";
 }
 
 function createTaskCard(task) {
@@ -446,6 +461,24 @@ function createTaskCard(task) {
   latestComment.textContent = formatLatestComment(task);
 
   const footer = document.createElement("footer");
+  const categorySelect = document.createElement("select");
+  categorySelect.className = "category-select";
+  getCategories().forEach(category => {
+    const option = document.createElement("option");
+    option.value = category;
+    option.textContent = `Category: ${category}`;
+    option.selected = (task.category || "N/A") === category;
+    categorySelect.appendChild(option);
+  });
+  categorySelect.addEventListener("change", () => {
+    const before = task.category || "N/A";
+    task.category = categorySelect.value;
+    recordUpdate(task, `Category changed from ${before} to ${categorySelect.value}`);
+    populateCategories();
+    saveState();
+    render();
+  });
+
   const select = document.createElement("select");
   select.className = "status-select";
   ["Not started", "In progress", "Waiting", "Blocked", "Done"].forEach(status => {
@@ -470,9 +503,17 @@ function createTaskCard(task) {
   edit.textContent = "Edit";
   edit.addEventListener("click", () => openTask(task.id));
 
-  footer.append(select, edit);
+  footer.append(categorySelect, select, edit);
   card.append(header, meta, meter, next, notes, latestComment, footer);
   return card;
+}
+
+function getCategories() {
+  const categories = new Set(baseCategories);
+  state.tasks.forEach(task => {
+    if (task.category) categories.add(task.category);
+  });
+  return [...categories].sort((a, b) => a.localeCompare(b));
 }
 
 function formatLatestComment(task) {
@@ -694,6 +735,7 @@ document.querySelector("#closeHistoryDialog").addEventListener("click", () => hi
 searchInput.addEventListener("input", render);
 statusFilter.addEventListener("change", render);
 priorityFilter.addEventListener("change", render);
+categoryFilter.addEventListener("change", render);
 userSelect.addEventListener("change", () => {
   state.currentUser = userSelect.value;
   saveState();
@@ -743,6 +785,7 @@ document.querySelector("#pdfBtn").addEventListener("click", () => {
   searchInput.value = "";
   statusFilter.value = "all";
   priorityFilter.value = "all";
+  categoryFilter.value = "all";
   render();
   window.print();
 });
