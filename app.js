@@ -5,6 +5,23 @@ const allowedUsers = [
   { name: "Courtney Glanville", email: "courtney.glanville@gmail.com" },
   { name: "Georgette Hemmings", email: "hemmgeor@gmail.com" }
 ];
+const baseCategories = [
+  "N/A",
+  "Accountability",
+  "Benefits",
+  "Cash",
+  "Debt",
+  "Debt - lender hardship",
+  "Family",
+  "Health",
+  "Home safety",
+  "Income",
+  "Insurance",
+  "Plan",
+  "Transportation",
+  "Transportation - Turo rental",
+  "Vehicle"
+];
 
 const seedData = {
   notes: "",
@@ -369,6 +386,20 @@ function render() {
   userSelect.value = state.currentUser;
 }
 
+function populateCategories() {
+  const categories = new Set(baseCategories);
+  state.tasks.forEach(task => {
+    if (task.category) categories.add(task.category);
+  });
+  fields.category.innerHTML = "";
+  [...categories].sort((a, b) => a.localeCompare(b)).forEach(category => {
+    const option = document.createElement("option");
+    option.value = category;
+    option.textContent = category;
+    fields.category.appendChild(option);
+  });
+}
+
 function createTaskCard(task) {
   const card = document.createElement("article");
   card.className = "task-card";
@@ -466,7 +497,7 @@ function openTask(id) {
   const task = state.tasks.find(item => item.id === id) || {
     id: crypto.randomUUID(),
     title: "",
-    category: "",
+    category: "N/A",
     owner: "",
     status: "Not started",
     priority: "Medium",
@@ -476,9 +507,10 @@ function openTask(id) {
     notes: "",
     comments: []
   };
+  populateCategories();
   fields.id.value = task.id;
   fields.title.value = task.title;
-  fields.category.value = task.category;
+  fields.category.value = task.category || "N/A";
   fields.owner.value = task.owner;
   fields.status.value = task.status;
   fields.priority.value = task.priority;
@@ -723,4 +755,5 @@ document.querySelector("#resetBtn").addEventListener("click", () => {
 });
 
 populateUsers();
+populateCategories();
 render();
