@@ -78,6 +78,18 @@ const seedData = {
     },
     {
       id: crypto.randomUUID(),
+      title: "Evaluate renting a car from Turo for transportation",
+      category: "Transportation - Turo rental",
+      owner: "Patrick + brother",
+      status: "Not started",
+      priority: "High",
+      due: "",
+      next: "Compare the total daily or weekly Turo cost against confirmed incoming money before booking.",
+      notes: "Rationale: Turo may restore transportation for local job interviews, short-term work, medical appointments, and urgent errands, but it only helps if income exceeds the rental cost. Track rental price, fees, insurance/protection cost, deposit, fuel, mileage limits, expected daily earnings, and minimum cash needed for food, housing, and car-loan decisions. Do not book unless there is a clear plan for how the rental pays for itself or solves a specific high-value need.",
+      tag: "Added/Updated"
+    },
+    {
+      id: crypto.randomUUID(),
       title: "Use bicycle for local transportation and nearby jobs",
       category: "Transportation",
       owner: "Patrick",
