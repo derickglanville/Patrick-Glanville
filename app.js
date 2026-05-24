@@ -15,6 +15,7 @@ const baseCategories = [
   "Family",
   "Health",
   "Home safety",
+  "Household tasks",
   "Income",
   "Insurance",
   "Plan",
@@ -250,6 +251,114 @@ const seedData = {
       due: "",
       next: "Replace battery, test alarm, and record date completed.",
       notes: "Bring the correct battery size and a stable ladder."
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "Clean house",
+      category: "Household tasks",
+      owner: "Patrick",
+      status: "Not started",
+      priority: "Medium",
+      due: "",
+      next: "Pick one area of the house and clean it fully before moving to the next area.",
+      notes: "Track what was cleaned, date completed, and any supplies needed.",
+      tag: "Added/Updated"
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "Vacuum carpet",
+      category: "Household tasks",
+      owner: "Patrick",
+      status: "Not started",
+      priority: "Medium",
+      due: "",
+      next: "Vacuum high-traffic carpeted areas first, then bedrooms or less-used rooms.",
+      notes: "Record rooms completed and whether vacuum bags, filters, or maintenance are needed.",
+      tag: "Added/Updated"
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "Do dishes",
+      category: "Household tasks",
+      owner: "Patrick",
+      status: "Not started",
+      priority: "Medium",
+      due: "",
+      next: "Wash or load dishes daily and clear the sink before bedtime.",
+      notes: "Track consistency and whether dish soap, dishwasher pods, or sponges are needed.",
+      tag: "Added/Updated"
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "Cook meals",
+      category: "Household tasks",
+      owner: "Patrick",
+      status: "Not started",
+      priority: "Medium",
+      due: "",
+      next: "Plan simple meals that use available groceries and reduce eating-out costs.",
+      notes: "Track meals cooked, grocery items used, and low-cost meal ideas.",
+      tag: "Added/Updated"
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "Take out garbage",
+      category: "Household tasks",
+      owner: "Patrick",
+      status: "Not started",
+      priority: "Medium",
+      due: "",
+      next: "Empty inside trash cans and take garbage to the outside bin before pickup day.",
+      notes: "Track pickup schedule and whether bags or cleaning supplies are needed.",
+      tag: "Added/Updated"
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "Mow the grass",
+      category: "Household tasks",
+      owner: "Patrick",
+      status: "Not started",
+      priority: "Medium",
+      due: "",
+      next: "Mow when weather and health allow, or help arrange mowing if physical limits prevent it.",
+      notes: "Track date mowed, mower fuel/battery needs, and any areas skipped.",
+      tag: "Added/Updated"
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "Lawn maintenance",
+      category: "Household tasks",
+      owner: "Patrick",
+      status: "Not started",
+      priority: "Medium",
+      due: "",
+      next: "Trim, edge, pick up branches, and handle basic yard cleanup as needed.",
+      notes: "Track tools needed, safety limits, and tasks completed.",
+      tag: "Added/Updated"
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "Contribute to groceries",
+      category: "Household tasks",
+      owner: "Patrick",
+      status: "Not started",
+      priority: "High",
+      due: "",
+      next: "Agree on a realistic weekly grocery contribution based on actual income and benefits.",
+      notes: "Contribution can be money, SNAP groceries, cooking, shopping, or meal planning depending on cash flow.",
+      tag: "Added/Updated"
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "Help with maintenance of house",
+      category: "Household tasks",
+      owner: "Patrick",
+      status: "Not started",
+      priority: "Medium",
+      due: "",
+      next: "Keep a list of small house maintenance tasks Patrick can help with safely.",
+      notes: "Examples: replace batteries, change filters, organize tools, report repairs, clean vents, or assist with scheduled maintenance.",
+      tag: "Added/Updated"
     }
   ]
 };
