@@ -157,6 +157,18 @@ const seedData = {
     },
     {
       id: crypto.randomUUID(),
+      title: "Call lenders to request suspension of payments",
+      category: "Debt - lender hardship",
+      owner: "Patrick + brother",
+      status: "Not started",
+      priority: "Urgent",
+      due: "",
+      next: "Make a lender list, call each hardship department, and ask whether payments can be suspended, deferred, reduced, or moved to the end of the loan.",
+      notes: "Track lender name, phone number, account type, date called, representative name, hardship reason, documents requested, whether interest continues, credit-reporting impact, fees, due date changes, and written confirmation. Do not rely on verbal promises; ask for the hardship terms in writing.",
+      tag: "Added/Updated"
+    },
+    {
+      id: crypto.randomUUID(),
       title: "Research disability benefits eligibility",
       category: "Benefits",
       owner: "Patrick + brother",
