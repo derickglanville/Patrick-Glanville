@@ -3,8 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Patrick Glanville Support Tracker</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=2026-05-25-1420">
 </head>
 <body>
   <section class="collaboration-panel" aria-label="Collaboration access">
@@ -19,6 +22,22 @@
       <strong>Email-only access list</strong>
       <span>dglanville@gmail.com, patrick.glanville@gmail.com, courtney.glanville@gmail.com, hemmgeor@gmail.com</span>
     </div>
+  </section>
+
+  <section class="sync-panel" aria-label="Website sync status">
+    <div>
+      <strong>Latest GitHub Push</strong>
+      <span id="syncStatus">Checking GitHub version...</span>
+    </div>
+    <div>
+      <strong>Local Build</strong>
+      <span id="localBuildStatus"></span>
+    </div>
+    <div>
+      <strong>Data Store</strong>
+      <span id="dataStoreStatus"></span>
+    </div>
+    <button id="refreshAppBtn" type="button" class="ghost">Refresh Website</button>
   </section>
 
   <header class="app-header">
@@ -224,6 +243,6 @@
     </div>
   </dialog>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=2026-05-25-1420"></script>
 </body>
 </html>

@@ -170,6 +170,34 @@ main {
   font-size: .9rem;
 }
 
+.sync-panel {
+  padding: 10px clamp(18px, 4vw, 56px);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(220px, 1fr)) auto;
+  gap: 14px;
+  align-items: center;
+  background: #edf3fb;
+  border-bottom: 1px solid #c8d7ea;
+}
+
+.sync-panel div {
+  display: grid;
+  gap: 3px;
+}
+
+.sync-panel span {
+  color: var(--muted);
+  font-size: .88rem;
+}
+
+.sync-ok {
+  color: var(--green) !important;
+}
+
+.sync-warn {
+  color: var(--red) !important;
+}
+
 .metric-label,
 .task-meta,
 small {
@@ -645,6 +673,7 @@ dialog::backdrop {
 
   .controls,
   .collaboration-panel,
+  .sync-panel,
   .notes-panel {
     grid-template-columns: 1fr;
   }
@@ -690,6 +719,7 @@ dialog::backdrop {
   .header-actions,
   .controls,
   .collaboration-panel,
+  .sync-panel,
   .task-card footer,
   .report-dialog,
   dialog {

@@ -1,4 +1,11 @@
 const STORAGE_KEY = "patrick-glanville-support-tracker-v1";
+const BUILD_INFO = {
+  commit: "926ad52",
+  timestamp: "2026-05-25T11:18:12-04:00",
+  builtAt: "2026-05-25T14:20:58-04:00",
+  label: "Local build"
+};
+const GITHUB_COMMIT_API = "https://api.github.com/repos/derickglanville/Patrick-Glanville/commits/main";
 const allowedUsers = [
   { name: "Deric Glanville", email: "dglanville@gmail.com" },
   { name: "Patrick Glanville", email: "patrick.glanville@gmail.com" },
@@ -478,6 +485,7 @@ function loadState() {
       notes: parsed.notes || "",
       currentUser: parsed.currentUser || allowedUsers[0].email,
       history: Array.isArray(parsed.history) ? parsed.history : [],
+      lastSavedAt: parsed.lastSavedAt || "",
       tasks: Array.isArray(parsed.tasks) ? parsed.tasks : structuredClone(seedData.tasks)
     };
     addMissingSeedTasks(loaded);
@@ -492,6 +500,7 @@ function initializeState(loaded) {
     ? loaded.currentUser
     : allowedUsers[0].email;
   loaded.history = Array.isArray(loaded.history) ? loaded.history : [];
+  loaded.lastSavedAt = loaded.lastSavedAt || new Date().toISOString();
   loaded.tasks = loaded.tasks.map(task => ({
     percent: statusToPercent(task.status),
     comments: [],
@@ -579,7 +588,37 @@ function markUpdatedSections(tasks) {
 }
 
 function saveState() {
+  state.lastSavedAt = new Date().toISOString();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  updateDataStoreStatus();
+}
+
+async function updateSyncStatus() {
+  const localBuildStatus = document.querySelector("#localBuildStatus");
+  const syncStatus = document.querySelector("#syncStatus");
+  localBuildStatus.textContent = `${BUILD_INFO.commit} built ${formatDateTime(BUILD_INFO.builtAt)}`;
+  updateDataStoreStatus();
+
+  try {
+    const response = await fetch(`${GITHUB_COMMIT_API}?t=${Date.now()}`, { cache: "no-store" });
+    if (!response.ok) throw new Error(`GitHub returned ${response.status}`);
+    const data = await response.json();
+    const remoteSha = data.sha ? data.sha.slice(0, 7) : "unknown";
+    const remoteDate = data.commit?.committer?.date || data.commit?.author?.date;
+    syncStatus.textContent = `${remoteSha} pushed ${formatDateTime(remoteDate)}`;
+    syncStatus.className = "sync-ok";
+  } catch (error) {
+    syncStatus.textContent = `Could not verify GitHub push timestamp: ${error.message}`;
+    syncStatus.className = "sync-warn";
+  }
+}
+
+function updateDataStoreStatus() {
+  const dataStoreStatus = document.querySelector("#dataStoreStatus");
+  const locationLabel = window.location.protocol === "file:"
+    ? "local file browser storage"
+    : `${window.location.hostname} browser storage`;
+  dataStoreStatus.textContent = `${locationLabel}; last saved ${formatDateTime(state.lastSavedAt)}`;
 }
 
 function render() {
@@ -1369,7 +1408,13 @@ document.querySelector("#resetBtn").addEventListener("click", () => {
   saveState();
   render();
 });
+document.querySelector("#refreshAppBtn").addEventListener("click", () => {
+  const url = new URL(window.location.href);
+  url.searchParams.set("refresh", Date.now().toString());
+  window.location.href = url.toString();
+});
 
 populateUsers();
 populateCategories();
 render();
+updateSyncStatus();
