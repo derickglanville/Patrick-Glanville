@@ -1180,7 +1180,7 @@ function buildUrgencyReportHtml() {
       ${reportSectionHtml("Job Search and Income Opportunities", jobTasks, true)}
       ${reportSectionHtml("Other Urgent Tasks", otherTasks, false)}
     </section>
-    <footer class="footer">Prepared from the Patrick Glanville Support Tracker. For best results, open this file in a browser, select the report body, and paste it into a rich-text email.</footer>
+    <footer class="footer">Prepared from the Patrick Glanville Support Tracker. Save this file in the Email folder and use Send-RichUrgencyReport.ps1 to create a rich Outlook email.</footer>
   </main>
 </body>
 </html>`;
@@ -1226,6 +1226,7 @@ function downloadUrgencyReportHtml() {
   link.download = `patrick-urgency-report-${new Date().toISOString().slice(0, 10)}.html`;
   link.click();
   URL.revokeObjectURL(link.href);
+  alert("Save the HTML report to C:\\Software Development\\Patrick Glanville\\Email. Browsers require you to choose or confirm the save location.");
 }
 
 function populateUsers() {

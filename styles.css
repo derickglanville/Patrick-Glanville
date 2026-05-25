@@ -479,6 +479,12 @@ dialog::backdrop {
   flex-wrap: wrap;
 }
 
+.report-save-note {
+  color: var(--muted);
+  font-size: .9rem;
+  margin: 10px 0 0;
+}
+
 .report-summary {
   border-bottom: 1px solid var(--line);
   padding-bottom: 14px;
