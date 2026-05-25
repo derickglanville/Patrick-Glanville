@@ -373,7 +373,8 @@ textarea {
 }
 
 .status-select,
-.category-select {
+.category-select,
+.priority-select {
   max-width: 150px;
   padding: 8px;
 }

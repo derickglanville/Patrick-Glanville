@@ -24,6 +24,7 @@ const baseCategories = [
   "Vehicle"
 ];
 const statusOptions = ["N/A", "Not started", "In progress", "Waiting", "Blocked", "Done"];
+const priorityOptions = ["Urgent", "High", "Medium", "Low"];
 
 const seedData = {
   notes: "",
@@ -642,12 +643,29 @@ function createTaskCard(task) {
     render();
   });
 
+  const prioritySelect = document.createElement("select");
+  prioritySelect.className = "priority-select";
+  priorityOptions.forEach(priority => {
+    const option = document.createElement("option");
+    option.value = priority;
+    option.textContent = priority;
+    option.selected = task.priority === priority;
+    prioritySelect.appendChild(option);
+  });
+  prioritySelect.addEventListener("change", () => {
+    const before = task.priority;
+    task.priority = prioritySelect.value;
+    recordUpdate(task, `Priority changed from ${before} to ${prioritySelect.value}`);
+    saveState();
+    render();
+  });
+
   const edit = document.createElement("button");
   edit.type = "button";
   edit.textContent = "Edit";
   edit.addEventListener("click", () => openTask(task.id));
 
-  footer.append(categorySelect, select, edit);
+  footer.append(categorySelect, select, prioritySelect, edit);
   card.append(header, meta, dueWrap, percentWrap, meter, next, notes, latestComment, footer);
   return card;
 }
