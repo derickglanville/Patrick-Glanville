@@ -7,7 +7,7 @@ const allowedUsers = [
 ];
 const baseCategories = [
   "Job - Data Annotation",
-  "Job - Easy Money",
+  "Job - Easy Money (Home Depot, Amazon, Lowe's)",
   "Job - Mercor",
   "Job - Prolific",
   "N/A",
@@ -33,7 +33,7 @@ const categoryOrder = [
   "Job - Data Annotation",
   "Job - Prolific",
   "Job - Mercor",
-  "Job - Easy Money",
+  "Job - Easy Money (Home Depot, Amazon, Lowe's)",
   "Income",
   "Benefits",
   "Cash",
@@ -115,8 +115,8 @@ const seedData = {
     },
     {
       id: crypto.randomUUID(),
-      title: "Apply for easy money local jobs",
-      category: "Job - Easy Money",
+      title: "Apply for Easy Money jobs at Home Depot, Amazon, and Lowe's",
+      category: "Job - Easy Money (Home Depot, Amazon, Lowe's)",
       owner: "Patrick",
       status: "Not started",
       priority: "High",
@@ -514,6 +514,24 @@ function addMissingSeedTasks(loaded) {
 }
 
 function markUpdatedSections(tasks) {
+  const easyMoneyTasks = tasks.filter(task =>
+    task.title === "Apply for easy money local jobs" ||
+    task.title === "Apply for Easy Money jobs at Home Depot, Amazon, and Lowe's" ||
+    task.category === "Job - Easy Money"
+  );
+  const easyMoneyTask = easyMoneyTasks[0];
+  if (easyMoneyTask) {
+    easyMoneyTask.title = "Apply for Easy Money jobs at Home Depot, Amazon, and Lowe's";
+    easyMoneyTask.category = "Job - Easy Money (Home Depot, Amazon, Lowe's)";
+    easyMoneyTask.next = "Check nearby Home Depot, Amazon, and Lowe's roles that are reachable by bicycle, bus, family ride, or short-term rental.";
+    easyMoneyTask.notes = "Websites: Home Depot careers https://careers.homedepot.com/, Amazon jobs https://hiring.amazon.com/, Lowe's careers https://talent.lowes.com/. Track job title, location, distance, shift, pay, application date, interview status, and transportation plan.";
+    easyMoneyTask.tag = "Added/Updated";
+  }
+  easyMoneyTasks.slice(1).forEach(duplicate => {
+    const index = tasks.indexOf(duplicate);
+    if (index >= 0) tasks.splice(index, 1);
+  });
+
   const mercorTask = tasks.find(task => task.title === "Prepare for and apply with Mercor.com");
   if (mercorTask) {
     mercorTask.category = "Job - Mercor";
