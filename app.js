@@ -6,6 +6,10 @@ const allowedUsers = [
   { name: "Georgette Hemmings", email: "hemmgeor@gmail.com" }
 ];
 const baseCategories = [
+  "Job - Data Annotation",
+  "Job - Easy Money",
+  "Job - Mercor",
+  "Job - Prolific",
   "N/A",
   "Accountability",
   "Benefits",
@@ -25,6 +29,28 @@ const baseCategories = [
 ];
 const statusOptions = ["N/A", "Not started", "In progress", "Waiting", "Blocked", "Done"];
 const priorityOptions = ["Urgent", "High", "Medium", "Low"];
+const categoryOrder = [
+  "Job - Data Annotation",
+  "Job - Prolific",
+  "Job - Mercor",
+  "Job - Easy Money",
+  "Income",
+  "Benefits",
+  "Cash",
+  "Transportation",
+  "Transportation - Turo rental",
+  "Vehicle",
+  "Debt",
+  "Debt - lender hardship",
+  "Health",
+  "Insurance",
+  "Household tasks",
+  "Home safety",
+  "Family",
+  "Plan",
+  "Accountability",
+  "N/A"
+];
 
 const seedData = {
   notes: "",
@@ -55,13 +81,49 @@ const seedData = {
     {
       id: crypto.randomUUID(),
       title: "Prepare for and apply with Mercor.com",
-      category: "Income",
+      category: "Job - Mercor",
       owner: "Patrick",
       status: "Not started",
       priority: "High",
       due: "",
       next: "Build a physics/math tutoring, AI evaluation, or technical-review resume profile before taking any assessment.",
-      notes: "Practice timed reasoning and clear written explanations. Track login, application date, assessment score, and follow-up."
+      notes: "Website: https://www.mercor.com/. Practice timed reasoning and clear written explanations. Track login, application date, assessment score, and follow-up."
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "Apply for Data Annotation work",
+      category: "Job - Data Annotation",
+      owner: "Patrick",
+      status: "Not started",
+      priority: "High",
+      due: "",
+      next: "Create or update the profile, prepare for any qualification test, and look for projects that use physics, math, writing, or reasoning skills.",
+      notes: "Website: https://www.dataannotation.tech/. Track account setup, qualification status, projects available, hourly rate, payment method, and whether the work can be done from home.",
+      tag: "Added/Updated"
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "Apply for Prolific research studies",
+      category: "Job - Prolific",
+      owner: "Patrick",
+      status: "Not started",
+      priority: "High",
+      due: "",
+      next: "Create a Prolific participant account, complete the profile honestly, and check whether studies are available from his location.",
+      notes: "Website: https://www.prolific.com/. Track approval status, profile completion, study availability, expected pay, payment method, and daily time spent checking for studies.",
+      tag: "Added/Updated"
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "Apply for easy money local jobs",
+      category: "Job - Easy Money",
+      owner: "Patrick",
+      status: "Not started",
+      priority: "High",
+      due: "",
+      next: "Check nearby Home Depot, Amazon, and Lowe's roles that are reachable by bicycle, bus, family ride, or short-term rental.",
+      notes: "Websites: Home Depot careers https://careers.homedepot.com/, Amazon jobs https://hiring.amazon.com/, Lowe's careers https://talent.lowes.com/. Track job title, location, distance, shift, pay, application date, interview status, and transportation plan.",
+      tag: "Added/Updated"
     },
     {
       id: crypto.randomUUID(),
@@ -452,6 +514,14 @@ function addMissingSeedTasks(loaded) {
 }
 
 function markUpdatedSections(tasks) {
+  const mercorTask = tasks.find(task => task.title === "Prepare for and apply with Mercor.com");
+  if (mercorTask) {
+    mercorTask.category = "Job - Mercor";
+    if (!mercorTask.notes.includes("https://www.mercor.com/")) {
+      mercorTask.notes = `Website: https://www.mercor.com/. ${mercorTask.notes}`;
+    }
+  }
+
   const loanTasks = tasks.filter(task =>
     task.title === "Contact car loan company in Dallas" ||
     task.title === "Contact Wells Fargo car financing about hardship options"
@@ -495,10 +565,34 @@ function render() {
   });
 
   taskList.innerHTML = "";
-  filtered.forEach(task => taskList.appendChild(createTaskCard(task)));
+  sortTasksForDashboard(filtered).forEach(task => taskList.appendChild(createTaskCard(task)));
   updateProgress();
   globalNotes.value = state.notes;
   userSelect.value = state.currentUser;
+}
+
+function sortTasksForDashboard(tasks) {
+  return [...tasks].sort((a, b) => {
+    const categoryDifference = categoryRank(a.category) - categoryRank(b.category);
+    if (categoryDifference) return categoryDifference;
+    const priorityDifference = priorityRank(a.priority) - priorityRank(b.priority);
+    if (priorityDifference) return priorityDifference;
+    if (!a.due && b.due) return 1;
+    if (a.due && !b.due) return -1;
+    if (a.due && b.due && a.due !== b.due) return a.due.localeCompare(b.due);
+    return a.title.localeCompare(b.title);
+  });
+}
+
+function categoryRank(category) {
+  const normalized = category || "N/A";
+  const index = categoryOrder.indexOf(normalized);
+  return index >= 0 ? index : categoryOrder.length;
+}
+
+function priorityRank(priority) {
+  const index = priorityOptions.indexOf(priority);
+  return index >= 0 ? index : priorityOptions.length;
 }
 
 function populateCategories() {
@@ -513,7 +607,7 @@ function populateCategories() {
   allOption.value = "all";
   allOption.textContent = "All";
   categoryFilter.appendChild(allOption);
-  [...categories].sort((a, b) => a.localeCompare(b)).forEach(category => {
+  [...categories].sort((a, b) => categoryRank(a) - categoryRank(b) || a.localeCompare(b)).forEach(category => {
     const option = document.createElement("option");
     option.value = category;
     option.textContent = category;
@@ -530,6 +624,7 @@ function populateCategories() {
 function createTaskCard(task) {
   const card = document.createElement("article");
   card.className = "task-card";
+  if ((task.category || "").startsWith("Job -")) card.classList.add("job-card");
 
   const header = document.createElement("header");
   const title = document.createElement("h2");
@@ -676,7 +771,7 @@ function getCategories() {
   state.tasks.forEach(task => {
     if (task.category) categories.add(task.category);
   });
-  return [...categories].sort((a, b) => a.localeCompare(b));
+  return [...categories].sort((a, b) => categoryRank(a) - categoryRank(b) || a.localeCompare(b));
 }
 
 function formatLatestComment(task) {
