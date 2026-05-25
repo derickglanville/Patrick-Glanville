@@ -830,14 +830,7 @@ function renderHistory() {
 
 function renderUrgencyReport() {
   const report = document.querySelector("#urgencyReport");
-  const urgentTasks = state.tasks
-    .filter(task => task.priority === "Urgent")
-    .sort((a, b) => {
-      if (!a.due && !b.due) return a.title.localeCompare(b.title);
-      if (!a.due) return 1;
-      if (!b.due) return -1;
-      return a.due.localeCompare(b.due);
-    });
+  const urgentTasks = getUrgentTasks();
 
   const completed = urgentTasks.filter(task => task.status === "Done").length;
   const blocked = urgentTasks.filter(task => task.status === "Blocked").length;
@@ -849,6 +842,7 @@ function renderUrgencyReport() {
     <section class="report-summary">
       <p class="report-kicker">Generated ${escapeHtml(formatDateTime(new Date().toISOString()))}</p>
       <p>This report summarizes tasks marked with urgent priority, with emphasis on what is due, who owns the task, current progress, and the next action needed.</p>
+      <p><strong>Daily schedule:</strong> This report is intended to be sent every day at 9:33 AM. Automatic sending requires an email backend or scheduled service; this button opens a prepared email for manual sending.</p>
       <div class="report-metrics">
         <article><strong>${urgentTasks.length}</strong><span>urgent tasks</span></article>
         <article><strong>${completed}</strong><span>completed</span></article>
@@ -889,6 +883,72 @@ function renderUrgencyReport() {
     list.appendChild(item);
   });
   report.appendChild(list);
+}
+
+function getUrgentTasks() {
+  return state.tasks
+    .filter(task => task.priority === "Urgent")
+    .sort((a, b) => {
+      if (!a.due && !b.due) return a.title.localeCompare(b.title);
+      if (!a.due) return 1;
+      if (!b.due) return -1;
+      return a.due.localeCompare(b.due);
+    });
+}
+
+function buildUrgencyReportEmail() {
+  const urgentTasks = getUrgentTasks();
+  const completed = urgentTasks.filter(task => task.status === "Done").length;
+  const blocked = urgentTasks.filter(task => task.status === "Blocked").length;
+  const average = urgentTasks.length
+    ? Math.round(urgentTasks.reduce((sum, task) => sum + normalizePercent(task.percent), 0) / urgentTasks.length)
+    : 0;
+
+  const lines = [
+    "Patrick Glanville Support Tracker - Urgency Report",
+    `Generated: ${formatDateTime(new Date().toISOString())}`,
+    "Scheduled daily send time: 9:33 AM",
+    "",
+    "Summary",
+    `Urgent tasks: ${urgentTasks.length}`,
+    `Completed: ${completed}`,
+    `Blocked: ${blocked}`,
+    `Average complete: ${average}%`,
+    "",
+    "Urgent Task Details"
+  ];
+
+  if (!urgentTasks.length) {
+    lines.push("No tasks are currently marked Urgent.");
+  } else {
+    urgentTasks.forEach((task, index) => {
+      lines.push(
+        "",
+        `${index + 1}. ${task.title}`,
+        `Due: ${task.due || "No due date set"}`,
+        `Status: ${task.status || "N/A"}`,
+        `Complete: ${normalizePercent(task.percent)}%`,
+        `Owner: ${task.owner || "No owner"}`,
+        `Category: ${task.category || "N/A"}`,
+        `What is due: ${task.next || "No next step recorded."}`,
+        `Context: ${task.notes || "No notes recorded."}`
+      );
+    });
+  }
+
+  lines.push(
+    "",
+    "Note: This email was prepared from the dashboard. Fully automatic daily sending requires an email backend or scheduled service."
+  );
+
+  return lines.join("\n");
+}
+
+function emailUrgencyReport() {
+  const recipients = allowedUsers.map(user => user.email).join(",");
+  const subject = `Patrick Glanville Urgency Report - ${new Date().toISOString().slice(0, 10)}`;
+  const body = buildUrgencyReportEmail();
+  window.location.href = `mailto:${recipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
 function populateUsers() {
@@ -963,6 +1023,7 @@ document.querySelector("#urgencyReportBtn").addEventListener("click", () => {
   urgencyReportDialog.showModal();
 });
 document.querySelector("#closeUrgencyReportDialog").addEventListener("click", () => urgencyReportDialog.close());
+document.querySelector("#emailUrgencyReportBtn").addEventListener("click", emailUrgencyReport);
 searchInput.addEventListener("input", render);
 statusFilter.addEventListener("change", render);
 priorityFilter.addEventListener("change", render);

@@ -466,6 +466,12 @@ dialog::backdrop {
   margin-top: 14px;
 }
 
+.report-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
 .report-summary {
   border-bottom: 1px solid var(--line);
   padding-bottom: 14px;
