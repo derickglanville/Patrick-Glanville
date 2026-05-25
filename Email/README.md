@@ -20,7 +20,7 @@ To send immediately without review:
 powershell -ExecutionPolicy Bypass -File .\Send-RichUrgencyReport.ps1 -Send
 ```
 
-This utility requires Microsoft Outlook desktop to be installed and configured.
+This utility uses Microsoft Outlook desktop when available. If Outlook desktop is not installed or not registered, it opens a Gmail compose window and opens the rich HTML file so you can attach it or copy the formatted report into the email.
 
 ## Automatic Draft Creation
 
@@ -30,7 +30,7 @@ Browsers cannot run local PowerShell scripts automatically after a download. To 
 powershell -ExecutionPolicy Bypass -File .\Watch-RichUrgencyReports.ps1
 ```
 
-Leave that window open. Each time a new `patrick-urgency-report-*.html` file is saved into this folder, the watcher will run `Send-RichUrgencyReport.ps1` and open a rich Outlook draft.
+Leave that window open. Each time a new `patrick-urgency-report-*.html` file is saved into this folder, the watcher will run `Send-RichUrgencyReport.ps1`. It opens a rich Outlook draft when Outlook desktop is available, otherwise it opens Gmail compose and the HTML report file.
 
 To send automatically without review:
 
