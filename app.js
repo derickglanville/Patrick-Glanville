@@ -1,8 +1,9 @@
 const STORAGE_KEY = "patrick-glanville-support-tracker-v1";
+const DATA_VERSION = 2026052501;
 const BUILD_INFO = {
   commit: "926ad52",
   timestamp: "2026-05-25T11:18:12-04:00",
-  builtAt: "2026-05-25T14:20:58-04:00",
+  builtAt: "2026-05-25T14:41:43-04:00",
   label: "Local build"
 };
 const GITHUB_COMMIT_API = "https://api.github.com/repos/derickglanville/Patrick-Glanville/commits/main";
@@ -62,7 +63,9 @@ const categoryOrder = [
 ];
 
 const seedData = {
+  dataVersion: DATA_VERSION,
   notes: "",
+  lastSavedAt: "",
   tasks: [
     {
       id: crypto.randomUUID(),
@@ -103,9 +106,10 @@ const seedData = {
       title: "Apply for Data Annotation work",
       category: "Job - Data Annotation",
       owner: "Patrick",
-      status: "Not started",
-      priority: "High",
-      due: "",
+      status: "In progress",
+      priority: "Urgent",
+      due: "2026-05-24",
+      percent: 15,
       next: "Create or update the profile, prepare for any qualification test, and look for projects that use physics, math, writing, or reasoning skills.",
       notes: "Website: https://www.dataannotation.tech/. Track account setup, qualification status, projects available, hourly rate, payment method, and whether the work can be done from home.",
       tag: "Added/Updated"
@@ -115,9 +119,10 @@ const seedData = {
       title: "Apply for CloudResearch Connect studies",
       category: "Job - CloudResearch",
       owner: "Patrick",
-      status: "Not started",
-      priority: "High",
-      due: "",
+      status: "In progress",
+      priority: "Urgent",
+      due: "2026-05-25",
+      percent: 15,
       next: "Create a CloudResearch Connect participant account, complete onboarding, and check for paid research studies that can be done from home.",
       notes: "Website: https://connect.cloudresearch.com/participant/. Track account setup, profile completion, verification, study availability, expected pay, payout method, and any rejection or approval notes.",
       tag: "Added/Updated"
@@ -127,9 +132,10 @@ const seedData = {
       title: "Apply for Prolific research studies",
       category: "Job - Prolific",
       owner: "Patrick",
-      status: "Not started",
-      priority: "High",
-      due: "",
+      status: "In progress",
+      priority: "Urgent",
+      due: "2026-05-24",
+      percent: 15,
       next: "Create a Prolific participant account, complete the profile honestly, and check whether studies are available from his location.",
       notes: "Website: https://www.prolific.com/. Track approval status, profile completion, study availability, expected pay, payment method, and daily time spent checking for studies.",
       tag: "Added/Updated"
@@ -482,6 +488,7 @@ function loadState() {
   try {
     const parsed = JSON.parse(saved);
     const loaded = {
+      dataVersion: Number(parsed.dataVersion) || 0,
       notes: parsed.notes || "",
       currentUser: parsed.currentUser || allowedUsers[0].email,
       history: Array.isArray(parsed.history) ? parsed.history : [],
@@ -489,13 +496,17 @@ function loadState() {
       tasks: Array.isArray(parsed.tasks) ? parsed.tasks : structuredClone(seedData.tasks)
     };
     addMissingSeedTasks(loaded);
-    return initializeState(loaded);
+    const migrated = applyDataMigrations(loaded);
+    const initialized = initializeState(loaded);
+    if (migrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(initialized));
+    return initialized;
   } catch {
     return initializeState(structuredClone(seedData));
   }
 }
 
 function initializeState(loaded) {
+  loaded.dataVersion = Number(loaded.dataVersion) || DATA_VERSION;
   loaded.currentUser = allowedUsers.some(user => user.email === loaded.currentUser)
     ? loaded.currentUser
     : allowedUsers[0].email;
@@ -534,6 +545,39 @@ function addMissingSeedTasks(loaded) {
     }
   });
   markUpdatedSections(loaded.tasks);
+}
+
+function applyDataMigrations(loaded) {
+  if ((Number(loaded.dataVersion) || 0) >= DATA_VERSION) return false;
+
+  updateTaskFields(loaded.tasks, "Apply for CloudResearch Connect studies", {
+    status: "In progress",
+    priority: "Urgent",
+    due: "2026-05-25",
+    percent: 15
+  });
+  updateTaskFields(loaded.tasks, "Apply for Data Annotation work", {
+    status: "In progress",
+    priority: "Urgent",
+    due: "2026-05-24",
+    percent: 15
+  });
+  updateTaskFields(loaded.tasks, "Apply for Prolific research studies", {
+    status: "In progress",
+    priority: "Urgent",
+    due: "2026-05-24",
+    percent: 15
+  });
+
+  loaded.dataVersion = DATA_VERSION;
+  loaded.lastSavedAt = new Date().toISOString();
+  return true;
+}
+
+function updateTaskFields(tasks, title, updates) {
+  const task = tasks.find(item => item.title === title);
+  if (!task) return;
+  Object.assign(task, updates);
 }
 
 function markUpdatedSections(tasks) {
@@ -596,7 +640,7 @@ function saveState() {
 async function updateSyncStatus() {
   const localBuildStatus = document.querySelector("#localBuildStatus");
   const syncStatus = document.querySelector("#syncStatus");
-  localBuildStatus.textContent = `${BUILD_INFO.commit} built ${formatDateTime(BUILD_INFO.builtAt)}`;
+  localBuildStatus.textContent = `${BUILD_INFO.label}: ${formatDateTime(BUILD_INFO.builtAt)}`;
   updateDataStoreStatus();
 
   try {
