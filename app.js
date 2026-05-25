@@ -1119,6 +1119,115 @@ function emailUrgencyReport() {
   window.location.href = `mailto:${recipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
+function buildUrgencyReportHtml() {
+  const urgentTasks = getUrgentTasks();
+  const jobTasks = urgentTasks.filter(isJobTask);
+  const otherTasks = urgentTasks.filter(task => !isJobTask(task));
+  const completed = urgentTasks.filter(task => task.status === "Done").length;
+  const blocked = urgentTasks.filter(task => task.status === "Blocked").length;
+  const average = urgentTasks.length
+    ? Math.round(urgentTasks.reduce((sum, task) => sum + normalizePercent(task.percent), 0) / urgentTasks.length)
+    : 0;
+  const generated = formatDateTime(new Date().toISOString());
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Patrick Glanville Urgency Report</title>
+  <style>
+    body { margin: 0; background: #f4f6f9; color: #18202a; font-family: Arial, Helvetica, sans-serif; }
+    .wrap { max-width: 960px; margin: 0 auto; background: #ffffff; }
+    .header { padding: 28px 32px; background: #18324d; color: #ffffff; }
+    .header h1 { margin: 0 0 8px; font-size: 28px; }
+    .header p { margin: 0; color: #dbe7f5; }
+    .content { padding: 26px 32px 34px; }
+    .notice { margin: 0 0 18px; padding: 12px 14px; background: #fff8d6; border: 1px solid #e5cd63; border-radius: 6px; }
+    .metrics { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 18px 0 22px; }
+    .metric { border: 1px solid #d9dee7; border-radius: 6px; padding: 12px; }
+    .metric strong { display: block; font-size: 24px; color: #2f6db7; }
+    .metric span { color: #5b6573; font-size: 13px; }
+    .section { margin-top: 22px; }
+    .section-title { border-bottom: 2px solid #d9dee7; padding-bottom: 8px; margin-bottom: 12px; }
+    .section-title h2 { margin: 0; font-size: 20px; }
+    .job-section { border: 2px solid #2f6db7; border-radius: 8px; padding: 16px; background: #f2f7ff; }
+    .task { border: 1px solid #d9dee7; border-radius: 8px; padding: 14px; margin-top: 12px; background: #ffffff; }
+    .task h3 { margin: 0 0 10px; font-size: 18px; }
+    .meta { width: 100%; border-collapse: collapse; margin: 10px 0; }
+    .meta th { text-align: left; color: #5b6573; font-size: 12px; text-transform: uppercase; padding: 6px 8px 2px 0; }
+    .meta td { padding: 2px 8px 8px 0; vertical-align: top; }
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 999px; background: #ffe1df; color: #8d2424; font-weight: 700; font-size: 12px; }
+    .label { font-weight: 700; }
+    .empty { color: #5b6573; }
+    .footer { padding: 18px 32px; color: #5b6573; font-size: 12px; border-top: 1px solid #d9dee7; }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header class="header">
+      <h1>Patrick Glanville Urgency Report</h1>
+      <p>Generated ${escapeHtml(generated)} | Scheduled daily send time: 9:33 AM</p>
+    </header>
+    <section class="content">
+      <p class="notice"><strong>Job focus:</strong> Job and income opportunities are grouped first because restoring income is the highest leverage path for transportation, housing, debt, and daily living stability.</p>
+      <div class="metrics">
+        ${metricHtml(urgentTasks.length, "urgent tasks")}
+        ${metricHtml(jobTasks.length, "urgent job tasks")}
+        ${metricHtml(completed, "completed")}
+        ${metricHtml(blocked, "blocked")}
+        ${metricHtml(`${average}%`, "average complete")}
+      </div>
+      ${reportSectionHtml("Job Search and Income Opportunities", jobTasks, true)}
+      ${reportSectionHtml("Other Urgent Tasks", otherTasks, false)}
+    </section>
+    <footer class="footer">Prepared from the Patrick Glanville Support Tracker. For best results, open this file in a browser, select the report body, and paste it into a rich-text email.</footer>
+  </main>
+</body>
+</html>`;
+}
+
+function metricHtml(value, label) {
+  return `<article class="metric"><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></article>`;
+}
+
+function reportSectionHtml(title, tasks, isJobSection) {
+  const empty = isJobSection ? "No urgent job tasks currently listed." : "No other urgent tasks currently listed.";
+  const taskHtml = tasks.length ? tasks.map(taskReportHtml).join("") : `<p class="empty">${escapeHtml(empty)}</p>`;
+  return `<section class="section ${isJobSection ? "job-section" : ""}">
+    <div class="section-title"><h2>${escapeHtml(title)}</h2></div>
+    ${taskHtml}
+  </section>`;
+}
+
+function taskReportHtml(task) {
+  return `<article class="task">
+    <h3>${escapeHtml(task.title)} <span class="badge">Urgent</span></h3>
+    <table class="meta">
+      <tr>
+        <th>Due</th><th>Status</th><th>Complete</th><th>Owner</th><th>Category</th>
+      </tr>
+      <tr>
+        <td>${escapeHtml(task.due || "No due date set")}</td>
+        <td>${escapeHtml(task.status || "N/A")}</td>
+        <td>${normalizePercent(task.percent)}%</td>
+        <td>${escapeHtml(task.owner || "No owner")}</td>
+        <td>${escapeHtml(task.category || "N/A")}</td>
+      </tr>
+    </table>
+    <p><span class="label">What is due:</span> ${escapeHtml(task.next || "No next step recorded.")}</p>
+    <p><span class="label">Context:</span> ${escapeHtml(task.notes || "No notes recorded.")}</p>
+  </article>`;
+}
+
+function downloadUrgencyReportHtml() {
+  const blob = new Blob([buildUrgencyReportHtml()], { type: "text/html" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `patrick-urgency-report-${new Date().toISOString().slice(0, 10)}.html`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
 function populateUsers() {
   userSelect.innerHTML = "";
   allowedUsers.forEach(user => {
@@ -1193,6 +1302,8 @@ document.querySelector("#urgencyReportBtn").addEventListener("click", () => {
 document.querySelector("#closeUrgencyReportDialog").addEventListener("click", () => urgencyReportDialog.close());
 document.querySelector("#emailUrgencyReportBtn").addEventListener("click", emailUrgencyReport);
 document.querySelector("#emailDashboardReportBtn").addEventListener("click", emailUrgencyReport);
+document.querySelector("#htmlEmailUrgencyReportBtn").addEventListener("click", downloadUrgencyReportHtml);
+document.querySelector("#htmlEmailDashboardReportBtn").addEventListener("click", downloadUrgencyReportHtml);
 searchInput.addEventListener("input", render);
 statusFilter.addEventListener("change", render);
 priorityFilter.addEventListener("change", render);
