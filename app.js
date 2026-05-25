@@ -551,9 +551,23 @@ function createTaskCard(task) {
   meta.innerHTML = `
     <span>${escapeHtml(task.category || "Uncategorized")}</span>
     <span>${escapeHtml(task.owner || "No owner")}</span>
-    <span>${task.due ? `Due ${escapeHtml(task.due)}` : "No due date"}</span>
     <span>${normalizePercent(task.percent)}% complete</span>
   `;
+
+  const dueWrap = document.createElement("label");
+  dueWrap.className = "due-inline";
+  dueWrap.textContent = "Due date";
+  const dueInput = document.createElement("input");
+  dueInput.type = "date";
+  dueInput.value = task.due || "";
+  dueInput.addEventListener("change", () => {
+    const before = task.due || "No due date";
+    task.due = dueInput.value;
+    recordUpdate(task, `Due date changed from ${before} to ${task.due || "No due date"}`);
+    saveState();
+    render();
+  });
+  dueWrap.appendChild(dueInput);
 
   const meter = document.createElement("div");
   meter.className = "task-meter";
@@ -614,7 +628,7 @@ function createTaskCard(task) {
   edit.addEventListener("click", () => openTask(task.id));
 
   footer.append(categorySelect, select, edit);
-  card.append(header, meta, meter, next, notes, latestComment, footer);
+  card.append(header, meta, dueWrap, meter, next, notes, latestComment, footer);
   return card;
 }
 

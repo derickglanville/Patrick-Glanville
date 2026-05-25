@@ -325,6 +325,15 @@ textarea {
   font-size: .88rem;
 }
 
+.due-inline {
+  max-width: 210px;
+  color: var(--muted);
+}
+
+.due-inline input {
+  margin-top: 2px;
+}
+
 .task-meter {
   height: 8px;
   overflow: hidden;
