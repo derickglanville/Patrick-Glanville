@@ -1024,6 +1024,7 @@ document.querySelector("#urgencyReportBtn").addEventListener("click", () => {
 });
 document.querySelector("#closeUrgencyReportDialog").addEventListener("click", () => urgencyReportDialog.close());
 document.querySelector("#emailUrgencyReportBtn").addEventListener("click", emailUrgencyReport);
+document.querySelector("#emailDashboardReportBtn").addEventListener("click", emailUrgencyReport);
 searchInput.addEventListener("input", render);
 statusFilter.addEventListener("change", render);
 priorityFilter.addEventListener("change", render);
