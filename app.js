@@ -944,6 +944,8 @@ function renderHistory() {
 function renderUrgencyReport() {
   const report = document.querySelector("#urgencyReport");
   const urgentTasks = getUrgentTasks();
+  const jobTasks = urgentTasks.filter(isJobTask);
+  const otherTasks = urgentTasks.filter(task => !isJobTask(task));
 
   const completed = urgentTasks.filter(task => task.status === "Done").length;
   const blocked = urgentTasks.filter(task => task.status === "Blocked").length;
@@ -955,9 +957,11 @@ function renderUrgencyReport() {
     <section class="report-summary">
       <p class="report-kicker">Generated ${escapeHtml(formatDateTime(new Date().toISOString()))}</p>
       <p>This report summarizes tasks marked with urgent priority, with emphasis on what is due, who owns the task, current progress, and the next action needed.</p>
+      <p><strong>Job focus:</strong> Job and income opportunities are grouped first because restoring income is the highest leverage path for transportation, housing, debt, and daily living stability.</p>
       <p><strong>Daily schedule:</strong> This report is intended to be sent every day at 9:33 AM. Automatic sending requires an email backend or scheduled service; this button opens a prepared email for manual sending.</p>
       <div class="report-metrics">
         <article><strong>${urgentTasks.length}</strong><span>urgent tasks</span></article>
+        <article><strong>${jobTasks.length}</strong><span>urgent job tasks</span></article>
         <article><strong>${completed}</strong><span>completed</span></article>
         <article><strong>${blocked}</strong><span>blocked</span></article>
         <article><strong>${average}%</strong><span>average complete</span></article>
@@ -973,11 +977,26 @@ function renderUrgencyReport() {
     return;
   }
 
-  const list = document.createElement("section");
+  if (jobTasks.length) report.appendChild(createReportSection("Job Search and Income Opportunities", jobTasks, true));
+  if (otherTasks.length) report.appendChild(createReportSection("Other Urgent Tasks", otherTasks, false));
+}
+
+function createReportSection(title, tasks, isJobSection) {
+  const section = document.createElement("section");
+  section.className = isJobSection ? "report-section report-section-jobs" : "report-section";
+  const heading = document.createElement("div");
+  heading.className = "report-section-heading";
+  heading.innerHTML = `
+    <h3>${escapeHtml(title)}</h3>
+    <span>${tasks.length} task${tasks.length === 1 ? "" : "s"}</span>
+  `;
+  section.appendChild(heading);
+
+  const list = document.createElement("div");
   list.className = "report-list";
-  urgentTasks.forEach(task => {
+  tasks.forEach(task => {
     const item = document.createElement("article");
-    item.className = "report-item";
+    item.className = isJobSection ? "report-item report-job-item" : "report-item";
     item.innerHTML = `
       <header>
         <h3>${escapeHtml(task.title)}</h3>
@@ -995,22 +1014,33 @@ function renderUrgencyReport() {
     `;
     list.appendChild(item);
   });
-  report.appendChild(list);
+  section.appendChild(list);
+  return section;
 }
 
 function getUrgentTasks() {
   return state.tasks
     .filter(task => task.priority === "Urgent")
-    .sort((a, b) => {
-      if (!a.due && !b.due) return a.title.localeCompare(b.title);
-      if (!a.due) return 1;
-      if (!b.due) return -1;
-      return a.due.localeCompare(b.due);
-    });
+    .sort(compareReportTasks);
+}
+
+function compareReportTasks(a, b) {
+  const categoryDifference = categoryRank(a.category) - categoryRank(b.category);
+  if (categoryDifference) return categoryDifference;
+  if (!a.due && b.due) return 1;
+  if (a.due && !b.due) return -1;
+  if (a.due && b.due && a.due !== b.due) return a.due.localeCompare(b.due);
+  return a.title.localeCompare(b.title);
+}
+
+function isJobTask(task) {
+  return (task.category || "").startsWith("Job -");
 }
 
 function buildUrgencyReportEmail() {
   const urgentTasks = getUrgentTasks();
+  const jobTasks = urgentTasks.filter(isJobTask);
+  const otherTasks = urgentTasks.filter(task => !isJobTask(task));
   const completed = urgentTasks.filter(task => task.status === "Done").length;
   const blocked = urgentTasks.filter(task => task.status === "Blocked").length;
   const average = urgentTasks.length
@@ -1024,29 +1054,20 @@ function buildUrgencyReportEmail() {
     "",
     "Summary",
     `Urgent tasks: ${urgentTasks.length}`,
+    `Urgent job tasks: ${jobTasks.length}`,
     `Completed: ${completed}`,
     `Blocked: ${blocked}`,
     `Average complete: ${average}%`,
     "",
-    "Urgent Task Details"
+    "Job Search and Income Opportunities"
   ];
 
   if (!urgentTasks.length) {
     lines.push("No tasks are currently marked Urgent.");
   } else {
-    urgentTasks.forEach((task, index) => {
-      lines.push(
-        "",
-        `${index + 1}. ${task.title}`,
-        `Due: ${task.due || "No due date set"}`,
-        `Status: ${task.status || "N/A"}`,
-        `Complete: ${normalizePercent(task.percent)}%`,
-        `Owner: ${task.owner || "No owner"}`,
-        `Category: ${task.category || "N/A"}`,
-        `What is due: ${task.next || "No next step recorded."}`,
-        `Context: ${task.notes || "No notes recorded."}`
-      );
-    });
+    appendReportEmailSection(lines, jobTasks, "No urgent job tasks currently listed.");
+    lines.push("", "Other Urgent Tasks");
+    appendReportEmailSection(lines, otherTasks, "No other urgent tasks currently listed.");
   }
 
   lines.push(
@@ -1055,6 +1076,26 @@ function buildUrgencyReportEmail() {
   );
 
   return lines.join("\n");
+}
+
+function appendReportEmailSection(lines, tasks, emptyMessage) {
+  if (!tasks.length) {
+    lines.push(emptyMessage);
+    return;
+  }
+  tasks.forEach((task, index) => {
+    lines.push(
+      "",
+      `${index + 1}. ${task.title}`,
+      `Due: ${task.due || "No due date set"}`,
+      `Status: ${task.status || "N/A"}`,
+      `Complete: ${normalizePercent(task.percent)}%`,
+      `Owner: ${task.owner || "No owner"}`,
+      `Category: ${task.category || "N/A"}`,
+      `What is due: ${task.next || "No next step recorded."}`,
+      `Context: ${task.notes || "No notes recorded."}`
+    );
+  });
 }
 
 function emailUrgencyReport() {
