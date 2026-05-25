@@ -325,13 +325,19 @@ textarea {
   font-size: .88rem;
 }
 
-.due-inline {
+.due-inline,
+.percent-inline {
   max-width: 210px;
   color: var(--muted);
 }
 
-.due-inline input {
+.due-inline input,
+.percent-inline input {
   margin-top: 2px;
+}
+
+.percent-inline {
+  max-width: 170px;
 }
 
 .task-meter {

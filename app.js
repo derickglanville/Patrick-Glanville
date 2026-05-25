@@ -569,6 +569,26 @@ function createTaskCard(task) {
   });
   dueWrap.appendChild(dueInput);
 
+  const percentWrap = document.createElement("label");
+  percentWrap.className = "percent-inline";
+  percentWrap.textContent = "Percent complete";
+  const percentInput = document.createElement("input");
+  percentInput.type = "number";
+  percentInput.min = "0";
+  percentInput.max = "100";
+  percentInput.step = "5";
+  percentInput.value = normalizePercent(task.percent);
+  percentInput.addEventListener("change", () => {
+    const before = normalizePercent(task.percent);
+    task.percent = normalizePercent(percentInput.value);
+    if (task.percent === 100) task.status = "Done";
+    else if (task.status === "Done") task.status = "In progress";
+    recordUpdate(task, `Percent complete changed from ${before}% to ${task.percent}%`);
+    saveState();
+    render();
+  });
+  percentWrap.appendChild(percentInput);
+
   const meter = document.createElement("div");
   meter.className = "task-meter";
   meter.innerHTML = `<span style="width: ${normalizePercent(task.percent)}%"></span>`;
@@ -628,7 +648,7 @@ function createTaskCard(task) {
   edit.addEventListener("click", () => openTask(task.id));
 
   footer.append(categorySelect, select, edit);
-  card.append(header, meta, dueWrap, meter, next, notes, latestComment, footer);
+  card.append(header, meta, dueWrap, percentWrap, meter, next, notes, latestComment, footer);
   return card;
 }
 
