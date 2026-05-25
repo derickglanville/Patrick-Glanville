@@ -376,6 +376,7 @@ const taskDialog = document.querySelector("#taskDialog");
 const taskForm = document.querySelector("#taskForm");
 const userSelect = document.querySelector("#userSelect");
 const historyDialog = document.querySelector("#historyDialog");
+const urgencyReportDialog = document.querySelector("#urgencyReportDialog");
 
 const fields = {
   id: document.querySelector("#taskId"),
@@ -827,6 +828,69 @@ function renderHistory() {
   });
 }
 
+function renderUrgencyReport() {
+  const report = document.querySelector("#urgencyReport");
+  const urgentTasks = state.tasks
+    .filter(task => task.priority === "Urgent")
+    .sort((a, b) => {
+      if (!a.due && !b.due) return a.title.localeCompare(b.title);
+      if (!a.due) return 1;
+      if (!b.due) return -1;
+      return a.due.localeCompare(b.due);
+    });
+
+  const completed = urgentTasks.filter(task => task.status === "Done").length;
+  const blocked = urgentTasks.filter(task => task.status === "Blocked").length;
+  const average = urgentTasks.length
+    ? Math.round(urgentTasks.reduce((sum, task) => sum + normalizePercent(task.percent), 0) / urgentTasks.length)
+    : 0;
+
+  report.innerHTML = `
+    <section class="report-summary">
+      <p class="report-kicker">Generated ${escapeHtml(formatDateTime(new Date().toISOString()))}</p>
+      <p>This report summarizes tasks marked with urgent priority, with emphasis on what is due, who owns the task, current progress, and the next action needed.</p>
+      <div class="report-metrics">
+        <article><strong>${urgentTasks.length}</strong><span>urgent tasks</span></article>
+        <article><strong>${completed}</strong><span>completed</span></article>
+        <article><strong>${blocked}</strong><span>blocked</span></article>
+        <article><strong>${average}%</strong><span>average complete</span></article>
+      </div>
+    </section>
+  `;
+
+  if (!urgentTasks.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-report";
+    empty.textContent = "There are no tasks currently marked Urgent.";
+    report.appendChild(empty);
+    return;
+  }
+
+  const list = document.createElement("section");
+  list.className = "report-list";
+  urgentTasks.forEach(task => {
+    const item = document.createElement("article");
+    item.className = "report-item";
+    item.innerHTML = `
+      <header>
+        <h3>${escapeHtml(task.title)}</h3>
+        <span class="pill Urgent">Urgent</span>
+      </header>
+      <dl>
+        <div><dt>Due</dt><dd>${escapeHtml(task.due || "No due date set")}</dd></div>
+        <div><dt>Status</dt><dd>${escapeHtml(task.status || "N/A")}</dd></div>
+        <div><dt>Complete</dt><dd>${normalizePercent(task.percent)}%</dd></div>
+        <div><dt>Owner</dt><dd>${escapeHtml(task.owner || "No owner")}</dd></div>
+        <div><dt>Category</dt><dd>${escapeHtml(task.category || "N/A")}</dd></div>
+      </dl>
+      <p><strong>What is due:</strong> ${escapeHtml(task.next || "No next step recorded.")}</p>
+      <p><strong>Context:</strong> ${escapeHtml(task.notes || "No notes recorded.")}</p>
+    `;
+    list.appendChild(item);
+  });
+  report.appendChild(list);
+}
+
 function populateUsers() {
   userSelect.innerHTML = "";
   allowedUsers.forEach(user => {
@@ -894,6 +958,11 @@ document.querySelector("#historyBtn").addEventListener("click", () => {
   historyDialog.showModal();
 });
 document.querySelector("#closeHistoryDialog").addEventListener("click", () => historyDialog.close());
+document.querySelector("#urgencyReportBtn").addEventListener("click", () => {
+  renderUrgencyReport();
+  urgencyReportDialog.showModal();
+});
+document.querySelector("#closeUrgencyReportDialog").addEventListener("click", () => urgencyReportDialog.close());
 searchInput.addEventListener("input", render);
 statusFilter.addEventListener("change", render);
 priorityFilter.addEventListener("change", render);

@@ -29,6 +29,7 @@
     </div>
     <div class="header-actions" aria-label="Data actions">
       <button id="pdfBtn" type="button" title="Create a PDF from the full tracker page">Create PDF</button>
+      <button id="urgencyReportBtn" type="button" title="Open a professional report of urgent tasks">Urgency Report</button>
       <button id="historyBtn" type="button" title="Review all task updates">History</button>
       <button id="exportBtn" type="button" title="Download current tracker data">Export</button>
       <label class="import-label" title="Restore tracker data from a JSON export">
@@ -203,6 +204,16 @@
         <button type="button" id="closeHistoryDialog" class="icon-button" aria-label="Close">x</button>
       </div>
       <div id="historyList" class="history-list"></div>
+    </div>
+  </dialog>
+
+  <dialog id="urgencyReportDialog">
+    <div class="report-dialog">
+      <div class="dialog-head">
+        <h2>Urgency Report</h2>
+        <button type="button" id="closeUrgencyReportDialog" class="icon-button" aria-label="Close">x</button>
+      </div>
+      <div id="urgencyReport" class="report-body"></div>
     </div>
   </dialog>
 

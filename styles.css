@@ -449,7 +449,8 @@ dialog::backdrop {
   margin: 8px 0 0;
 }
 
-.history-dialog {
+.history-dialog,
+.report-dialog {
   padding: 18px;
 }
 
@@ -457,6 +458,95 @@ dialog::backdrop {
   max-height: 70vh;
   overflow: auto;
   margin-top: 14px;
+}
+
+.report-body {
+  max-height: 72vh;
+  overflow: auto;
+  margin-top: 14px;
+}
+
+.report-summary {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 14px;
+}
+
+.report-kicker {
+  color: var(--muted);
+  font-size: .88rem;
+  margin: 0 0 8px;
+}
+
+.report-summary p {
+  margin: 0 0 14px;
+}
+
+.report-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.report-metrics article {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.report-metrics strong {
+  display: block;
+  font-size: 1.35rem;
+}
+
+.report-metrics span {
+  color: var(--muted);
+  font-size: .86rem;
+}
+
+.report-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.report-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.report-item header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.report-item h3 {
+  margin: 0;
+}
+
+.report-item dl {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.report-item dt {
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.report-item dd {
+  margin: 3px 0 0;
+}
+
+.report-item p,
+.empty-report {
+  margin: 8px 0 0;
 }
 
 .dialog-head,
@@ -507,6 +597,8 @@ dialog::backdrop {
   .overview,
   .task-grid,
   .progress-band,
+  .report-metrics,
+  .report-item dl,
   .form-row,
   .dialog-actions {
     grid-template-columns: 1fr;
@@ -542,6 +634,7 @@ dialog::backdrop {
   .controls,
   .collaboration-panel,
   .task-card footer,
+  .report-dialog,
   dialog {
     display: none !important;
   }
