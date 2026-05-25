@@ -6,6 +6,7 @@ const allowedUsers = [
   { name: "Georgette Hemmings", email: "hemmgeor@gmail.com" }
 ];
 const baseCategories = [
+  "Job - CloudResearch",
   "Job - Data Annotation",
   "Job - Easy Money (Home Depot, Amazon, Lowe's)",
   "Job - Mercor",
@@ -30,6 +31,7 @@ const baseCategories = [
 const statusOptions = ["N/A", "Not started", "In progress", "Waiting", "Blocked", "Done"];
 const priorityOptions = ["Urgent", "High", "Medium", "Low"];
 const categoryOrder = [
+  "Job - CloudResearch",
   "Job - Data Annotation",
   "Job - Prolific",
   "Job - Mercor",
@@ -99,6 +101,18 @@ const seedData = {
       due: "",
       next: "Create or update the profile, prepare for any qualification test, and look for projects that use physics, math, writing, or reasoning skills.",
       notes: "Website: https://www.dataannotation.tech/. Track account setup, qualification status, projects available, hourly rate, payment method, and whether the work can be done from home.",
+      tag: "Added/Updated"
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "Apply for CloudResearch Connect studies",
+      category: "Job - CloudResearch",
+      owner: "Patrick",
+      status: "Not started",
+      priority: "High",
+      due: "",
+      next: "Create a CloudResearch Connect participant account, complete onboarding, and check for paid research studies that can be done from home.",
+      notes: "Website: https://connect.cloudresearch.com/participant/. Track account setup, profile completion, verification, study availability, expected pay, payout method, and any rejection or approval notes.",
       tag: "Added/Updated"
     },
     {
