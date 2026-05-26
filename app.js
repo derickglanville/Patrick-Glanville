@@ -3,7 +3,7 @@ const DATA_VERSION = 2026052501;
 const BUILD_INFO = {
   commit: "926ad52",
   timestamp: "2026-05-25T11:18:12-04:00",
-  builtAt: "2026-05-25T14:41:43-04:00",
+  builtAt: "2026-05-26T09:34:41-04:00",
   label: "Local build"
 };
 const GITHUB_COMMIT_API = "https://api.github.com/repos/derickglanville/Patrick-Glanville/commits/main";
@@ -1092,15 +1092,23 @@ function createReportSection(title, tasks, isJobSection) {
   const list = document.createElement("div");
   list.className = "report-list";
   tasks.forEach(task => {
+    const pastDue = isPastDue(task);
     const item = document.createElement("article");
-    item.className = isJobSection ? "report-item report-job-item" : "report-item";
+    item.className = [
+      "report-item",
+      isJobSection ? "report-job-item" : "",
+      pastDue ? "report-item-overdue" : ""
+    ].filter(Boolean).join(" ");
     item.innerHTML = `
       <header>
         <h3>${escapeHtml(task.title)}</h3>
-        <span class="pill Urgent">Urgent</span>
+        <div class="report-flags">
+          ${pastDue ? "<span class=\"overdue-flag\">Red Flag: Past Due</span>" : ""}
+          <span class="pill Urgent">Urgent</span>
+        </div>
       </header>
       <dl>
-        <div><dt>Due</dt><dd>${escapeHtml(task.due || "No due date set")}</dd></div>
+        <div><dt>Due</dt><dd class="${pastDue ? "due-past" : ""}">${escapeHtml(dueDateLabel(task))}</dd></div>
         <div><dt>Status</dt><dd>${escapeHtml(task.status || "N/A")}</dd></div>
         <div><dt>Complete</dt><dd>${normalizePercent(task.percent)}%</dd></div>
         <div><dt>Owner</dt><dd>${escapeHtml(task.owner || "No owner")}</dd></div>
@@ -1128,6 +1136,24 @@ function compareReportTasks(a, b) {
   if (a.due && !b.due) return -1;
   if (a.due && b.due && a.due !== b.due) return a.due.localeCompare(b.due);
   return a.title.localeCompare(b.title);
+}
+
+function isPastDue(task) {
+  if (!task.due || task.status === "Done") return false;
+  return task.due < getTodayIsoDate();
+}
+
+function getTodayIsoDate() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function dueDateLabel(task) {
+  const due = task.due || "No due date set";
+  return isPastDue(task) ? `${due} - PAST DUE` : due;
 }
 
 function isJobTask(task) {
@@ -1184,7 +1210,7 @@ function appendReportEmailSection(lines, tasks, emptyMessage) {
     lines.push(
       "",
       `${index + 1}. ${task.title}`,
-      `Due: ${task.due || "No due date set"}`,
+      `Due: ${dueDateLabel(task)}`,
       `Status: ${task.status || "N/A"}`,
       `Complete: ${normalizePercent(task.percent)}%`,
       `Owner: ${task.owner || "No owner"}`,
@@ -1235,11 +1261,14 @@ function buildUrgencyReportHtml() {
     .section-title h2 { margin: 0; font-size: 20px; }
     .job-section { border: 2px solid #2f6db7; border-radius: 8px; padding: 16px; background: #f2f7ff; }
     .task { border: 1px solid #d9dee7; border-radius: 8px; padding: 14px; margin-top: 12px; background: #ffffff; }
+    .task-overdue { border-color: #b63b3b; box-shadow: inset 4px 0 0 #b63b3b; }
     .task h3 { margin: 0 0 10px; font-size: 18px; }
     .meta { width: 100%; border-collapse: collapse; margin: 10px 0; }
     .meta th { text-align: left; color: #5b6573; font-size: 12px; text-transform: uppercase; padding: 6px 8px 2px 0; }
     .meta td { padding: 2px 8px 8px 0; vertical-align: top; }
     .badge { display: inline-block; padding: 4px 8px; border-radius: 999px; background: #ffe1df; color: #8d2424; font-weight: 700; font-size: 12px; }
+    .overdue { display: inline-block; margin-right: 8px; padding: 4px 8px; border-radius: 999px; background: #b63b3b; color: #ffffff; font-weight: 700; font-size: 12px; }
+    .due-past { color: #8d2424; font-weight: 700; }
     .label { font-weight: 700; }
     .empty { color: #5b6573; }
     .footer { padding: 18px 32px; color: #5b6573; font-size: 12px; border-top: 1px solid #d9dee7; }
@@ -1283,14 +1312,15 @@ function reportSectionHtml(title, tasks, isJobSection) {
 }
 
 function taskReportHtml(task) {
-  return `<article class="task">
-    <h3>${escapeHtml(task.title)} <span class="badge">Urgent</span></h3>
+  const pastDue = isPastDue(task);
+  return `<article class="task ${pastDue ? "task-overdue" : ""}">
+    <h3>${escapeHtml(task.title)} ${pastDue ? "<span class=\"overdue\">Red Flag: Past Due</span>" : ""}<span class="badge">Urgent</span></h3>
     <table class="meta">
       <tr>
         <th>Due</th><th>Status</th><th>Complete</th><th>Owner</th><th>Category</th>
       </tr>
       <tr>
-        <td>${escapeHtml(task.due || "No due date set")}</td>
+        <td class="${pastDue ? "due-past" : ""}">${escapeHtml(dueDateLabel(task))}</td>
         <td>${escapeHtml(task.status || "N/A")}</td>
         <td>${normalizePercent(task.percent)}%</td>
         <td>${escapeHtml(task.owner || "No owner")}</td>

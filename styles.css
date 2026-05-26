@@ -600,11 +600,42 @@ dialog::backdrop {
   background: white;
 }
 
+.report-item-overdue {
+  border-color: var(--red);
+  box-shadow: inset 4px 0 0 var(--red);
+}
+
 .report-item header {
   display: flex;
   justify-content: space-between;
   gap: 12px;
   align-items: flex-start;
+}
+
+.report-flags {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.overdue-flag {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0 10px;
+  background: var(--red);
+  color: white;
+  font-size: .78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.due-past {
+  color: var(--red);
+  font-weight: 800;
 }
 
 .report-item h3 {
