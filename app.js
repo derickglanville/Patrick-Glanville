@@ -1,9 +1,9 @@
 const STORAGE_KEY = "patrick-glanville-support-tracker-v1";
-const DATA_VERSION = 2026052501;
+const DATA_VERSION = 2026052601;
 const BUILD_INFO = {
   commit: "926ad52",
   timestamp: "2026-05-25T11:18:12-04:00",
-  builtAt: "2026-05-26T09:34:41-04:00",
+  builtAt: "2026-05-26T13:29:53-04:00",
   label: "Local build"
 };
 const GITHUB_COMMIT_API = "https://api.github.com/repos/derickglanville/Patrick-Glanville/commits/main";
@@ -31,6 +31,7 @@ const baseCategories = [
   "Household tasks",
   "Income",
   "Insurance",
+  "Medical bills",
   "Plan",
   "Transportation",
   "Transportation - Turo rental",
@@ -54,6 +55,7 @@ const categoryOrder = [
   "Debt - lender hardship",
   "Health",
   "Insurance",
+  "Medical bills",
   "Household tasks",
   "Home safety",
   "Family",
@@ -274,6 +276,18 @@ const seedData = {
       due: "",
       next: "Make a lender list, call each hardship department, and ask whether payments can be suspended, deferred, reduced, or moved to the end of the loan.",
       notes: "Track lender name, phone number, account type, date called, representative name, hardship reason, documents requested, whether interest continues, credit-reporting impact, fees, due date changes, and written confirmation. Do not rely on verbal promises; ask for the hardship terms in writing.",
+      tag: "Added/Updated"
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "Request Baylor Scott and White payment suspension",
+      category: "Medical bills",
+      owner: "Patrick + brother",
+      status: "Not started",
+      priority: "Urgent",
+      due: "",
+      next: "Call Baylor Scott and White billing or financial assistance and ask for a temporary suspension, hardship plan, charity-care review, or reduced payment plan because Patrick has no current income.",
+      notes: "Track account number, billing phone number, representative name, date called, documents requested, whether collections are paused, financial-assistance application deadlines, and written confirmation of any payment suspension.",
       tag: "Added/Updated"
     },
     {
