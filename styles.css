@@ -271,6 +271,99 @@ textarea {
   background: linear-gradient(90deg, var(--green), var(--blue));
 }
 
+.budget-panel {
+  margin: 0 0 18px;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 14px;
+}
+
+.budget-panel header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: 16px;
+  align-items: start;
+}
+
+.budget-panel h2 {
+  margin: 0 0 6px;
+}
+
+.budget-panel p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.budget-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.budget-metrics article {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.budget-metrics strong {
+  display: block;
+  font-size: 1.25rem;
+}
+
+.budget-metrics span {
+  color: var(--muted);
+  font-size: .86rem;
+}
+
+.bill-table-wrap {
+  overflow-x: auto;
+}
+
+.bill-table {
+  width: 100%;
+  min-width: 900px;
+  border-collapse: collapse;
+}
+
+.bill-table th {
+  text-align: left;
+  color: var(--muted);
+  font-size: .78rem;
+  text-transform: uppercase;
+  padding: 0 8px 8px;
+}
+
+.bill-table td {
+  border-top: 1px solid var(--line);
+  padding: 8px;
+  vertical-align: middle;
+}
+
+.bill-table td:nth-child(1) {
+  width: 22%;
+}
+
+.bill-table td:nth-child(2) {
+  width: 120px;
+}
+
+.bill-table td:nth-child(3) {
+  width: 165px;
+}
+
+.bill-table td:nth-child(4) {
+  width: 150px;
+}
+
+.bill-table td:last-child {
+  width: 48px;
+}
+
 .task-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -698,6 +791,7 @@ dialog::backdrop {
   }
 
   .overview,
+  .budget-metrics,
   .task-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -705,6 +799,7 @@ dialog::backdrop {
   .controls,
   .collaboration-panel,
   .sync-panel,
+  .budget-panel header,
   .notes-panel {
     grid-template-columns: 1fr;
   }
@@ -713,6 +808,7 @@ dialog::backdrop {
 @media (max-width: 620px) {
   .overview,
   .task-grid,
+  .budget-metrics,
   .progress-band,
   .report-metrics,
   .report-item dl,

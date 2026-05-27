@@ -3,7 +3,7 @@ const DATA_VERSION = 2026052601;
 const BUILD_INFO = {
   commit: "926ad52",
   timestamp: "2026-05-25T11:18:12-04:00",
-  builtAt: "2026-05-26T13:29:53-04:00",
+  builtAt: "2026-05-26T21:24:34-04:00",
   label: "Local build"
 };
 const GITHUB_COMMIT_API = "https://api.github.com/repos/derickglanville/Patrick-Glanville/commits/main";
@@ -39,6 +39,7 @@ const baseCategories = [
 ];
 const statusOptions = ["N/A", "Not started", "In progress", "Waiting", "Blocked", "Done"];
 const priorityOptions = ["Urgent", "High", "Medium", "Low"];
+const billStatusOptions = ["Unpaid", "Scheduled", "Paid", "Deferred", "Past due", "N/A"];
 const categoryOrder = [
   "Job - CloudResearch",
   "Job - Data Annotation",
@@ -68,6 +69,15 @@ const seedData = {
   dataVersion: DATA_VERSION,
   notes: "",
   lastSavedAt: "",
+  billMonth: "",
+  bills: [
+    { id: crypto.randomUUID(), name: "Housing / rent", amount: 0, due: "", status: "Unpaid", notes: "" },
+    { id: crypto.randomUUID(), name: "Car loan", amount: 0, due: "", status: "Unpaid", notes: "Ask lender about hardship suspension or deferment." },
+    { id: crypto.randomUUID(), name: "Car repair / Kia of Frisco", amount: 6000, due: "", status: "Unpaid", notes: "Repair estimate and possible storage fees." },
+    { id: crypto.randomUUID(), name: "Baylor Scott and White", amount: 0, due: "", status: "Unpaid", notes: "Ask for payment suspension due to lack of income." },
+    { id: crypto.randomUUID(), name: "Phone / internet", amount: 0, due: "", status: "Unpaid", notes: "" },
+    { id: crypto.randomUUID(), name: "Food / groceries", amount: 0, due: "", status: "Unpaid", notes: "Track SNAP or grocery contribution separately if needed." }
+  ],
   tasks: [
     {
       id: crypto.randomUUID(),
@@ -480,6 +490,12 @@ const taskForm = document.querySelector("#taskForm");
 const userSelect = document.querySelector("#userSelect");
 const historyDialog = document.querySelector("#historyDialog");
 const urgencyReportDialog = document.querySelector("#urgencyReportDialog");
+const billMonthInput = document.querySelector("#billMonth");
+const billList = document.querySelector("#billList");
+const billTotal = document.querySelector("#billTotal");
+const billPaid = document.querySelector("#billPaid");
+const billRemaining = document.querySelector("#billRemaining");
+const billPastDue = document.querySelector("#billPastDue");
 
 const fields = {
   id: document.querySelector("#taskId"),
@@ -507,6 +523,8 @@ function loadState() {
       currentUser: parsed.currentUser || allowedUsers[0].email,
       history: Array.isArray(parsed.history) ? parsed.history : [],
       lastSavedAt: parsed.lastSavedAt || "",
+      billMonth: parsed.billMonth || "",
+      bills: Array.isArray(parsed.bills) ? parsed.bills : structuredClone(seedData.bills),
       tasks: Array.isArray(parsed.tasks) ? parsed.tasks : structuredClone(seedData.tasks)
     };
     addMissingSeedTasks(loaded);
@@ -526,6 +544,8 @@ function initializeState(loaded) {
     : allowedUsers[0].email;
   loaded.history = Array.isArray(loaded.history) ? loaded.history : [];
   loaded.lastSavedAt = loaded.lastSavedAt || new Date().toISOString();
+  loaded.billMonth = loaded.billMonth || defaultBillMonth();
+  loaded.bills = Array.isArray(loaded.bills) ? loaded.bills.map(normalizeBill) : structuredClone(seedData.bills).map(normalizeBill);
   loaded.tasks = loaded.tasks.map(task => ({
     percent: statusToPercent(task.status),
     comments: [],
@@ -534,6 +554,35 @@ function initializeState(loaded) {
     comments: Array.isArray(task.comments) ? task.comments : []
   }));
   return loaded;
+}
+
+function defaultBillMonth() {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function normalizeBill(bill) {
+  return {
+    id: bill.id || crypto.randomUUID(),
+    name: bill.name || "",
+    amount: normalizeMoney(bill.amount),
+    due: bill.due || "",
+    status: billStatusOptions.includes(bill.status) ? bill.status : "Unpaid",
+    notes: bill.notes || ""
+  };
+}
+
+function normalizeMoney(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 0;
+  return Math.max(0, Math.round(number * 100) / 100);
+}
+
+function formatCurrency(value) {
+  return normalizeMoney(value).toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD"
+  });
 }
 
 function normalizePercent(value) {
@@ -696,8 +745,77 @@ function render() {
   taskList.innerHTML = "";
   sortTasksForDashboard(filtered).forEach(task => taskList.appendChild(createTaskCard(task)));
   updateProgress();
+  renderBills();
   globalNotes.value = state.notes;
   userSelect.value = state.currentUser;
+}
+
+function renderBills() {
+  billMonthInput.value = state.billMonth || defaultBillMonth();
+  billList.innerHTML = "";
+
+  state.bills.forEach(bill => {
+    const row = document.createElement("tr");
+    row.dataset.billId = bill.id;
+    row.innerHTML = `
+      <td><input class="bill-name" value="${escapeAttribute(bill.name)}" aria-label="Bill name"></td>
+      <td><input class="bill-amount" type="number" min="0" step="0.01" value="${normalizeMoney(bill.amount)}" aria-label="Bill amount"></td>
+      <td><input class="bill-due" type="date" value="${escapeAttribute(bill.due)}" aria-label="Bill due date"></td>
+      <td>
+        <select class="bill-status" aria-label="Bill status">
+          ${billStatusOptions.map(status => `<option${status === bill.status ? " selected" : ""}>${escapeHtml(status)}</option>`).join("")}
+        </select>
+      </td>
+      <td><input class="bill-notes" value="${escapeAttribute(bill.notes)}" aria-label="Bill notes"></td>
+      <td><button type="button" class="icon-button delete-bill" aria-label="Delete bill">x</button></td>
+    `;
+
+    row.querySelectorAll("input, select").forEach(input => {
+      input.addEventListener("change", () => updateBillFromRow(row));
+    });
+    row.querySelector(".delete-bill").addEventListener("click", () => deleteBill(bill.id));
+    billList.appendChild(row);
+  });
+
+  updateBillTotals();
+}
+
+function updateBillFromRow(row) {
+  const bill = state.bills.find(item => item.id === row.dataset.billId);
+  if (!bill) return;
+  bill.name = row.querySelector(".bill-name").value.trim();
+  bill.amount = normalizeMoney(row.querySelector(".bill-amount").value);
+  bill.due = row.querySelector(".bill-due").value;
+  bill.status = row.querySelector(".bill-status").value;
+  bill.notes = row.querySelector(".bill-notes").value.trim();
+  saveState();
+  updateBillTotals();
+}
+
+function updateBillTotals() {
+  const total = state.bills.reduce((sum, bill) => sum + normalizeMoney(bill.amount), 0);
+  const paid = state.bills
+    .filter(bill => bill.status === "Paid")
+    .reduce((sum, bill) => sum + normalizeMoney(bill.amount), 0);
+  const remaining = Math.max(0, total - paid);
+  const pastDue = state.bills.filter(bill => isBillPastDue(bill)).length;
+
+  billTotal.textContent = formatCurrency(total);
+  billPaid.textContent = formatCurrency(paid);
+  billRemaining.textContent = formatCurrency(remaining);
+  billPastDue.textContent = pastDue;
+}
+
+function isBillPastDue(bill) {
+  return Boolean(bill.due && bill.status !== "Paid" && bill.status !== "Deferred" && bill.due < getTodayIsoDate());
+}
+
+function deleteBill(id) {
+  const bill = state.bills.find(item => item.id === id);
+  if (!bill || !confirm(`Delete "${bill.name || "this bill"}"?`)) return;
+  state.bills = state.bills.filter(item => item.id !== id);
+  saveState();
+  renderBills();
 }
 
 function sortTasksForDashboard(tasks) {
@@ -983,6 +1101,10 @@ function escapeHtml(value) {
     '"': "&quot;",
     "'": "&#039;"
   }[char]));
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value);
 }
 
 function currentUser() {
@@ -1436,6 +1558,22 @@ searchInput.addEventListener("input", render);
 statusFilter.addEventListener("change", render);
 priorityFilter.addEventListener("change", render);
 categoryFilter.addEventListener("change", render);
+billMonthInput.addEventListener("change", () => {
+  state.billMonth = billMonthInput.value || defaultBillMonth();
+  saveState();
+});
+document.querySelector("#addBillBtn").addEventListener("click", () => {
+  state.bills.push({
+    id: crypto.randomUUID(),
+    name: "",
+    amount: 0,
+    due: "",
+    status: "Unpaid",
+    notes: ""
+  });
+  saveState();
+  renderBills();
+});
 userSelect.addEventListener("change", () => {
   state.currentUser = userSelect.value;
   saveState();
@@ -1467,6 +1605,8 @@ document.querySelector("#importInput").addEventListener("change", event => {
         notes: imported.notes || "",
         currentUser: imported.currentUser,
         history: imported.history,
+        billMonth: imported.billMonth,
+        bills: imported.bills,
         tasks: imported.tasks
       });
       addMissingSeedTasks(state);

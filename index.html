@@ -7,7 +7,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>Patrick Glanville Support Tracker</title>
-  <link rel="stylesheet" href="styles.css?v=2026-05-26-1329">
+  <link rel="stylesheet" href="styles.css?v=2026-05-26-2124">
 </head>
 <body>
   <section class="collaboration-panel" aria-label="Collaboration access">
@@ -137,6 +137,40 @@
       </div>
     </section>
 
+    <section class="budget-panel" aria-label="Monthly bill tracker">
+      <header>
+        <div>
+          <h2>Monthly Bills</h2>
+          <p>Track every bill for the month, including amount, due date, payment status, and hardship notes.</p>
+        </div>
+        <label for="billMonth">Month
+          <input id="billMonth" type="month">
+        </label>
+      </header>
+      <div class="budget-metrics">
+        <article><strong id="billTotal">$0.00</strong><span>Total bills</span></article>
+        <article><strong id="billPaid">$0.00</strong><span>Paid</span></article>
+        <article><strong id="billRemaining">$0.00</strong><span>Remaining</span></article>
+        <article><strong id="billPastDue">0</strong><span>Past due</span></article>
+      </div>
+      <div class="bill-table-wrap">
+        <table class="bill-table">
+          <thead>
+            <tr>
+              <th>Bill</th>
+              <th>Amount</th>
+              <th>Due date</th>
+              <th>Status</th>
+              <th>Notes</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="billList"></tbody>
+        </table>
+      </div>
+      <button id="addBillBtn" type="button">Add bill</button>
+    </section>
+
     <section id="taskList" class="task-grid" aria-live="polite"></section>
 
     <section class="notes-panel" aria-label="Shared notes">
@@ -243,6 +277,6 @@
     </div>
   </dialog>
 
-  <script src="app.js?v=2026-05-26-1329"></script>
+  <script src="app.js?v=2026-05-26-2124"></script>
 </body>
 </html>
