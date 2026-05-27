@@ -458,8 +458,49 @@ textarea {
   min-height: 42px;
 }
 
+.task-groups {
+  display: grid;
+  gap: 16px;
+}
+
+.task-group {
+  display: grid;
+  gap: 12px;
+}
+
+.task-group-header {
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 14px;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+  text-align: left;
+}
+
+.task-group-header span {
+  font-weight: 900;
+  font-size: 1rem;
+}
+
+.task-group-header small {
+  font-weight: 800;
+}
+
+.task-group-header strong {
+  color: var(--blue);
+}
+
 .task-grid {
+  display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .task-card {

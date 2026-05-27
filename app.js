@@ -4,7 +4,7 @@ const PANEL_VISIBILITY_VERSION = 2026052603;
 const BUILD_INFO = {
   commit: "926ad52",
   timestamp: "2026-05-25T11:18:12-04:00",
-  builtAt: "2026-05-26T22:09:31-04:00",
+  builtAt: "2026-05-26T22:39:02-04:00",
   label: "Local build"
 };
 const GITHUB_COMMIT_API = "https://api.github.com/repos/derickglanville/Patrick-Glanville/commits/main";
@@ -41,6 +41,16 @@ const baseCategories = [
 const statusOptions = ["N/A", "Not started", "In progress", "Waiting", "Blocked", "Done"];
 const priorityOptions = ["Urgent", "High", "Medium", "Low"];
 const billStatusOptions = ["Unpaid", "Scheduled", "Paid", "Deferred", "Past due", "N/A"];
+const taskGroupOrder = [
+  "Jobs and Income",
+  "Benefits and Assistance",
+  "Transportation and Vehicle",
+  "Debt, Bills, and Legal",
+  "Health and Insurance",
+  "Household and Home",
+  "Family, Plan, and Accountability",
+  "Other"
+];
 const categoryOrder = [
   "Job - CloudResearch",
   "Job - Data Annotation",
@@ -75,6 +85,7 @@ const seedData = {
     bills: true,
     lifeAdmin: true
   },
+  collapsedTaskGroups: {},
   billMonth: "",
   bills: [
     { id: crypto.randomUUID(), name: "Housing / rent", amount: 0, due: "", status: "Unpaid", notes: "" },
@@ -545,6 +556,7 @@ function loadState() {
       lastSavedAt: parsed.lastSavedAt || "",
       panelVisibilityVersion: Number(parsed.panelVisibilityVersion) || 0,
       hiddenPanels: parsed.hiddenPanels || {},
+      collapsedTaskGroups: parsed.collapsedTaskGroups || {},
       billMonth: parsed.billMonth || "",
       bills: Array.isArray(parsed.bills) ? parsed.bills : structuredClone(seedData.bills),
       lifeAdminNotes: Array.isArray(parsed.lifeAdminNotes) ? parsed.lifeAdminNotes : structuredClone(seedData.lifeAdminNotes),
@@ -578,6 +590,9 @@ function initializeState(loaded) {
       lifeAdmin: Boolean(loaded.hiddenPanels?.lifeAdmin)
     };
   }
+  loaded.collapsedTaskGroups = loaded.collapsedTaskGroups && typeof loaded.collapsedTaskGroups === "object"
+    ? loaded.collapsedTaskGroups
+    : {};
   loaded.billMonth = loaded.billMonth || defaultBillMonth();
   loaded.bills = Array.isArray(loaded.bills) ? loaded.bills.map(normalizeBill) : structuredClone(seedData.bills).map(normalizeBill);
   loaded.lifeAdminNotes = Array.isArray(loaded.lifeAdminNotes)
@@ -793,13 +808,74 @@ function render() {
   });
 
   taskList.innerHTML = "";
-  sortTasksForDashboard(filtered).forEach(task => taskList.appendChild(createTaskCard(task)));
+  renderTaskGroups(filtered);
   updateProgress();
   renderBills();
   renderLifeAdminNotes();
   renderPanelVisibility();
   globalNotes.value = state.notes;
   userSelect.value = state.currentUser;
+}
+
+function renderTaskGroups(tasks) {
+  const groups = groupTasksForDashboard(sortTasksForDashboard(tasks));
+  groups.forEach(group => {
+    const section = document.createElement("section");
+    section.className = "task-group";
+    const isCollapsed = Boolean(state.collapsedTaskGroups[group.name]);
+
+    const header = document.createElement("button");
+    header.type = "button";
+    header.className = "task-group-header";
+    header.setAttribute("aria-expanded", String(!isCollapsed));
+    header.innerHTML = `
+      <span>${escapeHtml(group.name)}</span>
+      <small>${group.tasks.length} card${group.tasks.length === 1 ? "" : "s"}</small>
+      <strong>${isCollapsed ? "Show" : "Hide"}</strong>
+    `;
+    header.addEventListener("click", () => {
+      state.collapsedTaskGroups[group.name] = !state.collapsedTaskGroups[group.name];
+      saveState();
+      render();
+    });
+
+    const grid = document.createElement("div");
+    grid.className = "task-grid";
+    grid.hidden = isCollapsed;
+    group.tasks.forEach(task => grid.appendChild(createTaskCard(task)));
+
+    section.append(header, grid);
+    taskList.appendChild(section);
+  });
+}
+
+function groupTasksForDashboard(tasks) {
+  const grouped = new Map();
+  tasks.forEach(task => {
+    const groupName = taskGroupName(task.category);
+    if (!grouped.has(groupName)) grouped.set(groupName, []);
+    grouped.get(groupName).push(task);
+  });
+
+  return [...grouped.entries()]
+    .map(([name, groupTasks]) => ({ name, tasks: groupTasks }))
+    .sort((a, b) => taskGroupRank(a.name) - taskGroupRank(b.name) || a.name.localeCompare(b.name));
+}
+
+function taskGroupRank(groupName) {
+  const index = taskGroupOrder.indexOf(groupName);
+  return index >= 0 ? index : taskGroupOrder.length;
+}
+
+function taskGroupName(category = "N/A") {
+  if (category.startsWith("Job -") || category === "Income" || category === "Cash") return "Jobs and Income";
+  if (category === "Benefits") return "Benefits and Assistance";
+  if (category === "Transportation" || category === "Transportation - Turo rental" || category === "Vehicle") return "Transportation and Vehicle";
+  if (category === "Debt" || category === "Debt - lender hardship" || category === "Medical bills") return "Debt, Bills, and Legal";
+  if (category === "Health" || category === "Insurance") return "Health and Insurance";
+  if (category === "Household tasks" || category === "Home safety") return "Household and Home";
+  if (category === "Family" || category === "Plan" || category === "Accountability") return "Family, Plan, and Accountability";
+  return "Other";
 }
 
 function renderPanelVisibility() {
@@ -1765,6 +1841,7 @@ document.querySelector("#importInput").addEventListener("change", event => {
         history: imported.history,
         panelVisibilityVersion: imported.panelVisibilityVersion,
         hiddenPanels: imported.hiddenPanels,
+        collapsedTaskGroups: imported.collapsedTaskGroups,
         billMonth: imported.billMonth,
         bills: imported.bills,
         lifeAdminNotes: imported.lifeAdminNotes,
