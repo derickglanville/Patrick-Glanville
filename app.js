@@ -3,7 +3,7 @@ const DATA_VERSION = 2026052601;
 const BUILD_INFO = {
   commit: "926ad52",
   timestamp: "2026-05-25T11:18:12-04:00",
-  builtAt: "2026-05-26T21:24:34-04:00",
+  builtAt: "2026-05-26T21:34:59-04:00",
   label: "Local build"
 };
 const GITHUB_COMMIT_API = "https://api.github.com/repos/derickglanville/Patrick-Glanville/commits/main";
@@ -77,6 +77,11 @@ const seedData = {
     { id: crypto.randomUUID(), name: "Baylor Scott and White", amount: 0, due: "", status: "Unpaid", notes: "Ask for payment suspension due to lack of income." },
     { id: crypto.randomUUID(), name: "Phone / internet", amount: 0, due: "", status: "Unpaid", notes: "" },
     { id: crypto.randomUUID(), name: "Food / groceries", amount: 0, due: "", status: "Unpaid", notes: "Track SNAP or grocery contribution separately if needed." }
+  ],
+  lifeAdminNotes: [
+    { id: crypto.randomUUID(), item: "Cancel unused subscriptions", due: "", status: "Open", notes: "List every recurring charge and cancel anything not essential." },
+    { id: crypto.randomUUID(), item: "Pay or file taxes", due: "", status: "Open", notes: "Confirm what tax years or payment plans need attention." },
+    { id: crypto.randomUUID(), item: "Organize important documents", due: "", status: "Open", notes: "Collect IDs, medical bills, loan statements, benefit notices, and insurance papers." }
   ],
   tasks: [
     {
@@ -496,6 +501,7 @@ const billTotal = document.querySelector("#billTotal");
 const billPaid = document.querySelector("#billPaid");
 const billRemaining = document.querySelector("#billRemaining");
 const billPastDue = document.querySelector("#billPastDue");
+const lifeAdminNotes = document.querySelector("#lifeAdminNotes");
 
 const fields = {
   id: document.querySelector("#taskId"),
@@ -525,6 +531,7 @@ function loadState() {
       lastSavedAt: parsed.lastSavedAt || "",
       billMonth: parsed.billMonth || "",
       bills: Array.isArray(parsed.bills) ? parsed.bills : structuredClone(seedData.bills),
+      lifeAdminNotes: Array.isArray(parsed.lifeAdminNotes) ? parsed.lifeAdminNotes : structuredClone(seedData.lifeAdminNotes),
       tasks: Array.isArray(parsed.tasks) ? parsed.tasks : structuredClone(seedData.tasks)
     };
     addMissingSeedTasks(loaded);
@@ -546,6 +553,9 @@ function initializeState(loaded) {
   loaded.lastSavedAt = loaded.lastSavedAt || new Date().toISOString();
   loaded.billMonth = loaded.billMonth || defaultBillMonth();
   loaded.bills = Array.isArray(loaded.bills) ? loaded.bills.map(normalizeBill) : structuredClone(seedData.bills).map(normalizeBill);
+  loaded.lifeAdminNotes = Array.isArray(loaded.lifeAdminNotes)
+    ? loaded.lifeAdminNotes.map(normalizeLifeAdminNote)
+    : structuredClone(seedData.lifeAdminNotes).map(normalizeLifeAdminNote);
   loaded.tasks = loaded.tasks.map(task => ({
     percent: statusToPercent(task.status),
     comments: [],
@@ -583,6 +593,16 @@ function formatCurrency(value) {
     style: "currency",
     currency: "USD"
   });
+}
+
+function normalizeLifeAdminNote(note) {
+  return {
+    id: note.id || crypto.randomUUID(),
+    item: note.item || "",
+    due: note.due || "",
+    status: ["Open", "In progress", "Done", "N/A"].includes(note.status) ? note.status : "Open",
+    notes: note.notes || ""
+  };
 }
 
 function normalizePercent(value) {
@@ -746,6 +766,7 @@ function render() {
   sortTasksForDashboard(filtered).forEach(task => taskList.appendChild(createTaskCard(task)));
   updateProgress();
   renderBills();
+  renderLifeAdminNotes();
   globalNotes.value = state.notes;
   userSelect.value = state.currentUser;
 }
@@ -816,6 +837,56 @@ function deleteBill(id) {
   state.bills = state.bills.filter(item => item.id !== id);
   saveState();
   renderBills();
+}
+
+function renderLifeAdminNotes() {
+  lifeAdminNotes.innerHTML = "";
+  state.lifeAdminNotes.forEach(note => {
+    const item = document.createElement("article");
+    item.className = "life-admin-item";
+    item.dataset.noteId = note.id;
+    item.innerHTML = `
+      <label>Item
+        <input class="life-admin-title" value="${escapeAttribute(note.item)}" placeholder="Example: Cancel gym subscription">
+      </label>
+      <label>Due date
+        <input class="life-admin-due" type="date" value="${escapeAttribute(note.due)}">
+      </label>
+      <label>Status
+        <select class="life-admin-status">
+          ${["Open", "In progress", "Done", "N/A"].map(status => `<option${status === note.status ? " selected" : ""}>${escapeHtml(status)}</option>`).join("")}
+        </select>
+      </label>
+      <label>Notes
+        <textarea class="life-admin-notes" rows="2" placeholder="Who to call, account number hint, deadline, documents needed">${escapeHtml(note.notes)}</textarea>
+      </label>
+      <button type="button" class="icon-button delete-life-admin-note" aria-label="Delete note">x</button>
+    `;
+
+    item.querySelectorAll("input, select, textarea").forEach(input => {
+      input.addEventListener("change", () => updateLifeAdminNoteFromItem(item));
+    });
+    item.querySelector(".delete-life-admin-note").addEventListener("click", () => deleteLifeAdminNote(note.id));
+    lifeAdminNotes.appendChild(item);
+  });
+}
+
+function updateLifeAdminNoteFromItem(item) {
+  const note = state.lifeAdminNotes.find(entry => entry.id === item.dataset.noteId);
+  if (!note) return;
+  note.item = item.querySelector(".life-admin-title").value.trim();
+  note.due = item.querySelector(".life-admin-due").value;
+  note.status = item.querySelector(".life-admin-status").value;
+  note.notes = item.querySelector(".life-admin-notes").value.trim();
+  saveState();
+}
+
+function deleteLifeAdminNote(id) {
+  const note = state.lifeAdminNotes.find(entry => entry.id === id);
+  if (!note || !confirm(`Delete "${note.item || "this note"}"?`)) return;
+  state.lifeAdminNotes = state.lifeAdminNotes.filter(entry => entry.id !== id);
+  saveState();
+  renderLifeAdminNotes();
 }
 
 function sortTasksForDashboard(tasks) {
@@ -1574,6 +1645,17 @@ document.querySelector("#addBillBtn").addEventListener("click", () => {
   saveState();
   renderBills();
 });
+document.querySelector("#addLifeAdminNoteBtn").addEventListener("click", () => {
+  state.lifeAdminNotes.push({
+    id: crypto.randomUUID(),
+    item: "",
+    due: "",
+    status: "Open",
+    notes: ""
+  });
+  saveState();
+  renderLifeAdminNotes();
+});
 userSelect.addEventListener("change", () => {
   state.currentUser = userSelect.value;
   saveState();
@@ -1607,6 +1689,7 @@ document.querySelector("#importInput").addEventListener("change", event => {
         history: imported.history,
         billMonth: imported.billMonth,
         bills: imported.bills,
+        lifeAdminNotes: imported.lifeAdminNotes,
         tasks: imported.tasks
       });
       addMissingSeedTasks(state);

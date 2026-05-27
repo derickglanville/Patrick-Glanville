@@ -7,7 +7,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>Patrick Glanville Support Tracker</title>
-  <link rel="stylesheet" href="styles.css?v=2026-05-26-2124">
+  <link rel="stylesheet" href="styles.css?v=2026-05-26-2134">
 </head>
 <body>
   <section class="collaboration-panel" aria-label="Collaboration access">
@@ -171,6 +171,17 @@
       <button id="addBillBtn" type="button">Add bill</button>
     </section>
 
+    <section class="life-admin-panel" aria-label="Patrick to-do notes">
+      <header>
+        <div>
+          <h2>Patrick To-Do Notes</h2>
+          <p>Keep track of personal admin items Patrick needs to handle, such as subscriptions, taxes, paperwork, and follow-ups.</p>
+        </div>
+        <button id="addLifeAdminNoteBtn" type="button">Add note</button>
+      </header>
+      <div class="life-admin-list" id="lifeAdminNotes"></div>
+    </section>
+
     <section id="taskList" class="task-grid" aria-live="polite"></section>
 
     <section class="notes-panel" aria-label="Shared notes">
@@ -277,6 +288,6 @@
     </div>
   </dialog>
 
-  <script src="app.js?v=2026-05-26-2124"></script>
+  <script src="app.js?v=2026-05-26-2134"></script>
 </body>
 </html>

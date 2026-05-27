@@ -364,6 +364,53 @@ textarea {
   width: 48px;
 }
 
+.life-admin-panel {
+  margin: 0 0 18px;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 14px;
+}
+
+.life-admin-panel header {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.life-admin-panel h2 {
+  margin: 0 0 6px;
+}
+
+.life-admin-panel p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.life-admin-list {
+  display: grid;
+  gap: 10px;
+}
+
+.life-admin-item {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.2fr) 160px 150px minmax(260px, 1.5fr) 42px;
+  gap: 10px;
+  align-items: end;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfe;
+}
+
+.life-admin-item textarea {
+  min-height: 42px;
+}
+
 .task-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -800,8 +847,13 @@ dialog::backdrop {
   .collaboration-panel,
   .sync-panel,
   .budget-panel header,
+  .life-admin-item,
   .notes-panel {
     grid-template-columns: 1fr;
+  }
+
+  .life-admin-panel header {
+    flex-direction: column;
   }
 }
 
