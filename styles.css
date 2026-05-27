@@ -662,6 +662,49 @@ textarea {
   color: var(--muted);
 }
 
+.running-notes-workspace {
+  display: grid;
+  gap: 12px;
+}
+
+.running-notes-list {
+  display: grid;
+  gap: 10px;
+}
+
+.running-note-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fbfcfe;
+  display: grid;
+  gap: 10px;
+}
+
+.running-note-item header {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: .84rem;
+  font-weight: 700;
+}
+
+.running-note-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.empty-notes {
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fbfcfe;
+}
+
 dialog {
   width: min(760px, calc(100vw - 28px));
   border: 1px solid var(--line);

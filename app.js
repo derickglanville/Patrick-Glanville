@@ -4,7 +4,7 @@ const PANEL_VISIBILITY_VERSION = 2026052603;
 const BUILD_INFO = {
   commit: "926ad52",
   timestamp: "2026-05-25T11:18:12-04:00",
-  builtAt: "2026-05-26T22:39:02-04:00",
+  builtAt: "2026-05-27T16:33:15-04:00",
   label: "Local build"
 };
 const GITHUB_COMMIT_API = "https://api.github.com/repos/derickglanville/Patrick-Glanville/commits/main";
@@ -85,6 +85,7 @@ const seedData = {
     bills: true,
     lifeAdmin: true
   },
+  runningNotes: [],
   collapsedTaskGroups: {},
   billMonth: "",
   bills: [
@@ -506,7 +507,8 @@ const searchInput = document.querySelector("#searchInput");
 const statusFilter = document.querySelector("#statusFilter");
 const priorityFilter = document.querySelector("#priorityFilter");
 const categoryFilter = document.querySelector("#categoryFilter");
-const globalNotes = document.querySelector("#globalNotes");
+const newRunningNote = document.querySelector("#newRunningNote");
+const runningNotesList = document.querySelector("#runningNotesList");
 const taskDialog = document.querySelector("#taskDialog");
 const taskForm = document.querySelector("#taskForm");
 const userSelect = document.querySelector("#userSelect");
@@ -551,6 +553,7 @@ function loadState() {
     const loaded = {
       dataVersion: Number(parsed.dataVersion) || 0,
       notes: parsed.notes || "",
+      runningNotes: Array.isArray(parsed.runningNotes) ? parsed.runningNotes : [],
       currentUser: parsed.currentUser || allowedUsers[0].email,
       history: Array.isArray(parsed.history) ? parsed.history : [],
       lastSavedAt: parsed.lastSavedAt || "",
@@ -580,6 +583,7 @@ function initializeState(loaded) {
     : allowedUsers[0].email;
   loaded.history = Array.isArray(loaded.history) ? loaded.history : [];
   loaded.lastSavedAt = loaded.lastSavedAt || new Date().toISOString();
+  loaded.runningNotes = normalizeRunningNotes(loaded.runningNotes, loaded.notes);
   if (loaded.panelVisibilityVersion !== PANEL_VISIBILITY_VERSION) {
     loaded.hiddenPanels = { bills: true, lifeAdmin: true };
     loaded.panelVisibilityVersion = PANEL_VISIBILITY_VERSION;
@@ -648,6 +652,27 @@ function normalizeLifeAdminNote(note) {
     status: ["Open", "In progress", "Done", "N/A"].includes(note.status) ? note.status : "Open",
     notes: note.notes || ""
   };
+}
+
+function normalizeRunningNotes(notes, legacyText = "") {
+  const normalized = Array.isArray(notes) ? notes.map(note => ({
+    id: note.id || crypto.randomUUID(),
+    text: note.text || "",
+    createdAt: note.createdAt || new Date().toISOString(),
+    updatedAt: note.updatedAt || note.createdAt || new Date().toISOString()
+  })).filter(note => note.text.trim()) : [];
+
+  if (!normalized.length && legacyText && legacyText.trim()) {
+    const now = new Date().toISOString();
+    normalized.push({
+      id: crypto.randomUUID(),
+      text: legacyText.trim(),
+      createdAt: now,
+      updatedAt: now
+    });
+  }
+
+  return normalized;
 }
 
 function normalizePercent(value) {
@@ -813,8 +838,79 @@ function render() {
   renderBills();
   renderLifeAdminNotes();
   renderPanelVisibility();
-  globalNotes.value = state.notes;
+  renderRunningNotes();
   userSelect.value = state.currentUser;
+}
+
+function renderRunningNotes() {
+  runningNotesList.innerHTML = "";
+  if (!state.runningNotes.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-notes";
+    empty.textContent = "No running notes have been saved yet.";
+    runningNotesList.appendChild(empty);
+    return;
+  }
+
+  [...state.runningNotes]
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    .forEach(note => {
+      const item = document.createElement("article");
+      item.className = "running-note-item";
+      item.dataset.noteId = note.id;
+      item.innerHTML = `
+        <header>
+          <span>Created ${escapeHtml(formatDateTime(note.createdAt))}</span>
+          <span>Updated ${escapeHtml(formatDateTime(note.updatedAt))}</span>
+        </header>
+        <textarea class="running-note-text" rows="3">${escapeHtml(note.text)}</textarea>
+        <div class="running-note-actions">
+          <button type="button" class="save-running-note">Update note</button>
+          <button type="button" class="ghost delete-running-note">Delete</button>
+        </div>
+      `;
+      item.querySelector(".save-running-note").addEventListener("click", () => updateRunningNote(item));
+      item.querySelector(".delete-running-note").addEventListener("click", () => deleteRunningNote(note.id));
+      runningNotesList.appendChild(item);
+    });
+}
+
+function addRunningNote() {
+  const text = newRunningNote.value.trim();
+  if (!text) return;
+  const now = new Date().toISOString();
+  state.runningNotes.unshift({
+    id: crypto.randomUUID(),
+    text,
+    createdAt: now,
+    updatedAt: now
+  });
+  state.notes = "";
+  newRunningNote.value = "";
+  saveState();
+  renderRunningNotes();
+}
+
+function updateRunningNote(item) {
+  const note = state.runningNotes.find(entry => entry.id === item.dataset.noteId);
+  if (!note) return;
+  const text = item.querySelector(".running-note-text").value.trim();
+  if (!text) {
+    alert("A note cannot be blank. Delete it if it is no longer needed.");
+    return;
+  }
+  note.text = text;
+  note.updatedAt = new Date().toISOString();
+  saveState();
+  renderRunningNotes();
+}
+
+function deleteRunningNote(id) {
+  const note = state.runningNotes.find(entry => entry.id === id);
+  if (!note || !confirm("Delete this running note?")) return;
+  state.runningNotes = state.runningNotes.filter(entry => entry.id !== id);
+  saveState();
+  renderRunningNotes();
 }
 
 function renderTaskGroups(tasks) {
@@ -1813,10 +1909,7 @@ userSelect.addEventListener("change", () => {
   saveState();
 });
 
-globalNotes.addEventListener("input", () => {
-  state.notes = globalNotes.value;
-  saveState();
-});
+document.querySelector("#addRunningNoteBtn").addEventListener("click", addRunningNote);
 
 document.querySelector("#exportBtn").addEventListener("click", () => {
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
@@ -1837,6 +1930,7 @@ document.querySelector("#importInput").addEventListener("change", event => {
       if (!Array.isArray(imported.tasks)) throw new Error("Missing task list");
       state = initializeState({
         notes: imported.notes || "",
+        runningNotes: imported.runningNotes,
         currentUser: imported.currentUser,
         history: imported.history,
         panelVisibilityVersion: imported.panelVisibilityVersion,
