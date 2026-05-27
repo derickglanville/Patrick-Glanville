@@ -4,7 +4,7 @@ const PANEL_VISIBILITY_VERSION = 2026052603;
 const BUILD_INFO = {
   commit: "926ad52",
   timestamp: "2026-05-25T11:18:12-04:00",
-  builtAt: "2026-05-27T16:33:15-04:00",
+  builtAt: "2026-05-27T16:45:53-04:00",
   label: "Local build"
 };
 const GITHUB_COMMIT_API = "https://api.github.com/repos/derickglanville/Patrick-Glanville/commits/main";
@@ -50,6 +50,12 @@ const taskGroupOrder = [
   "Household and Home",
   "Family, Plan, and Accountability",
   "Other"
+];
+const defaultExpandedTaskGroups = [
+  "Jobs and Income",
+  "Benefits and Assistance",
+  "Transportation and Vehicle",
+  "Debt, Bills, and Legal"
 ];
 const categoryOrder = [
   "Job - CloudResearch",
@@ -597,6 +603,9 @@ function initializeState(loaded) {
   loaded.collapsedTaskGroups = loaded.collapsedTaskGroups && typeof loaded.collapsedTaskGroups === "object"
     ? loaded.collapsedTaskGroups
     : {};
+  defaultExpandedTaskGroups.forEach(groupName => {
+    loaded.collapsedTaskGroups[groupName] = false;
+  });
   loaded.billMonth = loaded.billMonth || defaultBillMonth();
   loaded.bills = Array.isArray(loaded.bills) ? loaded.bills.map(normalizeBill) : structuredClone(seedData.bills).map(normalizeBill);
   loaded.lifeAdminNotes = Array.isArray(loaded.lifeAdminNotes)
