@@ -271,6 +271,25 @@ textarea {
   background: linear-gradient(90deg, var(--green), var(--blue));
 }
 
+.optional-section-controls {
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.optional-section-controls span {
+  color: var(--muted);
+  font-weight: 800;
+  margin-right: auto;
+}
+
 .budget-panel {
   margin: 0 0 18px;
   padding: 16px;
@@ -891,6 +910,7 @@ dialog::backdrop {
   .overview,
   .task-grid,
   .budget-metrics,
+  .optional-section-controls,
   .progress-band,
   .report-metrics,
   .report-item dl,

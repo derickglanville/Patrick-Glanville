@@ -1,9 +1,10 @@
 const STORAGE_KEY = "patrick-glanville-support-tracker-v1";
 const DATA_VERSION = 2026052601;
+const PANEL_VISIBILITY_VERSION = 2026052602;
 const BUILD_INFO = {
   commit: "926ad52",
   timestamp: "2026-05-25T11:18:12-04:00",
-  builtAt: "2026-05-26T21:42:47-04:00",
+  builtAt: "2026-05-26T21:50:15-04:00",
   label: "Local build"
 };
 const GITHUB_COMMIT_API = "https://api.github.com/repos/derickglanville/Patrick-Glanville/commits/main";
@@ -69,9 +70,10 @@ const seedData = {
   dataVersion: DATA_VERSION,
   notes: "",
   lastSavedAt: "",
+  panelVisibilityVersion: PANEL_VISIBILITY_VERSION,
   hiddenPanels: {
-    bills: false,
-    lifeAdmin: false
+    bills: true,
+    lifeAdmin: true
   },
   billMonth: "",
   bills: [
@@ -512,6 +514,8 @@ const lifeAdminPanel = document.querySelector("#lifeAdminPanel");
 const lifeAdminPanelContent = document.querySelector("#lifeAdminPanelContent");
 const toggleBillsBtn = document.querySelector("#toggleBillsBtn");
 const toggleLifeAdminBtn = document.querySelector("#toggleLifeAdminBtn");
+const hideBillsBtn = document.querySelector("#hideBillsBtn");
+const hideLifeAdminBtn = document.querySelector("#hideLifeAdminBtn");
 
 const fields = {
   id: document.querySelector("#taskId"),
@@ -539,6 +543,7 @@ function loadState() {
       currentUser: parsed.currentUser || allowedUsers[0].email,
       history: Array.isArray(parsed.history) ? parsed.history : [],
       lastSavedAt: parsed.lastSavedAt || "",
+      panelVisibilityVersion: Number(parsed.panelVisibilityVersion) || 0,
       hiddenPanels: parsed.hiddenPanels || {},
       billMonth: parsed.billMonth || "",
       bills: Array.isArray(parsed.bills) ? parsed.bills : structuredClone(seedData.bills),
@@ -562,10 +567,15 @@ function initializeState(loaded) {
     : allowedUsers[0].email;
   loaded.history = Array.isArray(loaded.history) ? loaded.history : [];
   loaded.lastSavedAt = loaded.lastSavedAt || new Date().toISOString();
-  loaded.hiddenPanels = {
-    bills: Boolean(loaded.hiddenPanels?.bills),
-    lifeAdmin: Boolean(loaded.hiddenPanels?.lifeAdmin)
-  };
+  if (loaded.panelVisibilityVersion !== PANEL_VISIBILITY_VERSION) {
+    loaded.hiddenPanels = { bills: true, lifeAdmin: true };
+    loaded.panelVisibilityVersion = PANEL_VISIBILITY_VERSION;
+  } else {
+    loaded.hiddenPanels = {
+      bills: Boolean(loaded.hiddenPanels?.bills),
+      lifeAdmin: Boolean(loaded.hiddenPanels?.lifeAdmin)
+    };
+  }
   loaded.billMonth = loaded.billMonth || defaultBillMonth();
   loaded.bills = Array.isArray(loaded.bills) ? loaded.bills.map(normalizeBill) : structuredClone(seedData.bills).map(normalizeBill);
   loaded.lifeAdminNotes = Array.isArray(loaded.lifeAdminNotes)
@@ -805,9 +815,9 @@ function renderPanelVisibility() {
 }
 
 function setPanelHidden(panel, content, button, hidden, label) {
-  panel.classList.toggle("panel-collapsed", hidden);
+  panel.hidden = hidden;
   content.hidden = hidden;
-  button.textContent = hidden ? "Show" : "Hide";
+  button.textContent = hidden ? `Show ${label}` : `Hide ${label}`;
   button.setAttribute("aria-expanded", String(!hidden));
   button.setAttribute("aria-label", `${hidden ? "Show" : "Hide"} ${label}`);
 }
@@ -1691,6 +1701,11 @@ toggleBillsBtn.addEventListener("click", () => {
   saveState();
   renderPanelVisibility();
 });
+hideBillsBtn.addEventListener("click", () => {
+  state.hiddenPanels.bills = true;
+  saveState();
+  renderPanelVisibility();
+});
 document.querySelector("#addLifeAdminNoteBtn").addEventListener("click", () => {
   state.lifeAdminNotes.push({
     id: crypto.randomUUID(),
@@ -1704,6 +1719,11 @@ document.querySelector("#addLifeAdminNoteBtn").addEventListener("click", () => {
 });
 toggleLifeAdminBtn.addEventListener("click", () => {
   state.hiddenPanels.lifeAdmin = !state.hiddenPanels.lifeAdmin;
+  saveState();
+  renderPanelVisibility();
+});
+hideLifeAdminBtn.addEventListener("click", () => {
+  state.hiddenPanels.lifeAdmin = true;
   saveState();
   renderPanelVisibility();
 });
@@ -1738,6 +1758,7 @@ document.querySelector("#importInput").addEventListener("change", event => {
         notes: imported.notes || "",
         currentUser: imported.currentUser,
         history: imported.history,
+        panelVisibilityVersion: imported.panelVisibilityVersion,
         hiddenPanels: imported.hiddenPanels,
         billMonth: imported.billMonth,
         bills: imported.bills,
