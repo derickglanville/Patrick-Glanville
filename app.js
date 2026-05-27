@@ -1,10 +1,10 @@
 const STORAGE_KEY = "patrick-glanville-support-tracker-v1";
 const DATA_VERSION = 2026052601;
-const PANEL_VISIBILITY_VERSION = 2026052602;
+const PANEL_VISIBILITY_VERSION = 2026052603;
 const BUILD_INFO = {
   commit: "926ad52",
   timestamp: "2026-05-25T11:18:12-04:00",
-  builtAt: "2026-05-26T21:50:15-04:00",
+  builtAt: "2026-05-26T21:59:35-04:00",
   label: "Local build"
 };
 const GITHUB_COMMIT_API = "https://api.github.com/repos/derickglanville/Patrick-Glanville/commits/main";
@@ -562,6 +562,7 @@ function loadState() {
 
 function initializeState(loaded) {
   loaded.dataVersion = Number(loaded.dataVersion) || DATA_VERSION;
+  let panelVisibilityReset = false;
   loaded.currentUser = allowedUsers.some(user => user.email === loaded.currentUser)
     ? loaded.currentUser
     : allowedUsers[0].email;
@@ -570,6 +571,7 @@ function initializeState(loaded) {
   if (loaded.panelVisibilityVersion !== PANEL_VISIBILITY_VERSION) {
     loaded.hiddenPanels = { bills: true, lifeAdmin: true };
     loaded.panelVisibilityVersion = PANEL_VISIBILITY_VERSION;
+    panelVisibilityReset = true;
   } else {
     loaded.hiddenPanels = {
       bills: Boolean(loaded.hiddenPanels?.bills),
@@ -588,6 +590,9 @@ function initializeState(loaded) {
     percent: normalizePercent(task.percent ?? statusToPercent(task.status)),
     comments: Array.isArray(task.comments) ? task.comments : []
   }));
+  if (panelVisibilityReset) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(loaded));
+  }
   return loaded;
 }
 
