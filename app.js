@@ -3,7 +3,7 @@ const DATA_VERSION = 2026052601;
 const BUILD_INFO = {
   commit: "926ad52",
   timestamp: "2026-05-25T11:18:12-04:00",
-  builtAt: "2026-05-26T21:34:59-04:00",
+  builtAt: "2026-05-26T21:42:47-04:00",
   label: "Local build"
 };
 const GITHUB_COMMIT_API = "https://api.github.com/repos/derickglanville/Patrick-Glanville/commits/main";
@@ -69,6 +69,10 @@ const seedData = {
   dataVersion: DATA_VERSION,
   notes: "",
   lastSavedAt: "",
+  hiddenPanels: {
+    bills: false,
+    lifeAdmin: false
+  },
   billMonth: "",
   bills: [
     { id: crypto.randomUUID(), name: "Housing / rent", amount: 0, due: "", status: "Unpaid", notes: "" },
@@ -502,6 +506,12 @@ const billPaid = document.querySelector("#billPaid");
 const billRemaining = document.querySelector("#billRemaining");
 const billPastDue = document.querySelector("#billPastDue");
 const lifeAdminNotes = document.querySelector("#lifeAdminNotes");
+const budgetPanel = document.querySelector("#budgetPanel");
+const budgetPanelContent = document.querySelector("#budgetPanelContent");
+const lifeAdminPanel = document.querySelector("#lifeAdminPanel");
+const lifeAdminPanelContent = document.querySelector("#lifeAdminPanelContent");
+const toggleBillsBtn = document.querySelector("#toggleBillsBtn");
+const toggleLifeAdminBtn = document.querySelector("#toggleLifeAdminBtn");
 
 const fields = {
   id: document.querySelector("#taskId"),
@@ -529,6 +539,7 @@ function loadState() {
       currentUser: parsed.currentUser || allowedUsers[0].email,
       history: Array.isArray(parsed.history) ? parsed.history : [],
       lastSavedAt: parsed.lastSavedAt || "",
+      hiddenPanels: parsed.hiddenPanels || {},
       billMonth: parsed.billMonth || "",
       bills: Array.isArray(parsed.bills) ? parsed.bills : structuredClone(seedData.bills),
       lifeAdminNotes: Array.isArray(parsed.lifeAdminNotes) ? parsed.lifeAdminNotes : structuredClone(seedData.lifeAdminNotes),
@@ -551,6 +562,10 @@ function initializeState(loaded) {
     : allowedUsers[0].email;
   loaded.history = Array.isArray(loaded.history) ? loaded.history : [];
   loaded.lastSavedAt = loaded.lastSavedAt || new Date().toISOString();
+  loaded.hiddenPanels = {
+    bills: Boolean(loaded.hiddenPanels?.bills),
+    lifeAdmin: Boolean(loaded.hiddenPanels?.lifeAdmin)
+  };
   loaded.billMonth = loaded.billMonth || defaultBillMonth();
   loaded.bills = Array.isArray(loaded.bills) ? loaded.bills.map(normalizeBill) : structuredClone(seedData.bills).map(normalizeBill);
   loaded.lifeAdminNotes = Array.isArray(loaded.lifeAdminNotes)
@@ -767,8 +782,34 @@ function render() {
   updateProgress();
   renderBills();
   renderLifeAdminNotes();
+  renderPanelVisibility();
   globalNotes.value = state.notes;
   userSelect.value = state.currentUser;
+}
+
+function renderPanelVisibility() {
+  setPanelHidden(
+    budgetPanel,
+    budgetPanelContent,
+    toggleBillsBtn,
+    state.hiddenPanels.bills,
+    "Monthly Bills"
+  );
+  setPanelHidden(
+    lifeAdminPanel,
+    lifeAdminPanelContent,
+    toggleLifeAdminBtn,
+    state.hiddenPanels.lifeAdmin,
+    "Patrick To-Do Notes"
+  );
+}
+
+function setPanelHidden(panel, content, button, hidden, label) {
+  panel.classList.toggle("panel-collapsed", hidden);
+  content.hidden = hidden;
+  button.textContent = hidden ? "Show" : "Hide";
+  button.setAttribute("aria-expanded", String(!hidden));
+  button.setAttribute("aria-label", `${hidden ? "Show" : "Hide"} ${label}`);
 }
 
 function renderBills() {
@@ -1645,6 +1686,11 @@ document.querySelector("#addBillBtn").addEventListener("click", () => {
   saveState();
   renderBills();
 });
+toggleBillsBtn.addEventListener("click", () => {
+  state.hiddenPanels.bills = !state.hiddenPanels.bills;
+  saveState();
+  renderPanelVisibility();
+});
 document.querySelector("#addLifeAdminNoteBtn").addEventListener("click", () => {
   state.lifeAdminNotes.push({
     id: crypto.randomUUID(),
@@ -1655,6 +1701,11 @@ document.querySelector("#addLifeAdminNoteBtn").addEventListener("click", () => {
   });
   saveState();
   renderLifeAdminNotes();
+});
+toggleLifeAdminBtn.addEventListener("click", () => {
+  state.hiddenPanels.lifeAdmin = !state.hiddenPanels.lifeAdmin;
+  saveState();
+  renderPanelVisibility();
 });
 userSelect.addEventListener("change", () => {
   state.currentUser = userSelect.value;
@@ -1687,6 +1738,7 @@ document.querySelector("#importInput").addEventListener("change", event => {
         notes: imported.notes || "",
         currentUser: imported.currentUser,
         history: imported.history,
+        hiddenPanels: imported.hiddenPanels,
         billMonth: imported.billMonth,
         bills: imported.bills,
         lifeAdminNotes: imported.lifeAdminNotes,

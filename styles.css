@@ -298,6 +298,30 @@ textarea {
   color: var(--muted);
 }
 
+.panel-actions {
+  display: flex;
+  gap: 10px;
+  align-items: end;
+  justify-content: flex-end;
+}
+
+.panel-actions label {
+  min-width: 180px;
+}
+
+.collapsible-content {
+  display: grid;
+  gap: 14px;
+}
+
+.panel-collapsed {
+  gap: 0;
+}
+
+.panel-collapsed header {
+  margin-bottom: 0;
+}
+
 .budget-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -847,9 +871,15 @@ dialog::backdrop {
   .collaboration-panel,
   .sync-panel,
   .budget-panel header,
+  .panel-actions,
   .life-admin-item,
   .notes-panel {
     grid-template-columns: 1fr;
+  }
+
+  .panel-actions {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .life-admin-panel header {
