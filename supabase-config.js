@@ -1,4 +1,4 @@
 window.PATRICK_SUPABASE_CONFIG = {
-  url: "",
-  anonKey: ""
+  url: "https://kqxjgzhmwvrxakmrdnam.supabase.co",
+  anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxeGpnemhtd3ZyeGFrbXJkbmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5OTc4MjcsImV4cCI6MjA5NTU3MzgyN30.wrTTlJ8kWJzMf7_xN4AeZ4Cr0NP1imb5qeivbn1o6ZA"
 };
