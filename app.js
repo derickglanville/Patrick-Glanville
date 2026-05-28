@@ -4,10 +4,20 @@ const PANEL_VISIBILITY_VERSION = 2026052603;
 const BUILD_INFO = {
   commit: "926ad52",
   timestamp: "2026-05-25T11:18:12-04:00",
-  builtAt: "2026-05-27T16:45:53-04:00",
+  builtAt: "2026-05-28T00:00:00-04:00",
   label: "Local build"
 };
 const GITHUB_COMMIT_API = "https://api.github.com/repos/derickglanville/Patrick-Glanville/commits/main";
+const SUPABASE_TABLE = "tracker_state";
+const SUPABASE_STATE_ID = "patrick-glanville";
+const SUPABASE_SAVE_DELAY_MS = 700;
+let supabaseClient = null;
+let supabaseEnabled = false;
+let supabaseStatus = "Local browser storage";
+let supabaseSaveTimer = null;
+let supabaseRealtimeChannel = null;
+let remoteUpdatedAt = "";
+let applyingRemoteState = false;
 const allowedUsers = [
   { name: "Deric Glanville", email: "dglanville@gmail.com" },
   { name: "Patrick Glanville", email: "patrick.glanville@gmail.com" },
@@ -582,6 +592,9 @@ function loadState() {
 }
 
 function initializeState(loaded) {
+  loaded = loaded && typeof loaded === "object" ? loaded : structuredClone(seedData);
+  loaded.notes = loaded.notes || "";
+  loaded.tasks = Array.isArray(loaded.tasks) ? loaded.tasks : structuredClone(seedData.tasks);
   loaded.dataVersion = Number(loaded.dataVersion) || DATA_VERSION;
   let panelVisibilityReset = false;
   loaded.currentUser = allowedUsers.some(user => user.email === loaded.currentUser)
@@ -797,6 +810,128 @@ function saveState() {
   state.lastSavedAt = new Date().toISOString();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   updateDataStoreStatus();
+  queueSharedStateSave();
+}
+
+function supabaseConfig() {
+  return window.PATRICK_SUPABASE_CONFIG || {};
+}
+
+function hasSupabaseConfig() {
+  const config = supabaseConfig();
+  return Boolean(config.url && config.anonKey && window.supabase?.createClient);
+}
+
+async function initializeSharedDataSource() {
+  if (!hasSupabaseConfig()) {
+    supabaseStatus = "Local browser storage; Supabase is not configured";
+    updateDataStoreStatus();
+    return;
+  }
+
+  const config = supabaseConfig();
+  try {
+    supabaseClient = window.supabase.createClient(config.url, config.anonKey);
+    supabaseEnabled = true;
+    supabaseStatus = "Connecting to Supabase shared storage";
+    updateDataStoreStatus();
+    await loadSharedState();
+    subscribeToSharedState();
+  } catch (error) {
+    supabaseEnabled = false;
+    supabaseStatus = `Supabase unavailable: ${error.message}`;
+    updateDataStoreStatus();
+  }
+}
+
+async function loadSharedState() {
+  if (!supabaseEnabled) return;
+
+  const { data, error } = await supabaseClient
+    .from(SUPABASE_TABLE)
+    .select("state, updated_at")
+    .eq("id", SUPABASE_STATE_ID)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  if (!data?.state || !Array.isArray(data.state.tasks)) {
+    await saveSharedStateNow();
+    return;
+  }
+
+  applyingRemoteState = true;
+  state = initializeState(data.state);
+  remoteUpdatedAt = data.updated_at || "";
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  supabaseStatus = `Supabase shared storage; synced ${formatDateTime(remoteUpdatedAt || state.lastSavedAt)}`;
+  render();
+  updateDataStoreStatus();
+  applyingRemoteState = false;
+}
+
+function queueSharedStateSave() {
+  if (!supabaseEnabled || applyingRemoteState) return;
+  window.clearTimeout(supabaseSaveTimer);
+  supabaseSaveTimer = window.setTimeout(() => {
+    saveSharedStateNow();
+  }, SUPABASE_SAVE_DELAY_MS);
+}
+
+async function saveSharedStateNow() {
+  if (!supabaseEnabled) return;
+
+  const payload = {
+    id: SUPABASE_STATE_ID,
+    state,
+    updated_by: state.currentUser || allowedUsers[0].email,
+    updated_at: new Date().toISOString()
+  };
+
+  const { data, error } = await supabaseClient
+    .from(SUPABASE_TABLE)
+    .upsert(payload, { onConflict: "id" })
+    .select("updated_at")
+    .single();
+
+  if (error) {
+    supabaseStatus = `Supabase save failed: ${error.message}`;
+    updateDataStoreStatus();
+    return;
+  }
+
+  remoteUpdatedAt = data?.updated_at || payload.updated_at;
+  supabaseStatus = `Supabase shared storage; saved ${formatDateTime(remoteUpdatedAt)}`;
+  updateDataStoreStatus();
+}
+
+function subscribeToSharedState() {
+  if (!supabaseEnabled || supabaseRealtimeChannel) return;
+
+  supabaseRealtimeChannel = supabaseClient
+    .channel("patrick-tracker-state")
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: SUPABASE_TABLE,
+        filter: `id=eq.${SUPABASE_STATE_ID}`
+      },
+      payload => {
+        const nextUpdatedAt = payload.new?.updated_at || "";
+        if (!payload.new?.state || nextUpdatedAt === remoteUpdatedAt) return;
+        applyingRemoteState = true;
+        state = initializeState(payload.new.state);
+        remoteUpdatedAt = nextUpdatedAt;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        supabaseStatus = `Supabase shared storage; updated ${formatDateTime(remoteUpdatedAt)}`;
+        render();
+        updateDataStoreStatus();
+        applyingRemoteState = false;
+      }
+    )
+    .subscribe();
 }
 
 async function updateSyncStatus() {
@@ -821,10 +956,11 @@ async function updateSyncStatus() {
 
 function updateDataStoreStatus() {
   const dataStoreStatus = document.querySelector("#dataStoreStatus");
-  const locationLabel = window.location.protocol === "file:"
+  const fallbackLabel = window.location.protocol === "file:"
     ? "local file browser storage"
     : `${window.location.hostname} browser storage`;
-  dataStoreStatus.textContent = `${locationLabel}; last saved ${formatDateTime(state.lastSavedAt)}`;
+  const locationLabel = supabaseEnabled ? supabaseStatus : `${fallbackLabel}; ${supabaseStatus}`;
+  dataStoreStatus.textContent = `${locationLabel}; local backup ${formatDateTime(state.lastSavedAt)}`;
 }
 
 function render() {
@@ -1987,3 +2123,4 @@ populateUsers();
 populateCategories();
 render();
 updateSyncStatus();
+initializeSharedDataSource();
