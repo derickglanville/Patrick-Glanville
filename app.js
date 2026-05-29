@@ -816,6 +816,51 @@ function updateTaskFields(tasks, title, updates) {
   Object.assign(task, updates);
 }
 
+function mergeTaskData(primary, duplicate) {
+  if (!primary || !duplicate) return;
+
+  if ((!primary.owner || primary.owner === "No owner") && duplicate.owner) primary.owner = duplicate.owner;
+  if ((!primary.due) && duplicate.due) primary.due = duplicate.due;
+  if ((!primary.next || primary.next === "No next step recorded.") && duplicate.next) primary.next = duplicate.next;
+  if ((!primary.notes || primary.notes === "No notes yet.") && duplicate.notes) primary.notes = duplicate.notes;
+
+  primary.percent = Math.max(normalizePercent(primary.percent), normalizePercent(duplicate.percent));
+
+  if (priorityRank(duplicate.priority) < priorityRank(primary.priority)) {
+    primary.priority = duplicate.priority;
+  }
+
+  if (statusToPercent(duplicate.status) > statusToPercent(primary.status)) {
+    primary.status = duplicate.status;
+  }
+
+  const primaryComments = Array.isArray(primary.comments) ? primary.comments : [];
+  const duplicateComments = Array.isArray(duplicate.comments) ? duplicate.comments : [];
+  const seenCommentIds = new Set(primaryComments.map(comment => comment.id));
+  duplicateComments.forEach(comment => {
+    if (!seenCommentIds.has(comment.id)) {
+      primaryComments.push(comment);
+      seenCommentIds.add(comment.id);
+    }
+  });
+  primary.comments = primaryComments;
+
+  if (!primary.tag && duplicate.tag) primary.tag = duplicate.tag;
+  if (!primary.tagTone && duplicate.tagTone) primary.tagTone = duplicate.tagTone;
+}
+
+function dedupeTasksByTitle(tasks, title) {
+  const matches = tasks.filter(task => task.title === title);
+  if (matches.length <= 1) return;
+
+  const primary = matches[0];
+  matches.slice(1).forEach(duplicate => {
+    mergeTaskData(primary, duplicate);
+    const index = tasks.indexOf(duplicate);
+    if (index >= 0) tasks.splice(index, 1);
+  });
+}
+
 function markUpdatedSections(tasks) {
   const easyMoneyTasks = tasks.filter(task =>
     task.title === "Apply for easy money local jobs" ||
@@ -875,6 +920,7 @@ function markUpdatedSections(tasks) {
     benefitsTask.tag = "New";
     benefitsTask.tagTone = "purple";
   }
+  dedupeTasksByTitle(tasks, "Apply for SNAP and TANF benefits");
 
   const bankruptcyTask = tasks.find(task =>
     task.title === "Look into bankruptcy options" ||
@@ -889,6 +935,7 @@ function markUpdatedSections(tasks) {
     bankruptcyTask.tag = "New";
     bankruptcyTask.tagTone = "purple";
   }
+  dedupeTasksByTitle(tasks, "Review bankruptcy filing for all debts, including the damaged car");
 
   const bikeTask = tasks.find(task => task.title === "Use bicycle for local transportation and nearby jobs");
   if (bikeTask) {
@@ -900,6 +947,9 @@ function markUpdatedSections(tasks) {
   if (turoTask) {
     turoTask.notes = "Rationale: Turo may restore transportation for local job interviews, short-term work, medical appointments, and urgent errands, but it only helps if confirmed income exceeds the rental cost. Do not book out of pride, pressure, or hope alone. Track rental price, fees, insurance/protection cost, deposit, fuel, mileage limits, expected daily earnings, and minimum cash needed for food, housing, and car-loan decisions.";
   }
+
+  dedupeTasksByTitle(tasks, "Arrange voluntary surrender of Kia and notify Wells Fargo");
+  dedupeTasksByTitle(tasks, "Get on the Section 8 housing waiting list");
 }
 
 function saveState() {
