@@ -47,9 +47,12 @@
       <p class="lede">A practical dashboard for tracking transportation, income, benefits, family communication, and home-safety tasks.</p>
     </div>
     <div class="header-actions" aria-label="Data actions">
-      <button id="pdfBtn" type="button" title="Create a PDF from the full tracker page">Create PDF</button>
+      <label class="import-label" title="Upload a PDF and save it to the shared database">
+        Save PDF To DB
+        <input id="pdfUploadInput" type="file" accept="application/pdf" multiple>
+      </label>
+      <button id="viewDocumentsBtn" type="button" title="View PDF documents saved in the shared database">View Saved PDFs</button>
       <button id="urgencyReportBtn" type="button" title="Open a professional report of urgent tasks">Urgency Report</button>
-      <button id="emailDashboardReportBtn" type="button" title="Email the current urgency report to all users">Email Report</button>
       <button id="htmlEmailDashboardReportBtn" type="button" title="Create a rich HTML email report file for the Email folder">Create HTML Email</button>
       <button id="historyBtn" type="button" title="Review all task updates">History</button>
       <button id="exportBtn" type="button" title="Download current tracker data">Export</button>
@@ -307,6 +310,17 @@
       </div>
       <p class="report-save-note">Save the generated HTML report to <strong>C:\Software Development\Patrick Glanville\Email</strong>, then run the local email utility in that folder to create the rich email.</p>
       <div id="urgencyReport" class="report-body"></div>
+    </div>
+  </dialog>
+
+  <dialog id="documentsDialog">
+    <div class="history-dialog">
+      <div class="dialog-head">
+        <h2>Saved PDF Documents</h2>
+        <button type="button" id="closeDocumentsDialog" class="icon-button" aria-label="Close">x</button>
+      </div>
+      <p class="documents-note">These PDF files are saved in the shared database and available to everyone using this tracker.</p>
+      <div id="documentsList" class="documents-list"></div>
     </div>
   </dialog>
 
