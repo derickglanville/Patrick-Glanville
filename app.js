@@ -1,5 +1,5 @@
 const STORAGE_KEY = "patrick-glanville-support-tracker-v1";
-const DATA_VERSION = 2026052601;
+const DATA_VERSION = 2026052901;
 const PANEL_VISIBILITY_VERSION = 2026052603;
 const BUILD_INFO = {
   commit: "926ad52",
@@ -27,7 +27,7 @@ const allowedUsers = [
 const baseCategories = [
   "Job - CloudResearch",
   "Job - Data Annotation",
-  "Job - Easy Money (Home Depot, Amazon, Lowe's)",
+  "Job - Easy Money (HEB, Walmart, Home Depot, Kroger)",
   "Job - Mercor",
   "Job - Prolific",
   "N/A",
@@ -72,7 +72,7 @@ const categoryOrder = [
   "Job - Data Annotation",
   "Job - Prolific",
   "Job - Mercor",
-  "Job - Easy Money (Home Depot, Amazon, Lowe's)",
+  "Job - Easy Money (HEB, Walmart, Home Depot, Kroger)",
   "Income",
   "Benefits",
   "Cash",
@@ -193,15 +193,16 @@ const seedData = {
     },
     {
       id: crypto.randomUUID(),
-      title: "Apply for Easy Money jobs at Home Depot, Amazon, and Lowe's",
-      category: "Job - Easy Money (Home Depot, Amazon, Lowe's)",
+      title: "Apply for minimum-wage local jobs (HEB, Walmart, Home Depot, Kroger)",
+      category: "Job - Easy Money (HEB, Walmart, Home Depot, Kroger)",
       owner: "Patrick",
       status: "Not started",
-      priority: "High",
+      priority: "Urgent",
       due: "",
-      next: "Check nearby Home Depot, Amazon, and Lowe's roles that are reachable by bicycle, bus, family ride, or short-term rental.",
-      notes: "Websites: Home Depot careers https://careers.homedepot.com/, Amazon jobs https://hiring.amazon.com/, Lowe's careers https://talent.lowes.com/. Track job title, location, distance, shift, pay, application date, interview status, and transportation plan.",
-      tag: "Added/Updated"
+      next: "Show the submitted applications if they already exist. If not, apply today to nearby HEB, Walmart, Home Depot, and Kroger roles that are reachable by bicycle, bus, family ride, or short-term rental.",
+      notes: "Priority: this is the most important work track because immediate hourly income can stabilize food, transportation, and housing. Websites: HEB careers https://careers.heb.com/, Walmart careers https://careers.walmart.com/, Home Depot careers https://careers.homedepot.com/, Kroger careers https://www.krogerfamilycareers.com/. Track job title, location, distance, shift, pay, application date, screenshot or confirmation number, interview status, and transportation plan.",
+      tag: "New",
+      tagTone: "purple"
     },
     {
       id: crypto.randomUUID(),
@@ -256,8 +257,8 @@ const seedData = {
       status: "Not started",
       priority: "High",
       due: "",
-      next: "Map realistic bicycle range from home to grocery stores, restaurants, temp agencies, libraries, transit stops, and local employers.",
-      notes: "Check bike condition, lock, lights, helmet, tire pump, weather limits, safe routes, and whether jobs can be reached without a car."
+      next: "Map realistic bicycle range from home to grocery stores, restaurants, temp agencies, libraries, transit stops, and local employers so local work can start before another car is affordable.",
+      notes: "Use the bicycle as the default local transportation plan until enough money is saved for a cheap used car. Check bike condition, lock, lights, helmet, tire pump, weather limits, safe routes, and whether jobs can be reached without a car."
     },
     {
       id: crypto.randomUUID(),
@@ -363,14 +364,42 @@ const seedData = {
     },
     {
       id: crypto.randomUUID(),
-      title: "Look into bankruptcy options",
+      title: "Review bankruptcy filing for all debts, including the damaged car",
       category: "Debt",
       owner: "Patrick + brother",
       status: "Not started",
-      priority: "Medium",
+      priority: "Urgent",
       due: "",
-      next: "Schedule a free consultation with a Texas bankruptcy attorney or nonprofit credit counselor.",
-      notes: "Ask about Chapter 7, Chapter 13, car loan treatment, retirement accounts, fees, and alternatives."
+      next: "Schedule a free consultation with a Texas bankruptcy attorney and ask whether filing should happen during or after the voluntary car surrender process.",
+      notes: "Ask about Chapter 7, Chapter 13, treatment of the damaged car loan deficiency, medical bills, credit cards, retirement accounts, filing fees, and whether timing the filing around repossession changes the outcome.",
+      tag: "New",
+      tagTone: "purple"
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "Arrange voluntary surrender of Kia and notify Wells Fargo",
+      category: "Debt",
+      owner: "Patrick + brother",
+      status: "Not started",
+      priority: "Urgent",
+      due: "",
+      next: "Call Wells Fargo and say Patrick wants to voluntarily surrender the vehicle, then ask for the exact handoff location, required paperwork, key return instructions, and what to do with the title and registration.",
+      notes: "The lender holds the title until payoff, so the car cannot just be dropped at the DMV. Ask about surrender date, pickup or drop-off instructions, deficiency balance risk after auction, and credit impact. Remove the TollTag, cancel the toll account, remove personal items, and file a Texas vehicle transfer notification within 30 days after the car leaves Patrick's possession.",
+      tag: "New",
+      tagTone: "purple"
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "Get on the Section 8 housing waiting list",
+      category: "Benefits",
+      owner: "Patrick + brother",
+      status: "Not started",
+      priority: "Urgent",
+      due: "",
+      next: "Check whether the Dallas Housing Authority or Plano Housing Authority waiting lists are open and document the exact application procedure for Frisco-area coverage.",
+      notes: "Frisco does not run its own Section 8 program, so check DHA, PHA, and open-waitlist listings through AffordableHousing.com. There should never be a fee to apply. If a waiting list is open, submit the preliminary application and save proof. If it is closed, capture the procedure and where to monitor for reopening.",
+      tag: "New",
+      tagTone: "purple"
     },
     {
       id: crypto.randomUUID(),
@@ -581,7 +610,6 @@ function loadState() {
       lifeAdminNotes: Array.isArray(parsed.lifeAdminNotes) ? parsed.lifeAdminNotes : structuredClone(seedData.lifeAdminNotes),
       tasks: Array.isArray(parsed.tasks) ? parsed.tasks : structuredClone(seedData.tasks)
     };
-    addMissingSeedTasks(loaded);
     const migrated = applyDataMigrations(loaded);
     const initialized = initializeState(loaded);
     if (migrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(initialized));
@@ -595,6 +623,7 @@ function initializeState(loaded) {
   loaded = loaded && typeof loaded === "object" ? loaded : structuredClone(seedData);
   loaded.notes = loaded.notes || "";
   loaded.tasks = Array.isArray(loaded.tasks) ? loaded.tasks : structuredClone(seedData.tasks);
+  addMissingSeedTasks(loaded);
   loaded.dataVersion = Number(loaded.dataVersion) || DATA_VERSION;
   let panelVisibilityReset = false;
   loaded.currentUser = allowedUsers.some(user => user.email === loaded.currentUser)
@@ -624,7 +653,7 @@ function initializeState(loaded) {
   loaded.lifeAdminNotes = Array.isArray(loaded.lifeAdminNotes)
     ? loaded.lifeAdminNotes.map(normalizeLifeAdminNote)
     : structuredClone(seedData.lifeAdminNotes).map(normalizeLifeAdminNote);
-  loaded.tasks = loaded.tasks.map(task => ({
+  loaded.tasks = loaded.tasks.map(task => syncTaskCompletionState({
     percent: statusToPercent(task.status),
     comments: [],
     ...task,
@@ -703,6 +732,21 @@ function normalizePercent(value) {
   return Math.max(0, Math.min(100, Math.round(number)));
 }
 
+function syncTaskCompletionState(task) {
+  if (!task) return task;
+
+  task.percent = normalizePercent(task.percent);
+
+  if (task.percent === 100) {
+    task.status = "Done";
+    task.priority = "Low";
+  } else if (task.status === "Done") {
+    task.status = "In progress";
+  }
+
+  return task;
+}
+
 function statusToPercent(status) {
   if (status === "Done") return 100;
   if (status === "In progress") return 50;
@@ -744,6 +788,23 @@ function applyDataMigrations(loaded) {
     percent: 15
   });
 
+  updateTaskFields(loaded.tasks, "Apply for SNAP and TANF benefits", {
+    priority: "Urgent",
+    due: "2026-05-26"
+  });
+
+  updateTaskFields(loaded.tasks, "Get on the Section 8 housing waiting list", {
+    priority: "Urgent"
+  });
+
+  updateTaskFields(loaded.tasks, "Arrange voluntary surrender of Kia and notify Wells Fargo", {
+    priority: "Urgent"
+  });
+
+  updateTaskFields(loaded.tasks, "Review bankruptcy filing for all debts, including the damaged car", {
+    priority: "Urgent"
+  });
+
   loaded.dataVersion = DATA_VERSION;
   loaded.lastSavedAt = new Date().toISOString();
   return true;
@@ -759,15 +820,19 @@ function markUpdatedSections(tasks) {
   const easyMoneyTasks = tasks.filter(task =>
     task.title === "Apply for easy money local jobs" ||
     task.title === "Apply for Easy Money jobs at Home Depot, Amazon, and Lowe's" ||
-    task.category === "Job - Easy Money"
+    task.title === "Apply for minimum-wage local jobs (HEB, Walmart, Home Depot, Kroger)" ||
+    task.category === "Job - Easy Money" ||
+    task.category === "Job - Easy Money (Home Depot, Amazon, Lowe's)"
   );
   const easyMoneyTask = easyMoneyTasks[0];
   if (easyMoneyTask) {
-    easyMoneyTask.title = "Apply for Easy Money jobs at Home Depot, Amazon, and Lowe's";
-    easyMoneyTask.category = "Job - Easy Money (Home Depot, Amazon, Lowe's)";
-    easyMoneyTask.next = "Check nearby Home Depot, Amazon, and Lowe's roles that are reachable by bicycle, bus, family ride, or short-term rental.";
-    easyMoneyTask.notes = "Websites: Home Depot careers https://careers.homedepot.com/, Amazon jobs https://hiring.amazon.com/, Lowe's careers https://talent.lowes.com/. Track job title, location, distance, shift, pay, application date, interview status, and transportation plan.";
-    easyMoneyTask.tag = "Added/Updated";
+    easyMoneyTask.title = "Apply for minimum-wage local jobs (HEB, Walmart, Home Depot, Kroger)";
+    easyMoneyTask.category = "Job - Easy Money (HEB, Walmart, Home Depot, Kroger)";
+    easyMoneyTask.priority = "Urgent";
+    easyMoneyTask.next = "Show the submitted applications if they already exist. If not, apply today to nearby HEB, Walmart, Home Depot, and Kroger roles that are reachable by bicycle, bus, family ride, or short-term rental.";
+    easyMoneyTask.notes = "Priority: this is the most important work track because immediate hourly income can stabilize food, transportation, and housing. Websites: HEB careers https://careers.heb.com/, Walmart careers https://careers.walmart.com/, Home Depot careers https://careers.homedepot.com/, Kroger careers https://www.krogerfamilycareers.com/. Track job title, location, distance, shift, pay, application date, screenshot or confirmation number, interview status, and transportation plan.";
+    easyMoneyTask.tag = "New";
+    easyMoneyTask.tagTone = "purple";
   }
   easyMoneyTasks.slice(1).forEach(duplicate => {
     const index = tasks.indexOf(duplicate);
@@ -802,7 +867,38 @@ function markUpdatedSections(tasks) {
 
   const benefitsTask = tasks.find(task => task.title === "Apply for DSS, SNAP, TANF, and Section 8 support");
   if (benefitsTask) {
-    benefitsTask.tag = "Added/Updated";
+    benefitsTask.title = "Apply for SNAP and TANF benefits";
+    benefitsTask.priority = "Urgent";
+    benefitsTask.due = benefitsTask.due || "2026-05-26";
+    benefitsTask.next = "Present the started application if it already exists. If nothing has been submitted, begin the SNAP and TANF application today and save proof of submission.";
+    benefitsTask.notes = "Start with Texas Health and Human Services. Track login details, documents needed, application date, confirmation number, interview date, case number, and requested follow-up items.";
+    benefitsTask.tag = "New";
+    benefitsTask.tagTone = "purple";
+  }
+
+  const bankruptcyTask = tasks.find(task =>
+    task.title === "Look into bankruptcy options" ||
+    task.title === "Review bankruptcy filing for all debts, including the damaged car"
+  );
+  if (bankruptcyTask) {
+    bankruptcyTask.title = "Review bankruptcy filing for all debts, including the damaged car";
+    bankruptcyTask.category = "Debt";
+    bankruptcyTask.priority = "Urgent";
+    bankruptcyTask.next = "Schedule a free consultation with a Texas bankruptcy attorney and ask whether filing should happen during or after the voluntary car surrender process.";
+    bankruptcyTask.notes = "Ask about Chapter 7, Chapter 13, treatment of the damaged car loan deficiency, medical bills, credit cards, retirement accounts, filing fees, and whether timing the filing around repossession changes the outcome.";
+    bankruptcyTask.tag = "New";
+    bankruptcyTask.tagTone = "purple";
+  }
+
+  const bikeTask = tasks.find(task => task.title === "Use bicycle for local transportation and nearby jobs");
+  if (bikeTask) {
+    bikeTask.next = "Map realistic bicycle range from home to grocery stores, restaurants, temp agencies, libraries, transit stops, and local employers so local work can start before another car is affordable.";
+    bikeTask.notes = "Use the bicycle as the default local transportation plan until enough money is saved for a cheap used car. Check bike condition, lock, lights, helmet, tire pump, weather limits, safe routes, and whether jobs can be reached without a car.";
+  }
+
+  const turoTask = tasks.find(task => task.title === "Evaluate renting a car from Turo for transportation");
+  if (turoTask) {
+    turoTask.notes = "Rationale: Turo may restore transportation for local job interviews, short-term work, medical appointments, and urgent errands, but it only helps if confirmed income exceeds the rental cost. Do not book out of pride, pressure, or hope alone. Track rental price, fees, insurance/protection cost, deposit, fuel, mileage limits, expected daily earnings, and minimum cash needed for food, housing, and car-loan decisions.";
   }
 }
 
@@ -860,6 +956,7 @@ async function loadSharedState() {
     return;
   }
 
+  const originalStateJson = JSON.stringify(data.state);
   applyingRemoteState = true;
   state = initializeState(data.state);
   remoteUpdatedAt = data.updated_at || "";
@@ -868,6 +965,10 @@ async function loadSharedState() {
   render();
   updateDataStoreStatus();
   applyingRemoteState = false;
+
+  if (JSON.stringify(state) !== originalStateJson) {
+    await saveSharedStateNow();
+  }
 }
 
 function queueSharedStateSave() {
@@ -1328,7 +1429,7 @@ function createTaskCard(task) {
   badges.appendChild(priority);
   if (task.tag) {
     const tag = document.createElement("span");
-    tag.className = "change-tag";
+    tag.className = `change-tag${task.tagTone === "purple" ? " change-tag-purple" : ""}`;
     tag.textContent = task.tag;
     badges.appendChild(tag);
   }
@@ -1369,8 +1470,7 @@ function createTaskCard(task) {
   percentInput.addEventListener("change", () => {
     const before = normalizePercent(task.percent);
     task.percent = normalizePercent(percentInput.value);
-    if (task.percent === 100) task.status = "Done";
-    else if (task.status === "Done") task.status = "In progress";
+    syncTaskCompletionState(task);
     recordUpdate(task, `Percent complete changed from ${before}% to ${task.percent}%`);
     saveState();
     render();
@@ -1425,6 +1525,7 @@ function createTaskCard(task) {
     task.status = select.value;
     if (select.value === "Done") task.percent = 100;
     else if (before === "Done" && task.percent === 100) task.percent = statusToPercent(select.value);
+    syncTaskCompletionState(task);
     recordUpdate(task, `Status changed from ${before} to ${select.value}`);
     saveState();
     render();
@@ -1635,7 +1736,7 @@ function renderUrgencyReport() {
       <p class="report-kicker">Generated ${escapeHtml(formatDateTime(new Date().toISOString()))}</p>
       <p>This report summarizes tasks marked with urgent priority, with emphasis on what is due, who owns the task, current progress, and the next action needed.</p>
       <p><strong>Job focus:</strong> Job and income opportunities are grouped first because restoring income is the highest leverage path for transportation, housing, debt, and daily living stability.</p>
-      <p><strong>Daily schedule:</strong> This report is intended to be sent every day at 9:33 AM. Automatic sending requires an email backend or scheduled service; this button opens a prepared email for manual sending.</p>
+      <p><strong>Daily schedule:</strong> This report is intended to be sent every day at 9:30 AM. Automatic sending now runs from the local project Email folder; this button still opens a prepared email for manual sending.</p>
       <div class="report-metrics">
         <article><strong>${urgentTasks.length}</strong><span>urgent tasks</span></article>
         <article><strong>${jobTasks.length}</strong><span>urgent job tasks</span></article>
@@ -1753,7 +1854,7 @@ function buildUrgencyReportEmail() {
   const lines = [
     "Patrick Glanville Support Tracker - Urgency Report",
     `Generated: ${formatDateTime(new Date().toISOString())}`,
-    "Scheduled daily send time: 9:33 AM",
+    "Scheduled daily send time: 9:30 AM",
     "",
     "Summary",
     `Urgent tasks: ${urgentTasks.length}`,
@@ -1858,7 +1959,7 @@ function buildUrgencyReportHtml() {
   <main class="wrap">
     <header class="header">
       <h1>Patrick Glanville Urgency Report</h1>
-      <p>Generated ${escapeHtml(generated)} | Scheduled daily send time: 9:33 AM</p>
+      <p>Generated ${escapeHtml(generated)} | Scheduled daily send time: 9:30 AM</p>
     </header>
     <section class="content">
       <p class="notice"><strong>Job focus:</strong> Job and income opportunities are grouped first because restoring income is the highest leverage path for transportation, housing, debt, and daily living stability.</p>
@@ -1872,7 +1973,7 @@ function buildUrgencyReportHtml() {
       ${reportSectionHtml("Job Search and Income Opportunities", jobTasks, true)}
       ${reportSectionHtml("Other Urgent Tasks", otherTasks, false)}
     </section>
-    <footer class="footer">Prepared from the Patrick Glanville Support Tracker. Save this file in the Email folder and use Send-RichUrgencyReport.ps1 to create a rich Outlook email.</footer>
+    <footer class="footer">Prepared from the Patrick Glanville Support Tracker. Save this file in the local Email folder and use Send-RichUrgencyReport.ps1 to create a rich Outlook email.</footer>
   </main>
 </body>
 </html>`;
@@ -1919,7 +2020,7 @@ function downloadUrgencyReportHtml() {
   link.download = `patrick-urgency-report-${new Date().toISOString().slice(0, 10)}.html`;
   link.click();
   URL.revokeObjectURL(link.href);
-  alert("Save the HTML report to C:\\Software Development\\Patrick Glanville\\Email. Browsers require you to choose or confirm the save location.");
+  alert("Save the HTML report to C:\\Software Developement\\ChatGPT Codex\\Patrick Glanville\\Email. Browsers require you to choose or confirm the save location.");
 }
 
 function populateUsers() {
@@ -1959,8 +2060,10 @@ taskForm.addEventListener("submit", event => {
     next: fields.next.value.trim(),
     notes: fields.notes.value.trim(),
     tag: existing?.tag,
+    tagTone: existing?.tagTone,
     comments
   };
+  syncTaskCompletionState(task);
   const index = state.tasks.findIndex(item => item.id === task.id);
   if (index >= 0) state.tasks[index] = task;
   else state.tasks.unshift(task);

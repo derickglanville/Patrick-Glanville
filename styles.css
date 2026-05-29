@@ -559,6 +559,12 @@ textarea {
   white-space: nowrap;
 }
 
+.change-tag-purple {
+  background: #eadcff;
+  color: #5e2a9e;
+  border-color: #c6a6f7;
+}
+
 .Urgent {
   background: #ffe1df;
   color: #8d2424;
