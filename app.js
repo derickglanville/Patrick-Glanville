@@ -11,6 +11,7 @@ const GITHUB_COMMIT_API = "https://api.github.com/repos/derickglanville/Patrick-
 const SUPABASE_TABLE = "tracker_state";
 const SUPABASE_STATE_ID = "patrick-glanville";
 const SUPABASE_SAVE_DELAY_MS = 700;
+const MAX_DOCUMENT_SIZE_BYTES = 6 * 1024 * 1024;
 let supabaseClient = null;
 let supabaseEnabled = false;
 let supabaseStatus = "Local browser storage";
@@ -102,6 +103,7 @@ const seedData = {
     lifeAdmin: true
   },
   runningNotes: [],
+  documents: [],
   collapsedTaskGroups: {},
   billMonth: "",
   bills: [
@@ -559,6 +561,7 @@ const taskForm = document.querySelector("#taskForm");
 const userSelect = document.querySelector("#userSelect");
 const historyDialog = document.querySelector("#historyDialog");
 const urgencyReportDialog = document.querySelector("#urgencyReportDialog");
+const documentsDialog = document.querySelector("#documentsDialog");
 const billMonthInput = document.querySelector("#billMonth");
 const billList = document.querySelector("#billList");
 const billTotal = document.querySelector("#billTotal");
@@ -574,6 +577,8 @@ const toggleBillsBtn = document.querySelector("#toggleBillsBtn");
 const toggleLifeAdminBtn = document.querySelector("#toggleLifeAdminBtn");
 const hideBillsBtn = document.querySelector("#hideBillsBtn");
 const hideLifeAdminBtn = document.querySelector("#hideLifeAdminBtn");
+const pdfUploadInput = document.querySelector("#pdfUploadInput");
+const documentsList = document.querySelector("#documentsList");
 
 const fields = {
   id: document.querySelector("#taskId"),
@@ -599,6 +604,7 @@ function loadState() {
       dataVersion: Number(parsed.dataVersion) || 0,
       notes: parsed.notes || "",
       runningNotes: Array.isArray(parsed.runningNotes) ? parsed.runningNotes : [],
+      documents: Array.isArray(parsed.documents) ? parsed.documents : [],
       currentUser: parsed.currentUser || allowedUsers[0].email,
       history: Array.isArray(parsed.history) ? parsed.history : [],
       lastSavedAt: parsed.lastSavedAt || "",
@@ -632,6 +638,7 @@ function initializeState(loaded) {
   loaded.history = Array.isArray(loaded.history) ? loaded.history : [];
   loaded.lastSavedAt = loaded.lastSavedAt || new Date().toISOString();
   loaded.runningNotes = normalizeRunningNotes(loaded.runningNotes, loaded.notes);
+  loaded.documents = normalizeDocuments(loaded.documents);
   if (loaded.panelVisibilityVersion !== PANEL_VISIBILITY_VERSION) {
     loaded.hiddenPanels = { bills: true, lifeAdmin: true };
     loaded.panelVisibilityVersion = PANEL_VISIBILITY_VERSION;
@@ -724,6 +731,19 @@ function normalizeRunningNotes(notes, legacyText = "") {
   }
 
   return normalized;
+}
+
+function normalizeDocuments(documents) {
+  return Array.isArray(documents) ? documents.map(savedDocument => ({
+    id: savedDocument.id || crypto.randomUUID(),
+    name: savedDocument.name || "Untitled PDF",
+    mimeType: savedDocument.mimeType || "application/pdf",
+    dataUrl: savedDocument.dataUrl || "",
+    sizeBytes: Number(savedDocument.sizeBytes) || 0,
+    savedAt: savedDocument.savedAt || new Date().toISOString(),
+    savedByEmail: savedDocument.savedByEmail || "",
+    savedByName: savedDocument.savedByName || ""
+  })).filter(savedDocument => savedDocument.dataUrl) : [];
 }
 
 function normalizePercent(value) {
@@ -1169,6 +1189,117 @@ function renderRunningNotes() {
       item.querySelector(".delete-running-note").addEventListener("click", () => deleteRunningNote(note.id));
       runningNotesList.appendChild(item);
     });
+}
+
+function formatFileSize(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "Unknown size";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function renderSavedDocuments() {
+  documentsList.innerHTML = "";
+  if (!state.documents.length) {
+    documentsList.textContent = "No PDF documents have been saved yet.";
+    return false;
+  }
+
+  [...state.documents]
+    .sort((a, b) => (b.savedAt || "").localeCompare(a.savedAt || ""))
+    .forEach(savedDocument => {
+      const item = document.createElement("article");
+      item.className = "document-item";
+      item.innerHTML = `
+        <header>
+          <div>
+            <h3>${escapeHtml(savedDocument.name)}</h3>
+            <div class="document-meta">
+              <span>${escapeHtml(formatFileSize(savedDocument.sizeBytes))}</span>
+              <span>Saved ${escapeHtml(formatDateTime(savedDocument.savedAt))}</span>
+              <span>${escapeHtml(savedDocument.savedByName || savedDocument.savedByEmail || "Unknown user")}</span>
+            </div>
+          </div>
+          <button type="button" class="open-document-btn">Open PDF</button>
+        </header>
+        <p>Stored in Supabase shared state for team access.</p>
+      `;
+      item.querySelector(".open-document-btn").addEventListener("click", () => openSavedDocument(savedDocument.id));
+      documentsList.appendChild(item);
+    });
+
+  return true;
+}
+
+function openSavedDocument(documentId) {
+  const savedDocument = state.documents.find(item => item.id === documentId);
+  if (!savedDocument?.dataUrl) {
+    alert("Could not open this PDF document.");
+    return;
+  }
+
+  try {
+    const parts = String(savedDocument.dataUrl).split(",");
+    if (parts.length < 2) throw new Error("Invalid PDF data.");
+    const mimeMatch = parts[0].match(/data:(.*?);base64/);
+    const mimeType = mimeMatch ? mimeMatch[1] : "application/pdf";
+    const binary = atob(parts[1]);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+
+    const blob = new Blob([bytes], { type: mimeType });
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.download = savedDocument.name || "document.pdf";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+  } catch (error) {
+    alert(`The PDF could not be opened: ${error.message}`);
+  }
+}
+
+function savePdfDocument(file) {
+  if (!file) return Promise.resolve(false);
+  if (file.type !== "application/pdf") {
+    alert("Please choose a PDF file.");
+    return Promise.resolve(false);
+  }
+  if (file.size > MAX_DOCUMENT_SIZE_BYTES) {
+    alert(`This PDF is too large to store in the shared database. Please keep files under ${formatFileSize(MAX_DOCUMENT_SIZE_BYTES)}.`);
+    return Promise.resolve(false);
+  }
+
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const user = currentUser();
+      const savedDocument = {
+        id: crypto.randomUUID(),
+        name: file.name,
+        mimeType: file.type,
+        dataUrl: reader.result,
+        sizeBytes: file.size,
+        savedAt: new Date().toISOString(),
+        savedByEmail: user.email,
+        savedByName: user.name
+      };
+
+      state.documents.unshift(savedDocument);
+      resolve(true);
+    };
+    reader.onerror = () => {
+      alert(`The PDF ${file.name} could not be read.`);
+      resolve(false);
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 function addRunningNote() {
@@ -2148,7 +2279,10 @@ document.querySelector("#urgencyReportBtn").addEventListener("click", () => {
 });
 document.querySelector("#closeUrgencyReportDialog").addEventListener("click", () => urgencyReportDialog.close());
 document.querySelector("#emailUrgencyReportBtn").addEventListener("click", emailUrgencyReport);
-document.querySelector("#emailDashboardReportBtn").addEventListener("click", emailUrgencyReport);
+const emailDashboardReportBtn = document.querySelector("#emailDashboardReportBtn");
+if (emailDashboardReportBtn) {
+  emailDashboardReportBtn.addEventListener("click", emailUrgencyReport);
+}
 document.querySelector("#htmlEmailUrgencyReportBtn").addEventListener("click", downloadUrgencyReportHtml);
 document.querySelector("#htmlEmailDashboardReportBtn").addEventListener("click", downloadUrgencyReportHtml);
 searchInput.addEventListener("input", render);
@@ -2237,6 +2371,7 @@ document.querySelector("#importInput").addEventListener("change", event => {
         billMonth: imported.billMonth,
         bills: imported.bills,
         lifeAdminNotes: imported.lifeAdminNotes,
+        documents: imported.documents,
         tasks: imported.tasks
       });
       addMissingSeedTasks(state);
@@ -2251,14 +2386,47 @@ document.querySelector("#importInput").addEventListener("change", event => {
   event.target.value = "";
 });
 
-document.querySelector("#pdfBtn").addEventListener("click", () => {
-  searchInput.value = "";
-  statusFilter.value = "all";
-  priorityFilter.value = "all";
-  categoryFilter.value = "all";
-  render();
-  window.print();
+const pdfBtn = document.querySelector("#pdfBtn");
+if (pdfBtn) {
+  pdfBtn.addEventListener("click", () => {
+    searchInput.value = "";
+    statusFilter.value = "all";
+    priorityFilter.value = "all";
+    categoryFilter.value = "all";
+    render();
+    window.print();
+  });
+}
+
+pdfUploadInput.addEventListener("change", async event => {
+  const files = [...(event.target.files || [])];
+  if (!files.length) return;
+
+  let savedCount = 0;
+  for (const file of files) {
+    if (await savePdfDocument(file)) savedCount += 1;
+  }
+
+  if (savedCount) {
+    saveState();
+    renderSavedDocuments();
+    alert(`Saved ${savedCount} PDF${savedCount === 1 ? "" : "s"} to the shared database.`);
+  }
+
+  event.target.value = "";
 });
+
+document.querySelector("#viewDocumentsBtn").addEventListener("click", () => {
+  const hasDocuments = renderSavedDocuments();
+  if (!hasDocuments) {
+    alert("No PDF documents have been saved to the database yet.");
+    return;
+  }
+  if (typeof documentsDialog.showModal === "function") documentsDialog.showModal();
+  else if (typeof documentsDialog.show === "function") documentsDialog.show();
+});
+
+document.querySelector("#closeDocumentsDialog").addEventListener("click", () => documentsDialog.close());
 
 document.querySelector("#resetBtn").addEventListener("click", () => {
   if (!confirm("Reset tracker to the original starting tasks?")) return;
