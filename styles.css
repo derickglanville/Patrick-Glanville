@@ -734,6 +734,51 @@ dialog::backdrop {
   padding-top: 12px;
 }
 
+.documents-note {
+  margin: 0;
+  color: var(--muted);
+}
+
+.documents-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.document-item {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfe;
+}
+
+.document-item header {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.document-item h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.document-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  color: var(--muted);
+  font-size: .88rem;
+  margin-top: 6px;
+}
+
+.document-item p {
+  margin: 0;
+}
+
 .dialog-history h3 {
   margin: 0 0 10px;
 }
