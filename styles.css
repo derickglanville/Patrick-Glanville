@@ -422,6 +422,86 @@ textarea {
   gap: 14px;
 }
 
+.patrick-watch-panel {
+  margin: 0 0 18px;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 14px;
+}
+
+.patrick-watch-panel header {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.patrick-watch-panel h2 {
+  margin: 0 0 6px;
+}
+
+.patrick-watch-panel p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.patrick-watch-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.patrick-watch-summary article {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.patrick-watch-summary strong {
+  display: block;
+  font-size: 1.1rem;
+}
+
+.patrick-watch-summary span {
+  color: var(--muted);
+  font-size: .86rem;
+}
+
+.patrick-watch-list {
+  display: grid;
+  gap: 10px;
+}
+
+.patrick-watch-item {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfe;
+  display: grid;
+  gap: 6px;
+}
+
+.patrick-watch-item header {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.patrick-watch-item h3,
+.patrick-watch-item p {
+  margin: 0;
+}
+
+.patrick-watch-item span {
+  color: var(--muted);
+  font-size: .84rem;
+}
+
 .life-admin-panel header {
   display: flex;
   gap: 16px;

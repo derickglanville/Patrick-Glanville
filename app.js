@@ -1,4 +1,5 @@
 const STORAGE_KEY = "patrick-glanville-support-tracker-v1";
+const PATRICK_WATCH_KEY = "patrick-glanville-patrick-watch-v1";
 const DATA_VERSION = 2026052901;
 const PANEL_VISIBILITY_VERSION = 2026052603;
 const BUILD_INFO = {
@@ -548,6 +549,7 @@ const seedData = {
 };
 
 let state = loadState();
+let patrickWatchState = loadPatrickWatchState();
 
 const taskList = document.querySelector("#taskList");
 const searchInput = document.querySelector("#searchInput");
@@ -562,6 +564,7 @@ const userSelect = document.querySelector("#userSelect");
 const historyDialog = document.querySelector("#historyDialog");
 const urgencyReportDialog = document.querySelector("#urgencyReportDialog");
 const documentsDialog = document.querySelector("#documentsDialog");
+const patrickWatchPanel = document.querySelector("#patrickWatchPanel");
 const billMonthInput = document.querySelector("#billMonth");
 const billList = document.querySelector("#billList");
 const billTotal = document.querySelector("#billTotal");
@@ -579,6 +582,11 @@ const hideBillsBtn = document.querySelector("#hideBillsBtn");
 const hideLifeAdminBtn = document.querySelector("#hideLifeAdminBtn");
 const pdfUploadInput = document.querySelector("#pdfUploadInput");
 const documentsList = document.querySelector("#documentsList");
+const markPatrickReviewedBtn = document.querySelector("#markPatrickReviewedBtn");
+const patrickPendingCount = document.querySelector("#patrickPendingCount");
+const patrickLatestChangeAt = document.querySelector("#patrickLatestChangeAt");
+const patrickLastReviewedAt = document.querySelector("#patrickLastReviewedAt");
+const patrickWatchList = document.querySelector("#patrickWatchList");
 
 const fields = {
   id: document.querySelector("#taskId"),
@@ -744,6 +752,25 @@ function normalizeDocuments(documents) {
     savedByEmail: savedDocument.savedByEmail || "",
     savedByName: savedDocument.savedByName || ""
   })).filter(savedDocument => savedDocument.dataUrl) : [];
+}
+
+function loadPatrickWatchState() {
+  try {
+    const saved = localStorage.getItem(PATRICK_WATCH_KEY);
+    if (!saved) return { lastReviewedAt: "" };
+    const parsed = JSON.parse(saved);
+    return {
+      lastReviewedAt: parsed.lastReviewedAt || ""
+    };
+  } catch {
+    return { lastReviewedAt: "" };
+  }
+}
+
+function savePatrickWatchState(nextState) {
+  localStorage.setItem(PATRICK_WATCH_KEY, JSON.stringify({
+    lastReviewedAt: nextState.lastReviewedAt || ""
+  }));
 }
 
 function normalizePercent(value) {
@@ -1153,9 +1180,51 @@ function render() {
   updateProgress();
   renderBills();
   renderLifeAdminNotes();
+  renderPatrickWatch();
   renderPanelVisibility();
   renderRunningNotes();
   userSelect.value = state.currentUser;
+}
+
+function renderPatrickWatch() {
+  const isDeric = state.currentUser === "dglanville@gmail.com";
+  patrickWatchPanel.hidden = !isDeric;
+  if (!isDeric) return;
+
+  const patrickEntries = state.history
+    .filter(entry => entry.userEmail === "patrick.glanville@gmail.com")
+    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+
+  const latestPatrickEntry = patrickEntries[0] || null;
+  const reviewedAt = patrickWatchState.lastReviewedAt || "";
+  const pendingEntries = reviewedAt
+    ? patrickEntries.filter(entry => (entry.createdAt || "") > reviewedAt)
+    : patrickEntries;
+
+  patrickPendingCount.textContent = String(pendingEntries.length);
+  patrickLatestChangeAt.textContent = latestPatrickEntry ? formatDateTime(latestPatrickEntry.createdAt) : "None";
+  patrickLastReviewedAt.textContent = reviewedAt ? formatDateTime(reviewedAt) : "Never";
+
+  patrickWatchList.innerHTML = "";
+  if (!patrickEntries.length) {
+    patrickWatchList.textContent = "No Patrick updates have been recorded yet.";
+    return;
+  }
+
+  const entriesToShow = pendingEntries.length ? pendingEntries : patrickEntries.slice(0, 5);
+  entriesToShow.forEach(entry => {
+    const item = document.createElement("article");
+    item.className = "patrick-watch-item";
+    item.innerHTML = `
+      <header>
+        <h3>${escapeHtml(entry.taskTitle)}</h3>
+        <span>${escapeHtml(formatDateTime(entry.createdAt))}</span>
+      </header>
+      <p>${escapeHtml(entry.summary)}</p>
+      <span>Status: ${escapeHtml(entry.status || "N/A")} | Complete: ${normalizePercent(entry.percent)}%</span>
+    `;
+    patrickWatchList.appendChild(item);
+  });
 }
 
 function renderRunningNotes() {
@@ -2438,6 +2507,16 @@ document.querySelector("#refreshAppBtn").addEventListener("click", () => {
   const url = new URL(window.location.href);
   url.searchParams.set("refresh", Date.now().toString());
   window.location.href = url.toString();
+});
+
+markPatrickReviewedBtn.addEventListener("click", () => {
+  const latestPatrickEntry = state.history
+    .filter(entry => entry.userEmail === "patrick.glanville@gmail.com")
+    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))[0];
+
+  patrickWatchState.lastReviewedAt = latestPatrickEntry?.createdAt || new Date().toISOString();
+  savePatrickWatchState(patrickWatchState);
+  renderPatrickWatch();
 });
 
 populateUsers();

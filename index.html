@@ -140,6 +140,24 @@
       </div>
     </section>
 
+    <section class="patrick-watch-panel" id="patrickWatchPanel" aria-label="Patrick change watch" hidden>
+      <header>
+        <div>
+          <h2>Patrick Change Watch</h2>
+          <p>Visible only for Deric. Review Patrick's recent tracker updates here if email notifications are unavailable.</p>
+        </div>
+        <div class="panel-actions">
+          <button id="markPatrickReviewedBtn" type="button" class="ghost">Mark Reviewed</button>
+        </div>
+      </header>
+      <div class="patrick-watch-summary">
+        <article><strong id="patrickPendingCount">0</strong><span>new Patrick changes</span></article>
+        <article><strong id="patrickLatestChangeAt">None</strong><span>latest Patrick update</span></article>
+        <article><strong id="patrickLastReviewedAt">Never</strong><span>last reviewed</span></article>
+      </div>
+      <div id="patrickWatchList" class="patrick-watch-list"></div>
+    </section>
+
     <section class="optional-section-controls" aria-label="Optional dashboard sections">
       <span>Optional sections</span>
       <button id="toggleBillsBtn" type="button" class="ghost">Show Monthly Bills</button>
