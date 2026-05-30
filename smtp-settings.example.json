@@ -1,0 +1,8 @@
+{
+  "smtpHost": "smtp.gmail.com",
+  "port": 587,
+  "useSsl": true,
+  "username": "dglanville@gmail.com",
+  "from": "dglanville@gmail.com",
+  "displayName": "Patrick Glanville Support Tracker"
+}
