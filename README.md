@@ -25,14 +25,17 @@ Expected public Pages URL if hosted under the `dglanville23` account:
 
 ## Shared Data Backend
 
-The current page runs fully in the browser. It records the selected user, comments, percentages, and history in local browser storage and includes all of that data when exported.
+The page still works with browser local storage, but this project now includes a Supabase shared-storage path for live collaboration.
 
-For true collaboration, add an authenticated backend before relying on it for live shared updates. Good options:
+To finish the Supabase setup:
 
-- Firebase Authentication + Firestore with an allow-list for the four email addresses.
-- Supabase Auth + Postgres row-level security with an allow-list for the four email addresses.
-- A private custom server with email login.
+1. Create or open the Supabase project you want this tracker to use.
+2. Run `SUPABASE_SETUP.sql` in the Supabase SQL Editor.
+3. Paste the project's URL and anon public key into `supabase-config.js`.
+4. Publish the updated files to GitHub Pages or whichever static host you use.
 
-Do not put a GitHub password or personal access token directly into this web page. Anything shipped to GitHub Pages can be inspected by visitors.
+Detailed steps are in `SUPABASE_README.md`.
+
+Do not put a GitHub password, personal access token, or Supabase service-role key directly into this web page. Anything shipped to GitHub Pages can be inspected by visitors.
 
 This is an organizing tool, not legal, medical, financial, or benefits advice. Confirm Social Security, disability, bankruptcy, car-loan, and insurance decisions with the relevant agency or a qualified professional.
