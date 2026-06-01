@@ -1,6 +1,6 @@
 const STORAGE_KEY = "patrick-glanville-support-tracker-v1";
 const PATRICK_WATCH_KEY = "patrick-glanville-patrick-watch-v1";
-const DATA_VERSION = 2026052901;
+const DATA_VERSION = 2026060102;
 const PANEL_VISIBILITY_VERSION = 2026052603;
 const BUILD_INFO = {
   commit: "926ad52",
@@ -111,6 +111,7 @@ const seedData = {
     { id: crypto.randomUUID(), name: "Housing / rent", amount: 0, due: "", status: "Unpaid", notes: "" },
     { id: crypto.randomUUID(), name: "Car loan", amount: 0, due: "", status: "Unpaid", notes: "Ask lender about hardship suspension or deferment." },
     { id: crypto.randomUUID(), name: "Car repair / Kia of Frisco", amount: 6000, due: "", status: "Unpaid", notes: "Repair estimate and possible storage fees." },
+    { id: crypto.randomUUID(), name: "American Express", amount: 180, due: "", status: "Unpaid", notes: "Starting balance: $730.86. Monthly payment: $180. Due on the 25th of each month." },
     { id: crypto.randomUUID(), name: "Baylor Scott and White", amount: 0, due: "", status: "Unpaid", notes: "Ask for payment suspension due to lack of income." },
     { id: crypto.randomUUID(), name: "Phone / internet", amount: 0, due: "", status: "Unpaid", notes: "" },
     { id: crypto.randomUUID(), name: "Food / groceries", amount: 0, due: "", status: "Unpaid", notes: "Track SNAP or grocery contribution separately if needed." }
@@ -638,6 +639,8 @@ function initializeState(loaded) {
   loaded.notes = loaded.notes || "";
   loaded.tasks = Array.isArray(loaded.tasks) ? loaded.tasks : structuredClone(seedData.tasks);
   addMissingSeedTasks(loaded);
+  loaded.bills = Array.isArray(loaded.bills) ? loaded.bills : structuredClone(seedData.bills);
+  ensureSeedBills(loaded);
   loaded.dataVersion = Number(loaded.dataVersion) || DATA_VERSION;
   let panelVisibilityReset = false;
   loaded.currentUser = allowedUsers.some(user => user.email === loaded.currentUser)
@@ -664,7 +667,7 @@ function initializeState(loaded) {
     loaded.collapsedTaskGroups[groupName] = false;
   });
   loaded.billMonth = loaded.billMonth || defaultBillMonth();
-  loaded.bills = Array.isArray(loaded.bills) ? loaded.bills.map(normalizeBill) : structuredClone(seedData.bills).map(normalizeBill);
+  loaded.bills = loaded.bills.map(normalizeBill);
   loaded.lifeAdminNotes = Array.isArray(loaded.lifeAdminNotes)
     ? loaded.lifeAdminNotes.map(normalizeLifeAdminNote)
     : structuredClone(seedData.lifeAdminNotes).map(normalizeLifeAdminNote);
@@ -672,6 +675,7 @@ function initializeState(loaded) {
     percent: statusToPercent(task.status),
     comments: [],
     ...task,
+    createdAt: inferTaskCreatedAt(task, loaded.history),
     percent: normalizePercent(task.percent ?? statusToPercent(task.status)),
     comments: Array.isArray(task.comments) ? task.comments : []
   }));
@@ -695,6 +699,24 @@ function normalizeBill(bill) {
     status: billStatusOptions.includes(bill.status) ? bill.status : "Unpaid",
     notes: bill.notes || ""
   };
+}
+
+function currentMonthlyDueDate(dayOfMonth) {
+  const today = new Date();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(dayOfMonth).padStart(2, "0");
+  return `${today.getFullYear()}-${month}-${day}`;
+}
+
+function ensureSeedBills(loaded) {
+  const existingNames = new Set((loaded.bills || []).map(bill => (bill.name || "").trim().toLowerCase()));
+  seedData.bills.forEach(seedBill => {
+    const normalizedName = (seedBill.name || "").trim().toLowerCase();
+    if (!existingNames.has(normalizedName)) {
+      loaded.bills.push(structuredClone(seedBill));
+      existingNames.add(normalizedName);
+    }
+  });
 }
 
 function normalizeMoney(value) {
@@ -779,6 +801,23 @@ function normalizePercent(value) {
   return Math.max(0, Math.min(100, Math.round(number)));
 }
 
+function inferTaskCreatedAt(task, history = []) {
+  if (task?.createdAt) return task.createdAt;
+
+  const matchingEntries = Array.isArray(history)
+    ? history.filter(entry => entry?.taskId === task?.id || (entry?.taskTitle && entry.taskTitle === task?.title))
+    : [];
+
+  if (matchingEntries.length) {
+    return matchingEntries
+      .map(entry => entry.createdAt)
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b))[0];
+  }
+
+  return BUILD_INFO.builtAt || new Date().toISOString();
+}
+
 function syncTaskCompletionState(task) {
   if (!task) return task;
 
@@ -851,6 +890,14 @@ function applyDataMigrations(loaded) {
   updateTaskFields(loaded.tasks, "Review bankruptcy filing for all debts, including the damaged car", {
     priority: "Urgent"
   });
+
+  const americanExpressBill = loaded.bills.find(bill => (bill.name || "").trim().toLowerCase() === "american express");
+  if (americanExpressBill) {
+    americanExpressBill.amount = 180;
+    americanExpressBill.due = americanExpressBill.due || currentMonthlyDueDate(25);
+    americanExpressBill.status = billStatusOptions.includes(americanExpressBill.status) ? americanExpressBill.status : "Unpaid";
+    americanExpressBill.notes = "Starting balance: $730.86. Monthly payment: $180. Due on the 25th of each month.";
+  }
 
   loaded.dataVersion = DATA_VERSION;
   loaded.lastSavedAt = new Date().toISOString();
@@ -1691,6 +1738,7 @@ function createTaskCard(task) {
     <span>${escapeHtml(task.category || "Uncategorized")}</span>
     <span>${escapeHtml(task.owner || "No owner")}</span>
     <span>${normalizePercent(task.percent)}% complete</span>
+    <span>Created ${escapeHtml(formatDateTime(task.createdAt))}</span>
   `;
 
   const dueWrap = document.createElement("label");
@@ -2309,6 +2357,7 @@ taskForm.addEventListener("submit", event => {
     percent: normalizePercent(fields.percent.value),
     next: fields.next.value.trim(),
     notes: fields.notes.value.trim(),
+    createdAt: existing?.createdAt || new Date().toISOString(),
     tag: existing?.tag,
     tagTone: existing?.tagTone,
     comments
