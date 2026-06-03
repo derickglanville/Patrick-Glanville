@@ -174,6 +174,10 @@ main {
   font-size: .9rem;
 }
 
+.access-note strong {
+  color: var(--ink);
+}
+
 .sync-panel {
   padding: 10px clamp(18px, 4vw, 56px);
   display: grid;
@@ -192,6 +196,43 @@ main {
 .sync-panel span {
   color: var(--muted);
   font-size: .88rem;
+}
+
+#accountGateDialog {
+  width: min(440px, calc(100vw - 32px));
+  border: 0;
+  border-radius: 12px;
+  padding: 0;
+  box-shadow: 0 26px 60px rgba(24, 32, 42, .24);
+}
+
+#accountGateDialog::backdrop {
+  background: rgba(16, 22, 31, .52);
+}
+
+.account-gate-dialog {
+  padding: 20px;
+  display: grid;
+  gap: 14px;
+}
+
+.account-gate-dialog .dialog-head {
+  padding: 0;
+}
+
+.account-gate-message {
+  margin: 0;
+  color: var(--muted);
+}
+
+.account-gate-error {
+  margin: 0;
+  color: var(--red);
+  font-weight: 700;
+}
+
+.account-gate-actions {
+  padding-top: 0;
 }
 
 .sync-ok {
@@ -244,6 +285,27 @@ textarea {
 
 textarea {
   resize: vertical;
+}
+
+.emoji-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.emoji-button {
+  min-height: 34px;
+  min-width: 34px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #eef3fb;
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.emoji-button:hover {
+  background: #e2ebf8;
 }
 
 .progress-band {
@@ -476,6 +538,25 @@ textarea {
   gap: 10px;
 }
 
+.patrick-watch-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.segmented-toggle {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.segmented-toggle button.is-active {
+  background: var(--blue);
+  color: white;
+}
+
 .patrick-watch-item {
   padding: 12px;
   border: 1px solid var(--line);
@@ -485,11 +566,17 @@ textarea {
   gap: 6px;
 }
 
+.patrick-watch-item.is-closed {
+  background: #f4f6f9;
+  border-color: #d3d9e3;
+}
+
 .patrick-watch-item header {
   display: flex;
   gap: 10px;
   align-items: baseline;
   justify-content: space-between;
+  flex-wrap: wrap;
 }
 
 .patrick-watch-item h3,
@@ -500,6 +587,45 @@ textarea {
 .patrick-watch-item span {
   color: var(--muted);
   font-size: .84rem;
+}
+
+.patrick-watch-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+}
+
+.patrick-watch-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: .75rem;
+  font-weight: 800;
+  letter-spacing: .02em;
+  border: 1px solid transparent;
+}
+
+.status-chip-reviewed {
+  background: #e6eefc;
+  color: #24518f;
+  border-color: #bfd3f5;
+}
+
+.status-chip-closed {
+  background: #e7f5e9;
+  color: #216445;
+  border-color: #b8ddc2;
 }
 
 .life-admin-panel header {
@@ -877,6 +1003,56 @@ dialog::backdrop {
   color: var(--muted);
   font-size: .84rem;
   margin-top: 3px;
+}
+
+.history-entry-headline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.history-type-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: .75rem;
+  font-weight: 800;
+  letter-spacing: .02em;
+  border: 1px solid transparent;
+}
+
+.history-type-task {
+  background: #e6eefc;
+  color: #24518f;
+  border-color: #bfd3f5;
+}
+
+.history-type-running-note {
+  background: #fff0cf;
+  color: #8b5b00;
+  border-color: #f0d28a;
+}
+
+.history-type-bill {
+  background: #ffe3e0;
+  color: #8f2e2b;
+  border-color: #f4b9b4;
+}
+
+.history-type-todo-note {
+  background: #e7f5e9;
+  color: #216445;
+  border-color: #b8ddc2;
+}
+
+.history-type-pdf {
+  background: #eadcff;
+  color: #5e2a9e;
+  border-color: #c6a6f7;
 }
 
 .comment-item p,

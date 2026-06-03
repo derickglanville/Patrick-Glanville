@@ -7,20 +7,20 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>Patrick Glanville Support Tracker</title>
-  <link rel="stylesheet" href="styles.css?v=2026-05-28-001">
+  <link rel="stylesheet" href="styles.css?v=2026-06-03-001">
 </head>
 <body>
   <section class="collaboration-panel" aria-label="Collaboration access">
     <div>
       <h2>Collaboration</h2>
-      <p>Use the selected email to identify who is making task updates and comments.</p>
+      <p>Select an account before making updates. Deric's account requires a PIN at startup.</p>
     </div>
     <label for="userSelect">Current user
       <select id="userSelect"></select>
     </label>
     <div class="access-note">
       <strong>Email-only access list</strong>
-      <span>dglanville@gmail.com, patrick.glanville@gmail.com, courtney.glanville@gmail.com, hemmgeor@gmail.com</span>
+      <span>Choose the account that should be credited for the next update or comment.</span>
     </div>
   </section>
 
@@ -52,7 +52,8 @@
         <input id="pdfUploadInput" type="file" accept="application/pdf" multiple>
       </label>
       <button id="viewDocumentsBtn" type="button" title="View PDF documents saved in the shared database">View Saved PDFs</button>
-      <button id="urgencyReportBtn" type="button" title="Open a professional report of urgent tasks">Urgency Report</button>
+      <button id="processGuideBtn" type="button" title="Open the full process guide PDF for this project">Process Guide PDF</button>
+      <button id="urgencyReportBtn" type="button" title="Run the local urgency report process if the helper is running, otherwise save directly into the Email folder">Urgency Report</button>
       <button id="htmlEmailDashboardReportBtn" type="button" title="Create a rich HTML email report file for the Email folder">Create HTML Email</button>
       <button id="historyBtn" type="button" title="Review all task updates">History</button>
       <button id="exportBtn" type="button" title="Download current tracker data">Export</button>
@@ -147,13 +148,21 @@
           <p>Visible only for Deric. Review Patrick's recent tracker updates here if email notifications are unavailable.</p>
         </div>
         <div class="panel-actions">
-          <button id="markPatrickReviewedBtn" type="button" class="ghost">Mark Reviewed</button>
+          <button id="markPatrickReviewedBtn" type="button" class="ghost">Review All Open</button>
+          <button id="closeAllPatrickBtn" type="button" class="ghost">Approve &amp; Close All</button>
         </div>
       </header>
       <div class="patrick-watch-summary">
-        <article><strong id="patrickPendingCount">0</strong><span>new Patrick changes</span></article>
+        <article><strong id="patrickPendingCount">0</strong><span>open Patrick changes</span></article>
         <article><strong id="patrickLatestChangeAt">None</strong><span>latest Patrick update</span></article>
         <article><strong id="patrickLastReviewedAt">Never</strong><span>last reviewed</span></article>
+      </div>
+      <div class="patrick-watch-toolbar" aria-label="Patrick change watch filters">
+        <div class="segmented-toggle">
+          <button id="patrickViewOpenBtn" type="button" class="ghost">Open</button>
+          <button id="patrickViewClosedBtn" type="button" class="ghost">Closed</button>
+          <button id="patrickViewAllBtn" type="button" class="ghost">All</button>
+        </div>
       </div>
       <div id="patrickWatchList" class="patrick-watch-list"></div>
     </section>
@@ -230,6 +239,14 @@
         <label>New note
           <textarea id="newRunningNote" rows="4" placeholder="Example: Called Kia of Frisco and asked about storage fees..."></textarea>
         </label>
+        <div class="emoji-toolbar" aria-label="Insert emoji into running note">
+          <button type="button" class="emoji-button" data-target="newRunningNote" data-emoji="👍" aria-label="Insert thumbs up">👍</button>
+          <button type="button" class="emoji-button" data-target="newRunningNote" data-emoji="✅" aria-label="Insert check mark">✅</button>
+          <button type="button" class="emoji-button" data-target="newRunningNote" data-emoji="⚠️" aria-label="Insert warning">⚠️</button>
+          <button type="button" class="emoji-button" data-target="newRunningNote" data-emoji="📞" aria-label="Insert phone">📞</button>
+          <button type="button" class="emoji-button" data-target="newRunningNote" data-emoji="📄" aria-label="Insert document">📄</button>
+          <button type="button" class="emoji-button" data-target="newRunningNote" data-emoji="🚗" aria-label="Insert car">🚗</button>
+        </div>
         <button id="addRunningNoteBtn" type="button">Add note</button>
         <div id="runningNotesList" class="running-notes-list"></div>
       </div>
@@ -288,9 +305,25 @@
       <div class="form-row">
         <label>Add comment
           <textarea id="taskComment" rows="4" placeholder="Add a dated update, call note, or blocker"></textarea>
+          <div class="emoji-toolbar" aria-label="Insert emoji into task comment">
+            <button type="button" class="emoji-button" data-target="taskComment" data-emoji="👍" aria-label="Insert thumbs up">👍</button>
+            <button type="button" class="emoji-button" data-target="taskComment" data-emoji="✅" aria-label="Insert check mark">✅</button>
+            <button type="button" class="emoji-button" data-target="taskComment" data-emoji="⚠️" aria-label="Insert warning">⚠️</button>
+            <button type="button" class="emoji-button" data-target="taskComment" data-emoji="📞" aria-label="Insert phone">📞</button>
+            <button type="button" class="emoji-button" data-target="taskComment" data-emoji="📄" aria-label="Insert document">📄</button>
+            <button type="button" class="emoji-button" data-target="taskComment" data-emoji="💵" aria-label="Insert money">💵</button>
+          </div>
         </label>
         <label>Notes
           <textarea id="taskNotes" rows="4"></textarea>
+          <div class="emoji-toolbar" aria-label="Insert emoji into task notes">
+            <button type="button" class="emoji-button" data-target="taskNotes" data-emoji="👍" aria-label="Insert thumbs up">👍</button>
+            <button type="button" class="emoji-button" data-target="taskNotes" data-emoji="✅" aria-label="Insert check mark">✅</button>
+            <button type="button" class="emoji-button" data-target="taskNotes" data-emoji="⚠️" aria-label="Insert warning">⚠️</button>
+            <button type="button" class="emoji-button" data-target="taskNotes" data-emoji="🏠" aria-label="Insert home">🏠</button>
+            <button type="button" class="emoji-button" data-target="taskNotes" data-emoji="📄" aria-label="Insert document">📄</button>
+            <button type="button" class="emoji-button" data-target="taskNotes" data-emoji="🚲" aria-label="Insert bicycle">🚲</button>
+          </div>
         </label>
       </div>
       <section class="dialog-history" aria-label="Task comments">
@@ -342,8 +375,28 @@
     </div>
   </dialog>
 
+  <dialog id="accountGateDialog">
+    <form method="dialog" id="accountGateForm" class="account-gate-dialog">
+      <div class="dialog-head">
+        <h2>Select account</h2>
+      </div>
+      <p id="accountGateMessage" class="account-gate-message">Choose the account that will be used for updates in this session.</p>
+      <label for="accountGateSelect">Account
+        <select id="accountGateSelect" required></select>
+      </label>
+      <label for="accountGatePin" id="accountGatePinWrap" hidden>PIN for Deric's account
+        <input id="accountGatePin" type="password" inputmode="numeric" autocomplete="off" placeholder="Enter PIN">
+      </label>
+      <p id="accountGateError" class="account-gate-error" hidden></p>
+      <div class="dialog-actions account-gate-actions">
+        <span></span>
+        <button type="submit">Continue</button>
+      </div>
+    </form>
+  </dialog>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js?v=2026-05-28-001"></script>
-  <script src="app.js?v=2026-05-28-001"></script>
+  <script src="app.js?v=2026-06-03-001"></script>
 </body>
 </html>

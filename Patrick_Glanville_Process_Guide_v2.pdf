@@ -1,0 +1,456 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+2 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+3 0 obj
+<< /Length 1969 >>
+stream
+BT
+54 738 Td
+/F2 20 Tf
+(Patrick Glanville Support Tracker Process Guide) Tj
+0 -16 Td
+/F1 11 Tf
+0 -21 Td
+/F2 15 Tf
+(Chapter 1. Purpose and Scope) Tj
+0 -16 Td
+/F1 11 Tf
+0 -16 Td
+(This project tracks urgent and non-urgent support tasks for Patrick Glanville and provides a) Tj
+0 -16 Td
+(repeatable process for creating and emailing the daily Urgency Report.) Tj
+0 -16 Td
+0 -16 Td
+(The project has two automation lanes:) Tj
+0 -16 Td
+0 -16 Td
+(- the main tracker dashboard in the project root) Tj
+0 -16 Td
+(- the Email-folder automation flow for report generation and delivery) Tj
+0 -16 Td
+0 -16 Td
+(The Claude - Anthropic folder is treated as an independent reference process. It contains) Tj
+0 -16 Td
+(working Gmail configuration that may be read by other scripts, but it is not the primary) Tj
+0 -16 Td
+(Email-folder automation path.) Tj
+0 -16 Td
+0 -21 Td
+/F2 15 Tf
+(Chapter 2. Dashboard Workflow) Tj
+0 -16 Td
+/F1 11 Tf
+0 -16 Td
+(The dashboard entry files are:) Tj
+0 -16 Td
+0 -16 Td
+(- index.html) Tj
+0 -16 Td
+(- app.js) Tj
+0 -16 Td
+(- styles.css) Tj
+0 -16 Td
+0 -16 Td
+(Main dashboard actions:) Tj
+0 -16 Td
+0 -16 Td
+(- Save PDF To DB: upload shared PDF documents into the tracker database) Tj
+0 -16 Td
+(- View Saved PDFs: open PDFs stored in the shared database) Tj
+0 -16 Td
+(- Urgency Report: prepare the current Urgency Report workflow) Tj
+0 -16 Td
+(- Create HTML Email: export the current urgency report as a rich HTML file) Tj
+0 -16 Td
+(- History: review task updates) Tj
+0 -16 Td
+(- Export and Import: move tracker data in and out of JSON files) Tj
+0 -16 Td
+0 -16 Td
+(The dashboard is responsible for organizing tasks, calculating urgency content, and) Tj
+0 -16 Td
+(providing a manual operator workflow. It is not the scheduled sender by itself.) Tj
+0 -16 Td
+0 -21 Td
+/F2 15 Tf
+(Chapter 3. Urgency Report Content) Tj
+0 -16 Td
+/F1 11 Tf
+0 -16 Td
+(The Urgency Report is built from tasks marked with Urgent priority.) Tj
+0 -16 Td
+0 -16 Td
+(The report emphasizes:) Tj
+ET
+endstream
+endobj
+4 0 obj
+<< /Length 1992 >>
+stream
+BT
+54 738 Td
+/F1 11 Tf
+0 -16 Td
+(- due date) Tj
+0 -16 Td
+(- task owner) Tj
+0 -16 Td
+(- current percent complete) Tj
+0 -16 Td
+(- next required action) Tj
+0 -16 Td
+(- context notes) Tj
+0 -16 Td
+0 -16 Td
+(Urgent job and income tasks are grouped first because restoring income is treated as the) Tj
+0 -16 Td
+(highest-leverage path for transportation, housing, debt, and daily living stability.) Tj
+0 -16 Td
+0 -21 Td
+/F2 15 Tf
+(Chapter 4. Email Folder Scripts) Tj
+0 -16 Td
+/F1 11 Tf
+0 -16 Td
+(The Email folder contains the main local automation scripts:) Tj
+0 -16 Td
+0 -16 Td
+(- Invoke-DailyUrgencyReport.ps1) Tj
+0 -16 Td
+(- Send-RichUrgencyReport.ps1) Tj
+0 -16 Td
+(- Watch-RichUrgencyReports.ps1) Tj
+0 -16 Td
+(- Set-UrgencyReportSmtpCredential.ps1) Tj
+0 -16 Td
+(- send_rich_urgency_report.py) Tj
+0 -16 Td
+(- scheduled_urgency_report_sender.py) Tj
+0 -16 Td
+(- Start-DailyUrgencyEmailScheduler.ps1) Tj
+0 -16 Td
+0 -16 Td
+(Roles of these scripts:) Tj
+0 -16 Td
+0 -16 Td
+(- Invoke-DailyUrgencyReport.ps1: pulls the current tracker state from Supabase and) Tj
+0 -16 Td
+(  builds a fresh patrick-urgency-report-YYYY-MM-DD.html file) Tj
+0 -16 Td
+(- Send-RichUrgencyReport.ps1: sends or drafts the HTML report through Outlook or SMTP) Tj
+0 -16 Td
+(- Watch-RichUrgencyReports.ps1: reacts when a new HTML report is dropped into the Email) Tj
+0 -16 Td
+(  folder) Tj
+0 -16 Td
+(- Set-UrgencyReportSmtpCredential.ps1: stores encrypted SMTP credentials for the local) Tj
+0 -16 Td
+(  machine) Tj
+0 -16 Td
+(- send_rich_urgency_report.py: Python SMTP comparison utility for sending the latest) Tj
+0 -16 Td
+(  saved HTML report) Tj
+0 -16 Td
+(- scheduled_urgency_report_sender.py: dedicated daily scheduler for the Email-folder) Tj
+0 -16 Td
+(  automation) Tj
+0 -16 Td
+(- Start-DailyUrgencyEmailScheduler.ps1: PowerShell launcher for the dedicated daily) Tj
+0 -16 Td
+(  scheduler) Tj
+0 -16 Td
+0 -21 Td
+/F2 15 Tf
+(Chapter 5. Independent Claude Reference Process) Tj
+0 -16 Td
+/F1 11 Tf
+0 -16 Td
+(The file:) Tj
+0 -16 Td
+ET
+endstream
+endobj
+5 0 obj
+<< /Length 1923 >>
+stream
+BT
+54 738 Td
+/F1 11 Tf
+(- Claude - Anthropic/send_daily_email.py) Tj
+0 -16 Td
+0 -16 Td
+(is a separate independent process.) Tj
+0 -16 Td
+0 -16 Td
+(It contains:) Tj
+0 -16 Td
+0 -16 Td
+(- the Gmail sender address) Tj
+0 -16 Td
+(- the Gmail app password) Tj
+0 -16 Td
+(- the recipient list) Tj
+0 -16 Td
+(- an older standalone scheduling flow) Tj
+0 -16 Td
+0 -16 Td
+(This file is used as a reference source for Gmail settings by the separate Email-folder) Tj
+0 -16 Td
+(scheduler. The intended boundary is:) Tj
+0 -16 Td
+0 -16 Td
+(- it may be referenced) Tj
+0 -16 Td
+(- it should not be modified as part of the Email-folder automation work unless) Tj
+0 -16 Td
+(  explicitly requested) Tj
+0 -16 Td
+0 -21 Td
+/F2 15 Tf
+(Chapter 6. Daily Automated 8:30 AM Process) Tj
+0 -16 Td
+/F1 11 Tf
+0 -16 Td
+(The dedicated daily automation path is:) Tj
+0 -16 Td
+0 -16 Td
+(1. Start-DailyUrgencyEmailScheduler.ps1 launches scheduled_urgency_report_sender.py) Tj
+0 -16 Td
+(2. scheduled_urgency_report_sender.py reads Gmail settings from Claude -) Tj
+0 -16 Td
+(   Anthropic/send_daily_email.py) Tj
+0 -16 Td
+(3. At 8:30 AM, the scheduler runs Email/Invoke-DailyUrgencyReport.ps1 -GenerateOnly) Tj
+0 -16 Td
+(4. Invoke-DailyUrgencyReport.ps1 fetches the current tracker state from Supabase) Tj
+0 -16 Td
+(5. A fresh urgency report HTML file is written into the Email folder) Tj
+0 -16 Td
+(6. The scheduler sends that report to all configured recipients using Gmail SMTP) Tj
+0 -16 Td
+0 -16 Td
+(This design separates:) Tj
+0 -16 Td
+0 -16 Td
+(- report generation) Tj
+0 -16 Td
+(- email sending) Tj
+0 -16 Td
+(- Gmail credential reference) Tj
+0 -16 Td
+(- the independent Claude process) Tj
+0 -16 Td
+0 -21 Td
+/F2 15 Tf
+(Chapter 7. Manual and Semi-Automatic Paths) Tj
+0 -16 Td
+/F1 11 Tf
+0 -16 Td
+(Manual and semi-automatic alternatives remain available:) Tj
+0 -16 Td
+0 -16 Td
+(- run Invoke-DailyUrgencyReport.ps1 -GenerateOnly to create the HTML without sending) Tj
+ET
+endstream
+endobj
+6 0 obj
+<< /Length 2273 >>
+stream
+BT
+54 738 Td
+/F1 11 Tf
+(- run Invoke-DailyUrgencyReport.ps1 -OpenDraft to build the HTML and open a draft) Tj
+0 -16 Td
+(- run Invoke-DailyUrgencyReport.ps1 -Send to build the HTML and send immediately) Tj
+0 -16 Td
+(- run Send-RichUrgencyReport.ps1 directly if a current HTML report already exists) Tj
+0 -16 Td
+(- run Watch-RichUrgencyReports.ps1 -Send if a watched folder flow is preferred) Tj
+0 -16 Td
+0 -21 Td
+/F2 15 Tf
+(Chapter 8. Files and Data Dependencies) Tj
+0 -16 Td
+/F1 11 Tf
+0 -16 Td
+(Important project dependencies include:) Tj
+0 -16 Td
+0 -16 Td
+(- supabase-config.js: contains Supabase URL and anon key reference for tracker data) Tj
+0 -16 Td
+(  access) Tj
+0 -16 Td
+(- the Email folder: working location for generated HTML reports and send utilities) Tj
+0 -16 Td
+(- smtp-settings.json and smtp-credential.clixml: optional local SMTP credential storage) Tj
+0 -16 Td
+(- saved PDF documents in the tracker database) Tj
+0 -16 Td
+0 -16 Td
+(If Supabase is unavailable, the automated report generation step cannot complete.) Tj
+0 -16 Td
+0 -21 Td
+/F2 15 Tf
+(Chapter 9. Testing Procedure) Tj
+0 -16 Td
+/F1 11 Tf
+0 -16 Td
+(Recommended test sequence:) Tj
+0 -16 Td
+0 -16 Td
+(1. Run Invoke-DailyUrgencyReport.ps1 -GenerateOnly) Tj
+0 -16 Td
+(2. Confirm a new patrick-urgency-report-YYYY-MM-DD.html file appears in the Email folder) Tj
+0 -16 Td
+(3. Run Start-DailyUrgencyEmailScheduler.ps1) Tj
+0 -16 Td
+(4. Temporarily set the scheduler send time to one or two minutes ahead of the current) Tj
+0 -16 Td
+(   time) Tj
+0 -16 Td
+(5. Confirm the scheduler generates a fresh report and sends the email) Tj
+0 -16 Td
+(6. Restore the scheduler send time to 08:30) Tj
+0 -16 Td
+0 -16 Td
+(If the scheduler starts and prints its configuration, it is waiting normally for the target) Tj
+0 -16 Td
+(time.) Tj
+0 -16 Td
+0 -21 Td
+/F2 15 Tf
+(Chapter 10. Recovery and Troubleshooting) Tj
+0 -16 Td
+/F1 11 Tf
+0 -16 Td
+(Common issues:) Tj
+0 -16 Td
+0 -16 Td
+(- Python version incompatibility: older Python versions may reject newer type-hint) Tj
+0 -16 Td
+(  syntax) Tj
+0 -16 Td
+(- Supabase connection failure: report generation cannot complete if the tracker state) Tj
+0 -16 Td
+(  cannot be fetched) Tj
+0 -16 Td
+(- SMTP failure: the Gmail sender, app password, or connection details may be wrong) Tj
+ET
+endstream
+endobj
+7 0 obj
+<< /Length 1785 >>
+stream
+BT
+54 738 Td
+/F1 11 Tf
+(- stale report problem: a sender that only mails the latest existing HTML file may not) Tj
+0 -16 Td
+(  generate a fresh report first) Tj
+0 -16 Td
+0 -16 Td
+(Recovery approach:) Tj
+0 -16 Td
+0 -16 Td
+(1. confirm the scheduler starts cleanly) Tj
+0 -16 Td
+(2. confirm Invoke-DailyUrgencyReport.ps1 -GenerateOnly can build the report) Tj
+0 -16 Td
+(3. confirm the Gmail sender and app password remain correct) Tj
+0 -16 Td
+(4. confirm the separate Email-folder scheduler is the process being launched) Tj
+0 -16 Td
+(5. confirm the Claude - Anthropic process is being used only as a reference source when) Tj
+0 -16 Td
+(   intended) Tj
+0 -16 Td
+0 -21 Td
+/F2 15 Tf
+(Chapter 11. Script Reference Summary) Tj
+0 -16 Td
+/F1 11 Tf
+0 -16 Td
+(Project root:) Tj
+0 -16 Td
+0 -16 Td
+(- index.html: dashboard structure and action buttons) Tj
+0 -16 Td
+(- app.js: dashboard logic, urgency report rendering, and button behavior) Tj
+0 -16 Td
+(- styles.css: dashboard styling) Tj
+0 -16 Td
+(- PROCESS_GUIDE.md: human-readable source for this guide) Tj
+0 -16 Td
+0 -16 Td
+(Independent reference:) Tj
+0 -16 Td
+0 -16 Td
+(- Claude - Anthropic/send_daily_email.py: separate legacy scheduler with embedded Gmail) Tj
+0 -16 Td
+(  settings) Tj
+0 -16 Td
+0 -16 Td
+(Email automation:) Tj
+0 -16 Td
+0 -16 Td
+(- Email/Invoke-DailyUrgencyReport.ps1: create daily urgency report HTML) Tj
+0 -16 Td
+(- Email/Send-RichUrgencyReport.ps1: send or draft urgency report email) Tj
+0 -16 Td
+(- Email/Watch-RichUrgencyReports.ps1: watcher-based send flow) Tj
+0 -16 Td
+(- Email/send_rich_urgency_report.py: Python SMTP send helper) Tj
+0 -16 Td
+(- Email/scheduled_urgency_report_sender.py: dedicated 8:30 AM scheduler) Tj
+0 -16 Td
+(- Email/Start-DailyUrgencyEmailScheduler.ps1: launcher for the dedicated scheduler) Tj
+ET
+endstream
+endobj
+8 0 obj
+<< /Type /Pages /Kids [9 0 R 10 0 R 11 0 R 12 0 R 13 0 R] /Count 5 >>
+endobj
+9 0 obj
+<< /Type /Page /Parent 8 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 3 0 R >>
+endobj
+10 0 obj
+<< /Type /Page /Parent 8 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 4 0 R >>
+endobj
+11 0 obj
+<< /Type /Page /Parent 8 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 5 0 R >>
+endobj
+12 0 obj
+<< /Type /Page /Parent 8 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 6 0 R >>
+endobj
+13 0 obj
+<< /Type /Page /Parent 8 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 7 0 R >>
+endobj
+14 0 obj
+<< /Type /Catalog /Pages 8 0 R >>
+endobj
+xref
+0 15
+0000000000 65535 f 
+0000000009 00000 n 
+0000000079 00000 n 
+0000000154 00000 n 
+0000002175 00000 n 
+0000004219 00000 n 
+0000006194 00000 n 
+0000008519 00000 n 
+0000010356 00000 n 
+0000010441 00000 n 
+0000010577 00000 n 
+0000010714 00000 n 
+0000010851 00000 n 
+0000010988 00000 n 
+0000011125 00000 n 
+trailer
+<< /Size 15 /Root 14 0 R >>
+startxref
+11175
+%%EOF

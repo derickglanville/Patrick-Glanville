@@ -1,6 +1,6 @@
 const STORAGE_KEY = "patrick-glanville-support-tracker-v1";
 const PATRICK_WATCH_KEY = "patrick-glanville-patrick-watch-v1";
-const DATA_VERSION = 2026060102;
+const DATA_VERSION = 2026060301;
 const PANEL_VISIBILITY_VERSION = 2026052603;
 const BUILD_INFO = {
   commit: "926ad52",
@@ -13,6 +13,9 @@ const SUPABASE_TABLE = "tracker_state";
 const SUPABASE_STATE_ID = "patrick-glanville";
 const SUPABASE_SAVE_DELAY_MS = 700;
 const MAX_DOCUMENT_SIZE_BYTES = 6 * 1024 * 1024;
+const URGENCY_REPORT_HELPER_URL = "http://127.0.0.1:8767";
+const DERIC_EMAIL = "dglanville@gmail.com";
+const DERIC_PIN = "3141";
 let supabaseClient = null;
 let supabaseEnabled = false;
 let supabaseStatus = "Local browser storage";
@@ -21,7 +24,7 @@ let supabaseRealtimeChannel = null;
 let remoteUpdatedAt = "";
 let applyingRemoteState = false;
 const allowedUsers = [
-  { name: "Deric Glanville", email: "dglanville@gmail.com" },
+  { name: "Deric Glanville", email: DERIC_EMAIL },
   { name: "Patrick Glanville", email: "patrick.glanville@gmail.com" },
   { name: "Courtney Glanville", email: "courtney.glanville@gmail.com" },
   { name: "Georgette Hemmings", email: "hemmgeor@gmail.com" }
@@ -562,6 +565,13 @@ const runningNotesList = document.querySelector("#runningNotesList");
 const taskDialog = document.querySelector("#taskDialog");
 const taskForm = document.querySelector("#taskForm");
 const userSelect = document.querySelector("#userSelect");
+const accountGateDialog = document.querySelector("#accountGateDialog");
+const accountGateForm = document.querySelector("#accountGateForm");
+const accountGateSelect = document.querySelector("#accountGateSelect");
+const accountGatePinWrap = document.querySelector("#accountGatePinWrap");
+const accountGatePin = document.querySelector("#accountGatePin");
+const accountGateMessage = document.querySelector("#accountGateMessage");
+const accountGateError = document.querySelector("#accountGateError");
 const historyDialog = document.querySelector("#historyDialog");
 const urgencyReportDialog = document.querySelector("#urgencyReportDialog");
 const documentsDialog = document.querySelector("#documentsDialog");
@@ -584,10 +594,15 @@ const hideLifeAdminBtn = document.querySelector("#hideLifeAdminBtn");
 const pdfUploadInput = document.querySelector("#pdfUploadInput");
 const documentsList = document.querySelector("#documentsList");
 const markPatrickReviewedBtn = document.querySelector("#markPatrickReviewedBtn");
+const closeAllPatrickBtn = document.querySelector("#closeAllPatrickBtn");
 const patrickPendingCount = document.querySelector("#patrickPendingCount");
 const patrickLatestChangeAt = document.querySelector("#patrickLatestChangeAt");
 const patrickLastReviewedAt = document.querySelector("#patrickLastReviewedAt");
 const patrickWatchList = document.querySelector("#patrickWatchList");
+const patrickViewOpenBtn = document.querySelector("#patrickViewOpenBtn");
+const patrickViewClosedBtn = document.querySelector("#patrickViewClosedBtn");
+const patrickViewAllBtn = document.querySelector("#patrickViewAllBtn");
+let dericPinValidatedForSession = false;
 
 const fields = {
   id: document.querySelector("#taskId"),
@@ -614,7 +629,7 @@ function loadState() {
       notes: parsed.notes || "",
       runningNotes: Array.isArray(parsed.runningNotes) ? parsed.runningNotes : [],
       documents: Array.isArray(parsed.documents) ? parsed.documents : [],
-      currentUser: parsed.currentUser || allowedUsers[0].email,
+      currentUser: parsed.currentUser || "",
       history: Array.isArray(parsed.history) ? parsed.history : [],
       lastSavedAt: parsed.lastSavedAt || "",
       panelVisibilityVersion: Number(parsed.panelVisibilityVersion) || 0,
@@ -643,9 +658,7 @@ function initializeState(loaded) {
   ensureSeedBills(loaded);
   loaded.dataVersion = Number(loaded.dataVersion) || DATA_VERSION;
   let panelVisibilityReset = false;
-  loaded.currentUser = allowedUsers.some(user => user.email === loaded.currentUser)
-    ? loaded.currentUser
-    : allowedUsers[0].email;
+  loaded.currentUser = "";
   loaded.history = Array.isArray(loaded.history) ? loaded.history : [];
   loaded.lastSavedAt = loaded.lastSavedAt || new Date().toISOString();
   loaded.runningNotes = normalizeRunningNotes(loaded.runningNotes, loaded.notes);
@@ -747,7 +760,11 @@ function normalizeRunningNotes(notes, legacyText = "") {
     id: note.id || crypto.randomUUID(),
     text: note.text || "",
     createdAt: note.createdAt || new Date().toISOString(),
-    updatedAt: note.updatedAt || note.createdAt || new Date().toISOString()
+    updatedAt: note.updatedAt || note.createdAt || new Date().toISOString(),
+    createdByEmail: note.createdByEmail || "",
+    createdByName: note.createdByName || "",
+    updatedByEmail: note.updatedByEmail || note.createdByEmail || "",
+    updatedByName: note.updatedByName || note.createdByName || ""
   })).filter(note => note.text.trim()) : [];
 
   if (!normalized.length && legacyText && legacyText.trim()) {
@@ -756,7 +773,11 @@ function normalizeRunningNotes(notes, legacyText = "") {
       id: crypto.randomUUID(),
       text: legacyText.trim(),
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
+      createdByEmail: "",
+      createdByName: "",
+      updatedByEmail: "",
+      updatedByName: ""
     });
   }
 
@@ -779,19 +800,37 @@ function normalizeDocuments(documents) {
 function loadPatrickWatchState() {
   try {
     const saved = localStorage.getItem(PATRICK_WATCH_KEY);
-    if (!saved) return { lastReviewedAt: "" };
+    if (!saved) {
+      return {
+        lastReviewedAt: "",
+        view: "open",
+        reviewedEntries: {},
+        closedEntries: {}
+      };
+    }
     const parsed = JSON.parse(saved);
     return {
-      lastReviewedAt: parsed.lastReviewedAt || ""
+      lastReviewedAt: parsed.lastReviewedAt || "",
+      view: ["open", "closed", "all"].includes(parsed.view) ? parsed.view : "open",
+      reviewedEntries: parsed.reviewedEntries && typeof parsed.reviewedEntries === "object" ? parsed.reviewedEntries : {},
+      closedEntries: parsed.closedEntries && typeof parsed.closedEntries === "object" ? parsed.closedEntries : {}
     };
   } catch {
-    return { lastReviewedAt: "" };
+    return {
+      lastReviewedAt: "",
+      view: "open",
+      reviewedEntries: {},
+      closedEntries: {}
+    };
   }
 }
 
 function savePatrickWatchState(nextState) {
   localStorage.setItem(PATRICK_WATCH_KEY, JSON.stringify({
-    lastReviewedAt: nextState.lastReviewedAt || ""
+    lastReviewedAt: nextState.lastReviewedAt || "",
+    view: ["open", "closed", "all"].includes(nextState.view) ? nextState.view : "open",
+    reviewedEntries: nextState.reviewedEntries || {},
+    closedEntries: nextState.closedEntries || {}
   }));
 }
 
@@ -1101,8 +1140,10 @@ async function loadSharedState() {
   }
 
   const originalStateJson = JSON.stringify(data.state);
+  const selectedUserEmail = state.currentUser;
   applyingRemoteState = true;
   state = initializeState(data.state);
+  if (selectedUserEmail) state.currentUser = selectedUserEmail;
   remoteUpdatedAt = data.updated_at || "";
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   supabaseStatus = `Supabase shared storage; synced ${formatDateTime(remoteUpdatedAt || state.lastSavedAt)}`;
@@ -1129,7 +1170,7 @@ async function saveSharedStateNow() {
   const payload = {
     id: SUPABASE_STATE_ID,
     state,
-    updated_by: state.currentUser || allowedUsers[0].email,
+    updated_by: state.currentUser || "",
     updated_at: new Date().toISOString()
   };
 
@@ -1230,11 +1271,11 @@ function render() {
   renderPatrickWatch();
   renderPanelVisibility();
   renderRunningNotes();
-  userSelect.value = state.currentUser;
+  userSelect.value = state.currentUser || "";
 }
 
 function renderPatrickWatch() {
-  const isDeric = state.currentUser === "dglanville@gmail.com";
+  const isDeric = state.currentUser === DERIC_EMAIL;
   patrickWatchPanel.hidden = !isDeric;
   if (!isDeric) return;
 
@@ -1244,13 +1285,21 @@ function renderPatrickWatch() {
 
   const latestPatrickEntry = patrickEntries[0] || null;
   const reviewedAt = patrickWatchState.lastReviewedAt || "";
-  const pendingEntries = reviewedAt
-    ? patrickEntries.filter(entry => (entry.createdAt || "") > reviewedAt)
-    : patrickEntries;
+  const openEntries = patrickEntries.filter(entry => !isPatrickEntryClosed(entry));
+  const closedEntries = patrickEntries.filter(isPatrickEntryClosed);
+  const currentView = patrickWatchState.view || "open";
+  const visibleEntries = currentView === "closed"
+    ? closedEntries
+    : currentView === "all"
+      ? patrickEntries
+      : openEntries;
 
-  patrickPendingCount.textContent = String(pendingEntries.length);
+  patrickPendingCount.textContent = String(openEntries.length);
   patrickLatestChangeAt.textContent = latestPatrickEntry ? formatDateTime(latestPatrickEntry.createdAt) : "None";
   patrickLastReviewedAt.textContent = reviewedAt ? formatDateTime(reviewedAt) : "Never";
+  patrickViewOpenBtn.classList.toggle("is-active", currentView === "open");
+  patrickViewClosedBtn.classList.toggle("is-active", currentView === "closed");
+  patrickViewAllBtn.classList.toggle("is-active", currentView === "all");
 
   patrickWatchList.innerHTML = "";
   if (!patrickEntries.length) {
@@ -1258,18 +1307,65 @@ function renderPatrickWatch() {
     return;
   }
 
-  const entriesToShow = pendingEntries.length ? pendingEntries : patrickEntries.slice(0, 5);
-  entriesToShow.forEach(entry => {
+  if (!visibleEntries.length) {
+    patrickWatchList.textContent = currentView === "closed"
+      ? "No closed Patrick changes yet."
+      : currentView === "all"
+        ? "No Patrick changes are available."
+        : "No open Patrick changes right now.";
+    return;
+  }
+
+  visibleEntries.forEach(entry => {
+    const itemType = entry.itemType || "task";
+    const closed = isPatrickEntryClosed(entry);
+    const reviewed = isPatrickEntryReviewed(entry);
     const item = document.createElement("article");
-    item.className = "patrick-watch-item";
+    item.className = `patrick-watch-item${closed ? " is-closed" : ""}`;
     item.innerHTML = `
       <header>
-        <h3>${escapeHtml(entry.taskTitle)}</h3>
+        <div class="history-entry-headline">
+          <span class="history-type-badge history-type-${escapeHtml(historyTypeClass(itemType))}">${escapeHtml(historyTypeLabel(itemType))}</span>
+          <h3>${escapeHtml(entry.taskTitle)}</h3>
+        </div>
         <span>${escapeHtml(formatDateTime(entry.createdAt))}</span>
       </header>
       <p>${escapeHtml(entry.summary)}</p>
-      <span>Status: ${escapeHtml(entry.status || "N/A")} | Complete: ${normalizePercent(entry.percent)}%</span>
+      <div class="patrick-watch-meta">
+        <span>Status: ${escapeHtml(entry.status || "N/A")} | Complete: ${normalizePercent(entry.percent)}%</span>
+        ${reviewed ? '<span class="status-chip status-chip-reviewed">Reviewed</span>' : ""}
+        ${closed ? '<span class="status-chip status-chip-closed">Closed</span>' : ""}
+      </div>
+      <div class="patrick-watch-actions">
+        ${closed
+          ? '<button type="button" class="ghost reopen-patrick-entry">Reopen</button>'
+          : `
+            <button type="button" class="ghost review-patrick-entry">Mark Reviewed</button>
+            <button type="button" class="ghost close-patrick-entry">Approve & Close</button>
+          `}
+      </div>
     `;
+    const reviewButton = item.querySelector(".review-patrick-entry");
+    if (reviewButton) {
+      reviewButton.addEventListener("click", () => {
+        markPatrickEntriesReviewed([entry]);
+        renderPatrickWatch();
+      });
+    }
+    const closeButton = item.querySelector(".close-patrick-entry");
+    if (closeButton) {
+      closeButton.addEventListener("click", () => {
+        closePatrickEntries([entry]);
+        renderPatrickWatch();
+      });
+    }
+    const reopenButton = item.querySelector(".reopen-patrick-entry");
+    if (reopenButton) {
+      reopenButton.addEventListener("click", () => {
+        reopenPatrickEntry(entry.id);
+        renderPatrickWatch();
+      });
+    }
     patrickWatchList.appendChild(item);
   });
 }
@@ -1292,8 +1388,8 @@ function renderRunningNotes() {
       item.dataset.noteId = note.id;
       item.innerHTML = `
         <header>
-          <span>Created ${escapeHtml(formatDateTime(note.createdAt))}</span>
-          <span>Updated ${escapeHtml(formatDateTime(note.updatedAt))}</span>
+          <span>Created ${escapeHtml(formatDateTime(note.createdAt))}${note.createdByName ? ` by ${escapeHtml(note.createdByName)}` : ""}</span>
+          <span>Updated ${escapeHtml(formatDateTime(note.updatedAt))}${note.updatedByName ? ` by ${escapeHtml(note.updatedByName)}` : ""}</span>
         </header>
         <textarea class="running-note-text" rows="3">${escapeHtml(note.text)}</textarea>
         <div class="running-note-actions">
@@ -1383,6 +1479,8 @@ function openSavedDocument(documentId) {
 
 function savePdfDocument(file) {
   if (!file) return Promise.resolve(false);
+  const user = ensureCurrentUser("save a PDF document");
+  if (!user) return Promise.resolve(false);
   if (file.type !== "application/pdf") {
     alert("Please choose a PDF file.");
     return Promise.resolve(false);
@@ -1395,7 +1493,6 @@ function savePdfDocument(file) {
   return new Promise(resolve => {
     const reader = new FileReader();
     reader.onload = () => {
-      const user = currentUser();
       const savedDocument = {
         id: crypto.randomUUID(),
         name: file.name,
@@ -1408,6 +1505,14 @@ function savePdfDocument(file) {
       };
 
       state.documents.unshift(savedDocument);
+      recordHistoryEntry({
+        itemType: "document",
+        itemId: savedDocument.id,
+        title: historyTitleFor("document", savedDocument.name),
+        summary: `PDF uploaded to shared documents (${formatFileSize(savedDocument.sizeBytes)})`,
+        status: "Saved",
+        percent: 0
+      });
       resolve(true);
     };
     reader.onerror = () => {
@@ -1421,12 +1526,26 @@ function savePdfDocument(file) {
 function addRunningNote() {
   const text = newRunningNote.value.trim();
   if (!text) return;
+  const user = ensureCurrentUser("add a running note");
+  if (!user) return;
   const now = new Date().toISOString();
   state.runningNotes.unshift({
     id: crypto.randomUUID(),
     text,
     createdAt: now,
-    updatedAt: now
+    updatedAt: now,
+    createdByEmail: user.email,
+    createdByName: user.name,
+    updatedByEmail: user.email,
+    updatedByName: user.name
+  });
+  recordHistoryEntry({
+    itemType: "runningNote",
+    itemId: state.runningNotes[0].id,
+    title: historyTitleFor("runningNote", truncateText(text)),
+    summary: `Running note added: ${truncateText(text, 140)}`,
+    status: "Added",
+    percent: 0
   });
   state.notes = "";
   newRunningNote.value = "";
@@ -1437,6 +1556,9 @@ function addRunningNote() {
 function updateRunningNote(item) {
   const note = state.runningNotes.find(entry => entry.id === item.dataset.noteId);
   if (!note) return;
+  const user = ensureCurrentUser("update a running note");
+  if (!user) return;
+  const previousText = note.text;
   const text = item.querySelector(".running-note-text").value.trim();
   if (!text) {
     alert("A note cannot be blank. Delete it if it is no longer needed.");
@@ -1444,13 +1566,34 @@ function updateRunningNote(item) {
   }
   note.text = text;
   note.updatedAt = new Date().toISOString();
+  note.updatedByEmail = user.email;
+  note.updatedByName = user.name;
+  if (text !== previousText) {
+    recordHistoryEntry({
+      itemType: "runningNote",
+      itemId: note.id,
+      title: historyTitleFor("runningNote", truncateText(text || previousText)),
+      summary: `Running note updated from "${truncateText(previousText, 70)}" to "${truncateText(text, 70)}"`,
+      status: "Updated",
+      percent: 0
+    });
+  }
   saveState();
   renderRunningNotes();
 }
 
 function deleteRunningNote(id) {
   const note = state.runningNotes.find(entry => entry.id === id);
+  if (!ensureCurrentUser("delete a running note")) return;
   if (!note || !confirm("Delete this running note?")) return;
+  recordHistoryEntry({
+    itemType: "runningNote",
+    itemId: note.id,
+    title: historyTitleFor("runningNote", truncateText(note.text)),
+    summary: `Running note deleted: ${truncateText(note.text, 140)}`,
+    status: "Deleted",
+    percent: 0
+  });
   state.runningNotes = state.runningNotes.filter(entry => entry.id !== id);
   saveState();
   renderRunningNotes();
@@ -1572,14 +1715,37 @@ function renderBills() {
   updateBillTotals();
 }
 
+function buildBillChangeSummary(before, after) {
+  const changes = [];
+  if ((before.name || "") !== (after.name || "")) changes.push(`Name changed from ${before.name || "Untitled"} to ${after.name || "Untitled"}`);
+  if (normalizeMoney(before.amount) !== normalizeMoney(after.amount)) changes.push(`Amount changed from ${formatCurrency(before.amount)} to ${formatCurrency(after.amount)}`);
+  if ((before.due || "") !== (after.due || "")) changes.push(`Due date changed from ${before.due || "No due date"} to ${after.due || "No due date"}`);
+  if ((before.status || "") !== (after.status || "")) changes.push(`Status changed from ${before.status || "N/A"} to ${after.status || "N/A"}`);
+  if ((before.notes || "") !== (after.notes || "")) changes.push("Notes updated");
+  return summarizeLines(changes, "Monthly bill updated");
+}
+
 function updateBillFromRow(row) {
   const bill = state.bills.find(item => item.id === row.dataset.billId);
   if (!bill) return;
+  if (!ensureCurrentUser("update a monthly bill")) return;
+  const before = { ...bill };
   bill.name = row.querySelector(".bill-name").value.trim();
   bill.amount = normalizeMoney(row.querySelector(".bill-amount").value);
   bill.due = row.querySelector(".bill-due").value;
   bill.status = row.querySelector(".bill-status").value;
   bill.notes = row.querySelector(".bill-notes").value.trim();
+  const summary = buildBillChangeSummary(before, bill);
+  if (summary !== "Monthly bill updated" || JSON.stringify(before) !== JSON.stringify(bill)) {
+    recordHistoryEntry({
+      itemType: "bill",
+      itemId: bill.id,
+      title: historyTitleFor("bill", bill.name || before.name || "Untitled bill"),
+      summary,
+      status: bill.status || "N/A",
+      percent: percentFromBillStatus(bill.status)
+    });
+  }
   saveState();
   updateBillTotals();
 }
@@ -1604,7 +1770,16 @@ function isBillPastDue(bill) {
 
 function deleteBill(id) {
   const bill = state.bills.find(item => item.id === id);
+  if (!ensureCurrentUser("delete a monthly bill")) return;
   if (!bill || !confirm(`Delete "${bill.name || "this bill"}"?`)) return;
+  recordHistoryEntry({
+    itemType: "bill",
+    itemId: bill.id,
+    title: historyTitleFor("bill", bill.name || "Untitled bill"),
+    summary: `Monthly bill deleted${bill.amount ? ` for ${formatCurrency(bill.amount)}` : ""}`,
+    status: "Deleted",
+    percent: 0
+  });
   state.bills = state.bills.filter(item => item.id !== id);
   saveState();
   renderBills();
@@ -1642,19 +1817,50 @@ function renderLifeAdminNotes() {
   });
 }
 
+function buildLifeAdminChangeSummary(before, after) {
+  const changes = [];
+  if ((before.item || "") !== (after.item || "")) changes.push(`Item changed from ${before.item || "Untitled"} to ${after.item || "Untitled"}`);
+  if ((before.due || "") !== (after.due || "")) changes.push(`Due date changed from ${before.due || "No due date"} to ${after.due || "No due date"}`);
+  if ((before.status || "") !== (after.status || "")) changes.push(`Status changed from ${before.status || "N/A"} to ${after.status || "N/A"}`);
+  if ((before.notes || "") !== (after.notes || "")) changes.push("Notes updated");
+  return summarizeLines(changes, "Patrick to-do note updated");
+}
+
 function updateLifeAdminNoteFromItem(item) {
   const note = state.lifeAdminNotes.find(entry => entry.id === item.dataset.noteId);
   if (!note) return;
+  if (!ensureCurrentUser("update a Patrick to-do note")) return;
+  const before = { ...note };
   note.item = item.querySelector(".life-admin-title").value.trim();
   note.due = item.querySelector(".life-admin-due").value;
   note.status = item.querySelector(".life-admin-status").value;
   note.notes = item.querySelector(".life-admin-notes").value.trim();
+  const summary = buildLifeAdminChangeSummary(before, note);
+  if (summary !== "Patrick to-do note updated" || JSON.stringify(before) !== JSON.stringify(note)) {
+    recordHistoryEntry({
+      itemType: "lifeAdmin",
+      itemId: note.id,
+      title: historyTitleFor("lifeAdmin", note.item || before.item || "Untitled note"),
+      summary,
+      status: note.status || "N/A",
+      percent: percentFromLifeAdminStatus(note.status)
+    });
+  }
   saveState();
 }
 
 function deleteLifeAdminNote(id) {
   const note = state.lifeAdminNotes.find(entry => entry.id === id);
+  if (!ensureCurrentUser("delete a Patrick to-do note")) return;
   if (!note || !confirm(`Delete "${note.item || "this note"}"?`)) return;
+  recordHistoryEntry({
+    itemType: "lifeAdmin",
+    itemId: note.id,
+    title: historyTitleFor("lifeAdmin", note.item || "Untitled note"),
+    summary: "Patrick to-do note deleted",
+    status: "Deleted",
+    percent: 0
+  });
   state.lifeAdminNotes = state.lifeAdminNotes.filter(entry => entry.id !== id);
   saveState();
   renderLifeAdminNotes();
@@ -1883,6 +2089,7 @@ function updateProgress() {
 }
 
 function openTask(id) {
+  if (!ensureCurrentUser("open a task for editing")) return;
   const task = state.tasks.find(item => item.id === id) || {
     id: crypto.randomUUID(),
     title: "",
@@ -1950,8 +2157,229 @@ function escapeAttribute(value) {
   return escapeHtml(value);
 }
 
+function getAllowedUserByEmail(email) {
+  return allowedUsers.find(user => user.email === email) || null;
+}
+
 function currentUser() {
-  return allowedUsers.find(user => user.email === state.currentUser) || allowedUsers[0];
+  return getAllowedUserByEmail(state.currentUser);
+}
+
+function setCurrentUserEmail(email, { save = true, renderView = true } = {}) {
+  state.currentUser = email;
+  userSelect.value = email;
+  if (save) saveState();
+  if (renderView) render();
+}
+
+function accountSelectionMessage(actionText = "make updates") {
+  return `Select an account before you ${actionText}.`;
+}
+
+function updateAccountGatePinVisibility() {
+  const needsPin = accountGateSelect.value === DERIC_EMAIL;
+  accountGatePinWrap.hidden = !needsPin;
+  accountGatePin.required = needsPin;
+  if (!needsPin) accountGatePin.value = "";
+}
+
+function showAccountGate(message = "Choose the account that will be used for updates in this session.") {
+  accountGateMessage.textContent = message;
+  accountGateError.hidden = true;
+  accountGateError.textContent = "";
+  accountGateSelect.value = state.currentUser || "";
+  accountGatePin.value = "";
+  updateAccountGatePinVisibility();
+  if (!accountGateDialog.open) accountGateDialog.showModal();
+}
+
+function completeAccountSelection(email, pin = "") {
+  const user = getAllowedUserByEmail(email);
+  if (!user) {
+    accountGateError.textContent = "Select an account to continue.";
+    accountGateError.hidden = false;
+    return false;
+  }
+
+  if (user.email === DERIC_EMAIL) {
+    if (pin !== DERIC_PIN) {
+      accountGateError.textContent = "The PIN for Deric's account is incorrect.";
+      accountGateError.hidden = false;
+      return false;
+    }
+    dericPinValidatedForSession = true;
+  }
+
+  if (user.email !== DERIC_EMAIL) dericPinValidatedForSession = false;
+
+  setCurrentUserEmail(user.email, { save: true, renderView: true });
+  accountGateDialog.close();
+  return true;
+}
+
+function ensureCurrentUser(actionText = "make updates") {
+  const user = currentUser();
+  if (user) return user;
+  showAccountGate(accountSelectionMessage(actionText));
+  return null;
+}
+
+function requestUserSwitch(email) {
+  if (!email) {
+    state.currentUser = "";
+    saveState();
+    render();
+    showAccountGate("Select an account before continuing.");
+    return;
+  }
+
+  if (email === DERIC_EMAIL && !dericPinValidatedForSession) {
+    showAccountGate("Enter Deric's PIN to use Deric's account.");
+    accountGateSelect.value = DERIC_EMAIL;
+    updateAccountGatePinVisibility();
+    accountGatePin.focus();
+    return;
+  }
+
+  if (email !== DERIC_EMAIL) dericPinValidatedForSession = false;
+  setCurrentUserEmail(email, { save: true, renderView: true });
+}
+
+function insertEmojiIntoField(targetId, emoji) {
+  const field = document.getElementById(targetId);
+  if (!field) return;
+
+  const start = field.selectionStart ?? field.value.length;
+  const end = field.selectionEnd ?? field.value.length;
+  const prefix = field.value.slice(0, start);
+  const suffix = field.value.slice(end);
+  const spacerBefore = prefix && !/\s$/.test(prefix) ? " " : "";
+  const spacerAfter = suffix && !/^\s/.test(suffix) ? " " : "";
+  const nextValue = `${prefix}${spacerBefore}${emoji}${spacerAfter}${suffix}`;
+
+  field.value = nextValue;
+  const cursor = (prefix + spacerBefore + emoji).length;
+  field.focus();
+  field.setSelectionRange(cursor, cursor);
+}
+
+function summarizeLines(changes, fallback) {
+  return changes.filter(Boolean).join("; ") || fallback;
+}
+
+function truncateText(value, maxLength = 90) {
+  const text = String(value || "").trim().replace(/\s+/g, " ");
+  if (!text) return "";
+  return text.length > maxLength ? `${text.slice(0, maxLength - 1)}...` : text;
+}
+
+function historyTitleFor(type, label) {
+  const cleanLabel = label || "Untitled";
+  const mapping = {
+    task: cleanLabel,
+    runningNote: `Running note: ${cleanLabel}`,
+    bill: `Monthly bill: ${cleanLabel}`,
+    lifeAdmin: `Patrick To-Do Note: ${cleanLabel}`,
+    document: `PDF document: ${cleanLabel}`
+  };
+  return mapping[type] || cleanLabel;
+}
+
+function historyTypeLabel(type = "task") {
+  const mapping = {
+    task: "Task",
+    runningNote: "Running Note",
+    bill: "Bill",
+    lifeAdmin: "To-Do Note",
+    document: "PDF"
+  };
+  return mapping[type] || "Change";
+}
+
+function historyTypeClass(type = "task") {
+  const mapping = {
+    task: "task",
+    runningNote: "running-note",
+    bill: "bill",
+    lifeAdmin: "todo-note",
+    document: "pdf"
+  };
+  return mapping[type] || "change";
+}
+
+function isPatrickEntryClosed(entry) {
+  return Boolean(patrickWatchState.closedEntries?.[entry.id]);
+}
+
+function isPatrickEntryReviewed(entry) {
+  return Boolean(patrickWatchState.reviewedEntries?.[entry.id]) || isPatrickEntryClosed(entry);
+}
+
+function markPatrickEntriesReviewed(entries) {
+  if (!entries.length) return;
+  entries.forEach(entry => {
+    patrickWatchState.reviewedEntries[entry.id] = new Date().toISOString();
+  });
+  const latestReviewed = entries
+    .map(entry => entry.createdAt || "")
+    .filter(Boolean)
+    .sort((a, b) => b.localeCompare(a))[0];
+  patrickWatchState.lastReviewedAt = latestReviewed || new Date().toISOString();
+  savePatrickWatchState(patrickWatchState);
+}
+
+function closePatrickEntries(entries) {
+  if (!entries.length) return;
+  markPatrickEntriesReviewed(entries);
+  entries.forEach(entry => {
+    patrickWatchState.closedEntries[entry.id] = new Date().toISOString();
+  });
+  savePatrickWatchState(patrickWatchState);
+}
+
+function reopenPatrickEntry(entryId) {
+  delete patrickWatchState.closedEntries[entryId];
+  savePatrickWatchState(patrickWatchState);
+}
+
+function percentFromBillStatus(status) {
+  if (status === "Paid") return 100;
+  if (status === "Scheduled") return 60;
+  if (status === "Deferred") return 40;
+  return 0;
+}
+
+function percentFromLifeAdminStatus(status) {
+  if (status === "Done") return 100;
+  if (status === "In progress") return 50;
+  return 0;
+}
+
+function recordHistoryEntry({
+  itemType = "task",
+  itemId = "",
+  title = "Tracker item",
+  summary = "Updated",
+  status = "N/A",
+  percent = 0,
+  taskId = ""
+}) {
+  const user = currentUser();
+  if (!user) return;
+  state.history.unshift({
+    id: crypto.randomUUID(),
+    itemType,
+    itemId,
+    taskId,
+    taskTitle: title,
+    userEmail: user.email,
+    userName: user.name,
+    createdAt: new Date().toISOString(),
+    summary,
+    percent: normalizePercent(percent),
+    status
+  });
+  state.history = state.history.slice(0, 500);
 }
 
 function buildChangeSummary(before, after, commentText) {
@@ -1972,19 +2400,15 @@ function buildChangeSummary(before, after, commentText) {
 }
 
 function recordUpdate(task, summary) {
-  const user = currentUser();
-  state.history.unshift({
-    id: crypto.randomUUID(),
+  recordHistoryEntry({
+    itemType: "task",
+    itemId: task.id,
     taskId: task.id,
-    taskTitle: task.title,
-    userEmail: user.email,
-    userName: user.name,
-    createdAt: new Date().toISOString(),
+    title: task.title,
     summary,
-    percent: normalizePercent(task.percent),
+    percent: task.percent,
     status: task.status
   });
-  state.history = state.history.slice(0, 500);
 }
 
 function formatDateTime(value) {
@@ -2006,10 +2430,14 @@ function renderHistory() {
     return;
   }
   state.history.forEach(entry => {
+    const itemType = entry.itemType || "task";
     const item = document.createElement("article");
     item.className = "history-item";
     item.innerHTML = `
-      <strong>${escapeHtml(entry.taskTitle)}</strong>
+      <div class="history-entry-headline">
+        <span class="history-type-badge history-type-${escapeHtml(historyTypeClass(itemType))}">${escapeHtml(historyTypeLabel(itemType))}</span>
+        <strong>${escapeHtml(entry.taskTitle)}</strong>
+      </div>
       <span>${escapeHtml(entry.userName)} &lt;${escapeHtml(entry.userEmail)}&gt; - ${escapeHtml(formatDateTime(entry.createdAt))}</span>
       <p>${escapeHtml(entry.summary)}. Status: ${escapeHtml(entry.status)}. Complete: ${normalizePercent(entry.percent)}%.</p>
     `;
@@ -2034,7 +2462,7 @@ function renderUrgencyReport() {
       <p class="report-kicker">Generated ${escapeHtml(formatDateTime(new Date().toISOString()))}</p>
       <p>This report summarizes tasks marked with urgent priority, with emphasis on what is due, who owns the task, current progress, and the next action needed.</p>
       <p><strong>Job focus:</strong> Job and income opportunities are grouped first because restoring income is the highest leverage path for transportation, housing, debt, and daily living stability.</p>
-      <p><strong>Daily schedule:</strong> This report is intended to be sent every day at 9:30 AM. Automatic sending now runs from the local project Email folder; this button still opens a prepared email for manual sending.</p>
+      <p><strong>Daily schedule:</strong> This report is intended to be sent every day at 8:30 AM. Automatic sending now runs from the local project Email folder; this button still opens a prepared email for manual sending.</p>
       <div class="report-metrics">
         <article><strong>${urgentTasks.length}</strong><span>urgent tasks</span></article>
         <article><strong>${jobTasks.length}</strong><span>urgent job tasks</span></article>
@@ -2152,7 +2580,7 @@ function buildUrgencyReportEmail() {
   const lines = [
     "Patrick Glanville Support Tracker - Urgency Report",
     `Generated: ${formatDateTime(new Date().toISOString())}`,
-    "Scheduled daily send time: 9:30 AM",
+    "Scheduled daily send time: 8:30 AM",
     "",
     "Summary",
     `Urgent tasks: ${urgentTasks.length}`,
@@ -2257,7 +2685,7 @@ function buildUrgencyReportHtml() {
   <main class="wrap">
     <header class="header">
       <h1>Patrick Glanville Urgency Report</h1>
-      <p>Generated ${escapeHtml(generated)} | Scheduled daily send time: 9:30 AM</p>
+      <p>Generated ${escapeHtml(generated)} | Scheduled daily send time: 8:30 AM</p>
     </header>
     <section class="content">
       <p class="notice"><strong>Job focus:</strong> Job and income opportunities are grouped first because restoring income is the highest leverage path for transportation, housing, debt, and daily living stability.</p>
@@ -2321,22 +2749,126 @@ function downloadUrgencyReportHtml() {
   alert("Save the HTML report to C:\\Software Developement\\ChatGPT Codex\\Patrick Glanville\\Email. Browsers require you to choose or confirm the save location.");
 }
 
+function buildUrgencyReportFileName() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `patrick-urgency-report-${year}-${month}-${day}.html`;
+}
+
+function isUrgencyReportFileName(fileName) {
+  return /^patrick-urgency-report-\d{4}-\d{2}-\d{2}\.html$/i.test(fileName || "");
+}
+
+async function moveFileHandleToArchive(sourceDirectoryHandle, archiveDirectoryHandle, fileName) {
+  const fileHandle = await sourceDirectoryHandle.getFileHandle(fileName);
+  const file = await fileHandle.getFile();
+  const archiveHandle = await archiveDirectoryHandle.getFileHandle(fileName, { create: true });
+  const writable = await archiveHandle.createWritable();
+  try {
+    await writable.write(await file.text());
+  } finally {
+    await writable.close();
+  }
+  await sourceDirectoryHandle.removeEntry(fileName);
+}
+
+async function saveUrgencyReportToEmailFolder() {
+  const helperTriggered = await triggerUrgencyReportHelper();
+  if (helperTriggered) return;
+
+  if (typeof window.showDirectoryPicker !== "function") {
+    downloadUrgencyReportHtml();
+    alert("This browser cannot save directly into the Email folder from the dashboard, so the report was downloaded instead.");
+    return;
+  }
+
+  try {
+    const emailFolderHandle = await window.showDirectoryPicker({
+      id: "patrick-glanville-email-folder",
+      mode: "readwrite",
+      startIn: "documents"
+    });
+    const archiveFolderHandle = await emailFolderHandle.getDirectoryHandle("Archive", { create: true });
+    const currentFileName = buildUrgencyReportFileName();
+    const archivedFiles = [];
+
+    for await (const [entryName, entryHandle] of emailFolderHandle.entries()) {
+      if (entryHandle.kind !== "file") continue;
+      if (!isUrgencyReportFileName(entryName) || entryName === currentFileName) continue;
+      await moveFileHandleToArchive(emailFolderHandle, archiveFolderHandle, entryName);
+      archivedFiles.push(entryName);
+    }
+
+    const reportHandle = await emailFolderHandle.getFileHandle(currentFileName, { create: true });
+    const writable = await reportHandle.createWritable();
+    try {
+      await writable.write(buildUrgencyReportHtml());
+    } finally {
+      await writable.close();
+    }
+
+    const archiveMessage = archivedFiles.length
+      ? ` Archived: ${archivedFiles.join(", ")}.`
+      : " No older urgency report files needed archiving.";
+    alert(`Saved urgency report to ${currentFileName}.${archiveMessage}`);
+  } catch (error) {
+    if (error?.name === "AbortError") return;
+    console.error(error);
+    downloadUrgencyReportHtml();
+    alert("Direct save to the Email folder was not completed. The report was downloaded instead.");
+  }
+}
+
+async function triggerUrgencyReportHelper() {
+  try {
+    const response = await fetch(`${URGENCY_REPORT_HELPER_URL}/run-urgency-report`, {
+      method: "POST"
+    });
+    if (!response.ok) return false;
+
+    const payload = await response.json();
+    if (!payload?.ok) return false;
+
+    alert(payload.output || "Urgency report process completed.");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function populateUsers() {
   userSelect.innerHTML = "";
+  accountGateSelect.innerHTML = "";
+  const placeholderOption = document.createElement("option");
+  placeholderOption.value = "";
+  placeholderOption.textContent = "Select account...";
+  userSelect.appendChild(placeholderOption);
+
+  const gatePlaceholderOption = document.createElement("option");
+  gatePlaceholderOption.value = "";
+  gatePlaceholderOption.textContent = "Select account...";
+  accountGateSelect.appendChild(gatePlaceholderOption);
+
   allowedUsers.forEach(user => {
     const option = document.createElement("option");
     option.value = user.email;
     option.textContent = `${user.name} <${user.email}>`;
     userSelect.appendChild(option);
+
+    const gateOption = option.cloneNode(true);
+    accountGateSelect.appendChild(gateOption);
   });
 }
 
 taskForm.addEventListener("submit", event => {
   event.preventDefault();
+  const user = ensureCurrentUser("save a task update");
+  if (!user) return;
   const existing = state.tasks.find(item => item.id === fields.id.value);
   const commentText = fields.comment.value.trim();
   const comments = existing?.comments ? [...existing.comments] : [];
-  const user = currentUser();
   if (commentText) {
     comments.push({
       id: crypto.randomUUID(),
@@ -2373,6 +2905,7 @@ taskForm.addEventListener("submit", event => {
 });
 
 document.querySelector("#deleteTaskBtn").addEventListener("click", () => {
+  if (!ensureCurrentUser("delete a task")) return;
   const title = fields.title.value || "this task";
   if (!confirm(`Delete "${title}"?`)) return;
   const deletedTask = state.tasks.find(task => task.id === fields.id.value);
@@ -2391,10 +2924,7 @@ document.querySelector("#historyBtn").addEventListener("click", () => {
   historyDialog.showModal();
 });
 document.querySelector("#closeHistoryDialog").addEventListener("click", () => historyDialog.close());
-document.querySelector("#urgencyReportBtn").addEventListener("click", () => {
-  renderUrgencyReport();
-  urgencyReportDialog.showModal();
-});
+document.querySelector("#urgencyReportBtn").addEventListener("click", saveUrgencyReportToEmailFolder);
 document.querySelector("#closeUrgencyReportDialog").addEventListener("click", () => urgencyReportDialog.close());
 document.querySelector("#emailUrgencyReportBtn").addEventListener("click", emailUrgencyReport);
 const emailDashboardReportBtn = document.querySelector("#emailDashboardReportBtn");
@@ -2412,13 +2942,23 @@ billMonthInput.addEventListener("change", () => {
   saveState();
 });
 document.querySelector("#addBillBtn").addEventListener("click", () => {
-  state.bills.push({
+  if (!ensureCurrentUser("add a bill")) return;
+  const newBill = {
     id: crypto.randomUUID(),
     name: "",
     amount: 0,
     due: "",
     status: "Unpaid",
     notes: ""
+  };
+  state.bills.push(newBill);
+  recordHistoryEntry({
+    itemType: "bill",
+    itemId: newBill.id,
+    title: historyTitleFor("bill", "Untitled bill"),
+    summary: "Monthly bill added",
+    status: newBill.status,
+    percent: percentFromBillStatus(newBill.status)
   });
   saveState();
   renderBills();
@@ -2434,12 +2974,22 @@ hideBillsBtn.addEventListener("click", () => {
   renderPanelVisibility();
 });
 document.querySelector("#addLifeAdminNoteBtn").addEventListener("click", () => {
-  state.lifeAdminNotes.push({
+  if (!ensureCurrentUser("add a Patrick to-do note")) return;
+  const newNote = {
     id: crypto.randomUUID(),
     item: "",
     due: "",
     status: "Open",
     notes: ""
+  };
+  state.lifeAdminNotes.push(newNote);
+  recordHistoryEntry({
+    itemType: "lifeAdmin",
+    itemId: newNote.id,
+    title: historyTitleFor("lifeAdmin", "Untitled note"),
+    summary: "Patrick to-do note added",
+    status: newNote.status,
+    percent: percentFromLifeAdminStatus(newNote.status)
   });
   saveState();
   renderLifeAdminNotes();
@@ -2455,8 +3005,22 @@ hideLifeAdminBtn.addEventListener("click", () => {
   renderPanelVisibility();
 });
 userSelect.addEventListener("change", () => {
-  state.currentUser = userSelect.value;
-  saveState();
+  requestUserSwitch(userSelect.value);
+});
+
+accountGateSelect.addEventListener("change", updateAccountGatePinVisibility);
+accountGateDialog.addEventListener("cancel", event => {
+  event.preventDefault();
+});
+accountGateForm.addEventListener("submit", event => {
+  event.preventDefault();
+  completeAccountSelection(accountGateSelect.value, accountGatePin.value.trim());
+});
+
+document.querySelectorAll(".emoji-button").forEach(button => {
+  button.addEventListener("click", () => {
+    insertEmojiIntoField(button.dataset.target, button.dataset.emoji || "");
+  });
 });
 
 document.querySelector("#addRunningNoteBtn").addEventListener("click", addRunningNote);
@@ -2476,6 +3040,7 @@ document.querySelector("#importInput").addEventListener("change", event => {
   const reader = new FileReader();
   reader.onload = () => {
     try {
+      const selectedUserEmail = state.currentUser;
       const imported = JSON.parse(reader.result);
       if (!Array.isArray(imported.tasks)) throw new Error("Missing task list");
       state = initializeState({
@@ -2494,6 +3059,7 @@ document.querySelector("#importInput").addEventListener("change", event => {
       });
       addMissingSeedTasks(state);
       state = initializeState(state);
+      if (selectedUserEmail) state.currentUser = selectedUserEmail;
       saveState();
       render();
     } catch (error) {
@@ -2544,11 +3110,17 @@ document.querySelector("#viewDocumentsBtn").addEventListener("click", () => {
   else if (typeof documentsDialog.show === "function") documentsDialog.show();
 });
 
+document.querySelector("#processGuideBtn").addEventListener("click", () => {
+  window.open(`Patrick_Glanville_Process_Guide_v2.pdf?open=${Date.now()}`, "_blank", "noopener");
+});
+
 document.querySelector("#closeDocumentsDialog").addEventListener("click", () => documentsDialog.close());
 
 document.querySelector("#resetBtn").addEventListener("click", () => {
   if (!confirm("Reset tracker to the original starting tasks?")) return;
+  const selectedUserEmail = state.currentUser;
   state = initializeState(structuredClone(seedData));
+  if (selectedUserEmail) state.currentUser = selectedUserEmail;
   saveState();
   render();
 });
@@ -2559,11 +3131,35 @@ document.querySelector("#refreshAppBtn").addEventListener("click", () => {
 });
 
 markPatrickReviewedBtn.addEventListener("click", () => {
-  const latestPatrickEntry = state.history
+  const openPatrickEntries = state.history
     .filter(entry => entry.userEmail === "patrick.glanville@gmail.com")
-    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))[0];
+    .filter(entry => !isPatrickEntryClosed(entry));
+  markPatrickEntriesReviewed(openPatrickEntries);
+  renderPatrickWatch();
+});
 
-  patrickWatchState.lastReviewedAt = latestPatrickEntry?.createdAt || new Date().toISOString();
+closeAllPatrickBtn.addEventListener("click", () => {
+  const openPatrickEntries = state.history
+    .filter(entry => entry.userEmail === "patrick.glanville@gmail.com")
+    .filter(entry => !isPatrickEntryClosed(entry));
+  closePatrickEntries(openPatrickEntries);
+  renderPatrickWatch();
+});
+
+patrickViewOpenBtn.addEventListener("click", () => {
+  patrickWatchState.view = "open";
+  savePatrickWatchState(patrickWatchState);
+  renderPatrickWatch();
+});
+
+patrickViewClosedBtn.addEventListener("click", () => {
+  patrickWatchState.view = "closed";
+  savePatrickWatchState(patrickWatchState);
+  renderPatrickWatch();
+});
+
+patrickViewAllBtn.addEventListener("click", () => {
+  patrickWatchState.view = "all";
   savePatrickWatchState(patrickWatchState);
   renderPatrickWatch();
 });
@@ -2571,5 +3167,6 @@ markPatrickReviewedBtn.addEventListener("click", () => {
 populateUsers();
 populateCategories();
 render();
+showAccountGate("Select an account to start this session. Deric's account requires PIN 3141.");
 updateSyncStatus();
 initializeSharedDataSource();

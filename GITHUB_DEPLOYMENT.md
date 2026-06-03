@@ -27,19 +27,17 @@ Do not commit passwords, tokens, Social Security numbers, bank logins, medical a
    - `courtney.glanville@gmail.com`
    - `hemmgeor@gmail.com`
 
-## Important Limitation
+## Shared Data Setup
 
-GitHub Pages hosts static files. It does not provide a private database or email-only app login for this tracker.
+GitHub Pages still hosts only static files, but this tracker now includes a Supabase-backed shared data mode.
 
-The current app records updates locally in each user's browser. To have everyone see the same live task data, add Firebase, Supabase, or another authenticated backend.
+To use it:
 
-## Best Next Backend Choice
+1. Create or open the Supabase project for the tracker.
+2. Run `SUPABASE_SETUP.sql` in the Supabase SQL Editor.
+3. Add the project URL and anon public key to `supabase-config.js`.
+4. Upload `supabase-config.js`, `SUPABASE_SETUP.sql`, `index.html`, and `app.js` with the rest of the site files.
 
-Firebase is a practical fit:
+After deployment, the tracker should show `Supabase shared storage` in the Data Store line.
 
-1. Create a Firebase project.
-2. Enable Authentication with email/password or email link.
-3. Enable Firestore.
-4. Add the four allowed emails to an allow-list collection or security-rule check.
-5. Store tracker state, comments, and history in Firestore.
-6. Keep GitHub Pages as the frontend host.
+For the full walkthrough, use `SUPABASE_README.md`.
