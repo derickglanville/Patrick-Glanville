@@ -16,9 +16,10 @@ const MAX_DOCUMENT_SIZE_BYTES = 6 * 1024 * 1024;
 const URGENCY_REPORT_HELPER_URL = "http://127.0.0.1:8767";
 const DERIC_EMAIL = "dglanville@gmail.com";
 const DERIC_PIN = "3141";
+const PATRICK_EMAIL = "patrick.glanville@gmail.com";
 const EMAIL_REPORT_RECIPIENTS = [
   DERIC_EMAIL,
-  "patrick.glanville@gmail.com"
+  PATRICK_EMAIL
 ];
 let supabaseClient = null;
 let supabaseEnabled = false;
@@ -29,7 +30,7 @@ let remoteUpdatedAt = "";
 let applyingRemoteState = false;
 const allowedUsers = [
   { name: "Deric Glanville", email: DERIC_EMAIL },
-  { name: "Patrick Glanville", email: "patrick.glanville@gmail.com" },
+  { name: "Patrick Glanville", email: PATRICK_EMAIL },
   { name: "Courtney Glanville", email: "courtney.glanville@gmail.com" },
   { name: "Georgette Hemmings", email: "hemmgeor@gmail.com" }
 ];
@@ -638,7 +639,7 @@ function loadState() {
       notes: parsed.notes || "",
       runningNotes: Array.isArray(parsed.runningNotes) ? parsed.runningNotes : [],
       documents: Array.isArray(parsed.documents) ? parsed.documents : [],
-      currentUser: parsed.currentUser || "",
+      currentUser: parsed.currentUser || PATRICK_EMAIL,
       history: Array.isArray(parsed.history) ? parsed.history : [],
       lastSavedAt: parsed.lastSavedAt || "",
       panelVisibilityVersion: Number(parsed.panelVisibilityVersion) || 0,
@@ -667,7 +668,9 @@ function initializeState(loaded) {
   ensureSeedBills(loaded);
   loaded.dataVersion = Number(loaded.dataVersion) || DATA_VERSION;
   let panelVisibilityReset = false;
-  loaded.currentUser = "";
+  loaded.currentUser = allowedUsers.some(user => user.email === loaded.currentUser)
+    ? loaded.currentUser
+    : PATRICK_EMAIL;
   loaded.history = Array.isArray(loaded.history) ? loaded.history : [];
   loaded.lastSavedAt = loaded.lastSavedAt || new Date().toISOString();
   loaded.runningNotes = normalizeRunningNotes(loaded.runningNotes, loaded.notes);
@@ -3261,6 +3264,6 @@ patrickViewAllBtn.addEventListener("click", () => {
 populateUsers();
 populateCategories();
 render();
-showAccountGate("Select an account to start this session. Deric's account requires a PIN.");
+closeAccountGateDialog();
 updateSyncStatus();
 initializeSharedDataSource();
