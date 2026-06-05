@@ -16,6 +16,10 @@ const MAX_DOCUMENT_SIZE_BYTES = 6 * 1024 * 1024;
 const URGENCY_REPORT_HELPER_URL = "http://127.0.0.1:8767";
 const DERIC_EMAIL = "dglanville@gmail.com";
 const DERIC_PIN = "3141";
+const EMAIL_REPORT_RECIPIENTS = [
+  DERIC_EMAIL,
+  "patrick.glanville@gmail.com"
+];
 let supabaseClient = null;
 let supabaseEnabled = false;
 let supabaseStatus = "Local browser storage";
@@ -614,10 +618,14 @@ const fields = {
   due: document.querySelector("#taskDue"),
   percent: document.querySelector("#taskPercent"),
   next: document.querySelector("#taskNext"),
+  tag: document.querySelector("#taskLabel"),
+  tagTone: document.querySelector("#taskLabelTone"),
   notes: document.querySelector("#taskNotes"),
   comment: document.querySelector("#taskComment"),
   comments: document.querySelector("#taskComments")
 };
+
+const taskLabelAdminRow = document.querySelector("#taskLabelAdminRow");
 
 function loadState() {
   const saved = localStorage.getItem(STORAGE_KEY);
@@ -1272,6 +1280,7 @@ function render() {
   renderPanelVisibility();
   renderRunningNotes();
   userSelect.value = state.currentUser || "";
+  updateTaskLabelControls();
 }
 
 function renderPatrickWatch() {
@@ -2113,8 +2122,11 @@ function openTask(id) {
   fields.due.value = task.due;
   fields.percent.value = normalizePercent(task.percent);
   fields.next.value = task.next;
+  fields.tag.value = task.tag || "";
+  fields.tagTone.value = task.tagTone || "";
   fields.notes.value = task.notes;
   fields.comment.value = "";
+  updateTaskLabelControls();
   renderTaskComments(task);
   document.querySelector("#deleteTaskBtn").hidden = !state.tasks.some(item => item.id === task.id);
   taskDialog.showModal();
@@ -2159,6 +2171,10 @@ function escapeAttribute(value) {
 
 function getAllowedUserByEmail(email) {
   return allowedUsers.find(user => user.email === email) || null;
+}
+
+function canEditTaskLabels() {
+  return state.currentUser === DERIC_EMAIL;
 }
 
 function currentUser() {
@@ -2243,6 +2259,13 @@ function requestUserSwitch(email) {
 
   if (email !== DERIC_EMAIL) dericPinValidatedForSession = false;
   setCurrentUserEmail(email, { save: true, renderView: true });
+}
+
+function updateTaskLabelControls() {
+  const canEdit = canEditTaskLabels();
+  if (taskLabelAdminRow) taskLabelAdminRow.hidden = !canEdit;
+  if (fields.tag) fields.tag.disabled = !canEdit;
+  if (fields.tagTone) fields.tagTone.disabled = !canEdit;
 }
 
 function insertEmojiIntoField(targetId, emoji) {
@@ -2394,6 +2417,9 @@ function buildChangeSummary(before, after, commentText) {
     if (before.notes !== after.notes) changes.push("Notes updated");
     if (before.owner !== after.owner) changes.push("Owner updated");
     if (before.due !== after.due) changes.push("Due date updated");
+    if ((before.tag || "") !== (after.tag || "") || (before.tagTone || "") !== (after.tagTone || "")) {
+      changes.push("Task label updated");
+    }
   }
   if (commentText) changes.push("Comment added");
   return changes.join("; ") || "Task saved";
@@ -2629,7 +2655,7 @@ function appendReportEmailSection(lines, tasks, emptyMessage) {
 }
 
 function emailUrgencyReport() {
-  const recipients = allowedUsers.map(user => user.email).join(",");
+  const recipients = EMAIL_REPORT_RECIPIENTS.join(",");
   const subject = `Patrick Glanville Urgency Report - ${new Date().toISOString().slice(0, 10)}`;
   const body = buildUrgencyReportEmail();
   window.location.href = `mailto:${recipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -2878,6 +2904,13 @@ taskForm.addEventListener("submit", event => {
       text: commentText
     });
   }
+  const rawTag = fields.tag.value.trim();
+  const nextTag = canEditTaskLabels()
+    ? (rawTag || "")
+    : (existing?.tag || "");
+  const nextTagTone = canEditTaskLabels() && nextTag
+    ? (fields.tagTone.value || "")
+    : (existing?.tagTone || "");
   const task = {
     id: fields.id.value || crypto.randomUUID(),
     title: fields.title.value.trim(),
@@ -2890,8 +2923,8 @@ taskForm.addEventListener("submit", event => {
     next: fields.next.value.trim(),
     notes: fields.notes.value.trim(),
     createdAt: existing?.createdAt || new Date().toISOString(),
-    tag: existing?.tag,
-    tagTone: existing?.tagTone,
+    tag: nextTag || undefined,
+    tagTone: nextTag ? (nextTagTone || undefined) : undefined,
     comments
   };
   syncTaskCompletionState(task);

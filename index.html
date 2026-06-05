@@ -302,6 +302,17 @@
       <label>Next step
         <input id="taskNext">
       </label>
+      <div class="form-row" id="taskLabelAdminRow" hidden>
+        <label>Task label
+          <input id="taskLabel" placeholder="Example: New, Added/Updated, Follow-up">
+        </label>
+        <label>Label style
+          <select id="taskLabelTone">
+            <option value="">Standard</option>
+            <option value="purple">Purple highlight</option>
+          </select>
+        </label>
+      </div>
       <div class="form-row">
         <label>Add comment
           <textarea id="taskComment" rows="4" placeholder="Add a dated update, call note, or blocker"></textarea>
