@@ -387,13 +387,13 @@
   </dialog>
 
   <dialog id="accountGateDialog">
-    <form method="dialog" id="accountGateForm" class="account-gate-dialog">
+    <form id="accountGateForm" class="account-gate-dialog" novalidate>
       <div class="dialog-head">
         <h2>Select account</h2>
       </div>
       <p id="accountGateMessage" class="account-gate-message">Choose the account that will be used for updates in this session.</p>
       <label for="accountGateSelect">Account
-        <select id="accountGateSelect" required></select>
+        <select id="accountGateSelect"></select>
       </label>
       <label for="accountGatePin" id="accountGatePinWrap" hidden>PIN for Deric's account
         <input id="accountGatePin" type="password" inputmode="numeric" autocomplete="off" placeholder="Enter PIN">
@@ -401,7 +401,7 @@
       <p id="accountGateError" class="account-gate-error" hidden></p>
       <div class="dialog-actions account-gate-actions">
         <span></span>
-        <button type="submit">Continue</button>
+        <button type="button" id="accountGateContinueBtn">Continue</button>
       </div>
     </form>
   </dialog>

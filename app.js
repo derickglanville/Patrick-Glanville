@@ -576,6 +576,7 @@ const accountGatePinWrap = document.querySelector("#accountGatePinWrap");
 const accountGatePin = document.querySelector("#accountGatePin");
 const accountGateMessage = document.querySelector("#accountGateMessage");
 const accountGateError = document.querySelector("#accountGateError");
+const accountGateContinueBtn = document.querySelector("#accountGateContinueBtn");
 const historyDialog = document.querySelector("#historyDialog");
 const urgencyReportDialog = document.querySelector("#urgencyReportDialog");
 const documentsDialog = document.querySelector("#documentsDialog");
@@ -2195,7 +2196,6 @@ function accountSelectionMessage(actionText = "make updates") {
 function updateAccountGatePinVisibility() {
   const needsPin = accountGateSelect.value === DERIC_EMAIL;
   accountGatePinWrap.hidden = !needsPin;
-  accountGatePin.required = needsPin;
   if (!needsPin) accountGatePin.value = "";
 }
 
@@ -2207,6 +2207,10 @@ function showAccountGate(message = "Choose the account that will be used for upd
   accountGatePin.value = "";
   updateAccountGatePinVisibility();
   if (!accountGateDialog.open) accountGateDialog.showModal();
+}
+
+function submitAccountGate() {
+  completeAccountSelection(accountGateSelect.value, accountGatePin.value.trim());
 }
 
 function completeAccountSelection(email, pin = "") {
@@ -3047,7 +3051,20 @@ accountGateDialog.addEventListener("cancel", event => {
 });
 accountGateForm.addEventListener("submit", event => {
   event.preventDefault();
-  completeAccountSelection(accountGateSelect.value, accountGatePin.value.trim());
+  submitAccountGate();
+});
+accountGateContinueBtn.addEventListener("click", submitAccountGate);
+accountGatePin.addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    submitAccountGate();
+  }
+});
+accountGateSelect.addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    submitAccountGate();
+  }
 });
 
 document.querySelectorAll(".emoji-button").forEach(button => {
@@ -3200,6 +3217,6 @@ patrickViewAllBtn.addEventListener("click", () => {
 populateUsers();
 populateCategories();
 render();
-showAccountGate("Select an account to start this session. Deric's account requires PIN 3141.");
+showAccountGate("Select an account to start this session. Deric's account requires a PIN.");
 updateSyncStatus();
 initializeSharedDataSource();
