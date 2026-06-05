@@ -576,7 +576,6 @@ const accountGatePinWrap = document.querySelector("#accountGatePinWrap");
 const accountGatePin = document.querySelector("#accountGatePin");
 const accountGateMessage = document.querySelector("#accountGateMessage");
 const accountGateError = document.querySelector("#accountGateError");
-const accountGateContinueBtn = document.querySelector("#accountGateContinueBtn");
 const historyDialog = document.querySelector("#historyDialog");
 const urgencyReportDialog = document.querySelector("#urgencyReportDialog");
 const documentsDialog = document.querySelector("#documentsDialog");
@@ -2209,10 +2208,6 @@ function showAccountGate(message = "Choose the account that will be used for upd
   if (!accountGateDialog.open) accountGateDialog.showModal();
 }
 
-function submitAccountGate() {
-  completeAccountSelection(accountGateSelect.value, accountGatePin.value.trim());
-}
-
 function completeAccountSelection(email, pin = "") {
   const user = getAllowedUserByEmail(email);
   if (!user) {
@@ -2235,6 +2230,28 @@ function completeAccountSelection(email, pin = "") {
   setCurrentUserEmail(user.email, { save: true, renderView: true });
   accountGateDialog.close();
   return true;
+}
+
+function handleAccountGateSelection() {
+  const selectedEmail = accountGateSelect.value;
+  accountGateError.hidden = true;
+  accountGateError.textContent = "";
+  updateAccountGatePinVisibility();
+
+  if (!selectedEmail) return;
+  if (selectedEmail === DERIC_EMAIL) {
+    accountGatePin.focus();
+    return;
+  }
+
+  completeAccountSelection(selectedEmail, "");
+}
+
+function maybeSubmitDericPin() {
+  if (accountGateSelect.value !== DERIC_EMAIL) return;
+  const pin = accountGatePin.value.trim();
+  if (pin.length < DERIC_PIN.length) return;
+  completeAccountSelection(DERIC_EMAIL, pin);
 }
 
 function ensureCurrentUser(actionText = "make updates") {
@@ -3046,26 +3063,25 @@ userSelect.addEventListener("change", () => {
 });
 
 accountGateSelect.addEventListener("change", updateAccountGatePinVisibility);
+accountGateSelect.addEventListener("change", handleAccountGateSelection);
 accountGateDialog.addEventListener("cancel", event => {
   event.preventDefault();
 });
 accountGateForm.addEventListener("submit", event => {
   event.preventDefault();
-  submitAccountGate();
+  if (accountGateSelect.value === DERIC_EMAIL) {
+    completeAccountSelection(DERIC_EMAIL, accountGatePin.value.trim());
+  } else {
+    handleAccountGateSelection();
+  }
 });
-accountGateContinueBtn.addEventListener("click", submitAccountGate);
 accountGatePin.addEventListener("keydown", event => {
   if (event.key === "Enter") {
     event.preventDefault();
-    submitAccountGate();
+    completeAccountSelection(DERIC_EMAIL, accountGatePin.value.trim());
   }
 });
-accountGateSelect.addEventListener("keydown", event => {
-  if (event.key === "Enter") {
-    event.preventDefault();
-    submitAccountGate();
-  }
-});
+accountGatePin.addEventListener("input", maybeSubmitDericPin);
 
 document.querySelectorAll(".emoji-button").forEach(button => {
   button.addEventListener("click", () => {
