@@ -2326,8 +2326,8 @@ function completeAccountSelection(email, pin = "") {
 
   if (user.email !== DERIC_EMAIL) dericPinValidatedForSession = false;
 
-  setCurrentUserEmail(user.email, { save: true, renderView: true });
   closeAccountGateDialog();
+  setCurrentUserEmail(user.email, { save: true, renderView: true });
   return true;
 }
 
@@ -2349,6 +2349,22 @@ function handleAccountGateSelection() {
 function maybeSubmitDericPin() {
   if (accountGateSelect.value !== DERIC_EMAIL) return;
   const pin = accountGatePin.value.trim();
+  if (pin.length < DERIC_PIN.length) return;
+  completeAccountSelection(DERIC_EMAIL, pin);
+}
+
+function handleDericPinKeyboardSubmit(event) {
+  if (event.key !== "Enter" && event.key !== "Go" && event.key !== "Done") return;
+  event.preventDefault();
+  const pin = accountGatePin.value.trim();
+  if (!pin) return;
+  completeAccountSelection(DERIC_EMAIL, pin);
+}
+
+function handleDericPinCommit() {
+  if (accountGateSelect.value !== DERIC_EMAIL) return;
+  const pin = accountGatePin.value.trim();
+  if (!pin) return;
   if (pin.length < DERIC_PIN.length) return;
   completeAccountSelection(DERIC_EMAIL, pin);
 }
@@ -3172,13 +3188,11 @@ accountGateForm.addEventListener("submit", event => {
   event.preventDefault();
   submitAccountGate();
 });
-accountGatePin.addEventListener("keydown", event => {
-  if (event.key === "Enter") {
-    event.preventDefault();
-    submitAccountGate();
-  }
-});
+accountGatePin.addEventListener("keydown", handleDericPinKeyboardSubmit);
+accountGatePin.addEventListener("keyup", handleDericPinKeyboardSubmit);
 accountGatePin.addEventListener("input", maybeSubmitDericPin);
+accountGatePin.addEventListener("change", handleDericPinCommit);
+accountGatePin.addEventListener("blur", handleDericPinCommit);
 
 document.querySelectorAll(".emoji-button").forEach(button => {
   button.addEventListener("click", () => {
