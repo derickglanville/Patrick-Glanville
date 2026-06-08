@@ -259,9 +259,30 @@ small {
   margin: 20px 0 14px;
   padding: 14px;
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) 150px 150px 210px auto;
+  grid-template-columns: minmax(220px, 1fr) 150px 150px 210px minmax(260px, auto) auto;
   gap: 12px;
   align-items: end;
+}
+
+.task-view-wrap {
+  display: grid;
+  gap: 6px;
+  align-self: stretch;
+}
+
+.task-view-label {
+  color: var(--muted);
+  font-weight: 650;
+  font-size: .9rem;
+}
+
+.task-view-wrap .segmented-toggle {
+  min-height: 42px;
+  align-items: stretch;
+}
+
+.task-view-wrap .segmented-toggle button {
+  white-space: nowrap;
 }
 
 label {
@@ -796,6 +817,11 @@ textarea {
   flex-wrap: wrap;
   gap: 8px 14px;
   font-size: .88rem;
+}
+
+.task-completed-date {
+  color: var(--green);
+  font-weight: 700;
 }
 
 .due-inline,

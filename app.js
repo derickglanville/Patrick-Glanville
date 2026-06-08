@@ -1,5 +1,6 @@
 const STORAGE_KEY = "patrick-glanville-support-tracker-v1";
 const PATRICK_WATCH_KEY = "patrick-glanville-patrick-watch-v1";
+const TASK_VIEW_KEY = "patrick-glanville-task-view-v1";
 const DATA_VERSION = 2026060301;
 const PANEL_VISIBILITY_VERSION = 2026052603;
 const BUILD_INFO = {
@@ -565,6 +566,9 @@ const searchInput = document.querySelector("#searchInput");
 const statusFilter = document.querySelector("#statusFilter");
 const priorityFilter = document.querySelector("#priorityFilter");
 const categoryFilter = document.querySelector("#categoryFilter");
+const taskViewActiveBtn = document.querySelector("#taskViewActiveBtn");
+const taskViewDoneBtn = document.querySelector("#taskViewDoneBtn");
+const taskViewAllBtn = document.querySelector("#taskViewAllBtn");
 const newRunningNote = document.querySelector("#newRunningNote");
 const runningNotesList = document.querySelector("#runningNotesList");
 const taskDialog = document.querySelector("#taskDialog");
@@ -609,6 +613,7 @@ const patrickViewOpenBtn = document.querySelector("#patrickViewOpenBtn");
 const patrickViewClosedBtn = document.querySelector("#patrickViewClosedBtn");
 const patrickViewAllBtn = document.querySelector("#patrickViewAllBtn");
 let dericPinValidatedForSession = false;
+let taskViewMode = loadTaskViewMode();
 
 const fields = {
   id: document.querySelector("#taskId"),
@@ -659,6 +664,19 @@ function loadState() {
   }
 }
 
+function loadTaskViewMode() {
+  try {
+    const saved = localStorage.getItem(TASK_VIEW_KEY);
+    return ["active", "done", "all"].includes(saved) ? saved : "active";
+  } catch {
+    return "active";
+  }
+}
+
+function saveTaskViewMode() {
+  localStorage.setItem(TASK_VIEW_KEY, taskViewMode);
+}
+
 function initializeState(loaded) {
   loaded = loaded && typeof loaded === "object" ? loaded : structuredClone(seedData);
   loaded.notes = loaded.notes || "";
@@ -701,6 +719,7 @@ function initializeState(loaded) {
     comments: [],
     ...task,
     createdAt: inferTaskCreatedAt(task, loaded.history),
+    completedAt: inferTaskCompletedAt(task, loaded.history),
     percent: normalizePercent(task.percent ?? statusToPercent(task.status)),
     comments: Array.isArray(task.comments) ? task.comments : []
   }));
@@ -869,6 +888,28 @@ function inferTaskCreatedAt(task, history = []) {
   return BUILD_INFO.builtAt || new Date().toISOString();
 }
 
+function inferTaskCompletedAt(task, history = []) {
+  if (task?.completedAt) return task.completedAt;
+  const isDone = task?.status === "Done" || normalizePercent(task?.percent) === 100;
+  if (!isDone) return "";
+
+  const matchingEntries = Array.isArray(history)
+    ? history.filter(entry => (
+      entry?.status === "Done"
+      && (entry?.taskId === task?.id || (entry?.taskTitle && entry.taskTitle === task?.title))
+    ))
+    : [];
+
+  if (matchingEntries.length) {
+    return matchingEntries
+      .map(entry => entry.createdAt)
+      .filter(Boolean)
+      .sort((a, b) => b.localeCompare(a))[0];
+  }
+
+  return task?.updatedAt || task?.createdAt || "";
+}
+
 function syncTaskCompletionState(task) {
   if (!task) return task;
 
@@ -877,8 +918,12 @@ function syncTaskCompletionState(task) {
   if (task.percent === 100) {
     task.status = "Done";
     task.priority = "Low";
+    task.completedAt = task.completedAt || new Date().toISOString();
   } else if (task.status === "Done") {
     task.status = "In progress";
+    task.completedAt = "";
+  } else if (task.status !== "Done") {
+    task.completedAt = "";
   }
 
   return task;
@@ -1269,15 +1314,33 @@ function render() {
 
   const filtered = state.tasks.filter(task => {
     const haystack = Object.values(task).join(" ").toLowerCase();
+    const matchesView = taskViewMode === "done"
+      ? task.status === "Done"
+      : taskViewMode === "all"
+        ? true
+        : task.status !== "Done";
     return (!query || haystack.includes(query))
+      && matchesView
       && (status === "all" || task.status === status)
       && (priority === "all" || task.priority === priority)
       && (category === "all" || (task.category || "N/A") === category);
   });
 
   taskList.innerHTML = "";
-  renderTaskGroups(filtered);
+  if (filtered.length) {
+    renderTaskGroups(filtered);
+  } else {
+    const empty = document.createElement("p");
+    empty.className = "empty-notes";
+    empty.textContent = taskViewMode === "done"
+      ? "No done items match the current filters."
+      : taskViewMode === "all"
+        ? "No items match the current filters."
+        : "No active items match the current filters.";
+    taskList.appendChild(empty);
+  }
   updateProgress();
+  renderTaskViewControls();
   renderBills();
   renderLifeAdminNotes();
   renderPatrickWatch();
@@ -1454,6 +1517,19 @@ function renderSavedDocuments() {
     });
 
   return true;
+}
+
+function renderTaskViewControls() {
+  taskViewActiveBtn.classList.toggle("is-active", taskViewMode === "active");
+  taskViewDoneBtn.classList.toggle("is-active", taskViewMode === "done");
+  taskViewAllBtn.classList.toggle("is-active", taskViewMode === "all");
+  const doneStatusOption = [...statusFilter.options].find(option => option.value === "Done");
+  if (doneStatusOption) {
+    doneStatusOption.disabled = taskViewMode === "active";
+    if (taskViewMode === "active" && statusFilter.value === "Done") {
+      statusFilter.value = "all";
+    }
+  }
 }
 
 function openSavedDocument(documentId) {
@@ -1958,6 +2034,7 @@ function createTaskCard(task) {
     <span>${escapeHtml(task.owner || "No owner")}</span>
     <span>${normalizePercent(task.percent)}% complete</span>
     <span>Created ${escapeHtml(formatDateTime(task.createdAt))}</span>
+    ${task.completedAt ? `<span class="task-completed-date">Completed ${escapeHtml(formatDateTime(task.completedAt))}</span>` : ""}
   `;
 
   const dueWrap = document.createElement("label");
@@ -2112,6 +2189,7 @@ function openTask(id) {
     priority: "Medium",
     due: "",
     percent: 0,
+    completedAt: "",
     next: "",
     notes: "",
     comments: []
@@ -2974,6 +3052,7 @@ taskForm.addEventListener("submit", event => {
     priority: fields.priority.value,
     due: fields.due.value,
     percent: normalizePercent(fields.percent.value),
+    completedAt: existing?.completedAt || "",
     next: fields.next.value.trim(),
     notes: fields.notes.value.trim(),
     createdAt: existing?.createdAt || new Date().toISOString(),
@@ -3259,6 +3338,25 @@ patrickViewAllBtn.addEventListener("click", () => {
   patrickWatchState.view = "all";
   savePatrickWatchState(patrickWatchState);
   renderPatrickWatch();
+});
+
+taskViewActiveBtn.addEventListener("click", () => {
+  taskViewMode = "active";
+  saveTaskViewMode();
+  if (statusFilter.value === "Done") statusFilter.value = "all";
+  render();
+});
+
+taskViewDoneBtn.addEventListener("click", () => {
+  taskViewMode = "done";
+  saveTaskViewMode();
+  render();
+});
+
+taskViewAllBtn.addEventListener("click", () => {
+  taskViewMode = "all";
+  saveTaskViewMode();
+  render();
 });
 
 populateUsers();
