@@ -3,3 +3,9 @@ Patrick.pdf
 *.tmp
 *.log
 Email/patrick-urgency-report-*.html
+Email/patrick-change-report-*.html
+Email/Archive/
+Email/*-state.json
+Email/smtp-settings.json
+Email/smtp-credential.clixml
+Scripts/__pycache__/

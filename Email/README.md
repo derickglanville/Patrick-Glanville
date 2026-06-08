@@ -151,6 +151,13 @@ That report:
   - `C:\Software Developement\ChatGPT Codex\Patrick Glanville\Email`
 - moves older `patrick-change-report-*.html` files into:
   - `C:\Software Developement\ChatGPT Codex\Patrick Glanville\Email\Archive`
+- after a report is moved into `Archive`, it runs:
+  - [send_daily_email.py](C:\Software%20Developement\ChatGPT%20Codex\Patrick%20Glanville\Scripts\send_daily_email.py:1)
+  to send the archived Patrick change report email
+- set the Gmail app password in the local environment before using the Python sender:
+  - `setx PATRICK_REPORT_APP_PASSWORD "your-app-password"`
+  - optionally override sender address with:
+    - `setx PATRICK_REPORT_SENDER_EMAIL "dglanville@gmail.com"`
 
 To keep that report updated automatically whenever Patrick makes changes, run:
 

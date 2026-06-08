@@ -8,6 +8,7 @@ $PatrickEmail = "patrick.glanville@gmail.com"
 $ScriptFolder = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectFolder = Split-Path -Parent $ScriptFolder
 $ConfigPath = Join-Path $ProjectFolder "supabase-config.js"
+$DailyEmailScript = Join-Path $ProjectFolder "Scripts\send_daily_email.py"
 $ArchiveFolder = Join-Path $ScriptFolder "Archive"
 $OutputPath = Join-Path $ScriptFolder ("patrick-change-report-{0}.html" -f (Get-Date).ToString("yyyy-MM-dd"))
 
@@ -247,6 +248,8 @@ function Archive-PreviousPatrickChangeReports {
   $CurrentOutputName = [System.IO.Path]::GetFileName($CurrentOutputPath)
   $ExistingReports = Get-ChildItem -LiteralPath $SourceFolder -Filter "patrick-change-report-*.html" -File -ErrorAction SilentlyContinue
 
+  $ArchivedPaths = @()
+
   foreach ($Report in $ExistingReports) {
     if ($Report.Name -eq $CurrentOutputName) {
       continue
@@ -254,6 +257,42 @@ function Archive-PreviousPatrickChangeReports {
 
     $ArchivePath = Join-Path $ArchiveFolder $Report.Name
     Move-Item -LiteralPath $Report.FullName -Destination $ArchivePath -Force
+    $ArchivedPaths += $ArchivePath
+  }
+
+  return $ArchivedPaths
+}
+
+function Get-PythonCommand {
+  $PythonCommand = Get-Command python -ErrorAction SilentlyContinue
+  if ($PythonCommand) {
+    return @($PythonCommand.Source)
+  }
+
+  $PyLauncher = Get-Command py -ErrorAction SilentlyContinue
+  if ($PyLauncher) {
+    return @($PyLauncher.Source, "-3")
+  }
+
+  throw "Python was not found on this machine. Could not run $DailyEmailScript"
+}
+
+function Send-ArchivedPatrickChangeReports {
+  param([string[]]$ArchivedReportPaths)
+
+  if (-not $ArchivedReportPaths -or -not $ArchivedReportPaths.Count) {
+    return
+  }
+
+  if (-not (Test-Path -LiteralPath $DailyEmailScript)) {
+    throw "Missing daily email sender script: $DailyEmailScript"
+  }
+
+  $PythonCommand = Get-PythonCommand
+
+  foreach ($ArchivedReportPath in $ArchivedReportPaths) {
+    $Command = @($PythonCommand + @($DailyEmailScript, "--send-now", "--file", $ArchivedReportPath))
+    & $Command[0] $Command[1..($Command.Count - 1)]
   }
 }
 
@@ -261,9 +300,14 @@ $Config = Get-SupabaseConfig -Path $ConfigPath
 $StateRow = Get-TrackerState -Config $Config
 $Html = Build-PatrickChangeReportHtml -StateRow $StateRow
 
-Archive-PreviousPatrickChangeReports -SourceFolder $ScriptFolder -ArchiveFolder $ArchiveFolder -CurrentOutputPath $OutputPath
+$ArchivedReportPaths = @(Archive-PreviousPatrickChangeReports -SourceFolder $ScriptFolder -ArchiveFolder $ArchiveFolder -CurrentOutputPath $OutputPath)
 Set-Content -LiteralPath $OutputPath -Value $Html -Encoding UTF8
 Write-Host "Saved Patrick change report to: $OutputPath"
+
+if ($ArchivedReportPaths.Count) {
+  Write-Host "Archived Patrick change report(s): $($ArchivedReportPaths -join ', ')"
+  Send-ArchivedPatrickChangeReports -ArchivedReportPaths $ArchivedReportPaths
+}
 
 if ($GenerateOnly) {
   Write-Host "Generate-only mode complete."
