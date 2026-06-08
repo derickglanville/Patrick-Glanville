@@ -581,7 +581,6 @@ const accountGatePinWrap = document.querySelector("#accountGatePinWrap");
 const accountGatePin = document.querySelector("#accountGatePin");
 const accountGateMessage = document.querySelector("#accountGateMessage");
 const accountGateError = document.querySelector("#accountGateError");
-const accountGateContinueBtn = document.querySelector("#accountGateContinueBtn");
 const historyDialog = document.querySelector("#historyDialog");
 const urgencyReportDialog = document.querySelector("#urgencyReportDialog");
 const documentsDialog = document.querySelector("#documentsDialog");
@@ -2282,25 +2281,14 @@ function updateAccountGatePinVisibility() {
 
 function openAccountGateDialog() {
   accountGateDialog.hidden = false;
-  if (typeof accountGateDialog.showModal === "function") {
-    try {
-      if (!accountGateDialog.open) accountGateDialog.showModal();
-      return;
-    } catch {
-    }
-  }
   accountGateDialog.setAttribute("open", "open");
+  accountGateDialog.style.display = "block";
 }
 
 function closeAccountGateDialog() {
-  if (typeof accountGateDialog.close === "function") {
-    try {
-      if (accountGateDialog.open) accountGateDialog.close();
-    } catch {
-    }
-  }
   accountGateDialog.removeAttribute("open");
   accountGateDialog.hidden = true;
+  accountGateDialog.style.display = "none";
 }
 
 function showAccountGate(message = "Choose the account that will be used for updates in this session.") {
@@ -3184,7 +3172,6 @@ accountGateForm.addEventListener("submit", event => {
   event.preventDefault();
   submitAccountGate();
 });
-accountGateContinueBtn.addEventListener("click", submitAccountGate);
 accountGatePin.addEventListener("keydown", event => {
   if (event.key === "Enter") {
     event.preventDefault();
