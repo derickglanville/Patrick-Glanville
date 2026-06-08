@@ -121,7 +121,9 @@ That watcher:
 
 - polls the shared Supabase tracker
 - checks for new history entries created by `patrick.glanville@gmail.com`
-- sends an email summary listing the changes made
+- sends an email summary to Deric listing every Patrick change that was captured
+- includes item-type and user tags in the email summary
+- includes a closed-items section whenever Patrick marks items `Done`
 - stores a local checkpoint so it only reports new Patrick changes
 
 Those tracked changes now include:
@@ -131,6 +133,36 @@ Those tracked changes now include:
 - monthly bills
 - Patrick To-Do Notes
 - PDF uploads
+
+## Patrick Change Report
+
+To generate a Supabase-backed HTML report of Patrick's changes and closings for today and save it into this folder, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\Invoke-PatrickChangeReport.ps1 -GenerateOnly
+```
+
+That report:
+
+- pulls Patrick's captured history directly from Supabase
+- summarizes today's Patrick changes
+- includes a separate section for items Patrick marked `Done`
+- saves the current day's file into:
+  - `C:\Software Developement\ChatGPT Codex\Patrick Glanville\Email`
+- moves older `patrick-change-report-*.html` files into:
+  - `C:\Software Developement\ChatGPT Codex\Patrick Glanville\Email\Archive`
+
+To keep that report updated automatically whenever Patrick makes changes, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\Watch-PatrickChangeReport.ps1
+```
+
+That watcher:
+
+- polls Supabase for new Patrick history entries
+- regenerates the current-day Patrick change report whenever Patrick changes something
+- rolls the previous day's report into `Archive` once the date changes
 
 ## Email Recipients
 

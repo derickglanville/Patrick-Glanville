@@ -1051,6 +1051,21 @@ dialog::backdrop {
   border: 1px solid transparent;
 }
 
+.history-user-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: .75rem;
+  font-weight: 800;
+  letter-spacing: .02em;
+  background: #eef3fb;
+  color: #315b8a;
+  border: 1px solid #c7d7ea;
+}
+
 .history-type-task {
   background: #e6eefc;
   color: #24518f;

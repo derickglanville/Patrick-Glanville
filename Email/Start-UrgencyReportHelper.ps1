@@ -6,9 +6,13 @@ $ErrorActionPreference = "Stop"
 
 $ScriptFolder = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RunnerScript = Join-Path $ScriptFolder "Invoke-DailyUrgencyReport.ps1"
+$PatrickChangeRunnerScript = Join-Path $ScriptFolder "Invoke-PatrickChangeReport.ps1"
 
 if (-not (Test-Path -LiteralPath $RunnerScript)) {
   throw "Missing report runner script: $RunnerScript"
+}
+if (-not (Test-Path -LiteralPath $PatrickChangeRunnerScript)) {
+  throw "Missing Patrick change report runner script: $PatrickChangeRunnerScript"
 }
 
 $Listener = [System.Net.HttpListener]::new()
@@ -69,6 +73,24 @@ try {
         Write-JsonResponse -Response $Response -StatusCode 500 -Payload @{
           ok = $false
           message = "Urgency report process failed."
+          error = $_.Exception.Message
+        }
+      }
+      continue
+    }
+
+    if ($Request.HttpMethod -eq "POST" -and $Request.Url.AbsolutePath -eq "/run-patrick-change-report") {
+      try {
+        $Output = & powershell -ExecutionPolicy Bypass -File $PatrickChangeRunnerScript -GenerateOnly 2>&1 | Out-String
+        Write-JsonResponse -Response $Response -StatusCode 200 -Payload @{
+          ok = $true
+          message = "Patrick change report process completed."
+          output = $Output.Trim()
+        }
+      } catch {
+        Write-JsonResponse -Response $Response -StatusCode 500 -Payload @{
+          ok = $false
+          message = "Patrick change report process failed."
           error = $_.Exception.Message
         }
       }

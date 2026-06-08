@@ -54,6 +54,7 @@
       <button id="viewDocumentsBtn" type="button" title="View PDF documents saved in the shared database">View Saved PDFs</button>
       <button id="processGuideBtn" type="button" title="Open the full process guide PDF for this project">Process Guide PDF</button>
       <button id="urgencyReportBtn" type="button" title="Run the local urgency report process if the helper is running, otherwise save directly into the Email folder">Urgency Report</button>
+      <button id="patrickChangeReportBtn" type="button" title="Review Patrick's change report and save it to the local Email folder">Patrick Change Report</button>
       <button id="htmlEmailDashboardReportBtn" type="button" title="Create a rich HTML email report file for the Email folder">Create HTML Email</button>
       <button id="historyBtn" type="button" title="Review all task updates">History</button>
       <button id="exportBtn" type="button" title="Download current tracker data">Export</button>
@@ -380,6 +381,20 @@
       </div>
       <p class="report-save-note">Save the generated HTML report to <strong>C:\Software Development\Patrick Glanville\Email</strong>, then run the local email utility in that folder to create the rich email.</p>
       <div id="urgencyReport" class="report-body"></div>
+    </div>
+  </dialog>
+
+  <dialog id="patrickChangeReportDialog">
+    <div class="report-dialog">
+      <div class="dialog-head">
+        <h2>Patrick Change Report</h2>
+        <button type="button" id="closePatrickChangeReportDialog" class="icon-button" aria-label="Close">x</button>
+      </div>
+      <div class="report-actions">
+        <button id="savePatrickChangeReportBtn" type="button">Save To Email Folder</button>
+      </div>
+      <p class="report-save-note">This report summarizes Patrick's captured changes and closings for today. Saving uses the local Email folder at <strong>C:\Software Developement\ChatGPT Codex\Patrick Glanville\Email</strong> when the helper is running or when the browser can write to that folder.</p>
+      <div id="patrickChangeReport" class="report-body"></div>
     </div>
   </dialog>
 

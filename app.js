@@ -583,8 +583,10 @@ const accountGateMessage = document.querySelector("#accountGateMessage");
 const accountGateError = document.querySelector("#accountGateError");
 const historyDialog = document.querySelector("#historyDialog");
 const urgencyReportDialog = document.querySelector("#urgencyReportDialog");
+const patrickChangeReportDialog = document.querySelector("#patrickChangeReportDialog");
 const documentsDialog = document.querySelector("#documentsDialog");
 const patrickWatchPanel = document.querySelector("#patrickWatchPanel");
+const patrickChangeReport = document.querySelector("#patrickChangeReport");
 const billMonthInput = document.querySelector("#billMonth");
 const billList = document.querySelector("#billList");
 const billTotal = document.querySelector("#billTotal");
@@ -1401,6 +1403,7 @@ function renderPatrickWatch() {
       <header>
         <div class="history-entry-headline">
           <span class="history-type-badge history-type-${escapeHtml(historyTypeClass(itemType))}">${escapeHtml(historyTypeLabel(itemType))}</span>
+          <span class="history-user-badge">${escapeHtml(entry.userName || "Unknown user")}</span>
           <h3>${escapeHtml(entry.taskTitle)}</h3>
         </div>
         <span>${escapeHtml(formatDateTime(entry.createdAt))}</span>
@@ -2598,6 +2601,7 @@ function renderHistory() {
     item.innerHTML = `
       <div class="history-entry-headline">
         <span class="history-type-badge history-type-${escapeHtml(historyTypeClass(itemType))}">${escapeHtml(historyTypeLabel(itemType))}</span>
+        <span class="history-user-badge">${escapeHtml(entry.userName || "Unknown user")}</span>
         <strong>${escapeHtml(entry.taskTitle)}</strong>
       </div>
       <span>${escapeHtml(entry.userName)} &lt;${escapeHtml(entry.userEmail)}&gt; - ${escapeHtml(formatDateTime(entry.createdAt))}</span>
@@ -2692,6 +2696,81 @@ function createReportSection(title, tasks, isJobSection) {
   return section;
 }
 
+function renderPatrickChangeReport() {
+  const entries = getPatrickHistoryEntriesForDate();
+  const closedEntries = entries.filter(entry => entry.status === "Done");
+  const uniqueItems = new Set(entries.map(entry => entry.taskId || `${entry.itemType}:${entry.itemId || entry.taskTitle}`)).size;
+  const latest = entries[0] || null;
+
+  patrickChangeReport.innerHTML = `
+    <section class="report-summary">
+      <p class="report-kicker">Generated ${escapeHtml(formatDateTime(new Date().toISOString()))}</p>
+      <p>This report is built from Patrick's tracked Supabase history for today and highlights every captured change plus the items he marked done.</p>
+      <p><strong>Daily archive flow:</strong> the local report generator saves the current-day file in the Email folder and rolls older dated files into the Archive folder.</p>
+      <div class="report-metrics">
+        <article><strong>${entries.length}</strong><span>Patrick changes today</span></article>
+        <article><strong>${closedEntries.length}</strong><span>closed today</span></article>
+        <article><strong>${uniqueItems}</strong><span>unique items touched</span></article>
+        <article><strong>${latest ? escapeHtml(formatDateTime(latest.createdAt)) : "None"}</strong><span>latest update</span></article>
+        <article><strong>${escapeHtml(getTodayIsoDate())}</strong><span>report date</span></article>
+      </div>
+    </section>
+  `;
+
+  if (!entries.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-report";
+    empty.textContent = "No Patrick changes have been captured for today yet.";
+    patrickChangeReport.appendChild(empty);
+    return;
+  }
+
+  patrickChangeReport.appendChild(createPatrickChangeReportSection("Today's Patrick Changes", entries, false));
+  patrickChangeReport.appendChild(createPatrickChangeReportSection("Items Patrick Closed Today", closedEntries, true));
+}
+
+function createPatrickChangeReportSection(title, entries, closedOnly) {
+  const section = document.createElement("section");
+  section.className = "report-section";
+  const heading = document.createElement("div");
+  heading.className = "report-section-heading";
+  heading.innerHTML = `
+    <h3>${escapeHtml(title)}</h3>
+    <span>${entries.length} item${entries.length === 1 ? "" : "s"}</span>
+  `;
+  section.appendChild(heading);
+
+  if (!entries.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-report";
+    empty.textContent = closedOnly
+      ? "Patrick has not closed any tracked items today."
+      : "No Patrick changes were captured for this section.";
+    section.appendChild(empty);
+    return section;
+  }
+
+  const list = document.createElement("div");
+  list.className = "history-list";
+  entries.forEach(entry => {
+    const itemType = entry.itemType || "task";
+    const item = document.createElement("article");
+    item.className = "history-item";
+    item.innerHTML = `
+      <div class="history-entry-headline">
+        <span class="history-type-badge history-type-${escapeHtml(historyTypeClass(itemType))}">${escapeHtml(historyTypeLabel(itemType))}</span>
+        <span class="history-user-badge">${escapeHtml(entry.userName || "Unknown user")}</span>
+        <strong>${escapeHtml(entry.taskTitle)}</strong>
+      </div>
+      <span>${escapeHtml(formatDateTime(entry.createdAt))}</span>
+      <p>${escapeHtml(entry.summary)}. Status: ${escapeHtml(entry.status || "N/A")}. Complete: ${normalizePercent(entry.percent)}%.</p>
+    `;
+    list.appendChild(item);
+  });
+  section.appendChild(list);
+  return section;
+}
+
 function getUrgentTasks() {
   return state.tasks
     .filter(task => task.priority === "Urgent")
@@ -2718,6 +2797,23 @@ function getTodayIsoDate() {
   const month = String(today.getMonth() + 1).padStart(2, "0");
   const day = String(today.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function getLocalIsoDate(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getPatrickHistoryEntriesForDate(date = getTodayIsoDate()) {
+  return state.history
+    .filter(entry => entry.userEmail === PATRICK_EMAIL)
+    .filter(entry => getLocalIsoDate(entry.createdAt) === date)
+    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 }
 
 function dueDateLabel(task) {
@@ -2867,6 +2963,102 @@ function buildUrgencyReportHtml() {
 </html>`;
 }
 
+function buildPatrickChangeReportHtml() {
+  const entries = getPatrickHistoryEntriesForDate();
+  const closedEntries = entries.filter(entry => entry.status === "Done");
+  const uniqueItems = new Set(entries.map(entry => entry.taskId || `${entry.itemType}:${entry.itemId || entry.taskTitle}`)).size;
+  const generated = formatDateTime(new Date().toISOString());
+  const latest = entries[0]?.createdAt ? formatDateTime(entries[0].createdAt) : "None";
+
+  const changesHtml = entries.length
+    ? entries.map(entry => `
+      <article class="change-item">
+        <div class="change-heading">
+          <span class="change-badge change-badge-type">${escapeHtml(historyTypeLabel(entry.itemType || "task"))}</span>
+          <span class="change-badge change-badge-user">${escapeHtml(entry.userName || "Unknown user")}</span>
+          <strong>${escapeHtml(entry.taskTitle)}</strong>
+        </div>
+        <p class="change-time">${escapeHtml(formatDateTime(entry.createdAt))}</p>
+        <p>${escapeHtml(entry.summary)}</p>
+        <p><strong>Status:</strong> ${escapeHtml(entry.status || "N/A")} | <strong>Complete:</strong> ${normalizePercent(entry.percent)}%</p>
+      </article>
+    `).join("")
+    : '<p class="empty">No Patrick changes were captured for today.</p>';
+
+  const closedHtml = closedEntries.length
+    ? closedEntries.map(entry => `
+      <article class="change-item">
+        <div class="change-heading">
+          <span class="change-badge change-badge-type">${escapeHtml(historyTypeLabel(entry.itemType || "task"))}</span>
+          <span class="change-badge change-badge-user">${escapeHtml(entry.userName || "Unknown user")}</span>
+          <strong>${escapeHtml(entry.taskTitle)}</strong>
+        </div>
+        <p class="change-time">${escapeHtml(formatDateTime(entry.createdAt))}</p>
+        <p>${escapeHtml(entry.summary)}</p>
+      </article>
+    `).join("")
+    : '<p class="empty">Patrick has not closed any tracked items today.</p>';
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Patrick Change Report</title>
+  <style>
+    body { margin: 0; background: #f4f6f9; color: #18202a; font-family: Arial, Helvetica, sans-serif; }
+    .wrap { max-width: 980px; margin: 0 auto; background: #ffffff; }
+    .header { padding: 28px 32px; background: #18324d; color: #ffffff; }
+    .header h1 { margin: 0 0 8px; font-size: 28px; }
+    .header p { margin: 0; color: #dbe7f5; }
+    .content { padding: 26px 32px 34px; }
+    .notice { margin: 0 0 18px; padding: 12px 14px; background: #eef3fb; border: 1px solid #c7d7ea; border-radius: 6px; }
+    .metrics { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 18px 0 22px; }
+    .metric { border: 1px solid #d9dee7; border-radius: 6px; padding: 12px; }
+    .metric strong { display: block; font-size: 22px; color: #2f6db7; }
+    .metric span { color: #5b6573; font-size: 13px; }
+    .section { margin-top: 22px; }
+    .section-title { border-bottom: 2px solid #d9dee7; padding-bottom: 8px; margin-bottom: 12px; display:flex; justify-content:space-between; gap:12px; align-items:center; }
+    .section-title h2 { margin: 0; font-size: 20px; }
+    .section-title span { color: #5b6573; font-weight: 700; }
+    .change-item { border: 1px solid #d9dee7; border-radius: 8px; padding: 14px; margin-top: 12px; background: #ffffff; }
+    .change-heading { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+    .change-badge { display:inline-block; padding:4px 8px; border-radius:999px; font-weight:700; font-size:12px; }
+    .change-badge-type { background:#eef3fb; border:1px solid #c7d7ea; color:#315b8a; }
+    .change-badge-user { background:#f4ecff; border:1px solid #d4c0f7; color:#6b35a8; }
+    .change-time, .empty { color:#5b6573; }
+    .footer { padding: 18px 32px; color: #5b6573; font-size: 12px; border-top: 1px solid #d9dee7; }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header class="header">
+      <h1>Patrick Change Report</h1>
+      <p>Generated ${escapeHtml(generated)} | Report date ${escapeHtml(getTodayIsoDate())}</p>
+    </header>
+    <section class="content">
+      <p class="notice"><strong>Source:</strong> This report is based on Patrick's tracker history captured in Supabase for the current day, including all changes and any items he marked done.</p>
+      <div class="metrics">
+        ${metricHtml(entries.length, "Patrick changes today")}
+        ${metricHtml(closedEntries.length, "closed today")}
+        ${metricHtml(uniqueItems, "unique items touched")}
+        ${metricHtml(latest, "latest update")}
+        ${metricHtml(getTodayIsoDate(), "report date")}
+      </div>
+      <section class="section">
+        <div class="section-title"><h2>Today's Patrick Changes</h2><span>${entries.length} item${entries.length === 1 ? "" : "s"}</span></div>
+        ${changesHtml}
+      </section>
+      <section class="section">
+        <div class="section-title"><h2>Items Patrick Closed Today</h2><span>${closedEntries.length} item${closedEntries.length === 1 ? "" : "s"}</span></div>
+        ${closedHtml}
+      </section>
+    </section>
+    <footer class="footer">Prepared from the Patrick Glanville Support Tracker and intended for the local Email folder archive workflow.</footer>
+  </main>
+</body>
+</html>`;
+}
+
 function metricHtml(value, label) {
   return `<article class="metric"><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></article>`;
 }
@@ -2919,8 +3111,30 @@ function buildUrgencyReportFileName() {
   return `patrick-urgency-report-${year}-${month}-${day}.html`;
 }
 
+function buildPatrickChangeReportFileName() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `patrick-change-report-${year}-${month}-${day}.html`;
+}
+
 function isUrgencyReportFileName(fileName) {
   return /^patrick-urgency-report-\d{4}-\d{2}-\d{2}\.html$/i.test(fileName || "");
+}
+
+function isPatrickChangeReportFileName(fileName) {
+  return /^patrick-change-report-\d{4}-\d{2}-\d{2}\.html$/i.test(fileName || "");
+}
+
+function downloadPatrickChangeReportHtml() {
+  const blob = new Blob([buildPatrickChangeReportHtml()], { type: "text/html" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = buildPatrickChangeReportFileName();
+  link.click();
+  URL.revokeObjectURL(link.href);
+  alert("Save the Patrick change report HTML to C:\\Software Developement\\ChatGPT Codex\\Patrick Glanville\\Email if the browser does not save it there automatically.");
 }
 
 async function moveFileHandleToArchive(sourceDirectoryHandle, archiveDirectoryHandle, fileName) {
@@ -2994,6 +3208,70 @@ async function triggerUrgencyReportHelper() {
     if (!payload?.ok) return false;
 
     alert(payload.output || "Urgency report process completed.");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function savePatrickChangeReportToEmailFolder() {
+  const helperTriggered = await triggerPatrickChangeReportHelper();
+  if (helperTriggered) return;
+
+  if (typeof window.showDirectoryPicker !== "function") {
+    downloadPatrickChangeReportHtml();
+    alert("This browser cannot save directly into the Email folder from the dashboard, so the Patrick change report was downloaded instead.");
+    return;
+  }
+
+  try {
+    const emailFolderHandle = await window.showDirectoryPicker({
+      id: "patrick-glanville-email-folder",
+      mode: "readwrite",
+      startIn: "documents"
+    });
+    const archiveFolderHandle = await emailFolderHandle.getDirectoryHandle("Archive", { create: true });
+    const currentFileName = buildPatrickChangeReportFileName();
+    const archivedFiles = [];
+
+    for await (const [entryName, entryHandle] of emailFolderHandle.entries()) {
+      if (entryHandle.kind !== "file") continue;
+      if (!isPatrickChangeReportFileName(entryName) || entryName === currentFileName) continue;
+      await moveFileHandleToArchive(emailFolderHandle, archiveFolderHandle, entryName);
+      archivedFiles.push(entryName);
+    }
+
+    const reportHandle = await emailFolderHandle.getFileHandle(currentFileName, { create: true });
+    const writable = await reportHandle.createWritable();
+    try {
+      await writable.write(buildPatrickChangeReportHtml());
+    } finally {
+      await writable.close();
+    }
+
+    const archiveMessage = archivedFiles.length
+      ? ` Archived: ${archivedFiles.join(", ")}.`
+      : " No older Patrick change report files needed archiving.";
+    alert(`Saved Patrick change report to ${currentFileName}.${archiveMessage}`);
+  } catch (error) {
+    if (error?.name === "AbortError") return;
+    console.error(error);
+    downloadPatrickChangeReportHtml();
+    alert("Direct save to the Email folder was not completed. The Patrick change report was downloaded instead.");
+  }
+}
+
+async function triggerPatrickChangeReportHelper() {
+  try {
+    const response = await fetch(`${URGENCY_REPORT_HELPER_URL}/run-patrick-change-report`, {
+      method: "POST"
+    });
+    if (!response.ok) return false;
+
+    const payload = await response.json();
+    if (!payload?.ok) return false;
+
+    alert(payload.output || "Patrick change report process completed.");
     return true;
   } catch {
     return false;
@@ -3094,6 +3372,12 @@ document.querySelector("#historyBtn").addEventListener("click", () => {
   historyDialog.showModal();
 });
 document.querySelector("#closeHistoryDialog").addEventListener("click", () => historyDialog.close());
+document.querySelector("#patrickChangeReportBtn").addEventListener("click", () => {
+  renderPatrickChangeReport();
+  patrickChangeReportDialog.showModal();
+});
+document.querySelector("#closePatrickChangeReportDialog").addEventListener("click", () => patrickChangeReportDialog.close());
+document.querySelector("#savePatrickChangeReportBtn").addEventListener("click", savePatrickChangeReportToEmailFolder);
 document.querySelector("#urgencyReportBtn").addEventListener("click", saveUrgencyReportToEmailFolder);
 document.querySelector("#closeUrgencyReportDialog").addEventListener("click", () => urgencyReportDialog.close());
 document.querySelector("#emailUrgencyReportBtn").addEventListener("click", emailUrgencyReport);

@@ -92,6 +92,21 @@ function Format-DateTimeLabel {
   return ([datetime]$Value).ToLocalTime().ToString("MMM d, yyyy, h:mm tt")
 }
 
+function Get-ItemTypeLabel {
+  param([AllowNull()][string]$Type)
+
+  $NormalizedType = if ($null -eq $Type) { "" } else { [string]$Type }
+
+  switch ($NormalizedType.ToLowerInvariant()) {
+    "task" { return "Task" }
+    "bill" { return "Bill" }
+    "lifeadmin" { return "To-Do Note" }
+    "document" { return "PDF" }
+    "runningnote" { return "Running Note" }
+    default { return "Tracker Item" }
+  }
+}
+
 function Get-SmtpContext {
   if (-not (Test-Path -LiteralPath $SettingsPath) -or -not (Test-Path -LiteralPath $CredentialPath)) {
     throw "SMTP is not configured. Run Set-UrgencyReportSmtpCredential.ps1 first."
@@ -140,6 +155,16 @@ function Send-HtmlMail {
         Label = "configured SMTP settings"
       }
     )
+
+    if ($SmtpContext.Settings.smtpHost -eq "smtp.gmail.com" -and [int]$SmtpContext.Settings.port -eq 587 -and -not [bool]$SmtpContext.Settings.useSsl) {
+      $Attempts = @(
+        [pscustomobject]@{
+          Port = 587
+          EnableSsl = $true
+          Label = "Gmail STARTTLS on port 587"
+        }
+      ) + $Attempts
+    }
 
     if ($SmtpContext.Settings.smtpHost -eq "smtp.gmail.com" -and [int]$SmtpContext.Settings.port -ne 465) {
       $Attempts += [pscustomobject]@{
@@ -193,14 +218,39 @@ function Build-PatrickUpdateEmailHtml {
     [string]$UpdatedAt
   )
 
+  $ClosedEntries = @($Entries | Where-Object { $_.status -eq "Done" })
   $Items = foreach ($Entry in $Entries) {
+    $ItemTypeLabel = Get-ItemTypeLabel -Type $Entry.itemType
+    $UserLabel = if ([string]::IsNullOrWhiteSpace([string]$Entry.userName)) { "Unknown user" } else { [string]$Entry.userName }
 @"
 <li style="margin:0 0 12px;">
+  <span style="display:inline-block;margin:0 0 4px;padding:2px 8px;border-radius:999px;background:#eef3fb;border:1px solid #c7d7ea;color:#315b8a;font-size:12px;font-weight:700;">$(Escape-Html $ItemTypeLabel)</span><br>
+  <span style="display:inline-block;margin:0 0 4px;padding:2px 8px;border-radius:999px;background:#f4ecff;border:1px solid #d4c0f7;color:#6b35a8;font-size:12px;font-weight:700;">$(Escape-Html $UserLabel)</span><br>
   <strong>$(Escape-Html $Entry.taskTitle)</strong><br>
   <span>$(Escape-Html (Format-DateTimeLabel $Entry.createdAt))</span><br>
   <span>$(Escape-Html $Entry.summary)</span><br>
   <span>Status: $(Escape-Html $Entry.status) | Complete: $(Escape-Html $Entry.percent)%</span>
 </li>
+"@
+  }
+
+  $ClosedItemsHtml = ""
+  if ($ClosedEntries.Count) {
+    $ClosedRows = foreach ($Entry in $ClosedEntries) {
+      $ItemTypeLabel = Get-ItemTypeLabel -Type $Entry.itemType
+@"
+<li style="margin:0 0 10px;">
+  <strong>$(Escape-Html $Entry.taskTitle)</strong>
+  <span style="display:block;">Type: $(Escape-Html $ItemTypeLabel)</span>
+  <span style="display:block;">Closed at: $(Escape-Html (Format-DateTimeLabel $Entry.createdAt))</span>
+  <span style="display:block;">Summary: $(Escape-Html $Entry.summary)</span>
+</li>
+"@
+    }
+
+    $ClosedItemsHtml = @"
+    <h2 style="margin:20px 0 12px;font-size:20px;">Closed items in this batch</h2>
+    <ol style="padding-left:20px;">$($ClosedRows -join "`n")</ol>
 "@
   }
 
@@ -214,6 +264,7 @@ function Build-PatrickUpdateEmailHtml {
     <p style="margin:0 0 18px;"><strong>Shared save time:</strong> $(Escape-Html (Format-DateTimeLabel $UpdatedAt))</p>
     <h2 style="margin:0 0 12px;font-size:20px;">Changes made</h2>
     <ol style="padding-left:20px;">$($Items -join "`n")</ol>
+    $ClosedItemsHtml
   </main>
 </body>
 </html>
@@ -250,7 +301,8 @@ function Invoke-PatrickUpdateCheck {
     return
   }
 
-  $Subject = "Patrick tracker activity - $($NewEntries.Count) change$((if ($NewEntries.Count -eq 1) { '' } else { 's' }))"
+  $ChangeSuffix = if ($NewEntries.Count -eq 1) { "" } else { "s" }
+  $Subject = "Patrick tracker activity - $($NewEntries.Count) change$ChangeSuffix"
   $Body = Build-PatrickUpdateEmailHtml -Entries $NewEntries -UpdatedAt $TrackerState.updated_at
   Send-HtmlMail -To $Recipient -Subject $Subject -HtmlBody $Body
 
