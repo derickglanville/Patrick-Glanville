@@ -212,7 +212,7 @@ Then clicking the `Urgency Report` button in the dashboard will call the local h
 
 If the helper is not running, the dashboard falls back to browser-based folder save behavior.
 
-## Separate 8:30 AM Scheduler
+## Separate 9:30 AM Scheduler
 
 The `Claude - Anthropic` folder remains an independent process. For the separate Email-folder automation, use:
 
@@ -223,9 +223,12 @@ powershell -ExecutionPolicy Bypass -File .\Start-DailyUrgencyEmailScheduler.ps1
 That launcher starts:
 
 - `scheduled_urgency_report_sender.py`
-- reads the Gmail sender, app password, and recipients from `..\Claude - Anthropic\send_daily_email.py`
+- uses `Scripts\send_daily_email.py` for the Gmail send step
 - generates a fresh Urgent Report each day by running `Invoke-DailyUrgencyReport.ps1 -GenerateOnly`
-- sends the report automatically at `8:30 AM`
+- sends the report automatically at `9:30 AM`
+- sends the urgency report to:
+  - `dglanville@gmail.com`
+  - `patrick.glanville@gmail.com`
 
 If `python` is not on PATH, pass the full interpreter path:
 

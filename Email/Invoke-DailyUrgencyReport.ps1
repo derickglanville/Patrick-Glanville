@@ -287,7 +287,7 @@ function Build-UrgencyReportHtml {
   <main class="wrap">
     <header class="header">
       <h1>Patrick Glanville Urgency Report</h1>
-      <p>Generated $(Escape-Html $Generated) | Scheduled daily send time: 8:30 AM</p>
+      <p>Generated $(Escape-Html $Generated) | Scheduled daily send time: 9:30 AM</p>
     </header>
     <section class="content">
       <p class="notice"><strong>Job focus:</strong> Job and income opportunities are grouped first because restoring income is the highest leverage path for transportation, housing, debt, and daily living stability.</p>

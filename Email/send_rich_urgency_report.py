@@ -10,8 +10,9 @@ from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
+from typing import Dict, List, Tuple
 
-def load_settings(script_dir: Path) -> dict:
+def load_settings(script_dir: Path) -> Dict:
     settings_path = script_dir / "smtp-settings.json"
     if not settings_path.exists():
         raise FileNotFoundError(f"Missing SMTP settings file: {settings_path}")
@@ -19,7 +20,7 @@ def load_settings(script_dir: Path) -> dict:
     return json.loads(settings_path.read_text(encoding="utf-8-sig"))
 
 
-def load_recipients(settings: dict) -> list[str]:
+def load_recipients(settings: Dict) -> List[str]:
     recipients = settings.get("recipients") or [
         "dglanville@gmail.com",
         "patrick.glanville@gmail.com",
@@ -30,7 +31,7 @@ def load_recipients(settings: dict) -> list[str]:
     return cleaned
 
 
-def load_credential(script_dir: Path) -> tuple[str, str]:
+def load_credential(script_dir: Path) -> Tuple[str, str]:
     credential_path = script_dir / "smtp-credential.clixml"
     if not credential_path.exists():
         raise FileNotFoundError(f"Missing SMTP credential file: {credential_path}")
@@ -64,7 +65,7 @@ def load_credential(script_dir: Path) -> tuple[str, str]:
     return payload["username"], "".join(payload["password"].split()).strip()
 
 
-def build_message(report_path: Path, settings: dict, sender: str, recipients: list[str]) -> MIMEMultipart:
+def build_message(report_path: Path, settings: Dict, sender: str, recipients: List[str]) -> MIMEMultipart:
     html_body = report_path.read_text(encoding="utf-8")
     subject = f"Patrick Glanville Urgency Report - {report_path.stem.replace('patrick-urgency-report-', '')}"
 
@@ -90,7 +91,7 @@ def build_message(report_path: Path, settings: dict, sender: str, recipients: li
     return message
 
 
-def smtp_attempts(settings: dict) -> list[dict]:
+def smtp_attempts(settings: Dict) -> List[Dict]:
     host = settings["smtpHost"]
     configured_port = int(settings.get("port", 587))
     configured_ssl = bool(settings.get("useSsl", False))
@@ -135,8 +136,8 @@ def smtp_attempts(settings: dict) -> list[dict]:
     return unique_attempts
 
 
-def send_message(message: MIMEMultipart, settings: dict, username: str, password: str, recipients: list[str]) -> None:
-    errors: list[str] = []
+def send_message(message: MIMEMultipart, settings: Dict, username: str, password: str, recipients: List[str]) -> None:
+    errors: List[str] = []
 
     for attempt in smtp_attempts(settings):
         try:
