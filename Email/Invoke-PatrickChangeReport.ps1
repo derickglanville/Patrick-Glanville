@@ -1,5 +1,6 @@
 param(
-  [switch]$GenerateOnly
+  [switch]$GenerateOnly,
+  [switch]$SendNow
 )
 
 $ErrorActionPreference = "Stop"
@@ -277,23 +278,20 @@ function Get-PythonCommand {
   throw "Python was not found on this machine. Could not run $DailyEmailScript"
 }
 
-function Send-ArchivedPatrickChangeReports {
-  param([string[]]$ArchivedReportPaths)
-
-  if (-not $ArchivedReportPaths -or -not $ArchivedReportPaths.Count) {
-    return
-  }
+function Send-CurrentPatrickChangeReport {
+  param([string]$ReportPath)
 
   if (-not (Test-Path -LiteralPath $DailyEmailScript)) {
     throw "Missing daily email sender script: $DailyEmailScript"
   }
 
-  $PythonCommand = Get-PythonCommand
-
-  foreach ($ArchivedReportPath in $ArchivedReportPaths) {
-    $Command = @($PythonCommand + @($DailyEmailScript, "--send-now", "--file", $ArchivedReportPath))
-    & $Command[0] $Command[1..($Command.Count - 1)]
+  if (-not (Test-Path -LiteralPath $ReportPath)) {
+    throw "Missing Patrick change report file: $ReportPath"
   }
+
+  $PythonCommand = Get-PythonCommand
+  $Command = @($PythonCommand + @($DailyEmailScript, "--send-now", "--report-kind", "change", "--file", $ReportPath))
+  & $Command[0] $Command[1..($Command.Count - 1)]
 }
 
 $Config = Get-SupabaseConfig -Path $ConfigPath
@@ -306,9 +304,12 @@ Write-Host "Saved Patrick change report to: $OutputPath"
 
 if ($ArchivedReportPaths.Count) {
   Write-Host "Archived Patrick change report(s): $($ArchivedReportPaths -join ', ')"
-  Send-ArchivedPatrickChangeReports -ArchivedReportPaths $ArchivedReportPaths
 }
 
 if ($GenerateOnly) {
   Write-Host "Generate-only mode complete."
+}
+
+if ($SendNow) {
+  Send-CurrentPatrickChangeReport -ReportPath $OutputPath
 }

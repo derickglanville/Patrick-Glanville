@@ -67,13 +67,17 @@ function Save-Checkpoint {
   param(
     [string]$UpdatedAt,
     [string]$PatrickHistoryAt,
-    [string]$ReportDate
+    [string]$ReportDate,
+    [string]$LastEmailHourBucket,
+    [string]$LastEmailedPatrickHistoryAt
   )
 
   [pscustomobject]@{
     updatedAt = $UpdatedAt
     patrickHistoryAt = $PatrickHistoryAt
     reportDate = $ReportDate
+    lastEmailHourBucket = $LastEmailHourBucket
+    lastEmailedPatrickHistoryAt = $LastEmailedPatrickHistoryAt
     savedAt = (Get-Date).ToString("o")
   } | ConvertTo-Json | Set-Content -LiteralPath $CheckpointPath -Encoding UTF8
 }
@@ -90,16 +94,46 @@ function Get-LatestPatrickHistoryAt {
   return ($AllPatrickEntries | Select-Object -Last 1).createdAt
 }
 
+function Get-LocalHourBucket {
+  param([AllowNull()][string]$Value)
+
+  if ([string]::IsNullOrWhiteSpace($Value)) { return "" }
+
+  try {
+    return ([datetime]$Value).ToLocalTime().ToString("yyyy-MM-ddTHH")
+  } catch {
+    return ""
+  }
+}
+
+function Get-LatestPatrickEntry {
+  param($TrackerState)
+
+  $AllPatrickEntries = @($TrackerState.state.history) |
+    Where-Object { $_.userEmail -eq $PatrickEmail } |
+    Sort-Object createdAt
+
+  if (-not $AllPatrickEntries.Count) { return $null }
+  return ($AllPatrickEntries | Select-Object -Last 1)
+}
+
 function Invoke-PatrickChangeReportCheck {
   $Config = Get-SupabaseConfig -Path $ConfigPath
   $TrackerState = Get-TrackerState -Config $Config
   $Checkpoint = Load-Checkpoint
+  $LatestPatrickEntry = Get-LatestPatrickEntry -TrackerState $TrackerState
   $LatestPatrickHistoryAt = Get-LatestPatrickHistoryAt -TrackerState $TrackerState
+  $LatestPatrickHourBucket = if ($LatestPatrickEntry) { Get-LocalHourBucket $LatestPatrickEntry.createdAt } else { "" }
   $Today = Get-TodayIsoDate
 
   if (-not $Checkpoint) {
     & powershell -ExecutionPolicy Bypass -File $RunnerScript -GenerateOnly
-    Save-Checkpoint -UpdatedAt $TrackerState.updated_at -PatrickHistoryAt $LatestPatrickHistoryAt -ReportDate $Today
+    Save-Checkpoint `
+      -UpdatedAt $TrackerState.updated_at `
+      -PatrickHistoryAt $LatestPatrickHistoryAt `
+      -ReportDate $Today `
+      -LastEmailHourBucket "" `
+      -LastEmailedPatrickHistoryAt ""
     Write-Host "Bootstrapped Patrick change report watcher and generated today's report."
     return
   }
@@ -119,8 +153,36 @@ function Invoke-PatrickChangeReportCheck {
     return
   }
 
+  $ShouldSendHourlyEmail = $false
+
+  if (
+    $LatestPatrickHistoryAt -and
+    ([string]$LatestPatrickHistoryAt -gt [string]$Checkpoint.lastEmailedPatrickHistoryAt) -and
+    $LatestPatrickHourBucket -and
+    ([string]$LatestPatrickHourBucket -ne [string]$Checkpoint.lastEmailHourBucket)
+  ) {
+    $ShouldSendHourlyEmail = $true
+  }
+
+  if ($ShouldSendHourlyEmail) {
+    & powershell -ExecutionPolicy Bypass -File $RunnerScript -SendNow
+    Save-Checkpoint `
+      -UpdatedAt $TrackerState.updated_at `
+      -PatrickHistoryAt $LatestPatrickHistoryAt `
+      -ReportDate $Today `
+      -LastEmailHourBucket $LatestPatrickHourBucket `
+      -LastEmailedPatrickHistoryAt $LatestPatrickHistoryAt
+    Write-Host "Updated Patrick change report and sent the hourly Patrick change email."
+    return
+  }
+
   & powershell -ExecutionPolicy Bypass -File $RunnerScript -GenerateOnly
-  Save-Checkpoint -UpdatedAt $TrackerState.updated_at -PatrickHistoryAt $LatestPatrickHistoryAt -ReportDate $Today
+  Save-Checkpoint `
+    -UpdatedAt $TrackerState.updated_at `
+    -PatrickHistoryAt $LatestPatrickHistoryAt `
+    -ReportDate $Today `
+    -LastEmailHourBucket $Checkpoint.lastEmailHourBucket `
+    -LastEmailedPatrickHistoryAt $Checkpoint.lastEmailedPatrickHistoryAt
   Write-Host "Updated Patrick change report in the Email folder."
 }
 
