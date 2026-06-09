@@ -3,12 +3,16 @@ import ast
 import os
 import smtplib
 import time
-import schedule
 from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import date, datetime
+
+try:
+    import schedule
+except ImportError:
+    schedule = None
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
@@ -174,6 +178,9 @@ if __name__ == "__main__":
     send_time = REPORT_DEFAULTS[args.report_kind]["send_time"]
     recipients = parse_recipients(args.recipients, args.report_kind)
     folder = REPORT_DEFAULTS[args.report_kind]["folder"]
+
+    if schedule is None:
+        raise SystemExit("Missing Python package 'schedule'. Install it or use --send-now mode.")
 
     print(f"Daily report scheduler started for '{args.report_kind}'. Will send at {send_time} every day.")
     print(f"   Folder : {folder}")
