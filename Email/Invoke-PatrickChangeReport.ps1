@@ -1,17 +1,26 @@
 param(
   [switch]$GenerateOnly,
-  [switch]$SendNow
+  [switch]$SendNow,
+  [string]$RangeStartLocal,
+  [string]$RangeEndLocal,
+  [string]$ReportLabel,
+  [string]$CustomOutputPath
 )
 
 $ErrorActionPreference = "Stop"
 
 $PatrickEmail = "patrick.glanville@gmail.com"
-$ScriptFolder = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ScriptFolder = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $PSCommandPath }
 $ProjectFolder = Split-Path -Parent $ScriptFolder
 $ConfigPath = Join-Path $ProjectFolder "supabase-config.js"
 $DailyEmailScript = Join-Path $ProjectFolder "Scripts\send_daily_email.py"
 $ArchiveFolder = Join-Path $ScriptFolder "Archive"
-$OutputPath = Join-Path $ScriptFolder ("patrick-change-report-{0}.html" -f (Get-Date).ToString("yyyy-MM-dd"))
+$SkipArchive = -not [string]::IsNullOrWhiteSpace($CustomOutputPath)
+$OutputPath = if (-not $SkipArchive) {
+  Join-Path $ScriptFolder ("patrick-change-report-{0}.html" -f (Get-Date).ToString("yyyy-MM-dd"))
+} else {
+  $CustomOutputPath
+}
 
 function Escape-Html {
   param([AllowNull()][object]$Value)
@@ -120,6 +129,30 @@ function Get-PatrickEntriesForToday {
   } | Sort-Object createdAt -Descending
 }
 
+function Get-PatrickEntriesForRange {
+  param(
+    $StateRow,
+    [AllowNull()][datetime]$LocalStart,
+    [AllowNull()][datetime]$LocalEnd
+  )
+
+  $Entries = @($StateRow.state.history) | Where-Object { $_.userEmail -eq $PatrickEmail }
+
+  if ($null -eq $LocalStart -and $null -eq $LocalEnd) {
+    return $Entries | Sort-Object createdAt -Descending
+  }
+
+  return $Entries | Where-Object {
+    try {
+      $LocalCreatedAt = ([datetime]$_.createdAt).ToLocalTime()
+      (($null -eq $LocalStart) -or ($LocalCreatedAt -ge $LocalStart)) -and
+      (($null -eq $LocalEnd) -or ($LocalCreatedAt -lt $LocalEnd))
+    } catch {
+      $false
+    }
+  } | Sort-Object createdAt -Descending
+}
+
 function Get-MetricHtml {
   param($Value, [string]$Label)
 
@@ -171,13 +204,29 @@ function Get-ReportSectionHtml {
 }
 
 function Build-PatrickChangeReportHtml {
-  param($StateRow)
+  param(
+    $StateRow,
+    [AllowNull()][object]$LocalStart,
+    [AllowNull()][object]$LocalEnd,
+    [string]$HeadingLabel,
+    [string]$SourceNotice
+  )
 
-  $Entries = @(Get-PatrickEntriesForToday -StateRow $StateRow)
+  $Entries = if ($null -ne $LocalStart -or $null -ne $LocalEnd) {
+    @(Get-PatrickEntriesForRange -StateRow $StateRow -LocalStart $LocalStart -LocalEnd $LocalEnd)
+  } else {
+    @(Get-PatrickEntriesForToday -StateRow $StateRow)
+  }
   $ClosedEntries = @($Entries | Where-Object { $_.status -eq "Done" })
   $UniqueItems = @($Entries | ForEach-Object { if ($_.taskId) { $_.taskId } else { "$($_.itemType):$($_.itemId):$($_.taskTitle)" } } | Select-Object -Unique)
   $Generated = Format-DateTimeLabel ((Get-Date).ToString("o"))
   $Latest = if ($Entries.Count) { Format-DateTimeLabel $Entries[0].createdAt } else { "None" }
+  $ResolvedHeadingLabel = if ([string]::IsNullOrWhiteSpace($HeadingLabel)) { "Report date $(Get-TodayIsoDate)" } else { $HeadingLabel }
+  $ResolvedSourceNotice = if ([string]::IsNullOrWhiteSpace($SourceNotice)) {
+    "This report is generated from Supabase tracker history for Patrick's changes recorded today, including closed items."
+  } else {
+    $SourceNotice
+  }
 
   return @"
 <!doctype html>
@@ -214,10 +263,10 @@ function Build-PatrickChangeReportHtml {
   <main class="wrap">
     <header class="header">
       <h1>Patrick Change Report</h1>
-      <p>Generated $(Escape-Html $Generated) | Report date $(Escape-Html (Get-TodayIsoDate))</p>
+      <p>Generated $(Escape-Html $Generated) | $(Escape-Html $ResolvedHeadingLabel)</p>
     </header>
     <section class="content">
-      <p class="notice"><strong>Source:</strong> This report is generated from Supabase tracker history for Patrick's changes recorded today, including closed items.</p>
+      <p class="notice"><strong>Source:</strong> $(Escape-Html $ResolvedSourceNotice)</p>
       <div class="metrics">
         $(Get-MetricHtml $Entries.Count "Patrick changes today")
         $(Get-MetricHtml $ClosedEntries.Count "closed today")
@@ -267,12 +316,18 @@ function Archive-PreviousPatrickChangeReports {
 function Get-PythonCommand {
   $PythonCommand = Get-Command python -ErrorAction SilentlyContinue
   if ($PythonCommand) {
-    return @($PythonCommand.Source)
+    return [pscustomobject]@{
+      Executable = $PythonCommand.Source
+      Arguments = @()
+    }
   }
 
   $PyLauncher = Get-Command py -ErrorAction SilentlyContinue
   if ($PyLauncher) {
-    return @($PyLauncher.Source, "-3")
+    return [pscustomobject]@{
+      Executable = $PyLauncher.Source
+      Arguments = @("-3")
+    }
   }
 
   throw "Python was not found on this machine. Could not run $DailyEmailScript"
@@ -290,15 +345,38 @@ function Send-CurrentPatrickChangeReport {
   }
 
   $PythonCommand = Get-PythonCommand
-  $Command = @($PythonCommand + @($DailyEmailScript, "--send-now", "--report-kind", "change", "--file", $ReportPath))
-  & $Command[0] $Command[1..($Command.Count - 1)]
+  $Arguments = @($PythonCommand.Arguments + @($DailyEmailScript, "--send-now", "--report-kind", "change", "--file", $ReportPath))
+  & $PythonCommand.Executable @Arguments
 }
 
 $Config = Get-SupabaseConfig -Path $ConfigPath
 $StateRow = Get-TrackerState -Config $Config
-$Html = Build-PatrickChangeReportHtml -StateRow $StateRow
 
-$ArchivedReportPaths = @(Archive-PreviousPatrickChangeReports -SourceFolder $ScriptFolder -ArchiveFolder $ArchiveFolder -CurrentOutputPath $OutputPath)
+$LocalStart = if ([string]::IsNullOrWhiteSpace($RangeStartLocal)) { $null } else { [datetime]$RangeStartLocal }
+$LocalEnd = if ([string]::IsNullOrWhiteSpace($RangeEndLocal)) { $null } else { [datetime]$RangeEndLocal }
+$HeadingLabel = if ([string]::IsNullOrWhiteSpace($ReportLabel)) {
+  $null
+} else {
+  $ReportLabel
+}
+$SourceNotice = if ($null -ne $LocalStart -or $null -ne $LocalEnd) {
+  "This report is generated from Supabase tracker history for Patrick's changes recorded during the requested America/New_York time window, including closed items."
+} else {
+  $null
+}
+
+$Html = Build-PatrickChangeReportHtml `
+  -StateRow $StateRow `
+  -LocalStart $LocalStart `
+  -LocalEnd $LocalEnd `
+  -HeadingLabel $HeadingLabel `
+  -SourceNotice $SourceNotice
+
+$ArchivedReportPaths = if ($SkipArchive) {
+  @()
+} else {
+  @(Archive-PreviousPatrickChangeReports -SourceFolder $ScriptFolder -ArchiveFolder $ArchiveFolder -CurrentOutputPath $OutputPath)
+}
 Set-Content -LiteralPath $OutputPath -Value $Html -Encoding UTF8
 Write-Host "Saved Patrick change report to: $OutputPath"
 

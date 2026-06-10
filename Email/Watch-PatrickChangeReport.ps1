@@ -6,8 +6,9 @@ param(
 $ErrorActionPreference = "Stop"
 
 $PatrickEmail = "patrick.glanville@gmail.com"
-$ScriptFolder = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ScriptFolder = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $PSCommandPath }
 $ProjectFolder = Split-Path -Parent $ScriptFolder
+$ArchiveFolder = Join-Path $ScriptFolder "Archive"
 $ConfigPath = Join-Path $ProjectFolder "supabase-config.js"
 $RunnerScript = Join-Path $ScriptFolder "Invoke-PatrickChangeReport.ps1"
 $CheckpointPath = Join-Path $ScriptFolder "patrick-change-report-watcher-state.json"
@@ -68,16 +69,14 @@ function Save-Checkpoint {
     [string]$UpdatedAt,
     [string]$PatrickHistoryAt,
     [string]$ReportDate,
-    [string]$LastEmailHourBucket,
-    [string]$LastEmailedPatrickHistoryAt
+    [string]$LastCompletedHourBucketEmailed
   )
 
   [pscustomobject]@{
     updatedAt = $UpdatedAt
     patrickHistoryAt = $PatrickHistoryAt
     reportDate = $ReportDate
-    lastEmailHourBucket = $LastEmailHourBucket
-    lastEmailedPatrickHistoryAt = $LastEmailedPatrickHistoryAt
+    lastCompletedHourBucketEmailed = $LastCompletedHourBucketEmailed
     savedAt = (Get-Date).ToString("o")
   } | ConvertTo-Json | Set-Content -LiteralPath $CheckpointPath -Encoding UTF8
 }
@@ -106,6 +105,25 @@ function Get-LocalHourBucket {
   }
 }
 
+function Get-HourBucketForDateTime {
+  param([datetime]$Value)
+
+  return $Value.ToString("yyyy-MM-ddTHH")
+}
+
+function Get-PreviousCompletedHourWindow {
+  $NowLocal = (Get-Date)
+  $CurrentHourStart = Get-Date -Year $NowLocal.Year -Month $NowLocal.Month -Day $NowLocal.Day -Hour $NowLocal.Hour -Minute 0 -Second 0
+  $PreviousHourStart = $CurrentHourStart.AddHours(-1)
+
+  return [pscustomobject]@{
+    Start = $PreviousHourStart
+    End = $CurrentHourStart
+    Bucket = Get-HourBucketForDateTime -Value $PreviousHourStart
+    Label = "{0} to {1} America/New_York" -f $PreviousHourStart.ToString("MMM d, yyyy h:mm tt"), $CurrentHourStart.AddSeconds(-1).ToString("h:mm:ss tt")
+  }
+}
+
 function Get-LatestPatrickEntry {
   param($TrackerState)
 
@@ -117,23 +135,52 @@ function Get-LatestPatrickEntry {
   return ($AllPatrickEntries | Select-Object -Last 1)
 }
 
+function Get-PatrickEntriesForHourWindow {
+  param(
+    $TrackerState,
+    [datetime]$LocalStart,
+    [datetime]$LocalEnd
+  )
+
+  return @($TrackerState.state.history) | Where-Object {
+    if ($_.userEmail -ne $PatrickEmail) {
+      return $false
+    }
+
+    try {
+      $LocalCreatedAt = ([datetime]$_.createdAt).ToLocalTime()
+      return ($LocalCreatedAt -ge $LocalStart) -and ($LocalCreatedAt -lt $LocalEnd)
+    } catch {
+      return $false
+    }
+  } | Sort-Object createdAt -Descending
+}
+
+function Invoke-RunnerScript {
+  param([string[]]$Arguments)
+
+  & powershell -ExecutionPolicy Bypass -File $RunnerScript @Arguments
+  if ($LASTEXITCODE -ne 0) {
+    throw "Patrick change report runner failed with exit code $LASTEXITCODE."
+  }
+}
+
 function Invoke-PatrickChangeReportCheck {
   $Config = Get-SupabaseConfig -Path $ConfigPath
   $TrackerState = Get-TrackerState -Config $Config
   $Checkpoint = Load-Checkpoint
-  $LatestPatrickEntry = Get-LatestPatrickEntry -TrackerState $TrackerState
   $LatestPatrickHistoryAt = Get-LatestPatrickHistoryAt -TrackerState $TrackerState
-  $LatestPatrickHourBucket = if ($LatestPatrickEntry) { Get-LocalHourBucket $LatestPatrickEntry.createdAt } else { "" }
   $Today = Get-TodayIsoDate
+  $PreviousHourWindow = Get-PreviousCompletedHourWindow
+  $PreviousHourEntries = @(Get-PatrickEntriesForHourWindow -TrackerState $TrackerState -LocalStart $PreviousHourWindow.Start -LocalEnd $PreviousHourWindow.End)
 
   if (-not $Checkpoint) {
-    & powershell -ExecutionPolicy Bypass -File $RunnerScript -GenerateOnly
+    Invoke-RunnerScript -Arguments @("-GenerateOnly")
     Save-Checkpoint `
       -UpdatedAt $TrackerState.updated_at `
       -PatrickHistoryAt $LatestPatrickHistoryAt `
       -ReportDate $Today `
-      -LastEmailHourBucket "" `
-      -LastEmailedPatrickHistoryAt ""
+      -LastCompletedHourBucketEmailed ""
     Write-Host "Bootstrapped Patrick change report watcher and generated today's report."
     return
   }
@@ -149,41 +196,52 @@ function Invoke-PatrickChangeReportCheck {
   }
 
   if (-not $NeedsRefresh) {
+    if ($PreviousHourEntries.Count -and ([string]$Checkpoint.lastCompletedHourBucketEmailed -ne [string]$PreviousHourWindow.Bucket)) {
+      $HourlyOutputPath = Join-Path $ArchiveFolder ("patrick-change-report-{0}.html" -f $PreviousHourWindow.Bucket.Replace(":", "").Replace("T", "-"))
+      Invoke-RunnerScript -Arguments @(
+        "-SendNow",
+        "-RangeStartLocal", $PreviousHourWindow.Start.ToString("yyyy-MM-dd HH:mm:ss"),
+        "-RangeEndLocal", $PreviousHourWindow.End.ToString("yyyy-MM-dd HH:mm:ss"),
+        "-ReportLabel", $PreviousHourWindow.Label,
+        "-CustomOutputPath", $HourlyOutputPath
+      )
+      Save-Checkpoint `
+        -UpdatedAt $TrackerState.updated_at `
+        -PatrickHistoryAt $LatestPatrickHistoryAt `
+        -ReportDate $Today `
+        -LastCompletedHourBucketEmailed $PreviousHourWindow.Bucket
+      Write-Host "Sent Patrick change report summary for completed hour $($PreviousHourWindow.Bucket)."
+      return
+    }
+
     Write-Host "No new Patrick change-report updates detected."
     return
   }
 
-  $ShouldSendHourlyEmail = $false
-
-  if (
-    $LatestPatrickHistoryAt -and
-    ([string]$LatestPatrickHistoryAt -gt [string]$Checkpoint.lastEmailedPatrickHistoryAt) -and
-    $LatestPatrickHourBucket -and
-    ([string]$LatestPatrickHourBucket -ne [string]$Checkpoint.lastEmailHourBucket)
-  ) {
-    $ShouldSendHourlyEmail = $true
-  }
-
-  if ($ShouldSendHourlyEmail) {
-    & powershell -ExecutionPolicy Bypass -File $RunnerScript -SendNow
-    Save-Checkpoint `
-      -UpdatedAt $TrackerState.updated_at `
-      -PatrickHistoryAt $LatestPatrickHistoryAt `
-      -ReportDate $Today `
-      -LastEmailHourBucket $LatestPatrickHourBucket `
-      -LastEmailedPatrickHistoryAt $LatestPatrickHistoryAt
-    Write-Host "Updated Patrick change report and sent the hourly Patrick change email."
-    return
-  }
-
-  & powershell -ExecutionPolicy Bypass -File $RunnerScript -GenerateOnly
+  Invoke-RunnerScript -Arguments @("-GenerateOnly")
   Save-Checkpoint `
     -UpdatedAt $TrackerState.updated_at `
     -PatrickHistoryAt $LatestPatrickHistoryAt `
     -ReportDate $Today `
-    -LastEmailHourBucket $Checkpoint.lastEmailHourBucket `
-    -LastEmailedPatrickHistoryAt $Checkpoint.lastEmailedPatrickHistoryAt
+    -LastCompletedHourBucketEmailed $Checkpoint.lastCompletedHourBucketEmailed
   Write-Host "Updated Patrick change report in the Email folder."
+
+  if ($PreviousHourEntries.Count -and ([string]$Checkpoint.lastCompletedHourBucketEmailed -ne [string]$PreviousHourWindow.Bucket)) {
+    $HourlyOutputPath = Join-Path $ArchiveFolder ("patrick-change-report-{0}.html" -f $PreviousHourWindow.Bucket.Replace(":", "").Replace("T", "-"))
+    Invoke-RunnerScript -Arguments @(
+      "-SendNow",
+      "-RangeStartLocal", $PreviousHourWindow.Start.ToString("yyyy-MM-dd HH:mm:ss"),
+      "-RangeEndLocal", $PreviousHourWindow.End.ToString("yyyy-MM-dd HH:mm:ss"),
+      "-ReportLabel", $PreviousHourWindow.Label,
+      "-CustomOutputPath", $HourlyOutputPath
+    )
+    Save-Checkpoint `
+      -UpdatedAt $TrackerState.updated_at `
+      -PatrickHistoryAt $LatestPatrickHistoryAt `
+      -ReportDate $Today `
+      -LastCompletedHourBucketEmailed $PreviousHourWindow.Bucket
+    Write-Host "Sent Patrick change report summary for completed hour $($PreviousHourWindow.Bucket)."
+  }
 }
 
 if ($Once) {

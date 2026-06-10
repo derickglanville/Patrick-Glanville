@@ -170,6 +170,23 @@ That watcher:
 - polls Supabase for new Patrick history entries
 - regenerates the current-day Patrick change report whenever Patrick changes something
 - rolls the previous day's report into `Archive` once the date changes
+- sends one hourly summary for the previous completed America/New_York hour only when Patrick made changes during that hour
+
+## Patrick Change Watcher Guardian
+
+To keep the Patrick change watcher alive on this computer, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\Ensure-PatrickChangeWatcher.ps1
+```
+
+That guardian:
+
+- checks whether `Watch-PatrickChangeReport.ps1` is already running
+- starts it automatically if it is missing
+- writes output back into:
+  - `watch-patrick-change-report.log`
+  - `watch-patrick-change-report-error.log`
 
 ## Email Recipients
 
