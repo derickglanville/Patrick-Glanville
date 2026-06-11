@@ -39,6 +39,7 @@ const baseCategories = [
   "Job - CloudResearch",
   "Job - Data Annotation",
   "Job - Easy Money (HEB, Walmart, Home Depot, Kroger)",
+  "Job - Teaching Assistance",
   "Job - Mercor",
   "Job - Prolific",
   "N/A",
@@ -59,7 +60,7 @@ const baseCategories = [
   "Transportation - Turo rental",
   "Vehicle"
 ];
-const statusOptions = ["N/A", "Not started", "In progress", "Waiting", "Blocked", "Done"];
+const statusOptions = ["N/A", "Not started", "In progress", "Waiting", "Blocked", "On-Hold", "Done"];
 const priorityOptions = ["Urgent", "High", "Medium", "Low"];
 const billStatusOptions = ["Unpaid", "Scheduled", "Paid", "Deferred", "Past due", "N/A"];
 const taskGroupOrder = [
@@ -84,6 +85,7 @@ const categoryOrder = [
   "Job - Prolific",
   "Job - Mercor",
   "Job - Easy Money (HEB, Walmart, Home Depot, Kroger)",
+  "Job - Teaching Assistance",
   "Income",
   "Benefits",
   "Cash",
@@ -102,6 +104,17 @@ const categoryOrder = [
   "Accountability",
   "N/A"
 ];
+
+const closedTaskStatuses = ["Done", "On-Hold"];
+
+function isClosedTaskStatus(status) {
+  return closedTaskStatuses.includes(status);
+}
+
+function isClosedTask(task) {
+  if (!task) return false;
+  return isClosedTaskStatus(task.status) || normalizePercent(task.percent) === 100;
+}
 
 const seedData = {
   dataVersion: DATA_VERSION,
@@ -216,6 +229,17 @@ const seedData = {
       notes: "Priority: this is the most important work track because immediate hourly income can stabilize food, transportation, and housing. Websites: HEB careers https://careers.heb.com/, Walmart careers https://careers.walmart.com/, Home Depot careers https://careers.homedepot.com/, Kroger careers https://www.krogerfamilycareers.com/. Track job title, location, distance, shift, pay, application date, screenshot or confirmation number, interview status, and transportation plan.",
       tag: "New",
       tagTone: "purple"
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "Apply for Teaching Assistance opportunities",
+      category: "Job - Teaching Assistance",
+      owner: "Patrick",
+      status: "Not started",
+      priority: "High",
+      due: "",
+      next: "Identify nearby schools, colleges, tutoring programs, and academic support offices that hire teaching assistants, tutors, or lab helpers, then submit applications and save proof of submission.",
+      notes: "Track employer name, role title, subject area, pay rate, location, schedule, application date, contact person, interview status, and whether transportation is realistic. Focus on math, physics, tutoring, and classroom support roles first."
     },
     {
       id: crypto.randomUUID(),
@@ -891,12 +915,12 @@ function inferTaskCreatedAt(task, history = []) {
 
 function inferTaskCompletedAt(task, history = []) {
   if (task?.completedAt) return task.completedAt;
-  const isDone = task?.status === "Done" || normalizePercent(task?.percent) === 100;
-  if (!isDone) return "";
+  const isClosed = isClosedTask(task);
+  if (!isClosed) return "";
 
   const matchingEntries = Array.isArray(history)
     ? history.filter(entry => (
-      entry?.status === "Done"
+      isClosedTaskStatus(entry?.status)
       && (entry?.taskId === task?.id || (entry?.taskTitle && entry.taskTitle === task?.title))
     ))
     : [];
@@ -923,7 +947,9 @@ function syncTaskCompletionState(task) {
   } else if (task.status === "Done") {
     task.status = "In progress";
     task.completedAt = "";
-  } else if (task.status !== "Done") {
+  } else if (task.status === "On-Hold") {
+    task.completedAt = task.completedAt || new Date().toISOString();
+  } else if (!isClosedTaskStatus(task.status)) {
     task.completedAt = "";
   }
 
@@ -932,6 +958,7 @@ function syncTaskCompletionState(task) {
 
 function statusToPercent(status) {
   if (status === "Done") return 100;
+  if (status === "On-Hold") return 0;
   if (status === "In progress") return 50;
   if (status === "Waiting") return 35;
   if (status === "Blocked") return 20;
@@ -1316,10 +1343,10 @@ function render() {
   const filtered = state.tasks.filter(task => {
     const haystack = Object.values(task).join(" ").toLowerCase();
     const matchesView = taskViewMode === "done"
-      ? task.status === "Done"
+      ? isClosedTask(task)
       : taskViewMode === "all"
         ? true
-        : task.status !== "Done";
+        : !isClosedTask(task);
     return (!query || haystack.includes(query))
       && matchesView
       && (status === "all" || task.status === status)
@@ -1334,7 +1361,7 @@ function render() {
     const empty = document.createElement("p");
     empty.className = "empty-notes";
     empty.textContent = taskViewMode === "done"
-      ? "No done items match the current filters."
+      ? "No done or on-hold items match the current filters."
       : taskViewMode === "all"
         ? "No items match the current filters."
         : "No active items match the current filters.";
@@ -1525,12 +1552,12 @@ function renderTaskViewControls() {
   taskViewActiveBtn.classList.toggle("is-active", taskViewMode === "active");
   taskViewDoneBtn.classList.toggle("is-active", taskViewMode === "done");
   taskViewAllBtn.classList.toggle("is-active", taskViewMode === "all");
-  const doneStatusOption = [...statusFilter.options].find(option => option.value === "Done");
-  if (doneStatusOption) {
-    doneStatusOption.disabled = taskViewMode === "active";
-    if (taskViewMode === "active" && statusFilter.value === "Done") {
+  const closedStatusOptions = [...statusFilter.options].filter(option => isClosedTaskStatus(option.value));
+  closedStatusOptions.forEach(option => {
+    option.disabled = taskViewMode === "active";
+  });
+  if (taskViewMode === "active" && isClosedTaskStatus(statusFilter.value)) {
       statusFilter.value = "all";
-    }
   }
 }
 
@@ -2120,6 +2147,7 @@ function createTaskCard(task) {
     const before = task.status;
     task.status = select.value;
     if (select.value === "Done") task.percent = 100;
+    else if (select.value === "On-Hold" && task.percent === 100) task.percent = statusToPercent(select.value);
     else if (before === "Done" && task.percent === 100) task.percent = statusToPercent(select.value);
     syncTaskCompletionState(task);
     recordUpdate(task, `Status changed from ${before} to ${select.value}`);
@@ -2170,7 +2198,7 @@ function formatLatestComment(task) {
 
 function updateProgress() {
   const total = state.tasks.length || 1;
-  const done = state.tasks.filter(task => task.status === "Done").length;
+  const done = state.tasks.filter(task => isClosedTask(task)).length;
   const blocked = state.tasks.filter(task => task.status === "Blocked").length;
   const active = state.tasks.length - done;
   const average = state.tasks.reduce((sum, task) => sum + normalizePercent(task.percent), 0) / total;
@@ -2787,7 +2815,7 @@ function compareReportTasks(a, b) {
 }
 
 function isPastDue(task) {
-  if (!task.due || task.status === "Done") return false;
+  if (!task.due || isClosedTask(task)) return false;
   return task.due < getTodayIsoDate();
 }
 
