@@ -645,6 +645,8 @@ const historyDialog = document.querySelector("#historyDialog");
 const urgencyReportDialog = document.querySelector("#urgencyReportDialog");
 const patrickChangeReportDialog = document.querySelector("#patrickChangeReportDialog");
 const documentsDialog = document.querySelector("#documentsDialog");
+const medicationDialog = document.querySelector("#medicationDialog");
+const medicationDialogBody = document.querySelector("#medicationDialogBody");
 const patrickWatchPanel = document.querySelector("#patrickWatchPanel");
 const patrickChangeReport = document.querySelector("#patrickChangeReport");
 const billMonthInput = document.querySelector("#billMonth");
@@ -675,6 +677,7 @@ const patrickViewClosedBtn = document.querySelector("#patrickViewClosedBtn");
 const patrickViewAllBtn = document.querySelector("#patrickViewAllBtn");
 let dericPinValidatedForSession = false;
 let taskViewMode = loadTaskViewMode();
+let activeMedicationTaskId = "";
 
 const fields = {
   id: document.querySelector("#taskId"),
@@ -2188,8 +2191,8 @@ function createTaskCard(task) {
   notes.className = "task-meta";
   notes.textContent = task.notes || "No notes yet.";
 
-  const medicationGrid = isMedicationGridTask(task)
-    ? createMedicationGrid(task)
+  const medicationSummary = isMedicationGridTask(task)
+    ? createMedicationSummary(task)
     : null;
 
   const latestComment = document.createElement("p");
@@ -2260,22 +2263,63 @@ function createTaskCard(task) {
 
   footer.append(categorySelect, select, prioritySelect, edit);
   card.append(header, meta, dueWrap, percentWrap, meter, next, notes);
-  if (medicationGrid) card.appendChild(medicationGrid);
+  if (medicationSummary) card.appendChild(medicationSummary);
   card.append(latestComment, footer);
   return card;
 }
 
-function createMedicationGrid(task) {
+function createMedicationSummary(task) {
   task.medications = normalizeMedicationEntries(task.medications);
+  const medications = task.medications.filter(entry => entry.name || entry.dosage || entry.refillDate);
+  const nextRefillDate = medications
+    .map(entry => entry.refillDate)
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b))[0];
 
   const section = document.createElement("section");
-  section.className = "medication-grid-section";
+  section.className = "medication-summary-section";
 
   const header = document.createElement("div");
   header.className = "medication-grid-header";
 
   const title = document.createElement("strong");
   title.textContent = "Medication list";
+
+  const openButton = document.createElement("button");
+  openButton.type = "button";
+  openButton.className = "ghost";
+  openButton.textContent = "Update medication list";
+  openButton.addEventListener("click", () => openMedicationDialog(task.id));
+
+  header.append(title, openButton);
+
+  const summary = document.createElement("div");
+  summary.className = "medication-summary-metrics";
+  summary.innerHTML = `
+    <article>
+      <strong>${medications.length}</strong>
+      <span>active medication${medications.length === 1 ? "" : "s"}</span>
+    </article>
+    <article>
+      <strong>${escapeHtml(nextRefillDate ? formatShortDate(nextRefillDate) : "None set")}</strong>
+      <span>next refill date</span>
+    </article>
+  `;
+
+  section.append(header, summary);
+  return section;
+}
+
+function createMedicationGrid(task) {
+  task.medications = normalizeMedicationEntries(task.medications);
+  const section = document.createElement("section");
+  section.className = "medication-grid-section medication-grid-dialog";
+
+  const header = document.createElement("div");
+  header.className = "medication-grid-header";
+
+  const title = document.createElement("strong");
+  title.textContent = "Medication list editor";
 
   const addButton = document.createElement("button");
   addButton.type = "button";
@@ -2285,18 +2329,11 @@ function createMedicationGrid(task) {
     task.medications.push(normalizeMedicationEntry());
     recordUpdate(task, "Medication row added");
     saveState();
+    renderMedicationDialog(task);
     render();
   });
 
   header.append(title, addButton);
-
-  if (!task.medications.length) {
-    const empty = document.createElement("p");
-    empty.className = "medication-grid-empty";
-    empty.textContent = "No medications added yet.";
-    section.append(header, empty);
-    return section;
-  }
 
   const grid = document.createElement("div");
   grid.className = "medication-grid";
@@ -2333,6 +2370,10 @@ function createMedicationGrid(task) {
       task.medications = task.medications.filter(item => item.id !== entry.id);
       recordUpdate(task, "Medication row removed");
       saveState();
+      if (!task.medications.length) {
+        task.medications = [normalizeMedicationEntry()];
+      }
+      renderMedicationDialog(task);
       render();
     });
 
@@ -2341,6 +2382,24 @@ function createMedicationGrid(task) {
 
   section.append(header, grid);
   return section;
+}
+
+function openMedicationDialog(taskId) {
+  const task = state.tasks.find(item => item.id === taskId);
+  if (!task || !isMedicationGridTask(task)) return;
+  activeMedicationTaskId = task.id;
+  renderMedicationDialog(task);
+  if (typeof medicationDialog.showModal === "function") medicationDialog.showModal();
+}
+
+function closeMedicationDialog() {
+  activeMedicationTaskId = "";
+  medicationDialog.close();
+}
+
+function renderMedicationDialog(task) {
+  medicationDialogBody.innerHTML = "";
+  medicationDialogBody.appendChild(createMedicationGrid(task));
 }
 
 function updateMedicationEntry(task, entryId, field, value) {
@@ -2355,6 +2414,17 @@ function updateMedicationEntry(task, entryId, field, value) {
   entry[field] = after;
   recordUpdate(task, "Medication list updated");
   saveState();
+  if (activeMedicationTaskId === task.id) renderMedicationDialog(task);
+  render();
+}
+
+function formatShortDate(value) {
+  if (!value) return "";
+  return new Date(`${value}T00:00:00`).toLocaleDateString([], {
+    year: "numeric",
+    month: "short",
+    day: "numeric"
+  });
 }
 
 function getCategories() {
@@ -3591,6 +3661,8 @@ const emailDashboardReportBtn = document.querySelector("#emailDashboardReportBtn
 if (emailDashboardReportBtn) {
   emailDashboardReportBtn.addEventListener("click", emailUrgencyReport);
 }
+document.querySelector("#closeMedicationDialog").addEventListener("click", closeMedicationDialog);
+document.querySelector("#doneMedicationDialogBtn").addEventListener("click", closeMedicationDialog);
 document.querySelector("#htmlEmailUrgencyReportBtn").addEventListener("click", downloadUrgencyReportHtml);
 document.querySelector("#htmlEmailDashboardReportBtn").addEventListener("click", downloadUrgencyReportHtml);
 searchInput.addEventListener("input", render);

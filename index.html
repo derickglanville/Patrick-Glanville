@@ -411,6 +411,22 @@
     </div>
   </dialog>
 
+  <dialog id="medicationDialog">
+    <div class="history-dialog medication-dialog-shell">
+      <div class="dialog-head">
+        <h2>Medication List</h2>
+        <button type="button" id="closeMedicationDialog" class="icon-button" aria-label="Close">x</button>
+      </div>
+      <p class="documents-note">Update medication name, dosage, and refill dates here, then close the window to return to the card.</p>
+      <div id="medicationDialogBody" class="medication-dialog-body"></div>
+      <div class="dialog-actions">
+        <span></span>
+        <span></span>
+        <button type="button" id="doneMedicationDialogBtn" class="ghost">Done</button>
+      </div>
+    </div>
+  </dialog>
+
   <dialog id="accountGateDialog">
     <form id="accountGateForm" class="account-gate-dialog" novalidate>
       <div class="dialog-head">

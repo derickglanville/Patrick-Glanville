@@ -872,6 +872,15 @@ textarea {
   background: #fbfcfe;
 }
 
+.medication-summary-section {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfe;
+}
+
 .medication-grid-header {
   display: flex;
   justify-content: space-between;
@@ -882,6 +891,29 @@ textarea {
 
 .medication-grid-header strong {
   font-size: .95rem;
+}
+
+.medication-summary-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.medication-summary-metrics article {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: white;
+}
+
+.medication-summary-metrics strong {
+  display: block;
+  font-size: 1.05rem;
+}
+
+.medication-summary-metrics span {
+  color: var(--muted);
+  font-size: .85rem;
 }
 
 .medication-grid {
@@ -906,6 +938,24 @@ textarea {
 
 .medication-remove-button {
   min-height: 40px;
+}
+
+.medication-dialog-shell {
+  width: 100%;
+  max-width: none;
+}
+
+.medication-dialog-body {
+  margin-top: 14px;
+  overflow-x: auto;
+}
+
+.medication-grid-dialog {
+  background: white;
+}
+
+#medicationDialog {
+  width: min(1180px, calc(100vw - 16px));
 }
 
 .task-card footer {
@@ -1388,6 +1438,10 @@ dialog::backdrop {
 
   .medication-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .medication-summary-metrics {
+    grid-template-columns: 1fr;
   }
 }
 
