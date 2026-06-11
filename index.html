@@ -67,27 +67,40 @@
   </header>
 
   <main>
-    <section class="overview" aria-label="Situation overview">
-      <article>
-        <span class="metric-label">Car repair estimate</span>
-        <strong>$6,000</strong>
-        <span>2023 Kia damaged while working Uber Eats</span>
-      </article>
-      <article>
-        <span class="metric-label">Loan balance</span>
-        <strong>$15,000</strong>
-        <span>Clarify lender, hardship options, and status</span>
-      </article>
-      <article>
-        <span class="metric-label">Primary risk</span>
-        <strong>No transport</strong>
-        <span>Compare bicycle, Turo, and rental costs against actual income</span>
-      </article>
-      <article>
-        <span class="metric-label">Support needs</span>
-        <strong>Anxiety</strong>
-        <span>Track mental health, honesty, and Plan B steps</span>
-      </article>
+    <section class="budget-panel" id="overviewPanel" aria-label="Situation overview">
+      <header>
+        <div>
+          <h2>Situation Overview</h2>
+          <p>Quick summary of the most important financial, transportation, and support risks.</p>
+        </div>
+        <div class="panel-actions">
+          <button id="toggleOverviewBtn" type="button" class="ghost">Show Situation Overview</button>
+        </div>
+      </header>
+      <div class="collapsible-content" id="overviewContent">
+        <div class="overview">
+          <article>
+            <span class="metric-label">Car repair estimate</span>
+            <strong>$6,000</strong>
+            <span>2023 Kia damaged while working Uber Eats</span>
+          </article>
+          <article>
+            <span class="metric-label">Loan balance</span>
+            <strong>$15,000</strong>
+            <span>Clarify lender, hardship options, and status</span>
+          </article>
+          <article>
+            <span class="metric-label">Primary risk</span>
+            <strong>No transport</strong>
+            <span>Compare bicycle, Turo, and rental costs against actual income</span>
+          </article>
+          <article>
+            <span class="metric-label">Support needs</span>
+            <strong>Anxiety</strong>
+            <span>Track mental health, honesty, and Plan B steps</span>
+          </article>
+        </div>
+      </div>
     </section>
 
     <section class="controls" aria-label="Task controls">

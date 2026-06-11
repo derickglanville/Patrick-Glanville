@@ -133,6 +133,7 @@ const seedData = {
   lastSavedAt: "",
   panelVisibilityVersion: PANEL_VISIBILITY_VERSION,
   hiddenPanels: {
+    overview: true,
     patrickWatch: true,
     bills: true,
     lifeAdmin: true
@@ -635,6 +636,9 @@ const runningNotesList = document.querySelector("#runningNotesList");
 const taskDialog = document.querySelector("#taskDialog");
 const taskForm = document.querySelector("#taskForm");
 const userSelect = document.querySelector("#userSelect");
+const overviewPanel = document.querySelector("#overviewPanel");
+const overviewContent = document.querySelector("#overviewContent");
+const toggleOverviewBtn = document.querySelector("#toggleOverviewBtn");
 const accountGateDialog = document.querySelector("#accountGateDialog");
 const accountGateForm = document.querySelector("#accountGateForm");
 const accountGateSelect = document.querySelector("#accountGateSelect");
@@ -761,11 +765,12 @@ function initializeState(loaded) {
   loaded.runningNotes = normalizeRunningNotes(loaded.runningNotes, loaded.notes);
   loaded.documents = normalizeDocuments(loaded.documents);
   if (loaded.panelVisibilityVersion !== PANEL_VISIBILITY_VERSION) {
-    loaded.hiddenPanels = { patrickWatch: true, bills: true, lifeAdmin: true };
+    loaded.hiddenPanels = { overview: true, patrickWatch: true, bills: true, lifeAdmin: true };
     loaded.panelVisibilityVersion = PANEL_VISIBILITY_VERSION;
     panelVisibilityReset = true;
   } else {
     loaded.hiddenPanels = {
+      overview: loaded.hiddenPanels?.overview ?? true,
       patrickWatch: loaded.hiddenPanels?.patrickWatch ?? true,
       bills: Boolean(loaded.hiddenPanels?.bills),
       lifeAdmin: Boolean(loaded.hiddenPanels?.lifeAdmin)
@@ -1452,7 +1457,7 @@ function renderPatrickWatch() {
   patrickWatchPanel.hidden = !isDeric;
   if (!isDeric) return;
 
-  setPanelHidden(
+  setPanelCollapsed(
     patrickWatchPanel,
     patrickWatchContent,
     togglePatrickWatchBtn,
@@ -1856,12 +1861,12 @@ function taskGroupName(category = "N/A") {
 }
 
 function renderPanelVisibility() {
-  setPanelHidden(
-    patrickWatchPanel,
-    patrickWatchContent,
-    togglePatrickWatchBtn,
-    state.hiddenPanels.patrickWatch,
-    "Patrick Change Watch"
+  setPanelCollapsed(
+    overviewPanel,
+    overviewContent,
+    toggleOverviewBtn,
+    state.hiddenPanels.overview,
+    "Situation Overview"
   );
   setPanelHidden(
     budgetPanel,
@@ -1882,6 +1887,16 @@ function renderPanelVisibility() {
 function setPanelHidden(panel, content, button, hidden, label) {
   panel.hidden = hidden;
   content.hidden = hidden;
+  panel.classList.toggle("panel-collapsed", hidden);
+  button.textContent = hidden ? `Show ${label}` : `Hide ${label}`;
+  button.setAttribute("aria-expanded", String(!hidden));
+  button.setAttribute("aria-label", `${hidden ? "Show" : "Hide"} ${label}`);
+}
+
+function setPanelCollapsed(panel, content, button, hidden, label) {
+  panel.hidden = false;
+  content.hidden = hidden;
+  panel.classList.toggle("panel-collapsed", hidden);
   button.textContent = hidden ? `Show ${label}` : `Hide ${label}`;
   button.setAttribute("aria-expanded", String(!hidden));
   button.setAttribute("aria-label", `${hidden ? "Show" : "Hide"} ${label}`);
@@ -3692,6 +3707,11 @@ togglePatrickWatchBtn.addEventListener("click", () => {
   state.hiddenPanels.patrickWatch = !state.hiddenPanels.patrickWatch;
   saveState();
   renderPatrickWatch();
+});
+toggleOverviewBtn.addEventListener("click", () => {
+  state.hiddenPanels.overview = !state.hiddenPanels.overview;
+  saveState();
+  renderPanelVisibility();
 });
 billMonthInput.addEventListener("change", () => {
   state.billMonth = billMonthInput.value || defaultBillMonth();
