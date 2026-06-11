@@ -863,6 +863,51 @@ textarea {
   padding-left: 10px;
 }
 
+.medication-grid-section {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfe;
+}
+
+.medication-grid-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.medication-grid-header strong {
+  font-size: .95rem;
+}
+
+.medication-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) minmax(130px, .9fr) minmax(150px, .9fr) 90px;
+  gap: 10px;
+  align-items: center;
+}
+
+.medication-grid-label {
+  color: var(--muted);
+  font-size: .8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+.medication-grid-empty {
+  color: var(--muted);
+  font-size: .92rem;
+}
+
+.medication-remove-button {
+  min-height: 40px;
+}
+
 .task-card footer {
   display: flex;
   flex-wrap: wrap;
@@ -1340,6 +1385,10 @@ dialog::backdrop {
   .life-admin-panel header {
     flex-direction: column;
   }
+
+  .medication-grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 620px) {
@@ -1357,6 +1406,10 @@ dialog::backdrop {
 
   .header-actions {
     justify-content: flex-start;
+  }
+
+  .medication-grid {
+    grid-template-columns: 1fr;
   }
 }
 

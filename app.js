@@ -22,6 +22,7 @@ const EMAIL_REPORT_RECIPIENTS = [
   DERIC_EMAIL,
   PATRICK_EMAIL
 ];
+const MEDICATION_LIST_TASK_TITLE = "Create medication list with dosage and refill dates";
 let supabaseClient = null;
 let supabaseEnabled = false;
 let supabaseStatus = "Local browser storage";
@@ -73,6 +74,12 @@ const taskGroupOrder = [
   "Family, Plan, and Accountability",
   "Other"
 ];
+const healthAndInsuranceCardOrder = [
+  "Get health insurance before current coverage expires",
+  MEDICATION_LIST_TASK_TITLE,
+  "Assess depression and anxiety impact on job search",
+  "Look into life insurance through Ethos"
+];
 const defaultExpandedTaskGroups = [
   "Jobs and Income",
   "Benefits and Assistance",
@@ -114,6 +121,10 @@ function isClosedTaskStatus(status) {
 function isClosedTask(task) {
   if (!task) return false;
   return isClosedTaskStatus(task.status) || normalizePercent(task.percent) === 100;
+}
+
+function isMedicationGridTask(task) {
+  return (task?.title || "").trim().toLowerCase() === MEDICATION_LIST_TASK_TITLE.toLowerCase();
 }
 
 const seedData = {
@@ -398,6 +409,31 @@ const seedData = {
       due: "",
       next: "Review Ethos quote options and decide whether coverage is affordable after urgent cash-flow problems are stabilized.",
       notes: "Website: https://www.ethos.com/. Track premium, term, benefit amount, exclusions, and health questions."
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "Get health insurance before current coverage expires",
+      category: "Insurance",
+      owner: "Patrick + brother",
+      status: "Not started",
+      priority: "Urgent",
+      due: "",
+      next: "Confirm the current insurance end date, compare replacement coverage options, and apply for a new plan before there is a gap in coverage for appointments or medication.",
+      notes: "Track current expiration date, marketplace or employer options, monthly premium, deductible, out-of-pocket maximum, cardiology and primary-care network coverage, prescription coverage, and the exact date new insurance becomes active."
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "Create medication list with dosage and refill dates",
+      category: "Health",
+      owner: "Patrick + brother",
+      status: "Not started",
+      priority: "Urgent",
+      due: "",
+      next: "List every current medication, dosage, prescribing doctor, pharmacy, refill date, and how many days of supply remain.",
+      notes: "Use this notes field to track medication details, refill timing, side effects, copay, prior authorization issues, pharmacy contact information, and any gaps caused by insurance changes.",
+      medications: [
+        { id: crypto.randomUUID(), name: "", dosage: "", refillDate: "" }
+      ]
     },
     {
       id: crypto.randomUUID(),
@@ -739,7 +775,7 @@ function initializeState(loaded) {
   loaded.lifeAdminNotes = Array.isArray(loaded.lifeAdminNotes)
     ? loaded.lifeAdminNotes.map(normalizeLifeAdminNote)
     : structuredClone(seedData.lifeAdminNotes).map(normalizeLifeAdminNote);
-  loaded.tasks = loaded.tasks.map(task => syncTaskCompletionState({
+  loaded.tasks = loaded.tasks.map(task => normalizeTaskState({
     percent: statusToPercent(task.status),
     comments: [],
     ...task,
@@ -809,6 +845,21 @@ function normalizeLifeAdminNote(note) {
     status: ["Open", "In progress", "Done", "N/A"].includes(note.status) ? note.status : "Open",
     notes: note.notes || ""
   };
+}
+
+function normalizeMedicationEntry(entry = {}) {
+  return {
+    id: entry.id || crypto.randomUUID(),
+    name: entry.name || "",
+    dosage: entry.dosage || "",
+    refillDate: entry.refillDate || ""
+  };
+}
+
+function normalizeMedicationEntries(entries) {
+  return Array.isArray(entries)
+    ? entries.map(entry => normalizeMedicationEntry(entry))
+    : [];
 }
 
 function normalizeRunningNotes(notes, legacyText = "") {
@@ -954,6 +1005,17 @@ function syncTaskCompletionState(task) {
   }
 
   return task;
+}
+
+function normalizeTaskState(task) {
+  const normalizedTask = syncTaskCompletionState(task);
+  if (isMedicationGridTask(normalizedTask)) {
+    normalizedTask.medications = normalizeMedicationEntries(normalizedTask.medications);
+    if (!normalizedTask.medications.length) {
+      normalizedTask.medications = [normalizeMedicationEntry()];
+    }
+  }
+  return normalizedTask;
 }
 
 function statusToPercent(status) {
@@ -1986,6 +2048,12 @@ function deleteLifeAdminNote(id) {
 
 function sortTasksForDashboard(tasks) {
   return [...tasks].sort((a, b) => {
+    const groupDifference = taskGroupRank(taskGroupName(a.category)) - taskGroupRank(taskGroupName(b.category));
+    if (groupDifference) return groupDifference;
+
+    const dashboardOrderDifference = dashboardTaskOrderRank(a) - dashboardTaskOrderRank(b);
+    if (dashboardOrderDifference) return dashboardOrderDifference;
+
     const categoryDifference = categoryRank(a.category) - categoryRank(b.category);
     if (categoryDifference) return categoryDifference;
     const priorityDifference = priorityRank(a.priority) - priorityRank(b.priority);
@@ -1995,6 +2063,15 @@ function sortTasksForDashboard(tasks) {
     if (a.due && b.due && a.due !== b.due) return a.due.localeCompare(b.due);
     return a.title.localeCompare(b.title);
   });
+}
+
+function dashboardTaskOrderRank(task) {
+  const groupName = taskGroupName(task?.category);
+  if (groupName === "Health and Insurance") {
+    const index = healthAndInsuranceCardOrder.indexOf(task?.title || "");
+    return index >= 0 ? index : healthAndInsuranceCardOrder.length;
+  }
+  return Number.MAX_SAFE_INTEGER;
 }
 
 function categoryRank(category) {
@@ -2111,6 +2188,10 @@ function createTaskCard(task) {
   notes.className = "task-meta";
   notes.textContent = task.notes || "No notes yet.";
 
+  const medicationGrid = isMedicationGridTask(task)
+    ? createMedicationGrid(task)
+    : null;
+
   const latestComment = document.createElement("p");
   latestComment.className = "latest-comment";
   latestComment.textContent = formatLatestComment(task);
@@ -2178,8 +2259,102 @@ function createTaskCard(task) {
   edit.addEventListener("click", () => openTask(task.id));
 
   footer.append(categorySelect, select, prioritySelect, edit);
-  card.append(header, meta, dueWrap, percentWrap, meter, next, notes, latestComment, footer);
+  card.append(header, meta, dueWrap, percentWrap, meter, next, notes);
+  if (medicationGrid) card.appendChild(medicationGrid);
+  card.append(latestComment, footer);
   return card;
+}
+
+function createMedicationGrid(task) {
+  task.medications = normalizeMedicationEntries(task.medications);
+
+  const section = document.createElement("section");
+  section.className = "medication-grid-section";
+
+  const header = document.createElement("div");
+  header.className = "medication-grid-header";
+
+  const title = document.createElement("strong");
+  title.textContent = "Medication list";
+
+  const addButton = document.createElement("button");
+  addButton.type = "button";
+  addButton.className = "ghost";
+  addButton.textContent = "Add medication";
+  addButton.addEventListener("click", () => {
+    task.medications.push(normalizeMedicationEntry());
+    recordUpdate(task, "Medication row added");
+    saveState();
+    render();
+  });
+
+  header.append(title, addButton);
+
+  if (!task.medications.length) {
+    const empty = document.createElement("p");
+    empty.className = "medication-grid-empty";
+    empty.textContent = "No medications added yet.";
+    section.append(header, empty);
+    return section;
+  }
+
+  const grid = document.createElement("div");
+  grid.className = "medication-grid";
+  grid.innerHTML = `
+    <span class="medication-grid-label">Medication name</span>
+    <span class="medication-grid-label">Dosage</span>
+    <span class="medication-grid-label">Refill date</span>
+    <span class="medication-grid-label">Action</span>
+  `;
+
+  task.medications.forEach(entry => {
+    const nameInput = document.createElement("input");
+    nameInput.type = "text";
+    nameInput.placeholder = "Medication name";
+    nameInput.value = entry.name || "";
+    nameInput.addEventListener("change", () => updateMedicationEntry(task, entry.id, "name", nameInput.value));
+
+    const dosageInput = document.createElement("input");
+    dosageInput.type = "text";
+    dosageInput.placeholder = "Dosage";
+    dosageInput.value = entry.dosage || "";
+    dosageInput.addEventListener("change", () => updateMedicationEntry(task, entry.id, "dosage", dosageInput.value));
+
+    const refillInput = document.createElement("input");
+    refillInput.type = "date";
+    refillInput.value = entry.refillDate || "";
+    refillInput.addEventListener("change", () => updateMedicationEntry(task, entry.id, "refillDate", refillInput.value));
+
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.className = "ghost medication-remove-button";
+    removeButton.textContent = "Remove";
+    removeButton.addEventListener("click", () => {
+      task.medications = task.medications.filter(item => item.id !== entry.id);
+      recordUpdate(task, "Medication row removed");
+      saveState();
+      render();
+    });
+
+    grid.append(nameInput, dosageInput, refillInput, removeButton);
+  });
+
+  section.append(header, grid);
+  return section;
+}
+
+function updateMedicationEntry(task, entryId, field, value) {
+  task.medications = normalizeMedicationEntries(task.medications);
+  const entry = task.medications.find(item => item.id === entryId);
+  if (!entry) return;
+
+  const before = entry[field] || "";
+  const after = typeof value === "string" ? value.trim() : value;
+  if (before === after) return;
+
+  entry[field] = after;
+  recordUpdate(task, "Medication list updated");
+  saveState();
 }
 
 function getCategories() {
@@ -3368,9 +3543,12 @@ taskForm.addEventListener("submit", event => {
     createdAt: existing?.createdAt || new Date().toISOString(),
     tag: nextTag || undefined,
     tagTone: nextTag ? (nextTagTone || undefined) : undefined,
-    comments
+    comments,
+    medications: isMedicationGridTask(existing || { title: fields.title.value.trim() })
+      ? normalizeMedicationEntries(existing?.medications)
+      : undefined
   };
-  syncTaskCompletionState(task);
+  normalizeTaskState(task);
   const index = state.tasks.findIndex(item => item.id === task.id);
   if (index >= 0) state.tasks[index] = task;
   else state.tasks.unshift(task);
