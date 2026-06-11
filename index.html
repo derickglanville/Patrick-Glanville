@@ -158,23 +158,26 @@
           <p>Visible only for Deric. Review Patrick's recent tracker updates here if email notifications are unavailable.</p>
         </div>
         <div class="panel-actions">
+          <button id="togglePatrickWatchBtn" type="button" class="ghost">Show</button>
           <button id="markPatrickReviewedBtn" type="button" class="ghost">Review All Open</button>
           <button id="closeAllPatrickBtn" type="button" class="ghost">Approve &amp; Close All</button>
         </div>
       </header>
-      <div class="patrick-watch-summary">
-        <article><strong id="patrickPendingCount">0</strong><span>open Patrick changes</span></article>
-        <article><strong id="patrickLatestChangeAt">None</strong><span>latest Patrick update</span></article>
-        <article><strong id="patrickLastReviewedAt">Never</strong><span>last reviewed</span></article>
-      </div>
-      <div class="patrick-watch-toolbar" aria-label="Patrick change watch filters">
-        <div class="segmented-toggle">
-          <button id="patrickViewOpenBtn" type="button" class="ghost">Open</button>
-          <button id="patrickViewClosedBtn" type="button" class="ghost">Closed</button>
-          <button id="patrickViewAllBtn" type="button" class="ghost">All</button>
+      <div class="collapsible-content" id="patrickWatchContent">
+        <div class="patrick-watch-summary">
+          <article><strong id="patrickPendingCount">0</strong><span>open Patrick changes</span></article>
+          <article><strong id="patrickLatestChangeAt">None</strong><span>latest Patrick update</span></article>
+          <article><strong id="patrickLastReviewedAt">Never</strong><span>last reviewed</span></article>
         </div>
+        <div class="patrick-watch-toolbar" aria-label="Patrick change watch filters">
+          <div class="segmented-toggle">
+            <button id="patrickViewOpenBtn" type="button" class="ghost">Open</button>
+            <button id="patrickViewClosedBtn" type="button" class="ghost">Closed</button>
+            <button id="patrickViewAllBtn" type="button" class="ghost">All</button>
+          </div>
+        </div>
+        <div id="patrickWatchList" class="patrick-watch-list"></div>
       </div>
-      <div id="patrickWatchList" class="patrick-watch-list"></div>
     </section>
 
     <section class="optional-section-controls" aria-label="Optional dashboard sections">

@@ -133,6 +133,7 @@ const seedData = {
   lastSavedAt: "",
   panelVisibilityVersion: PANEL_VISIBILITY_VERSION,
   hiddenPanels: {
+    patrickWatch: true,
     bills: true,
     lifeAdmin: true
   },
@@ -660,6 +661,8 @@ const budgetPanel = document.querySelector("#budgetPanel");
 const budgetPanelContent = document.querySelector("#budgetPanelContent");
 const lifeAdminPanel = document.querySelector("#lifeAdminPanel");
 const lifeAdminPanelContent = document.querySelector("#lifeAdminPanelContent");
+const patrickWatchContent = document.querySelector("#patrickWatchContent");
+const togglePatrickWatchBtn = document.querySelector("#togglePatrickWatchBtn");
 const toggleBillsBtn = document.querySelector("#toggleBillsBtn");
 const toggleLifeAdminBtn = document.querySelector("#toggleLifeAdminBtn");
 const hideBillsBtn = document.querySelector("#hideBillsBtn");
@@ -758,11 +761,12 @@ function initializeState(loaded) {
   loaded.runningNotes = normalizeRunningNotes(loaded.runningNotes, loaded.notes);
   loaded.documents = normalizeDocuments(loaded.documents);
   if (loaded.panelVisibilityVersion !== PANEL_VISIBILITY_VERSION) {
-    loaded.hiddenPanels = { bills: true, lifeAdmin: true };
+    loaded.hiddenPanels = { patrickWatch: true, bills: true, lifeAdmin: true };
     loaded.panelVisibilityVersion = PANEL_VISIBILITY_VERSION;
     panelVisibilityReset = true;
   } else {
     loaded.hiddenPanels = {
+      patrickWatch: loaded.hiddenPanels?.patrickWatch ?? true,
       bills: Boolean(loaded.hiddenPanels?.bills),
       lifeAdmin: Boolean(loaded.hiddenPanels?.lifeAdmin)
     };
@@ -1448,6 +1452,14 @@ function renderPatrickWatch() {
   patrickWatchPanel.hidden = !isDeric;
   if (!isDeric) return;
 
+  setPanelHidden(
+    patrickWatchPanel,
+    patrickWatchContent,
+    togglePatrickWatchBtn,
+    state.hiddenPanels.patrickWatch,
+    "Patrick Change Watch"
+  );
+
   const patrickEntries = state.history
     .filter(entry => entry.userEmail === "patrick.glanville@gmail.com")
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
@@ -1844,6 +1856,13 @@ function taskGroupName(category = "N/A") {
 }
 
 function renderPanelVisibility() {
+  setPanelHidden(
+    patrickWatchPanel,
+    patrickWatchContent,
+    togglePatrickWatchBtn,
+    state.hiddenPanels.patrickWatch,
+    "Patrick Change Watch"
+  );
   setPanelHidden(
     budgetPanel,
     budgetPanelContent,
@@ -3669,6 +3688,11 @@ searchInput.addEventListener("input", render);
 statusFilter.addEventListener("change", render);
 priorityFilter.addEventListener("change", render);
 categoryFilter.addEventListener("change", render);
+togglePatrickWatchBtn.addEventListener("click", () => {
+  state.hiddenPanels.patrickWatch = !state.hiddenPanels.patrickWatch;
+  saveState();
+  renderPatrickWatch();
+});
 billMonthInput.addEventListener("change", () => {
   state.billMonth = billMonthInput.value || defaultBillMonth();
   saveState();
