@@ -23,6 +23,9 @@ const EMAIL_REPORT_RECIPIENTS = [
   PATRICK_EMAIL
 ];
 const MEDICATION_LIST_TASK_TITLE = "Create medication list with dosage and refill dates";
+const HEALTH_INSURANCE_TASK_TITLE = "Get health insurance before current coverage expires";
+const DEPRESSION_TASK_TITLE = "Assess depression and anxiety impact on job search";
+const ETHOS_TASK_TITLE = "Look into life insurance through Ethos";
 let supabaseClient = null;
 let supabaseEnabled = false;
 let supabaseStatus = "Local browser storage";
@@ -75,10 +78,10 @@ const taskGroupOrder = [
   "Other"
 ];
 const healthAndInsuranceCardOrder = [
-  "Get health insurance before current coverage expires",
-  MEDICATION_LIST_TASK_TITLE,
-  "Assess depression and anxiety impact on job search",
-  "Look into life insurance through Ethos"
+  buildSeedTaskKey(HEALTH_INSURANCE_TASK_TITLE),
+  buildSeedTaskKey(MEDICATION_LIST_TASK_TITLE),
+  buildSeedTaskKey(DEPRESSION_TASK_TITLE),
+  buildSeedTaskKey(ETHOS_TASK_TITLE)
 ];
 const defaultExpandedTaskGroups = [
   "Jobs and Income",
@@ -123,8 +126,27 @@ function isClosedTask(task) {
   return isClosedTaskStatus(task.status) || normalizePercent(task.percent) === 100;
 }
 
+function buildSeedTaskKey(title = "") {
+  return String(title)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function isMedicationLikeTask(task) {
+  const title = (task?.title || "").toLowerCase();
+  const next = (task?.next || "").toLowerCase();
+  const notes = (task?.notes || "").toLowerCase();
+  return (
+    (title.includes("medication") && title.includes("dosage") && title.includes("refill"))
+    || next.includes("list every current medication")
+    || notes.includes("track medication details")
+  );
+}
+
 function isMedicationGridTask(task) {
-  return (task?.title || "").trim().toLowerCase() === MEDICATION_LIST_TASK_TITLE.toLowerCase();
+  return task?.seedKey === buildSeedTaskKey(MEDICATION_LIST_TASK_TITLE) || isMedicationLikeTask(task);
 }
 
 const seedData = {
@@ -620,6 +642,14 @@ const seedData = {
   ]
 };
 
+seedData.tasks.forEach(task => {
+  task.seedKey = task.seedKey || buildSeedTaskKey(task.title);
+});
+
+const seedTaskTitleByKey = Object.fromEntries(
+  seedData.tasks.map(task => [task.seedKey, task.title])
+);
+
 let state = loadState();
 let patrickWatchState = loadPatrickWatchState();
 
@@ -675,9 +705,9 @@ const pdfUploadInput = document.querySelector("#pdfUploadInput");
 const documentsList = document.querySelector("#documentsList");
 const markPatrickReviewedBtn = document.querySelector("#markPatrickReviewedBtn");
 const closeAllPatrickBtn = document.querySelector("#closeAllPatrickBtn");
+const patrickTodayCount = document.querySelector("#patrickTodayCount");
 const patrickPendingCount = document.querySelector("#patrickPendingCount");
-const patrickLatestChangeAt = document.querySelector("#patrickLatestChangeAt");
-const patrickLastReviewedAt = document.querySelector("#patrickLastReviewedAt");
+const patrickClosedCount = document.querySelector("#patrickClosedCount");
 const patrickWatchList = document.querySelector("#patrickWatchList");
 const patrickViewOpenBtn = document.querySelector("#patrickViewOpenBtn");
 const patrickViewClosedBtn = document.querySelector("#patrickViewClosedBtn");
@@ -752,7 +782,8 @@ function initializeState(loaded) {
   loaded = loaded && typeof loaded === "object" ? loaded : structuredClone(seedData);
   loaded.notes = loaded.notes || "";
   loaded.tasks = Array.isArray(loaded.tasks) ? loaded.tasks : structuredClone(seedData.tasks);
-  addMissingSeedTasks(loaded);
+  let stateAdjusted = assignSeedKeys(loaded.tasks);
+  stateAdjusted = addMissingSeedTasks(loaded) || stateAdjusted;
   loaded.bills = Array.isArray(loaded.bills) ? loaded.bills : structuredClone(seedData.bills);
   ensureSeedBills(loaded);
   loaded.dataVersion = Number(loaded.dataVersion) || DATA_VERSION;
@@ -796,7 +827,8 @@ function initializeState(loaded) {
     percent: normalizePercent(task.percent ?? statusToPercent(task.status)),
     comments: Array.isArray(task.comments) ? task.comments : []
   }));
-  if (panelVisibilityReset) {
+  stateAdjusted = dedupeTasksBySeedKey(loaded.tasks) || stateAdjusted;
+  if (panelVisibilityReset || stateAdjusted) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(loaded));
   }
   return loaded;
@@ -1021,6 +1053,7 @@ function syncTaskCompletionState(task) {
 
 function normalizeTaskState(task) {
   const normalizedTask = syncTaskCompletionState(task);
+  normalizedTask.seedKey = normalizedTask.seedKey || inferSeedTaskKey(normalizedTask);
   if (isMedicationGridTask(normalizedTask)) {
     normalizedTask.medications = normalizeMedicationEntries(normalizedTask.medications);
     if (!normalizedTask.medications.length) {
@@ -1039,15 +1072,39 @@ function statusToPercent(status) {
   return 0;
 }
 
+function inferSeedTaskKey(task) {
+  if (!task) return "";
+  if (task.seedKey) return task.seedKey;
+  if (isMedicationLikeTask(task)) return buildSeedTaskKey(MEDICATION_LIST_TASK_TITLE);
+  const exactSeedTask = seedData.tasks.find(seedTask => seedTask.title === task.title);
+  return exactSeedTask?.seedKey || "";
+}
+
+function assignSeedKeys(tasks) {
+  let changed = false;
+  tasks.forEach(task => {
+    const inferredSeedKey = inferSeedTaskKey(task);
+    if (inferredSeedKey && task.seedKey !== inferredSeedKey) {
+      task.seedKey = inferredSeedKey;
+      changed = true;
+    }
+  });
+  return changed;
+}
+
 function addMissingSeedTasks(loaded) {
   markUpdatedSections(loaded.tasks);
+  const existingSeedKeys = new Set(loaded.tasks.map(task => task.seedKey).filter(Boolean));
   const existingTitles = new Set(loaded.tasks.map(task => task.title));
+  let changed = false;
   seedData.tasks.forEach(task => {
-    if (!existingTitles.has(task.title)) {
+    if (!existingSeedKeys.has(task.seedKey) && !existingTitles.has(task.title)) {
       loaded.tasks.push(structuredClone(task));
+      changed = true;
     }
   });
   markUpdatedSections(loaded.tasks);
+  return changed;
 }
 
 function applyDataMigrations(loaded) {
@@ -1111,10 +1168,17 @@ function updateTaskFields(tasks, title, updates) {
 function mergeTaskData(primary, duplicate) {
   if (!primary || !duplicate) return;
 
+  primary.seedKey = primary.seedKey || duplicate.seedKey || inferSeedTaskKey(primary) || inferSeedTaskKey(duplicate);
+  const seedTitle = primary.seedKey ? seedTaskTitleByKey[primary.seedKey] : "";
+  if (seedTitle && primary.title === seedTitle && duplicate.title && duplicate.title !== seedTitle) {
+    primary.title = duplicate.title;
+  }
+
   if ((!primary.owner || primary.owner === "No owner") && duplicate.owner) primary.owner = duplicate.owner;
   if ((!primary.due) && duplicate.due) primary.due = duplicate.due;
   if ((!primary.next || primary.next === "No next step recorded.") && duplicate.next) primary.next = duplicate.next;
   if ((!primary.notes || primary.notes === "No notes yet.") && duplicate.notes) primary.notes = duplicate.notes;
+  if ((!primary.createdAt) || (duplicate.createdAt && duplicate.createdAt < primary.createdAt)) primary.createdAt = duplicate.createdAt;
 
   primary.percent = Math.max(normalizePercent(primary.percent), normalizePercent(duplicate.percent));
 
@@ -1137,8 +1201,51 @@ function mergeTaskData(primary, duplicate) {
   });
   primary.comments = primaryComments;
 
+  const primaryMedications = normalizeMedicationEntries(primary.medications);
+  const duplicateMedications = normalizeMedicationEntries(duplicate.medications);
+  const primaryHasMedicationValues = primaryMedications.some(entry => entry.name || entry.dosage || entry.refillDate);
+  const duplicateHasMedicationValues = duplicateMedications.some(entry => entry.name || entry.dosage || entry.refillDate);
+  if (!primaryHasMedicationValues && duplicateHasMedicationValues) {
+    primary.medications = duplicateMedications;
+  }
+
   if (!primary.tag && duplicate.tag) primary.tag = duplicate.tag;
   if (!primary.tagTone && duplicate.tagTone) primary.tagTone = duplicate.tagTone;
+}
+
+function taskMergeScore(task) {
+  const medications = normalizeMedicationEntries(task.medications);
+  const medicationValueCount = medications.filter(entry => entry.name || entry.dosage || entry.refillDate).length;
+  const commentCount = Array.isArray(task.comments) ? task.comments.length : 0;
+  const seedTitle = task.seedKey ? seedTaskTitleByKey[task.seedKey] : "";
+  const customTitleBonus = seedTitle && task.title && task.title !== seedTitle ? 25 : 0;
+  return (medicationValueCount * 30) + (commentCount * 15) + normalizePercent(task.percent) + customTitleBonus;
+}
+
+function dedupeTasksBySeedKey(tasks) {
+  const matchesBySeedKey = new Map();
+  tasks.forEach(task => {
+    if (!task.seedKey) return;
+    if (!matchesBySeedKey.has(task.seedKey)) matchesBySeedKey.set(task.seedKey, []);
+    matchesBySeedKey.get(task.seedKey).push(task);
+  });
+
+  let changed = false;
+  matchesBySeedKey.forEach(matches => {
+    if (matches.length <= 1) return;
+    const primary = [...matches].sort((a, b) => taskMergeScore(b) - taskMergeScore(a))[0];
+    matches.forEach(duplicate => {
+      if (duplicate === primary) return;
+      mergeTaskData(primary, duplicate);
+      const index = tasks.indexOf(duplicate);
+      if (index >= 0) {
+        tasks.splice(index, 1);
+        changed = true;
+      }
+    });
+    normalizeTaskState(primary);
+  });
+  return changed;
 }
 
 function dedupeTasksByTitle(tasks, title) {
@@ -1469,8 +1576,7 @@ function renderPatrickWatch() {
     .filter(entry => entry.userEmail === "patrick.glanville@gmail.com")
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 
-  const latestPatrickEntry = patrickEntries[0] || null;
-  const reviewedAt = patrickWatchState.lastReviewedAt || "";
+  const todayEntries = patrickEntries.filter(entry => isEasternDateToday(entry.createdAt));
   const openEntries = patrickEntries.filter(entry => !isPatrickEntryClosed(entry));
   const closedEntries = patrickEntries.filter(isPatrickEntryClosed);
   const currentView = patrickWatchState.view || "open";
@@ -1480,9 +1586,9 @@ function renderPatrickWatch() {
       ? patrickEntries
       : openEntries;
 
+  patrickTodayCount.textContent = String(todayEntries.length);
   patrickPendingCount.textContent = String(openEntries.length);
-  patrickLatestChangeAt.textContent = latestPatrickEntry ? formatDateTime(latestPatrickEntry.createdAt) : "None";
-  patrickLastReviewedAt.textContent = reviewedAt ? formatDateTime(reviewedAt) : "Never";
+  patrickClosedCount.textContent = String(closedEntries.length);
   patrickViewOpenBtn.classList.toggle("is-active", currentView === "open");
   patrickViewClosedBtn.classList.toggle("is-active", currentView === "closed");
   patrickViewAllBtn.classList.toggle("is-active", currentView === "all");
@@ -1555,6 +1661,23 @@ function renderPatrickWatch() {
     }
     patrickWatchList.appendChild(item);
   });
+}
+
+function isEasternDateToday(value) {
+  if (!value) return false;
+  const easternToday = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date());
+  const easternValueDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date(value));
+  return easternValueDate === easternToday;
 }
 
 function renderRunningNotes() {
@@ -2105,7 +2228,7 @@ function sortTasksForDashboard(tasks) {
 function dashboardTaskOrderRank(task) {
   const groupName = taskGroupName(task?.category);
   if (groupName === "Health and Insurance") {
-    const index = healthAndInsuranceCardOrder.indexOf(task?.title || "");
+    const index = healthAndInsuranceCardOrder.indexOf(task?.seedKey || buildSeedTaskKey(task?.title || ""));
     return index >= 0 ? index : healthAndInsuranceCardOrder.length;
   }
   return Number.MAX_SAFE_INTEGER;
@@ -2154,8 +2277,29 @@ function createTaskCard(task) {
   if ((task.category || "").startsWith("Job -")) card.classList.add("job-card");
 
   const header = document.createElement("header");
-  const title = document.createElement("h2");
-  title.textContent = task.title;
+  const titleInput = document.createElement("input");
+  titleInput.type = "text";
+  titleInput.className = "task-title-input";
+  titleInput.value = task.title || "";
+  titleInput.setAttribute("aria-label", "Task title");
+  const saveTitleChange = () => {
+    const nextTitle = titleInput.value.trim();
+    if (!nextTitle || nextTitle === task.title) {
+      titleInput.value = task.title || "";
+      return;
+    }
+    if (!ensureCurrentUser("rename a task")) {
+      titleInput.value = task.title || "";
+      return;
+    }
+    const before = task.title || "Untitled task";
+    task.title = nextTitle;
+    recordUpdate(task, `Title changed from ${before} to ${nextTitle}`);
+    saveState();
+    render();
+  };
+  titleInput.addEventListener("change", saveTitleChange);
+  titleInput.addEventListener("blur", saveTitleChange);
   const priority = document.createElement("span");
   priority.className = `pill ${task.priority}`;
   priority.textContent = task.priority;
@@ -2168,7 +2312,7 @@ function createTaskCard(task) {
     tag.textContent = task.tag;
     badges.appendChild(tag);
   }
-  header.append(title, badges);
+  header.append(titleInput, badges);
 
   const meta = document.createElement("div");
   meta.className = "task-meta";
@@ -2221,17 +2365,13 @@ function createTaskCard(task) {
   const next = document.createElement("p");
   next.textContent = task.next || "No next step recorded.";
 
-  const notes = document.createElement("p");
-  notes.className = "task-meta";
-  notes.textContent = task.notes || "No notes yet.";
+  const notesBox = createInlineNotesBox(task);
 
   const medicationSummary = isMedicationGridTask(task)
     ? createMedicationSummary(task)
     : null;
 
-  const latestComment = document.createElement("p");
-  latestComment.className = "latest-comment";
-  latestComment.textContent = formatLatestComment(task);
+  const commentBox = createInlineCommentBox(task);
 
   const footer = document.createElement("footer");
   const categorySelect = document.createElement("select");
@@ -2296,10 +2436,107 @@ function createTaskCard(task) {
   edit.addEventListener("click", () => openTask(task.id));
 
   footer.append(categorySelect, select, prioritySelect, edit);
-  card.append(header, meta, dueWrap, percentWrap, meter, next, notes);
+  card.append(header, meta, dueWrap, percentWrap, meter, next, notesBox);
   if (medicationSummary) card.appendChild(medicationSummary);
-  card.append(latestComment, footer);
+  card.append(commentBox, footer);
   return card;
+}
+
+function createInlineNotesBox(task) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "task-notes-box";
+
+  const textarea = document.createElement("textarea");
+  textarea.className = "task-notes-entry";
+  textarea.rows = 5;
+  textarea.value = task.notes || "";
+  textarea.placeholder = "Add or update notes here";
+
+  const saveNotesChange = () => {
+    const nextNotes = textarea.value.trim();
+    const before = task.notes || "";
+    if (nextNotes === before) return;
+    if (!ensureCurrentUser("update task notes")) {
+      textarea.value = task.notes || "";
+      return;
+    }
+    task.notes = nextNotes;
+    recordUpdate(task, "Notes updated");
+    saveState();
+    render();
+  };
+
+  textarea.addEventListener("change", saveNotesChange);
+  textarea.addEventListener("blur", saveNotesChange);
+  wrapper.appendChild(textarea);
+  return wrapper;
+}
+
+function createInlineCommentBox(task) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "task-comment-box";
+
+  const heading = document.createElement("div");
+  heading.className = "task-comment-history-label";
+  heading.textContent = "Previous entries";
+
+  const commentHistory = document.createElement("div");
+  commentHistory.className = "task-comment-history";
+  if (Array.isArray(task.comments) && task.comments.length) {
+    task.comments.slice().reverse().forEach(comment => {
+      const item = document.createElement("article");
+      item.className = "task-comment-history-item";
+      item.innerHTML = `
+        <strong>${escapeHtml(comment.authorName || "Unknown user")}</strong>
+        <span>${escapeHtml(formatDateTime(comment.createdAt))}</span>
+        <p>${escapeHtml(comment.text || "")}</p>
+      `;
+      commentHistory.appendChild(item);
+    });
+  } else {
+    const empty = document.createElement("p");
+    empty.className = "latest-comment";
+    empty.textContent = "No comments yet.";
+    commentHistory.appendChild(empty);
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.className = "task-comment-entry";
+  textarea.rows = 2;
+  textarea.placeholder = "Add comment here";
+
+  const actions = document.createElement("div");
+  actions.className = "task-comment-actions";
+
+  const addButton = document.createElement("button");
+  addButton.type = "button";
+  addButton.className = "ghost";
+  addButton.textContent = "Add comment";
+  addButton.addEventListener("click", () => addInlineTaskComment(task, textarea));
+
+  actions.appendChild(addButton);
+  wrapper.append(heading, commentHistory, textarea, actions);
+  return wrapper;
+}
+
+function addInlineTaskComment(task, textarea) {
+  const user = ensureCurrentUser("add a task comment");
+  if (!user) return;
+
+  const text = textarea.value.trim();
+  if (!text) return;
+
+  if (!Array.isArray(task.comments)) task.comments = [];
+  task.comments.push({
+    id: crypto.randomUUID(),
+    authorEmail: user.email,
+    authorName: user.name,
+    createdAt: new Date().toISOString(),
+    text
+  });
+  recordUpdate(task, "Comment added");
+  saveState();
+  render();
 }
 
 function createMedicationSummary(task) {

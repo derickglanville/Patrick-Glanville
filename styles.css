@@ -754,6 +754,23 @@ textarea {
   line-height: 1.25;
 }
 
+.task-title-input {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 0 0 4px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 1.02rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.task-title-input:focus {
+  outline: none;
+  border-bottom-color: var(--blue);
+}
+
 .badge-row {
   display: flex;
   flex-wrap: wrap;
@@ -861,6 +878,80 @@ textarea {
   color: var(--muted);
   font-size: .9rem;
   padding-left: 10px;
+}
+
+.task-notes-box {
+  display: grid;
+  gap: 0;
+}
+
+.task-notes-entry {
+  min-height: 180px;
+  height: 180px;
+  max-height: 260px;
+  overflow-y: auto;
+  resize: vertical;
+}
+
+.task-comment-box {
+  display: grid;
+  gap: 8px;
+}
+
+.task-comment-history-label {
+  color: var(--muted);
+  font-weight: 650;
+  font-size: .9rem;
+}
+
+.task-comment-history {
+  height: 170px;
+  min-height: 170px;
+  max-height: 170px;
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfe;
+  display: grid;
+  gap: 10px;
+}
+
+.task-comment-history-item {
+  display: grid;
+  gap: 4px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e4e8ef;
+}
+
+.task-comment-history-item:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.task-comment-history-item strong {
+  font-size: .9rem;
+}
+
+.task-comment-history-item span {
+  color: var(--muted);
+  font-size: .82rem;
+}
+
+.task-comment-history-item p {
+  margin: 0;
+  color: var(--ink);
+  font-size: .92rem;
+}
+
+.task-comment-entry {
+  min-height: 78px;
+}
+
+.task-comment-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .medication-grid-section {
