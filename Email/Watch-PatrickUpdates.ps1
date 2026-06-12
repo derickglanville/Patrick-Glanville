@@ -1,6 +1,6 @@
 param(
   [string]$Recipient = "dglanville@gmail.com",
-  [int]$IntervalSeconds = 60,
+  [int]$IntervalSeconds = 3600,
   [switch]$Once
 )
 

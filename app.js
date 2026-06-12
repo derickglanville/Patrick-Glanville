@@ -1,7 +1,7 @@
 const STORAGE_KEY = "patrick-glanville-support-tracker-v1";
 const PATRICK_WATCH_KEY = "patrick-glanville-patrick-watch-v1";
 const TASK_VIEW_KEY = "patrick-glanville-task-view-v1";
-const DATA_VERSION = 2026060301;
+const DATA_VERSION = 2026061201;
 const PANEL_VISIBILITY_VERSION = 2026052603;
 const BUILD_INFO = {
   commit: "926ad52",
@@ -13,7 +13,8 @@ const GITHUB_COMMIT_API = "https://api.github.com/repos/derickglanville/Patrick-
 const SUPABASE_TABLE = "tracker_state";
 const SUPABASE_STATE_ID = "patrick-glanville";
 const SUPABASE_SAVE_DELAY_MS = 700;
-const MAX_DOCUMENT_SIZE_BYTES = 6 * 1024 * 1024;
+const SUPABASE_REMOTE_UPDATED_AT_KEY = "patrick-glanville-remote-updated-at-v1";
+const SUPABASE_SYNC_POLL_MS = 60 * 60 * 1000;
 const URGENCY_REPORT_HELPER_URL = "http://127.0.0.1:8767";
 const DERIC_EMAIL = "dglanville@gmail.com";
 const DERIC_PIN = "3141";
@@ -30,7 +31,7 @@ let supabaseClient = null;
 let supabaseEnabled = false;
 let supabaseStatus = "Local browser storage";
 let supabaseSaveTimer = null;
-let supabaseRealtimeChannel = null;
+let supabaseSyncTimer = null;
 let remoteUpdatedAt = "";
 let applyingRemoteState = false;
 const allowedUsers = [
@@ -702,6 +703,8 @@ const toggleLifeAdminBtn = document.querySelector("#toggleLifeAdminBtn");
 const hideBillsBtn = document.querySelector("#hideBillsBtn");
 const hideLifeAdminBtn = document.querySelector("#hideLifeAdminBtn");
 const pdfUploadInput = document.querySelector("#pdfUploadInput");
+const viewDocumentsBtn = document.querySelector("#viewDocumentsBtn");
+const closeDocumentsDialogBtn = document.querySelector("#closeDocumentsDialog");
 const documentsList = document.querySelector("#documentsList");
 const markPatrickReviewedBtn = document.querySelector("#markPatrickReviewedBtn");
 const closeAllPatrickBtn = document.querySelector("#closeAllPatrickBtn");
@@ -940,12 +943,13 @@ function normalizeDocuments(documents) {
     id: savedDocument.id || crypto.randomUUID(),
     name: savedDocument.name || "Untitled PDF",
     mimeType: savedDocument.mimeType || "application/pdf",
-    dataUrl: savedDocument.dataUrl || "",
     sizeBytes: Number(savedDocument.sizeBytes) || 0,
     savedAt: savedDocument.savedAt || new Date().toISOString(),
     savedByEmail: savedDocument.savedByEmail || "",
-    savedByName: savedDocument.savedByName || ""
-  })).filter(savedDocument => savedDocument.dataUrl) : [];
+    savedByName: savedDocument.savedByName || "",
+    path: savedDocument.path || savedDocument.filePath || "",
+    source: savedDocument.source || (savedDocument.path || savedDocument.filePath ? "path" : "metadata-only")
+  })) : [];
 }
 
 function loadPatrickWatchState() {
@@ -1154,6 +1158,20 @@ function applyDataMigrations(loaded) {
     americanExpressBill.notes = "Starting balance: $730.86. Monthly payment: $180. Due on the 25th of each month.";
   }
 
+  if (Array.isArray(loaded.documents)) {
+    loaded.documents = loaded.documents.map(savedDocument => ({
+      id: savedDocument.id || crypto.randomUUID(),
+      name: savedDocument.name || "Untitled PDF",
+      mimeType: savedDocument.mimeType || "application/pdf",
+      sizeBytes: Number(savedDocument.sizeBytes) || 0,
+      savedAt: savedDocument.savedAt || new Date().toISOString(),
+      savedByEmail: savedDocument.savedByEmail || "",
+      savedByName: savedDocument.savedByName || "",
+      path: savedDocument.path || savedDocument.filePath || "",
+      source: savedDocument.path || savedDocument.filePath ? "path" : "metadata-only"
+    }));
+  }
+
   loaded.dataVersion = DATA_VERSION;
   loaded.lastSavedAt = new Date().toISOString();
   return true;
@@ -1358,6 +1376,16 @@ function saveState() {
   queueSharedStateSave();
 }
 
+function cacheRemoteUpdatedAt(value) {
+  remoteUpdatedAt = value || "";
+  if (remoteUpdatedAt) localStorage.setItem(SUPABASE_REMOTE_UPDATED_AT_KEY, remoteUpdatedAt);
+  else localStorage.removeItem(SUPABASE_REMOTE_UPDATED_AT_KEY);
+}
+
+function readCachedRemoteUpdatedAt() {
+  return localStorage.getItem(SUPABASE_REMOTE_UPDATED_AT_KEY) || "";
+}
+
 function supabaseConfig() {
   return window.PATRICK_SUPABASE_CONFIG || {};
 }
@@ -1381,7 +1409,7 @@ async function initializeSharedDataSource() {
     supabaseStatus = "Connecting to Supabase shared storage";
     updateDataStoreStatus();
     await loadSharedState();
-    subscribeToSharedState();
+    startSharedStatePolling();
   } catch (error) {
     supabaseEnabled = false;
     supabaseStatus = `Supabase unavailable: ${error.message}`;
@@ -1389,9 +1417,18 @@ async function initializeSharedDataSource() {
   }
 }
 
-async function loadSharedState() {
-  if (!supabaseEnabled) return;
+async function fetchRemoteUpdatedAt() {
+  const { data, error } = await supabaseClient
+    .from(SUPABASE_TABLE)
+    .select("updated_at")
+    .eq("id", SUPABASE_STATE_ID)
+    .maybeSingle();
 
+  if (error) throw error;
+  return data?.updated_at || "";
+}
+
+async function fetchSharedState() {
   const { data, error } = await supabaseClient
     .from(SUPABASE_TABLE)
     .select("state, updated_at")
@@ -1399,8 +1436,32 @@ async function loadSharedState() {
     .maybeSingle();
 
   if (error) throw error;
+  return data;
+}
+
+async function loadSharedState(force = false) {
+  if (!supabaseEnabled) return;
+
+  const cachedRemoteUpdatedAt = readCachedRemoteUpdatedAt();
+  const latestRemoteUpdatedAt = await fetchRemoteUpdatedAt();
+  const hasLocalTasks = Array.isArray(state.tasks) && state.tasks.length > 0;
+
+  if (!latestRemoteUpdatedAt) {
+    await saveSharedStateNow();
+    return;
+  }
+
+  if (!force && hasLocalTasks && cachedRemoteUpdatedAt && latestRemoteUpdatedAt === cachedRemoteUpdatedAt) {
+    cacheRemoteUpdatedAt(latestRemoteUpdatedAt);
+    supabaseStatus = `Supabase shared storage; synced ${formatDateTime(latestRemoteUpdatedAt)}`;
+    updateDataStoreStatus();
+    return;
+  }
+
+  const data = await fetchSharedState();
 
   if (!data?.state || !Array.isArray(data.state.tasks)) {
+    cacheRemoteUpdatedAt(data?.updated_at || latestRemoteUpdatedAt);
     await saveSharedStateNow();
     return;
   }
@@ -1410,7 +1471,7 @@ async function loadSharedState() {
   applyingRemoteState = true;
   state = initializeState(data.state);
   if (selectedUserEmail) state.currentUser = selectedUserEmail;
-  remoteUpdatedAt = data.updated_at || "";
+  cacheRemoteUpdatedAt(data.updated_at || latestRemoteUpdatedAt);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   supabaseStatus = `Supabase shared storage; synced ${formatDateTime(remoteUpdatedAt || state.lastSavedAt)}`;
   render();
@@ -1452,38 +1513,29 @@ async function saveSharedStateNow() {
     return;
   }
 
-  remoteUpdatedAt = data?.updated_at || payload.updated_at;
+  cacheRemoteUpdatedAt(data?.updated_at || payload.updated_at);
   supabaseStatus = `Supabase shared storage; saved ${formatDateTime(remoteUpdatedAt)}`;
   updateDataStoreStatus();
 }
 
-function subscribeToSharedState() {
-  if (!supabaseEnabled || supabaseRealtimeChannel) return;
+async function pollForSharedStateChanges() {
+  if (!supabaseEnabled || applyingRemoteState) return;
 
-  supabaseRealtimeChannel = supabaseClient
-    .channel("patrick-tracker-state")
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: SUPABASE_TABLE,
-        filter: `id=eq.${SUPABASE_STATE_ID}`
-      },
-      payload => {
-        const nextUpdatedAt = payload.new?.updated_at || "";
-        if (!payload.new?.state || nextUpdatedAt === remoteUpdatedAt) return;
-        applyingRemoteState = true;
-        state = initializeState(payload.new.state);
-        remoteUpdatedAt = nextUpdatedAt;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-        supabaseStatus = `Supabase shared storage; updated ${formatDateTime(remoteUpdatedAt)}`;
-        render();
-        updateDataStoreStatus();
-        applyingRemoteState = false;
-      }
-    )
-    .subscribe();
+  try {
+    const latestRemoteUpdatedAt = await fetchRemoteUpdatedAt();
+    if (!latestRemoteUpdatedAt || latestRemoteUpdatedAt === remoteUpdatedAt) return;
+    await loadSharedState(true);
+  } catch (error) {
+    supabaseStatus = `Supabase sync check failed: ${error.message}`;
+    updateDataStoreStatus();
+  }
+}
+
+function startSharedStatePolling() {
+  if (!supabaseEnabled || supabaseSyncTimer) return;
+  supabaseSyncTimer = window.setInterval(() => {
+    pollForSharedStateChanges();
+  }, SUPABASE_SYNC_POLL_MS);
 }
 
 async function updateSyncStatus() {
@@ -1721,9 +1773,10 @@ function formatFileSize(bytes) {
 }
 
 function renderSavedDocuments() {
+  if (!documentsList) return false;
   documentsList.innerHTML = "";
   if (!state.documents.length) {
-    documentsList.textContent = "No PDF documents have been saved yet.";
+    documentsList.textContent = "No document metadata has been saved yet.";
     return false;
   }
 
@@ -1740,13 +1793,12 @@ function renderSavedDocuments() {
               <span>${escapeHtml(formatFileSize(savedDocument.sizeBytes))}</span>
               <span>Saved ${escapeHtml(formatDateTime(savedDocument.savedAt))}</span>
               <span>${escapeHtml(savedDocument.savedByName || savedDocument.savedByEmail || "Unknown user")}</span>
+              <span>${escapeHtml(savedDocument.path || "No shared file path saved")}</span>
             </div>
           </div>
-          <button type="button" class="open-document-btn">Open PDF</button>
         </header>
-        <p>Stored in Supabase shared state for team access.</p>
+        <p>Only document metadata is kept in Supabase to reduce bandwidth use.</p>
       `;
-      item.querySelector(".open-document-btn").addEventListener("click", () => openSavedDocument(savedDocument.id));
       documentsList.appendChild(item);
     });
 
@@ -1768,82 +1820,16 @@ function renderTaskViewControls() {
 
 function openSavedDocument(documentId) {
   const savedDocument = state.documents.find(item => item.id === documentId);
-  if (!savedDocument?.dataUrl) {
-    alert("Could not open this PDF document.");
+  if (!savedDocument?.path) {
+    alert("This document no longer has an openable PDF stored in Supabase.");
     return;
   }
-
-  try {
-    const parts = String(savedDocument.dataUrl).split(",");
-    if (parts.length < 2) throw new Error("Invalid PDF data.");
-    const mimeMatch = parts[0].match(/data:(.*?);base64/);
-    const mimeType = mimeMatch ? mimeMatch[1] : "application/pdf";
-    const binary = atob(parts[1]);
-    const bytes = new Uint8Array(binary.length);
-    for (let index = 0; index < binary.length; index += 1) {
-      bytes[index] = binary.charCodeAt(index);
-    }
-
-    const blob = new Blob([bytes], { type: mimeType });
-    const objectUrl = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = objectUrl;
-    link.target = "_blank";
-    link.rel = "noopener";
-    link.download = savedDocument.name || "document.pdf";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
-  } catch (error) {
-    alert(`The PDF could not be opened: ${error.message}`);
-  }
+  alert(`Open this PDF from its saved path instead:\n${savedDocument.path}`);
 }
 
 function savePdfDocument(file) {
-  if (!file) return Promise.resolve(false);
-  const user = ensureCurrentUser("save a PDF document");
-  if (!user) return Promise.resolve(false);
-  if (file.type !== "application/pdf") {
-    alert("Please choose a PDF file.");
-    return Promise.resolve(false);
-  }
-  if (file.size > MAX_DOCUMENT_SIZE_BYTES) {
-    alert(`This PDF is too large to store in the shared database. Please keep files under ${formatFileSize(MAX_DOCUMENT_SIZE_BYTES)}.`);
-    return Promise.resolve(false);
-  }
-
-  return new Promise(resolve => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const savedDocument = {
-        id: crypto.randomUUID(),
-        name: file.name,
-        mimeType: file.type,
-        dataUrl: reader.result,
-        sizeBytes: file.size,
-        savedAt: new Date().toISOString(),
-        savedByEmail: user.email,
-        savedByName: user.name
-      };
-
-      state.documents.unshift(savedDocument);
-      recordHistoryEntry({
-        itemType: "document",
-        itemId: savedDocument.id,
-        title: historyTitleFor("document", savedDocument.name),
-        summary: `PDF uploaded to shared documents (${formatFileSize(savedDocument.sizeBytes)})`,
-        status: "Saved",
-        percent: 0
-      });
-      resolve(true);
-    };
-    reader.onerror = () => {
-      alert(`The PDF ${file.name} could not be read.`);
-      resolve(false);
-    };
-    reader.readAsDataURL(file);
-  });
+  alert("PDF uploads to Supabase have been disabled to reduce egress. Keep only file metadata or a shared file path outside tracker_state.");
+  return Promise.resolve(false);
 }
 
 function addRunningNote() {
@@ -4102,39 +4088,45 @@ if (pdfBtn) {
   });
 }
 
-pdfUploadInput.addEventListener("change", async event => {
-  const files = [...(event.target.files || [])];
-  if (!files.length) return;
+if (pdfUploadInput) {
+  pdfUploadInput.addEventListener("change", async event => {
+    const files = [...(event.target.files || [])];
+    if (!files.length) return;
 
-  let savedCount = 0;
-  for (const file of files) {
-    if (await savePdfDocument(file)) savedCount += 1;
-  }
+    let savedCount = 0;
+    for (const file of files) {
+      if (await savePdfDocument(file)) savedCount += 1;
+    }
 
-  if (savedCount) {
-    saveState();
-    renderSavedDocuments();
-    alert(`Saved ${savedCount} PDF${savedCount === 1 ? "" : "s"} to the shared database.`);
-  }
+    if (savedCount) {
+      saveState();
+      renderSavedDocuments();
+      alert(`Saved ${savedCount} PDF${savedCount === 1 ? "" : "s"} to the shared database.`);
+    }
 
-  event.target.value = "";
-});
+    event.target.value = "";
+  });
+}
 
-document.querySelector("#viewDocumentsBtn").addEventListener("click", () => {
-  const hasDocuments = renderSavedDocuments();
-  if (!hasDocuments) {
-    alert("No PDF documents have been saved to the database yet.");
-    return;
-  }
-  if (typeof documentsDialog.showModal === "function") documentsDialog.showModal();
-  else if (typeof documentsDialog.show === "function") documentsDialog.show();
-});
+if (viewDocumentsBtn) {
+  viewDocumentsBtn.addEventListener("click", () => {
+    const hasDocuments = renderSavedDocuments();
+    if (!hasDocuments) {
+      alert("No document metadata has been saved to the database yet.");
+      return;
+    }
+    if (typeof documentsDialog?.showModal === "function") documentsDialog.showModal();
+    else if (typeof documentsDialog?.show === "function") documentsDialog.show();
+  });
+}
 
 document.querySelector("#processGuideBtn").addEventListener("click", () => {
   window.open(`Patrick_Glanville_Process_Guide_v2.pdf?open=${Date.now()}`, "_blank", "noopener");
 });
 
-document.querySelector("#closeDocumentsDialog").addEventListener("click", () => documentsDialog.close());
+if (closeDocumentsDialogBtn && documentsDialog) {
+  closeDocumentsDialogBtn.addEventListener("click", () => documentsDialog.close());
+}
 
 document.querySelector("#resetBtn").addEventListener("click", () => {
   if (!confirm("Reset tracker to the original starting tasks?")) return;
