@@ -843,7 +843,7 @@ textarea {
 
 .due-inline,
 .percent-inline {
-  max-width: 210px;
+  max-width: none;
   color: var(--muted);
 }
 
@@ -853,7 +853,24 @@ textarea {
 }
 
 .percent-inline {
-  max-width: 170px;
+  max-width: none;
+}
+
+.task-inline-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.task-details-box {
+  display: grid;
+  gap: 8px;
+}
+
+.task-next-text {
+  line-height: 1.45;
+  color: var(--ink);
 }
 
 .task-meter {
@@ -886,9 +903,9 @@ textarea {
 }
 
 .task-notes-entry {
-  min-height: 180px;
-  height: 180px;
-  max-height: 260px;
+  min-height: 96px;
+  height: 96px;
+  max-height: 160px;
   overflow-y: auto;
   resize: vertical;
 }
@@ -1513,6 +1530,7 @@ dialog::backdrop {
   .sync-panel,
   .budget-panel header,
   .panel-actions,
+  .task-inline-metrics,
   .life-admin-item,
   .notes-panel {
     grid-template-columns: 1fr;

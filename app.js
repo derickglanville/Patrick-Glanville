@@ -2344,14 +2344,15 @@ function createTaskCard(task) {
   });
   percentWrap.appendChild(percentInput);
 
+  const inlineMetrics = document.createElement("div");
+  inlineMetrics.className = "task-inline-metrics";
+  inlineMetrics.append(dueWrap, percentWrap);
+
   const meter = document.createElement("div");
   meter.className = "task-meter";
   meter.innerHTML = `<span style="width: ${normalizePercent(task.percent)}%"></span>`;
 
-  const next = document.createElement("p");
-  next.textContent = task.next || "No next step recorded.";
-
-  const notesBox = createInlineNotesBox(task);
+  const detailsBox = createTaskDetailsBox(task);
 
   const medicationSummary = isMedicationGridTask(task)
     ? createMedicationSummary(task)
@@ -2422,10 +2423,23 @@ function createTaskCard(task) {
   edit.addEventListener("click", () => openTask(task.id));
 
   footer.append(categorySelect, select, prioritySelect, edit);
-  card.append(header, meta, dueWrap, percentWrap, meter, next, notesBox);
+  card.append(header, meta, inlineMetrics, meter, detailsBox);
   if (medicationSummary) card.appendChild(medicationSummary);
   card.append(commentBox, footer);
   return card;
+}
+
+function createTaskDetailsBox(task) {
+  const wrapper = document.createElement("section");
+  wrapper.className = "task-details-box";
+
+  const next = document.createElement("p");
+  next.className = "task-next-text";
+  next.textContent = task.next || "No next step recorded.";
+
+  const notesWrap = createInlineNotesBox(task);
+  wrapper.append(next, notesWrap);
+  return wrapper;
 }
 
 function createInlineNotesBox(task) {
@@ -2434,7 +2448,7 @@ function createInlineNotesBox(task) {
 
   const textarea = document.createElement("textarea");
   textarea.className = "task-notes-entry";
-  textarea.rows = 5;
+  textarea.rows = 3;
   textarea.value = task.notes || "";
   textarea.placeholder = "Add or update notes here";
 
