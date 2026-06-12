@@ -1,7 +1,7 @@
 const STORAGE_KEY = "patrick-glanville-support-tracker-v1";
 const PATRICK_WATCH_KEY = "patrick-glanville-patrick-watch-v1";
 const TASK_VIEW_KEY = "patrick-glanville-task-view-v1";
-const DATA_VERSION = 2026061201;
+const DATA_VERSION = 2026061202;
 const PANEL_VISIBILITY_VERSION = 2026052603;
 const BUILD_INFO = {
   commit: "926ad52",
@@ -1114,39 +1114,35 @@ function addMissingSeedTasks(loaded) {
 function applyDataMigrations(loaded) {
   if ((Number(loaded.dataVersion) || 0) >= DATA_VERSION) return false;
 
-  updateTaskFields(loaded.tasks, "Apply for CloudResearch Connect studies", {
-    status: "In progress",
+  applyTaskDefaults(loaded.tasks, "Apply for CloudResearch Connect studies", {
     priority: "Urgent",
-    due: "2026-05-25",
-    percent: 15
+    due: "2026-05-25"
   });
-  updateTaskFields(loaded.tasks, "Apply for Data Annotation work", {
-    status: "In progress",
+  applyTaskDefaults(loaded.tasks, "Apply for Data Annotation work", {
     priority: "Urgent",
-    due: "2026-05-24",
-    percent: 15
+    due: "2026-05-24"
   });
-  updateTaskFields(loaded.tasks, "Apply for Prolific research studies", {
-    status: "In progress",
+  applyTaskDefaults(loaded.tasks, "Apply for Prolific research studies", {
     priority: "Urgent",
-    due: "2026-05-24",
-    percent: 15
+    due: "2026-05-24"
   });
 
-  updateTaskFields(loaded.tasks, "Apply for SNAP and TANF benefits", {
+  restoreJobResearchTasksToOnHold(loaded.tasks);
+
+  applyTaskDefaults(loaded.tasks, "Apply for SNAP and TANF benefits", {
     priority: "Urgent",
     due: "2026-05-26"
   });
 
-  updateTaskFields(loaded.tasks, "Get on the Section 8 housing waiting list", {
+  applyTaskDefaults(loaded.tasks, "Get on the Section 8 housing waiting list", {
     priority: "Urgent"
   });
 
-  updateTaskFields(loaded.tasks, "Arrange voluntary surrender of Kia and notify Wells Fargo", {
+  applyTaskDefaults(loaded.tasks, "Arrange voluntary surrender of Kia and notify Wells Fargo", {
     priority: "Urgent"
   });
 
-  updateTaskFields(loaded.tasks, "Review bankruptcy filing for all debts, including the damaged car", {
+  applyTaskDefaults(loaded.tasks, "Review bankruptcy filing for all debts, including the damaged car", {
     priority: "Urgent"
   });
 
@@ -1181,6 +1177,46 @@ function updateTaskFields(tasks, title, updates) {
   const task = tasks.find(item => item.title === title);
   if (!task) return;
   Object.assign(task, updates);
+}
+
+function applyTaskDefaults(tasks, title, updates) {
+  const task = tasks.find(item => item.title === title);
+  if (!task) return;
+
+  Object.entries(updates).forEach(([field, value]) => {
+    const currentValue = task[field];
+    if (currentValue === undefined || currentValue === null || currentValue === "") {
+      task[field] = value;
+    }
+  });
+}
+
+function restoreJobResearchTasksToOnHold(tasks) {
+  const titles = new Set([
+    "Apply for CloudResearch Connect studies",
+    "Apply for Data Annotation work",
+    "Apply for Prolific research studies"
+  ]);
+
+  tasks.forEach(task => {
+    if (!titles.has(task.title)) return;
+    const percent = normalizePercent(task.percent);
+    const due = task.due || "";
+    const looksLikeMigrationOverride = task.status === "In progress"
+      && percent === 15
+      && (
+        (task.title === "Apply for CloudResearch Connect studies" && due === "2026-05-25") ||
+        (task.title === "Apply for Data Annotation work" && due === "2026-05-24") ||
+        (task.title === "Apply for Prolific research studies" && due === "2026-05-24")
+      );
+
+    if (!looksLikeMigrationOverride) return;
+
+    task.status = "On-Hold";
+    task.percent = 0;
+    task.priority = "Urgent";
+    task.completedAt = task.completedAt || new Date().toISOString();
+  });
 }
 
 function mergeTaskData(primary, duplicate) {
