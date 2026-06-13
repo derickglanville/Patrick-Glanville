@@ -11,7 +11,7 @@ $ConfigPath = Join-Path $ProjectFolder "supabase-config.js"
 $SettingsPath = Join-Path $ScriptFolder "smtp-settings.json"
 $CredentialPath = Join-Path $ScriptFolder "smtp-credential.clixml"
 $CheckpointPath = Join-Path $ScriptFolder "medication-refill-alert-state.json"
-$MedicationTaskTitle = "Create medication list with dosage and refill dates"
+$PythonSenderScript = Join-Path $ProjectFolder "Scripts\send_daily_email.py"
 $AlertWindowDays = 7
 $Recipients = @(
   "dglanville@gmail.com",
@@ -182,6 +182,51 @@ function Send-HtmlMail {
   }
 }
 
+function Get-AvailablePythonCommand {
+  $Candidates = @(
+    "C:\edb\languagepack\v4\Python-3.11\python.exe",
+    "C:\Users\deric\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe",
+    "python"
+  )
+
+  foreach ($Candidate in $Candidates) {
+    if ($Candidate -eq "python") {
+      return $Candidate
+    }
+    if (Test-Path -LiteralPath $Candidate) {
+      return $Candidate
+    }
+  }
+
+  return "python"
+}
+
+function Send-HtmlMailWithPythonFallback {
+  param(
+    [string[]]$To,
+    [string]$Subject,
+    [string]$HtmlBody
+  )
+
+  try {
+    Send-HtmlMail -To $To -Subject $Subject -HtmlBody $HtmlBody
+    return
+  } catch {
+    if (-not (Test-Path -LiteralPath $PythonSenderScript)) {
+      throw
+    }
+
+    $OutputPath = Join-Path $ScriptFolder ("patrick-medication-refill-alert-{0}.html" -f (Get-Date).ToString("yyyy-MM-dd"))
+    Set-Content -LiteralPath $OutputPath -Value $HtmlBody -Encoding UTF8
+
+    $PythonCommand = Get-AvailablePythonCommand
+    & $PythonCommand $PythonSenderScript --send-now --report-kind medication --file $OutputPath --to ($To -join ",")
+    if ($LASTEXITCODE -ne 0) {
+      throw $_.Exception
+    }
+  }
+}
+
 function Escape-Html {
   param([AllowNull()][object]$Value)
 
@@ -234,7 +279,16 @@ function Get-RefillAlert {
 function Get-MedicationAlerts {
   param($TrackerState)
 
-  $Task = @($TrackerState.state.tasks) | Where-Object { $_.title -eq $MedicationTaskTitle } | Select-Object -First 1
+  $Task = @($TrackerState.state.tasks) | Where-Object {
+    $Title = [string]$_.title
+    $Next = [string]$_.next
+    $Notes = [string]$_.notes
+    $MedicationEntries = @($_.medications | Where-Object { $null -ne $_ })
+    $MedicationEntries.Count -gt 0 -or
+    (($Title.ToLowerInvariant().Contains("medication") -and $Title.ToLowerInvariant().Contains("dosage") -and $Title.ToLowerInvariant().Contains("refill"))) -or
+    $Next.ToLowerInvariant().Contains("list every current medication") -or
+    $Notes.ToLowerInvariant().Contains("track medication details")
+  } | Select-Object -First 1
   if (-not $Task) { return @() }
 
   $Entries = @($Task.medications)
@@ -349,7 +403,7 @@ function Invoke-MedicationRefillAlertCheck {
 
   $Subject = "Medication Refill Alert - Patrick Glanville Support Tracker"
   $HtmlBody = Build-EmailHtml -Alerts $NewAlerts
-  Send-HtmlMail -To $Recipients -Subject $Subject -HtmlBody $HtmlBody
+  Send-HtmlMailWithPythonFallback -To $Recipients -Subject $Subject -HtmlBody $HtmlBody
   Save-Checkpoint -Checkpoint $Checkpoint
   Write-Host ("Sent medication refill alert email for {0} item(s)." -f $NewAlerts.Count)
 }

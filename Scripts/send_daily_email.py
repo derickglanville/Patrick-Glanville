@@ -40,6 +40,17 @@ REPORT_DEFAULTS = {
         ],
         "send_time": "09:30",
     },
+    "medication": {
+        "folder": EMAIL_FOLDER,
+        "filename_prefix": "patrick-medication-refill-alert",
+        "subject_prefix": "Medication Refill Alert",
+        "recipients": [
+            "dglanville@gmail.com",
+            "patrick.glanville@gmail.com",
+            "courtney.glanville@gmail.com",
+        ],
+        "send_time": "10:00",
+    },
 }
 
 # ── Core function ─────────────────────────────────────────────────────────────
