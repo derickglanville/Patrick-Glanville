@@ -1014,6 +1014,16 @@ textarea {
   background: white;
 }
 
+.medication-alert-yellow {
+  background: #fff7bf !important;
+  border-color: #e0c24d !important;
+}
+
+.medication-alert-red {
+  background: #ffe2e0 !important;
+  border-color: #d26464 !important;
+}
+
 .medication-summary-metrics strong {
   display: block;
   font-size: 1.05rem;
@@ -1026,7 +1036,7 @@ textarea {
 
 .medication-grid {
   display: grid;
-  grid-template-columns: minmax(180px, 1.4fr) minmax(130px, .9fr) minmax(150px, .9fr) 90px;
+  grid-template-columns: minmax(180px, 1.35fr) minmax(120px, .8fr) minmax(120px, .7fr) minmax(150px, .9fr) 90px;
   gap: 10px;
   align-items: center;
 }
@@ -1048,9 +1058,19 @@ textarea {
   min-height: 40px;
 }
 
+.medication-row-yellow {
+  background: #fff7bf !important;
+  border-color: #e0c24d !important;
+}
+
+.medication-row-red {
+  background: #ffe2e0 !important;
+  border-color: #d26464 !important;
+}
+
 .medication-dialog-shell {
   width: 100%;
-  max-width: none;
+  max-width: 100%;
 }
 
 .medication-dialog-body {
@@ -1063,7 +1083,10 @@ textarea {
 }
 
 #medicationDialog {
-  width: min(1180px, calc(100vw - 16px));
+  width: min(1120px, calc(100vw - 48px));
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
 }
 
 .task-card footer {

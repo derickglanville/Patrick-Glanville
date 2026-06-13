@@ -217,6 +217,47 @@ To explicitly run generate-only mode for testing:
 powershell -ExecutionPolicy Bypass -File .\Invoke-DailyUrgencyReport.ps1 -GenerateOnly
 ```
 
+## Medication Refill Alerts
+
+To watch the shared tracker for medication refill dates that need attention, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\Watch-MedicationRefillAlerts.ps1
+```
+
+That watcher:
+
+- can run continuously, but should normally be launched by a once-daily scheduled task
+- checks the `Create medication list with dosage and refill dates` card
+- highlights refill conditions in the dashboard
+- emails:
+  - `dglanville@gmail.com`
+  - `patrick.glanville@gmail.com`
+  - `courtney.glanville@gmail.com`
+- sends alerts only once per medication + refill date + severity until the data changes
+
+Alert rules:
+
+- `yellow`: refill date is today through the next 7 days
+- `red`: refill date is already past due
+
+To run one alert check immediately instead of watching continuously:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\Watch-MedicationRefillAlerts.ps1 -Once
+```
+
+To run the scheduled-task entrypoint manually:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\Run-MedicationRefillAlertsScheduledTask.ps1
+```
+
+Recommended schedule on this machine:
+
+- run once per day at `10:00 AM`
+- send the email immediately after that check only if a yellow/red medication refill condition is found
+
 ## Manual Button Trigger Helper
 
 If you want the dashboard's `Urgency Report` button to run the local PowerShell process directly, start the helper first:

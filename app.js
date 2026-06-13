@@ -27,6 +27,7 @@ const MEDICATION_LIST_TASK_TITLE = "Create medication list with dosage and refil
 const HEALTH_INSURANCE_TASK_TITLE = "Get health insurance before current coverage expires";
 const DEPRESSION_TASK_TITLE = "Assess depression and anxiety impact on job search";
 const ETHOS_TASK_TITLE = "Look into life insurance through Ethos";
+const MEDICATION_REFILL_ALERT_WINDOW_DAYS = 7;
 let supabaseClient = null;
 let supabaseEnabled = false;
 let supabaseStatus = "Local browser storage";
@@ -457,7 +458,7 @@ const seedData = {
       next: "List every current medication, dosage, prescribing doctor, pharmacy, refill date, and how many days of supply remain.",
       notes: "Use this notes field to track medication details, refill timing, side effects, copay, prior authorization issues, pharmacy contact information, and any gaps caused by insurance changes.",
       medications: [
-        { id: crypto.randomUUID(), name: "", dosage: "", refillDate: "" }
+        { id: crypto.randomUUID(), name: "", dosage: "", refillDate: "", pillsPrescribed: 30 }
       ]
     },
     {
@@ -899,7 +900,8 @@ function normalizeMedicationEntry(entry = {}) {
     id: entry.id || crypto.randomUUID(),
     name: entry.name || "",
     dosage: entry.dosage || "",
-    refillDate: entry.refillDate || ""
+    refillDate: entry.refillDate || "",
+    pillsPrescribed: normalizeMedicationSupply(entry.pillsPrescribed)
   };
 }
 
@@ -907,6 +909,46 @@ function normalizeMedicationEntries(entries) {
   return Array.isArray(entries)
     ? entries.map(entry => normalizeMedicationEntry(entry))
     : [];
+}
+
+function normalizeMedicationSupply(value) {
+  const numeric = Number.parseInt(value, 10);
+  if (!Number.isFinite(numeric) || numeric <= 0) return 30;
+  return numeric;
+}
+
+function getTodayDateOnly() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+function getMedicationRefillAlert(entry) {
+  const refillDate = (entry?.refillDate || "").trim();
+  if (!refillDate) return null;
+
+  const refill = new Date(`${refillDate}T00:00:00`);
+  if (Number.isNaN(refill.getTime())) return null;
+
+  const today = getTodayDateOnly();
+  const diffDays = Math.floor((refill.getTime() - today.getTime()) / 86400000);
+
+  if (diffDays < 0) {
+    return {
+      level: "red",
+      label: "Past due refill",
+      diffDays
+    };
+  }
+
+  if (diffDays <= MEDICATION_REFILL_ALERT_WINDOW_DAYS) {
+    return {
+      level: "yellow",
+      label: diffDays === 0 ? "Refill due today" : `Refill due in ${diffDays} day${diffDays === 1 ? "" : "s"}`,
+      diffDays
+    };
+  }
+
+  return null;
 }
 
 function normalizeRunningNotes(notes, legacyText = "") {
@@ -2659,6 +2701,9 @@ function createMedicationSummary(task) {
     .map(entry => entry.refillDate)
     .filter(Boolean)
     .sort((a, b) => a.localeCompare(b))[0];
+  const urgentAlerts = medications
+    .map(entry => ({ entry, alert: getMedicationRefillAlert(entry) }))
+    .filter(item => item.alert);
 
   const section = document.createElement("section");
   section.className = "medication-summary-section";
@@ -2684,9 +2729,9 @@ function createMedicationSummary(task) {
       <strong>${medications.length}</strong>
       <span>active medication${medications.length === 1 ? "" : "s"}</span>
     </article>
-    <article>
+    <article class="${urgentAlerts[0]?.alert?.level === "red" ? "medication-alert-red" : urgentAlerts[0]?.alert?.level === "yellow" ? "medication-alert-yellow" : ""}">
       <strong>${escapeHtml(nextRefillDate ? formatShortDate(nextRefillDate) : "None set")}</strong>
-      <span>next refill date</span>
+      <span>${escapeHtml(urgentAlerts[0]?.alert?.label || "next refill date")}</span>
     </article>
   `;
 
@@ -2724,32 +2769,50 @@ function createMedicationGrid(task) {
   grid.innerHTML = `
     <span class="medication-grid-label">Medication name</span>
     <span class="medication-grid-label">Dosage</span>
+    <span class="medication-grid-label">Pills prescribed</span>
     <span class="medication-grid-label">Refill date</span>
     <span class="medication-grid-label">Action</span>
   `;
 
   task.medications.forEach(entry => {
+    const refillAlert = getMedicationRefillAlert(entry);
+    const rowClass = refillAlert ? `medication-row-${refillAlert.level}` : "";
+
     const nameInput = document.createElement("input");
     nameInput.type = "text";
     nameInput.placeholder = "Medication name";
     nameInput.value = entry.name || "";
+    nameInput.className = rowClass;
     nameInput.addEventListener("change", () => updateMedicationEntry(task, entry.id, "name", nameInput.value));
 
     const dosageInput = document.createElement("input");
     dosageInput.type = "text";
     dosageInput.placeholder = "Dosage";
     dosageInput.value = entry.dosage || "";
+    dosageInput.className = rowClass;
     dosageInput.addEventListener("change", () => updateMedicationEntry(task, entry.id, "dosage", dosageInput.value));
+
+    const pillsInput = document.createElement("input");
+    pillsInput.type = "number";
+    pillsInput.min = "1";
+    pillsInput.step = "1";
+    pillsInput.placeholder = "30";
+    pillsInput.value = normalizeMedicationSupply(entry.pillsPrescribed);
+    pillsInput.className = rowClass;
+    pillsInput.addEventListener("change", () => updateMedicationEntry(task, entry.id, "pillsPrescribed", normalizeMedicationSupply(pillsInput.value)));
 
     const refillInput = document.createElement("input");
     refillInput.type = "date";
     refillInput.value = entry.refillDate || "";
+    refillInput.className = rowClass;
+    refillInput.title = refillAlert?.label || "";
     refillInput.addEventListener("change", () => updateMedicationEntry(task, entry.id, "refillDate", refillInput.value));
 
     const removeButton = document.createElement("button");
     removeButton.type = "button";
-    removeButton.className = "ghost medication-remove-button";
+    removeButton.className = `ghost medication-remove-button ${rowClass}`.trim();
     removeButton.textContent = "Remove";
+    removeButton.title = refillAlert?.label || "";
     removeButton.addEventListener("click", () => {
       task.medications = task.medications.filter(item => item.id !== entry.id);
       recordUpdate(task, "Medication row removed");
@@ -2761,7 +2824,7 @@ function createMedicationGrid(task) {
       render();
     });
 
-    grid.append(nameInput, dosageInput, refillInput, removeButton);
+    grid.append(nameInput, dosageInput, pillsInput, refillInput, removeButton);
   });
 
   section.append(header, grid);
