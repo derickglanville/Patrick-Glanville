@@ -16,7 +16,9 @@ $AlertWindowDays = 7
 $Recipients = @(
   "dglanville@gmail.com",
   "patrick.glanville@gmail.com",
-  "courtney.glanville@gmail.com"
+  "courtney.glanville@gmail.com",
+  "hemmgeor@gmail.com",
+  "rowena.montgomery@gmail.com"
 )
 
 function Get-SupabaseConfig {

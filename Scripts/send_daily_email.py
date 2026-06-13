@@ -48,6 +48,8 @@ REPORT_DEFAULTS = {
             "dglanville@gmail.com",
             "patrick.glanville@gmail.com",
             "courtney.glanville@gmail.com",
+            "hemmgeor@gmail.com",
+            "rowena.montgomery@gmail.com",
         ],
         "send_time": "10:00",
     },
