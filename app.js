@@ -1,7 +1,7 @@
 const STORAGE_KEY = "patrick-glanville-support-tracker-v1";
 const PATRICK_WATCH_KEY = "patrick-glanville-patrick-watch-v1";
 const TASK_VIEW_KEY = "patrick-glanville-task-view-v1";
-const DATA_VERSION = 2026061202;
+const DATA_VERSION = 2026061301;
 const PANEL_VISIBILITY_VERSION = 2026052603;
 const BUILD_INFO = {
   commit: "926ad52",
@@ -1129,6 +1129,13 @@ function applyDataMigrations(loaded) {
 
   restoreJobResearchTasksToOnHold(loaded.tasks);
 
+  updateTaskContent(loaded.tasks, "Check Social Security retirement benefits", {
+    next: "Confirm the exact retirement eligibility date next year, compare benefits at 62 versus later claiming ages, and document the expected monthly amount.",
+    notes: "Patrick appears eligible next year for retirement. Ask about timing, reduced early benefits, work income limits, and whether any spouse/divorced spouse benefits apply.",
+    tag: "Updated",
+    tagTone: "purple"
+  });
+
   applyTaskDefaults(loaded.tasks, "Apply for SNAP and TANF benefits", {
     priority: "Urgent",
     due: "2026-05-26"
@@ -1144,6 +1151,49 @@ function applyDataMigrations(loaded) {
 
   applyTaskDefaults(loaded.tasks, "Review bankruptcy filing for all debts, including the damaged car", {
     priority: "Urgent"
+  });
+
+  updateTaskContent(loaded.tasks, "Prepare for and apply with Mercor.com", {
+    next: "Build a physics/math tutoring, AI evaluation, or technical-review resume profile and pivot away from Perplexity since no more work is available there.",
+    notes: "Website: https://www.mercor.com/. Perplexity has banned any more work, so focus on Mercor and other AI/data evaluation companies. Practice timed reasoning and clear written explanations. Track login, application date, assessment score, follow-up, and any other companies applied to.",
+    tag: "Updated",
+    tagTone: "purple"
+  });
+
+  updateTaskContent(loaded.tasks, "Apply for minimum-wage local jobs (HEB, Walmart, Home Depot, Kroger)", {
+    next: "Follow up on Walmart, Kroger, Home Depot, and Market Street applications, then apply to local hospitals, schools, and library roles. Share current resumes with everyone helping the search.",
+    notes: "Priority: this is the most important work track because immediate hourly income can stabilize food, transportation, and housing. Applied to Walmart, Kroger, Home Depot, and Market Street, and Patrick completed a two-hour interview with Market Street. Waiting on responses. Next steps: apply to nearby hospitals, schools, and library roles, then send resumes to everyone who can help with leads. Websites: HEB careers https://careers.heb.com/, Walmart careers https://careers.walmart.com/, Home Depot careers https://careers.homedepot.com/, Kroger careers https://www.krogerfamilycareers.com/. Track job title, location, distance, shift, pay, application date, screenshot or confirmation number, interview status, and transportation plan.",
+    tag: "Updated",
+    tagTone: "purple"
+  });
+
+  updateTaskContent(loaded.tasks, "Apply for Teaching Assistance opportunities", {
+    next: "Apply to local schools, hospitals, library systems, colleges, tutoring programs, and academic support offices, then share resumes with everyone who may help identify openings.",
+    notes: "Track employer name, role title, subject area, pay rate, location, schedule, application date, contact person, interview status, and whether transportation is realistic. Focus on math, physics, tutoring, classroom support, library support, and hospital education roles first. Make sure current resumes are shared with everyone helping the search.",
+    tag: "Updated",
+    tagTone: "purple"
+  });
+
+  updateTaskContent(loaded.tasks, HEALTH_INSURANCE_TASK_TITLE, {
+    next: "Confirm the grace-period coverage end date of 2026-07-31, compare replacement coverage options now, and apply for a new plan before there is any gap in appointments or medication access.",
+    notes: "Coverage is currently expected to last through 2026-07-31 because of the grace period. Track marketplace or employer options, monthly premium, deductible, out-of-pocket maximum, cardiology and primary-care network coverage, prescription coverage, and the exact date new insurance becomes active.",
+    tag: "Updated",
+    tagTone: "purple"
+  });
+
+  updateTaskContent(loaded.tasks, MEDICATION_LIST_TASK_TITLE, {
+    next: "Confirm the strength and dosage for Eloquis, Entresto, Jardiance, Metoprolol, and Rosuvastatin, then add refill dates, prescribing doctor, pharmacy, and days of supply remaining.",
+    notes: "Use this notes field to track medication details, refill timing, side effects, copay, prior authorization issues, pharmacy contact information, and any gaps caused by insurance changes. Current medications to verify for strength/dosage: Eloquis, Entresto, Jardiance, Metoprolol, and Rosuvastatin.",
+    tag: "Updated",
+    tagTone: "purple"
+  });
+  ensureMedicationListDefaults(loaded.tasks);
+
+  updateTaskContent(loaded.tasks, DEPRESSION_TASK_TITLE, {
+    next: "Patrick needs to call Denton County MHMR before the next July appointment and ask to speak with a social worker about available resources.",
+    notes: "Use Denton County MHMR as the current mental-health support track. The next appointment is in July. Ask for resource help, benefits guidance, case-management options, transportation support, medication support, and any other local assistance that can stabilize daily functioning and job readiness.",
+    tag: "Updated",
+    tagTone: "purple"
   });
 
   const americanExpressBill = loaded.bills.find(bill => (bill.name || "").trim().toLowerCase() === "american express");
@@ -1188,6 +1238,31 @@ function applyTaskDefaults(tasks, title, updates) {
     if (currentValue === undefined || currentValue === null || currentValue === "") {
       task[field] = value;
     }
+  });
+}
+
+function updateTaskContent(tasks, title, updates) {
+  const task = tasks.find(item => item.title === title);
+  if (!task) return;
+  Object.assign(task, updates);
+}
+
+function ensureMedicationListDefaults(tasks) {
+  const task = tasks.find(item => item.title === MEDICATION_LIST_TASK_TITLE);
+  if (!task) return;
+
+  const requiredNames = ["Eloquis", "Entresto", "Jardiance", "Metoprolol", "Rosuvastatin"];
+  task.medications = normalizeMedicationEntries(task.medications);
+
+  const existingNames = new Set(
+    task.medications
+      .map(entry => (entry.name || "").trim().toLowerCase())
+      .filter(Boolean)
+  );
+
+  requiredNames.forEach(name => {
+    if (existingNames.has(name.toLowerCase())) return;
+    task.medications.push(normalizeMedicationEntry({ name, dosage: "", refillDate: "" }));
   });
 }
 
@@ -1503,9 +1578,11 @@ async function loadSharedState(force = false) {
   }
 
   const originalStateJson = JSON.stringify(data.state);
+  const remoteState = structuredClone(data.state);
+  applyDataMigrations(remoteState);
   const selectedUserEmail = state.currentUser;
   applyingRemoteState = true;
-  state = initializeState(data.state);
+  state = initializeState(remoteState);
   if (selectedUserEmail) state.currentUser = selectedUserEmail;
   cacheRemoteUpdatedAt(data.updated_at || latestRemoteUpdatedAt);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
