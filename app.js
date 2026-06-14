@@ -1,7 +1,7 @@
 const STORAGE_KEY = "patrick-glanville-support-tracker-v1";
 const PATRICK_WATCH_KEY = "patrick-glanville-patrick-watch-v1";
 const TASK_VIEW_KEY = "patrick-glanville-task-view-v1";
-const DATA_VERSION = 2026061401;
+const DATA_VERSION = 2026061402;
 const PANEL_VISIBILITY_VERSION = 2026052603;
 const BUILD_INFO = {
   commit: "926ad52",
@@ -87,6 +87,57 @@ const healthAndInsuranceCardOrder = [
   buildSeedTaskKey(DEPRESSION_TASK_TITLE),
   buildSeedTaskKey(ETHOS_TASK_TITLE)
 ];
+const OUTLIER_COMMENT_TEXT = `What it is
+• AI training and evaluation work.
+• Reviewing AI-generated code.
+• Writing prompts.
+• Rating AI responses.
+• Solving technical problems.
+• Some projects require React, C#, Python, Java, or data science skills.
+
+Income Potential
+• General AI trainer: ~$15-$35/hour
+• Experienced software engineers: ~$30-$60+/hour
+• Specialized coding projects can occasionally pay more.
+
+Pros
+• Remote.
+• Flexible schedule.
+• Strong demand for experienced programmers.
+• Physics and software background is attractive.
+
+Cons
+• Work availability can fluctuate.
+• Projects come and go.
+• Assessments can be difficult.
+• No guarantee of full-time hours.
+
+Assessment
+This is a legitimate opportunity and worth pursuing. The bigger challenge may be getting assigned enough consistent work after the coding tests.
+
+Rating: 8/10`;
+const MICRO1_COMMENT_TEXT = `What it is
+• AI-assisted recruiting platform.
+• Places software engineers with startups and technology companies.
+• Uses AI interviews and screening.
+
+Income Potential
+• Contract positions often range from $40,000-$80,000/year for junior roles.
+• Experienced engineers can reach $80,000-$150,000+.
+• Some remote contracts exceed that.
+
+Pros
+• Potential for real software engineering jobs.
+• Higher upside than AI training.
+• Long-term contracts are possible.
+
+Cons
+• More competitive.
+• AI interviews can be challenging.
+• Age bias can exist indirectly, although experience is valuable.
+
+Assessment
+This may be the bigger upside opportunity. If Patrick interviews well and demonstrates current skills in modern frameworks, the payoff could be much higher than gig-based AI training.`;
 const defaultExpandedTaskGroups = [
   "Jobs and Income",
   "Benefits and Assistance",
@@ -138,6 +189,16 @@ function buildSeedTaskKey(title = "") {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function buildSeedComment(text, authorName = "Opportunity note", authorEmail = "") {
+  return {
+    id: crypto.randomUUID(),
+    authorEmail,
+    authorName,
+    createdAt: BUILD_INFO.builtAt || new Date().toISOString(),
+    text
+  };
 }
 
 function isMedicationLikeTask(task) {
@@ -269,6 +330,7 @@ const seedData = {
       percent: 20,
       next: "Complete prep work for the React and C#.NET assessments, then take both coding tests tomorrow.",
       notes: "Website: https://app.outlier.ai/. Patrick is already signed up. Track prep resources, practice results, assessment timing, score or feedback, and any follow-up request after the tests.",
+      comments: [buildSeedComment(OUTLIER_COMMENT_TEXT)],
       tag: "Added/Updated"
     },
     {
@@ -282,6 +344,7 @@ const seedData = {
       percent: 35,
       next: "Record the interview with their AI on June 14, 2026 and watch for next-step emails, assessments, or recruiter follow-up.",
       notes: "Website: https://micro1.ai/. Patrick already applied and completed an AI interview on June 14, 2026. Track role details, pay structure, next screening steps, recruiter contact, and final decision timeline.",
+      comments: [buildSeedComment(MICRO1_COMMENT_TEXT)],
       tag: "Added/Updated"
     },
     {
@@ -739,6 +802,9 @@ const closeDocumentsDialogBtn = document.querySelector("#closeDocumentsDialog");
 const documentsList = document.querySelector("#documentsList");
 const markPatrickReviewedBtn = document.querySelector("#markPatrickReviewedBtn");
 const closeAllPatrickBtn = document.querySelector("#closeAllPatrickBtn");
+const commentHistoryDialog = document.querySelector("#commentHistoryDialog");
+const commentHistoryTitle = document.querySelector("#commentHistoryTitle");
+const commentHistoryList = document.querySelector("#commentHistoryList");
 const patrickTodayCount = document.querySelector("#patrickTodayCount");
 const patrickPendingCount = document.querySelector("#patrickPendingCount");
 const patrickClosedCount = document.querySelector("#patrickClosedCount");
@@ -1246,6 +1312,9 @@ function applyDataMigrations(loaded) {
     tagTone: "purple"
   });
 
+  ensureTaskComment(loaded.tasks, "Prepare for Outlier AI coding assessments", OUTLIER_COMMENT_TEXT);
+  ensureTaskComment(loaded.tasks, "Track Micro1.ai AI training application", MICRO1_COMMENT_TEXT);
+
   updateTaskContent(loaded.tasks, HEALTH_INSURANCE_TASK_TITLE, {
     next: "Confirm the grace-period coverage end date of 2026-07-31, compare replacement coverage options now, and apply for a new plan before there is any gap in appointments or medication access.",
     notes: "Coverage is currently expected to last through 2026-07-31 because of the grace period. Track marketplace or employer options, monthly premium, deductible, out-of-pocket maximum, cardiology and primary-care network coverage, prescription coverage, and the exact date new insurance becomes active.",
@@ -1317,6 +1386,16 @@ function updateTaskContent(tasks, title, updates) {
   const task = tasks.find(item => item.title === title);
   if (!task) return;
   Object.assign(task, updates);
+}
+
+function ensureTaskComment(tasks, title, text, authorName = "Opportunity note", authorEmail = "") {
+  const task = tasks.find(item => item.title === title);
+  if (!task) return;
+  if (!Array.isArray(task.comments)) task.comments = [];
+  const normalizedText = String(text || "").trim();
+  const hasMatch = task.comments.some(comment => String(comment?.text || "").trim() === normalizedText);
+  if (hasMatch) return;
+  task.comments.push(buildSeedComment(normalizedText, authorName, authorEmail));
 }
 
 function ensureMedicationListDefaults(tasks) {
@@ -2661,22 +2740,25 @@ function createInlineCommentBox(task) {
   const wrapper = document.createElement("div");
   wrapper.className = "task-comment-box";
 
+  const headingRow = document.createElement("div");
+  headingRow.className = "task-comment-header";
+
   const heading = document.createElement("div");
   heading.className = "task-comment-history-label";
   heading.textContent = "Previous entries";
+
+  const popoutButton = document.createElement("button");
+  popoutButton.type = "button";
+  popoutButton.className = "ghost task-comment-popout-button";
+  popoutButton.textContent = "Open comments";
+  popoutButton.addEventListener("click", () => openCommentHistoryDialog(task.id));
+  headingRow.append(heading, popoutButton);
 
   const commentHistory = document.createElement("div");
   commentHistory.className = "task-comment-history";
   if (Array.isArray(task.comments) && task.comments.length) {
     task.comments.slice().reverse().forEach(comment => {
-      const item = document.createElement("article");
-      item.className = "task-comment-history-item";
-      item.innerHTML = `
-        <strong>${escapeHtml(comment.authorName || "Unknown user")}</strong>
-        <span>${escapeHtml(formatDateTime(comment.createdAt))}</span>
-        <p>${escapeHtml(comment.text || "")}</p>
-      `;
-      commentHistory.appendChild(item);
+      commentHistory.appendChild(createCommentHistoryItem(comment));
     });
   } else {
     const empty = document.createElement("p");
@@ -2700,8 +2782,40 @@ function createInlineCommentBox(task) {
   addButton.addEventListener("click", () => addInlineTaskComment(task, textarea));
 
   actions.appendChild(addButton);
-  wrapper.append(heading, commentHistory, textarea, actions);
+  wrapper.append(headingRow, commentHistory, textarea, actions);
   return wrapper;
+}
+
+function createCommentHistoryItem(comment) {
+  const item = document.createElement("article");
+  item.className = "task-comment-history-item";
+  item.innerHTML = `
+    <strong>${escapeHtml(comment.authorName || "Unknown user")}</strong>
+    <span>${escapeHtml(formatDateTime(comment.createdAt))}</span>
+    <p>${escapeHtml(comment.text || "")}</p>
+  `;
+  return item;
+}
+
+function openCommentHistoryDialog(taskId) {
+  const task = state.tasks.find(entry => entry.id === taskId);
+  if (!task || !commentHistoryDialog || !commentHistoryTitle || !commentHistoryList) return;
+
+  commentHistoryTitle.textContent = `${task.title || "Task"} Comments`;
+  commentHistoryList.innerHTML = "";
+
+  if (Array.isArray(task.comments) && task.comments.length) {
+    task.comments.slice().reverse().forEach(comment => {
+      commentHistoryList.appendChild(createCommentHistoryItem(comment));
+    });
+  } else {
+    const empty = document.createElement("p");
+    empty.className = "latest-comment";
+    empty.textContent = "No comments yet.";
+    commentHistoryList.appendChild(empty);
+  }
+
+  commentHistoryDialog.showModal();
 }
 
 function addInlineTaskComment(task, textarea) {
@@ -4125,6 +4239,7 @@ document.querySelector("#historyBtn").addEventListener("click", () => {
   historyDialog.showModal();
 });
 document.querySelector("#closeHistoryDialog").addEventListener("click", () => historyDialog.close());
+document.querySelector("#closeCommentHistoryDialog").addEventListener("click", () => commentHistoryDialog.close());
 document.querySelector("#patrickChangeReportBtn").addEventListener("click", () => {
   renderPatrickChangeReport();
   patrickChangeReportDialog.showModal();

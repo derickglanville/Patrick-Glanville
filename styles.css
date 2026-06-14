@@ -915,6 +915,13 @@ textarea {
   gap: 8px;
 }
 
+.task-comment-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .task-comment-history-label {
   color: var(--muted);
   font-weight: 650;
@@ -960,6 +967,8 @@ textarea {
   margin: 0;
   color: var(--ink);
   font-size: .92rem;
+  white-space: pre-wrap;
+  line-height: 1.45;
 }
 
 .task-comment-entry {
@@ -969,6 +978,17 @@ textarea {
 .task-comment-actions {
   display: flex;
   justify-content: flex-end;
+}
+
+.task-comment-popout-button {
+  padding: 6px 10px;
+  font-size: .82rem;
+}
+
+.task-comment-history-dialog {
+  height: min(70vh, 560px);
+  min-height: 320px;
+  max-height: min(70vh, 560px);
 }
 
 .medication-grid-section {
