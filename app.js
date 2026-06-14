@@ -1,7 +1,7 @@
 const STORAGE_KEY = "patrick-glanville-support-tracker-v1";
 const PATRICK_WATCH_KEY = "patrick-glanville-patrick-watch-v1";
 const TASK_VIEW_KEY = "patrick-glanville-task-view-v1";
-const DATA_VERSION = 2026061402;
+const DATA_VERSION = 2026061403;
 const PANEL_VISIBILITY_VERSION = 2026052603;
 const BUILD_INFO = {
   commit: "926ad52",
@@ -196,7 +196,7 @@ function buildSeedComment(text, authorName = "Opportunity note", authorEmail = "
     id: crypto.randomUUID(),
     authorEmail,
     authorName,
-    createdAt: BUILD_INFO.builtAt || new Date().toISOString(),
+    createdAt: new Date().toISOString(),
     text
   };
 }
@@ -1136,6 +1136,11 @@ function normalizePercent(value) {
 function inferTaskCreatedAt(task, history = []) {
   if (task?.createdAt) return task.createdAt;
 
+  const commentDates = Array.isArray(task?.comments)
+    ? task.comments.map(comment => comment?.createdAt).filter(Boolean).sort((a, b) => a.localeCompare(b))
+    : [];
+  if (commentDates.length) return commentDates[0];
+
   const matchingEntries = Array.isArray(history)
     ? history.filter(entry => entry?.taskId === task?.id || (entry?.taskTitle && entry.taskTitle === task?.title))
     : [];
@@ -1314,6 +1319,8 @@ function applyDataMigrations(loaded) {
 
   ensureTaskComment(loaded.tasks, "Prepare for Outlier AI coding assessments", OUTLIER_COMMENT_TEXT);
   ensureTaskComment(loaded.tasks, "Track Micro1.ai AI training application", MICRO1_COMMENT_TEXT);
+  refreshSeedCommentTimestamps(loaded.tasks, "Prepare for Outlier AI coding assessments");
+  refreshSeedCommentTimestamps(loaded.tasks, "Track Micro1.ai AI training application");
 
   updateTaskContent(loaded.tasks, HEALTH_INSURANCE_TASK_TITLE, {
     next: "Confirm the grace-period coverage end date of 2026-07-31, compare replacement coverage options now, and apply for a new plan before there is any gap in appointments or medication access.",
@@ -1396,6 +1403,28 @@ function ensureTaskComment(tasks, title, text, authorName = "Opportunity note", 
   const hasMatch = task.comments.some(comment => String(comment?.text || "").trim() === normalizedText);
   if (hasMatch) return;
   task.comments.push(buildSeedComment(normalizedText, authorName, authorEmail));
+}
+
+function refreshSeedCommentTimestamps(tasks, title, authorName = "Opportunity note") {
+  const task = tasks.find(item => item.title === title);
+  if (!task || !Array.isArray(task.comments) || !task.comments.length) return;
+
+  const seededComments = task.comments.filter(comment => (comment?.authorName || "") === authorName);
+  if (!seededComments.length) return;
+
+  const now = new Date().toISOString();
+  seededComments.forEach(comment => {
+    if (!comment.createdAt || comment.createdAt === BUILD_INFO.builtAt) {
+      comment.createdAt = now;
+    }
+  });
+
+  if (!task.createdAt || task.createdAt === BUILD_INFO.builtAt) {
+    task.createdAt = seededComments
+      .map(comment => comment.createdAt)
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b))[0] || now;
+  }
 }
 
 function ensureMedicationListDefaults(tasks) {

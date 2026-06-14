@@ -1345,6 +1345,8 @@ dialog::backdrop {
 .comment-item p,
 .history-item p {
   margin: 8px 0 0;
+  white-space: pre-wrap;
+  line-height: 1.45;
 }
 
 .history-dialog,
