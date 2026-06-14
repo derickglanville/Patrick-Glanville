@@ -971,6 +971,38 @@ textarea {
   line-height: 1.45;
 }
 
+.task-comment-history-meta {
+  display: grid;
+  gap: 2px;
+}
+
+.task-comment-history-meta .comment-updated {
+  color: var(--muted);
+  font-size: .78rem;
+}
+
+.task-comment-item-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.task-comment-item-actions button {
+  padding: 6px 10px;
+  font-size: .82rem;
+}
+
+.task-comment-edit-box {
+  display: grid;
+  gap: 8px;
+}
+
+.task-comment-edit-box textarea {
+  min-height: 110px;
+  white-space: pre-wrap;
+}
+
 .task-comment-entry {
   min-height: 78px;
 }

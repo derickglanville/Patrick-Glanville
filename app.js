@@ -2787,7 +2787,7 @@ function createInlineCommentBox(task) {
   commentHistory.className = "task-comment-history";
   if (Array.isArray(task.comments) && task.comments.length) {
     task.comments.slice().reverse().forEach(comment => {
-      commentHistory.appendChild(createCommentHistoryItem(comment));
+      commentHistory.appendChild(createCommentHistoryItem(task, comment));
     });
   } else {
     const empty = document.createElement("p");
@@ -2815,14 +2815,28 @@ function createInlineCommentBox(task) {
   return wrapper;
 }
 
-function createCommentHistoryItem(comment) {
+function createCommentHistoryItem(task, comment) {
   const item = document.createElement("article");
   item.className = "task-comment-history-item";
-  item.innerHTML = `
-    <strong>${escapeHtml(comment.authorName || "Unknown user")}</strong>
-    <span>${escapeHtml(formatDateTime(comment.createdAt))}</span>
-    <p>${escapeHtml(comment.text || "")}</p>
-  `;
+  item.appendChild(createCommentHistoryContent(comment));
+
+  const actions = document.createElement("div");
+  actions.className = "task-comment-item-actions";
+
+  const editButton = document.createElement("button");
+  editButton.type = "button";
+  editButton.className = "ghost";
+  editButton.textContent = "Edit";
+  editButton.addEventListener("click", () => startInlineCommentEdit(task.id, comment.id, item));
+
+  const deleteButton = document.createElement("button");
+  deleteButton.type = "button";
+  deleteButton.className = "ghost";
+  deleteButton.textContent = "Delete";
+  deleteButton.addEventListener("click", () => deleteSavedComment(task.id, comment.id));
+
+  actions.append(editButton, deleteButton);
+  item.appendChild(actions);
   return item;
 }
 
@@ -2830,12 +2844,13 @@ function openCommentHistoryDialog(taskId) {
   const task = state.tasks.find(entry => entry.id === taskId);
   if (!task || !commentHistoryDialog || !commentHistoryTitle || !commentHistoryList) return;
 
+  commentHistoryDialog.dataset.taskId = task.id;
   commentHistoryTitle.textContent = `${task.title || "Task"} Comments`;
   commentHistoryList.innerHTML = "";
 
   if (Array.isArray(task.comments) && task.comments.length) {
     task.comments.slice().reverse().forEach(comment => {
-      commentHistoryList.appendChild(createCommentHistoryItem(comment));
+      commentHistoryList.appendChild(createCommentHistoryItem(task, comment));
     });
   } else {
     const empty = document.createElement("p");
@@ -2865,6 +2880,111 @@ function addInlineTaskComment(task, textarea) {
   recordUpdate(task, "Comment added");
   saveState();
   render();
+}
+
+function createCommentHistoryContent(comment) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "task-comment-history-meta";
+  wrapper.innerHTML = `
+    <strong>${escapeHtml(comment.authorName || "Unknown user")}</strong>
+    <span>${escapeHtml(formatDateTime(comment.createdAt))}</span>
+    ${comment.updatedAt ? `<span class="comment-updated">Edited ${escapeHtml(formatDateTime(comment.updatedAt))}${comment.updatedByName ? ` by ${escapeHtml(comment.updatedByName)}` : ""}</span>` : ""}
+  `;
+
+  const body = document.createElement("p");
+  body.textContent = comment.text || "";
+
+  const content = document.createElement("div");
+  content.className = "task-comment-history-content";
+  content.append(wrapper, body);
+  return content;
+}
+
+function startInlineCommentEdit(taskId, commentId, container) {
+  const task = state.tasks.find(entry => entry.id === taskId);
+  const comment = task?.comments?.find(entry => entry.id === commentId);
+  if (!task || !comment || !container) return;
+
+  const editBox = document.createElement("div");
+  editBox.className = "task-comment-edit-box";
+
+  const textarea = document.createElement("textarea");
+  textarea.value = comment.text || "";
+  textarea.rows = 6;
+
+  const actions = document.createElement("div");
+  actions.className = "task-comment-item-actions";
+
+  const saveButton = document.createElement("button");
+  saveButton.type = "button";
+  saveButton.textContent = "Save";
+  saveButton.addEventListener("click", () => saveEditedComment(taskId, commentId, textarea.value));
+
+  const cancelButton = document.createElement("button");
+  cancelButton.type = "button";
+  cancelButton.className = "ghost";
+  cancelButton.textContent = "Cancel";
+  cancelButton.addEventListener("click", () => refreshCommentViews(taskId));
+
+  actions.append(cancelButton, saveButton);
+  editBox.append(textarea, actions);
+
+  container.innerHTML = "";
+  container.appendChild(editBox);
+  textarea.focus();
+  textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+}
+
+function saveEditedComment(taskId, commentId, nextText) {
+  const user = ensureCurrentUser("edit a saved comment");
+  if (!user) return;
+
+  const task = state.tasks.find(entry => entry.id === taskId);
+  const comment = task?.comments?.find(entry => entry.id === commentId);
+  if (!task || !comment) return;
+
+  const trimmed = String(nextText || "").trim();
+  if (!trimmed) return;
+  if (trimmed === String(comment.text || "").trim()) {
+    refreshCommentViews(taskId);
+    return;
+  }
+
+  comment.text = trimmed;
+  comment.updatedAt = new Date().toISOString();
+  comment.updatedByEmail = user.email;
+  comment.updatedByName = user.name;
+  recordUpdate(task, "Comment edited");
+  saveState();
+  refreshCommentViews(taskId);
+}
+
+function deleteSavedComment(taskId, commentId) {
+  const user = ensureCurrentUser("delete a saved comment");
+  if (!user) return;
+
+  const task = state.tasks.find(entry => entry.id === taskId);
+  const comment = task?.comments?.find(entry => entry.id === commentId);
+  if (!task || !comment) return;
+  if (!confirm("Delete this saved comment?")) return;
+
+  task.comments = task.comments.filter(entry => entry.id !== commentId);
+  recordUpdate(task, "Comment deleted");
+  saveState();
+  refreshCommentViews(taskId);
+}
+
+function refreshCommentViews(taskId) {
+  const task = state.tasks.find(entry => entry.id === taskId);
+  render();
+
+  if (taskDialog?.open && fields.id?.value === taskId && task) {
+    renderTaskComments(task);
+  }
+
+  if (commentHistoryDialog?.open && commentHistoryDialog.dataset.taskId === taskId && task) {
+    openCommentHistoryDialog(taskId);
+  }
 }
 
 function createMedicationSummary(task) {
@@ -3116,13 +3236,8 @@ function renderTaskComments(task) {
     return;
   }
   task.comments.slice().reverse().forEach(comment => {
-    const item = document.createElement("article");
-    item.className = "comment-item";
-    item.innerHTML = `
-      <strong>${escapeHtml(comment.authorName)}</strong>
-      <span>${escapeHtml(formatDateTime(comment.createdAt))}</span>
-      <p>${escapeHtml(comment.text)}</p>
-    `;
+    const item = createCommentHistoryItem(task, comment);
+    item.classList.add("comment-item");
     fields.comments.appendChild(item);
   });
 }
