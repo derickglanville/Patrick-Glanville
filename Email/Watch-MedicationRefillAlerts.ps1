@@ -278,10 +278,10 @@ function Get-RefillAlert {
   return $null
 }
 
-function Get-MedicationAlerts {
+function Get-MedicationTask {
   param($TrackerState)
 
-  $Task = @($TrackerState.state.tasks) | Where-Object {
+  return @($TrackerState.state.tasks) | Where-Object {
     $Title = [string]$_.title
     $Next = [string]$_.next
     $Notes = [string]$_.notes
@@ -291,6 +291,12 @@ function Get-MedicationAlerts {
     $Next.ToLowerInvariant().Contains("list every current medication") -or
     $Notes.ToLowerInvariant().Contains("track medication details")
   } | Select-Object -First 1
+}
+
+function Get-MedicationAlerts {
+  param($TrackerState)
+
+  $Task = Get-MedicationTask -TrackerState $TrackerState
   if (-not $Task) { return @() }
 
   $Entries = @($Task.medications)
@@ -315,8 +321,28 @@ function Get-MedicationAlerts {
   return $Alerts
 }
 
+function Get-CurrentMedicationList {
+  param($TrackerState)
+
+  $Task = Get-MedicationTask -TrackerState $TrackerState
+  if (-not $Task) { return @() }
+
+  return @($Task.medications | Where-Object { $null -ne $_ }) | ForEach-Object {
+    [pscustomobject]@{
+      Name = if ($_.name) { [string]$_.name } else { "Unnamed medication" }
+      Dosage = if ($_.dosage) { [string]$_.dosage } else { "Strength/dosage needed" }
+      PillsPrescribed = if ($_.pillsPrescribed) { [string]$_.pillsPrescribed } else { "Not set" }
+      RefillDate = if ($_.refillDate) { [string]$_.refillDate } else { "" }
+      Alert = Get-RefillAlert -Entry $_
+    }
+  }
+}
+
 function Build-EmailHtml {
-  param([array]$Alerts)
+  param(
+    [array]$Alerts,
+    [array]$CurrentMedicationList
+  )
 
   $Rows = ($Alerts | Sort-Object @{ Expression = { if ($_.Level -eq "red") { 0 } else { 1 } } }, RefillDate, Name | ForEach-Object {
     $Bg = if ($_.Level -eq "red") { "#ffe2e0" } else { "#fff7bf" }
@@ -330,6 +356,24 @@ function Build-EmailHtml {
 "@
   }) -join "`n"
 
+  $MedicationRows = ($CurrentMedicationList | Sort-Object RefillDate, Name | ForEach-Object {
+    $MedicationBg = "#ffffff"
+    $AlertLabel = "No active alert"
+    if ($_.Alert) {
+      $MedicationBg = if ($_.Alert.Level -eq "red") { "#ffe2e0" } else { "#fff7bf" }
+      $AlertLabel = $_.Alert.Label
+    }
+    @"
+  <tr style="background:$MedicationBg;">
+    <td style="padding:10px;border:1px solid #d9dee7;"><strong>$(Escape-Html $_.Name)</strong></td>
+    <td style="padding:10px;border:1px solid #d9dee7;">$(Escape-Html $_.Dosage)</td>
+    <td style="padding:10px;border:1px solid #d9dee7;">$(Escape-Html $_.PillsPrescribed)</td>
+    <td style="padding:10px;border:1px solid #d9dee7;">$(Escape-Html (Format-DateLabel $_.RefillDate))</td>
+    <td style="padding:10px;border:1px solid #d9dee7;">$(Escape-Html $AlertLabel)</td>
+  </tr>
+"@
+  }) -join "`n"
+
   return @"
 <html>
 <body style="font-family:Arial,Helvetica,sans-serif;background:#f5f7fb;color:#18202a;">
@@ -338,15 +382,32 @@ function Build-EmailHtml {
       <h1 style="margin:0 0 8px;font-size:26px;">Medication Refill Alert</h1>
       <p style="margin:0;color:#dbe7f5;">Generated $(Escape-Html ((Get-Date).ToString("MMM d, yyyy h:mm tt")))</p>
     </div>
-    <div style="padding:24px 28px;">
-      <p style="margin-top:0;">The tracker found medication refill dates that need attention.</p>
-      <ul>
-        <li><strong>Yellow</strong>: refill date is within the next $AlertWindowDays days</li>
-        <li><strong>Red</strong>: refill date is already past due</li>
-      </ul>
-      <table style="width:100%;border-collapse:collapse;">
-        <thead>
-          <tr style="background:#eef2f7;">
+      <div style="padding:24px 28px;">
+        <p style="margin-top:0;">The tracker found medication refill dates that need attention.</p>
+        <ul>
+          <li><strong>Yellow</strong>: refill date is within the next $AlertWindowDays days</li>
+          <li><strong>Red</strong>: refill date is already past due</li>
+        </ul>
+        <div style="margin:18px 0 22px;padding:14px 16px;background:#f6f8fb;border:1px solid #d9dee7;border-radius:8px;">
+          <div style="font-weight:700;margin-bottom:8px;">Current medication list</div>
+          <table style="width:100%;border-collapse:collapse;">
+            <thead>
+              <tr style="background:#eef2f7;">
+                <th style="padding:10px;border:1px solid #d9dee7;text-align:left;">Medication</th>
+                <th style="padding:10px;border:1px solid #d9dee7;text-align:left;">Dosage</th>
+                <th style="padding:10px;border:1px solid #d9dee7;text-align:left;">Pills prescribed</th>
+                <th style="padding:10px;border:1px solid #d9dee7;text-align:left;">Refill date</th>
+                <th style="padding:10px;border:1px solid #d9dee7;text-align:left;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              $MedicationRows
+            </tbody>
+          </table>
+        </div>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="background:#eef2f7;">
             <th style="padding:10px;border:1px solid #d9dee7;text-align:left;">Medication</th>
             <th style="padding:10px;border:1px solid #d9dee7;text-align:left;">Dosage</th>
             <th style="padding:10px;border:1px solid #d9dee7;text-align:left;">Refill date</th>
@@ -369,6 +430,7 @@ function Invoke-MedicationRefillAlertCheck {
   $TrackerState = Get-TrackerState -Config $Config
   $Checkpoint = Load-Checkpoint
   $Alerts = @(Get-MedicationAlerts -TrackerState $TrackerState)
+  $CurrentMedicationList = @(Get-CurrentMedicationList -TrackerState $TrackerState)
 
   $OpenKeys = @{}
   foreach ($Alert in $Alerts) { $OpenKeys[$Alert.AlertKey] = $true }
@@ -404,7 +466,7 @@ function Invoke-MedicationRefillAlertCheck {
   }
 
   $Subject = "Medication Refill Alert - Patrick Glanville Support Tracker"
-  $HtmlBody = Build-EmailHtml -Alerts $NewAlerts
+  $HtmlBody = Build-EmailHtml -Alerts $NewAlerts -CurrentMedicationList $CurrentMedicationList
   Send-HtmlMailWithPythonFallback -To $Recipients -Subject $Subject -HtmlBody $HtmlBody
   Save-Checkpoint -Checkpoint $Checkpoint
   Write-Host ("Sent medication refill alert email for {0} item(s)." -f $NewAlerts.Count)

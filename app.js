@@ -1,7 +1,7 @@
 const STORAGE_KEY = "patrick-glanville-support-tracker-v1";
 const PATRICK_WATCH_KEY = "patrick-glanville-patrick-watch-v1";
 const TASK_VIEW_KEY = "patrick-glanville-task-view-v1";
-const DATA_VERSION = 2026061301;
+const DATA_VERSION = 2026061401;
 const PANEL_VISIBILITY_VERSION = 2026052603;
 const BUILD_INFO = {
   commit: "926ad52",
@@ -47,6 +47,8 @@ const baseCategories = [
   "Job - Easy Money (HEB, Walmart, Home Depot, Kroger)",
   "Job - Teaching Assistance",
   "Job - Mercor",
+  "Job - Micro1",
+  "Job - Outlier",
   "Job - Prolific",
   "N/A",
   "Accountability",
@@ -96,6 +98,8 @@ const categoryOrder = [
   "Job - Data Annotation",
   "Job - Prolific",
   "Job - Mercor",
+  "Job - Micro1",
+  "Job - Outlier",
   "Job - Easy Money (HEB, Walmart, Home Depot, Kroger)",
   "Job - Teaching Assistance",
   "Income",
@@ -252,6 +256,32 @@ const seedData = {
       percent: 15,
       next: "Create a Prolific participant account, complete the profile honestly, and check whether studies are available from his location.",
       notes: "Website: https://www.prolific.com/. Track approval status, profile completion, study availability, expected pay, payment method, and daily time spent checking for studies.",
+      tag: "Added/Updated"
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "Prepare for Outlier AI coding assessments",
+      category: "Job - Outlier",
+      owner: "Patrick",
+      status: "In progress",
+      priority: "High",
+      due: "2026-06-15",
+      percent: 20,
+      next: "Complete prep work for the React and C#.NET assessments, then take both coding tests tomorrow.",
+      notes: "Website: https://app.outlier.ai/. Patrick is already signed up. Track prep resources, practice results, assessment timing, score or feedback, and any follow-up request after the tests.",
+      tag: "Added/Updated"
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "Track Micro1.ai AI training application",
+      category: "Job - Micro1",
+      owner: "Patrick",
+      status: "In progress",
+      priority: "High",
+      due: "2026-06-14",
+      percent: 35,
+      next: "Record the interview with their AI on June 14, 2026 and watch for next-step emails, assessments, or recruiter follow-up.",
+      notes: "Website: https://micro1.ai/. Patrick already applied and completed an AI interview on June 14, 2026. Track role details, pay structure, next screening steps, recruiter contact, and final decision timeline.",
       tag: "Added/Updated"
     },
     {
