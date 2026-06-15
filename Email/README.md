@@ -234,7 +234,7 @@ That watcher:
   - `dglanville@gmail.com`
   - `patrick.glanville@gmail.com`
   - `courtney.glanville@gmail.com`
-- sends alerts only once per medication + refill date + severity until the data changes
+- sends one email each day at 10:00 AM whenever any medication alert is active
 
 Alert rules:
 
@@ -256,7 +256,7 @@ powershell -ExecutionPolicy Bypass -File .\Run-MedicationRefillAlertsScheduledTa
 Recommended schedule on this machine:
 
 - run once per day at `10:00 AM`
-- send the email immediately after that check only if a yellow/red medication refill condition is found
+- send the email after that daily check whenever one or more yellow/red medication refill conditions are active
 
 ## Manual Button Trigger Helper
 

@@ -435,13 +435,6 @@ function Invoke-MedicationRefillAlertCheck {
   $OpenKeys = @{}
   foreach ($Alert in $Alerts) { $OpenKeys[$Alert.AlertKey] = $true }
 
-  $NewAlerts = @()
-  foreach ($Alert in $Alerts) {
-    if (-not ($Checkpoint.alerts.PSObject.Properties.Name -contains $Alert.AlertKey)) {
-      $NewAlerts += $Alert
-    }
-  }
-
   $Existing = @{}
   foreach ($Property in $Checkpoint.alerts.PSObject.Properties) {
     if ($OpenKeys.ContainsKey($Property.Name)) {
@@ -459,17 +452,17 @@ function Invoke-MedicationRefillAlertCheck {
     }
   }
 
-  if (-not $NewAlerts.Count) {
+  if (-not $Alerts.Count) {
     Save-Checkpoint -Checkpoint $Checkpoint
-    Write-Host "No new medication refill alerts detected."
+    Write-Host "No active medication refill alerts detected."
     return
   }
 
   $Subject = "Medication Refill Alert - Patrick Glanville Support Tracker"
-  $HtmlBody = Build-EmailHtml -Alerts $NewAlerts -CurrentMedicationList $CurrentMedicationList
+  $HtmlBody = Build-EmailHtml -Alerts $Alerts -CurrentMedicationList $CurrentMedicationList
   Send-HtmlMailWithPythonFallback -To $Recipients -Subject $Subject -HtmlBody $HtmlBody
   Save-Checkpoint -Checkpoint $Checkpoint
-  Write-Host ("Sent medication refill alert email for {0} item(s)." -f $NewAlerts.Count)
+  Write-Host ("Sent daily medication refill alert email for {0} active item(s)." -f $Alerts.Count)
 }
 
 if ($Once) {
