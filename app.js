@@ -1,7 +1,7 @@
 const STORAGE_KEY = "patrick-glanville-support-tracker-v1";
 const PATRICK_WATCH_KEY = "patrick-glanville-patrick-watch-v1";
 const TASK_VIEW_KEY = "patrick-glanville-task-view-v1";
-const DATA_VERSION = 2026061403;
+const DATA_VERSION = 2026061501;
 const PANEL_VISIBILITY_VERSION = 2026052603;
 const BUILD_INFO = {
   commit: "926ad52",
@@ -50,6 +50,9 @@ const baseCategories = [
   "Job - Micro1",
   "Job - Outlier",
   "Job - Prolific",
+  "Career strategy",
+  "Job barriers",
+  "Income pathways",
   "N/A",
   "Accountability",
   "Benefits",
@@ -73,6 +76,7 @@ const priorityOptions = ["Urgent", "High", "Medium", "Low"];
 const billStatusOptions = ["Unpaid", "Scheduled", "Paid", "Deferred", "Past due", "N/A"];
 const taskGroupOrder = [
   "Jobs and Income",
+  "Career Strategy and Income Reset",
   "Benefits and Assistance",
   "Transportation and Vehicle",
   "Debt, Bills, and Legal",
@@ -140,6 +144,7 @@ Assessment
 This may be the bigger upside opportunity. If Patrick interviews well and demonstrates current skills in modern frameworks, the payoff could be much higher than gig-based AI training.`;
 const defaultExpandedTaskGroups = [
   "Jobs and Income",
+  "Career Strategy and Income Reset",
   "Benefits and Assistance",
   "Transportation and Vehicle",
   "Debt, Bills, and Legal"
@@ -153,6 +158,9 @@ const categoryOrder = [
   "Job - Outlier",
   "Job - Easy Money (HEB, Walmart, Home Depot, Kroger)",
   "Job - Teaching Assistance",
+  "Career strategy",
+  "Job barriers",
+  "Income pathways",
   "Income",
   "Benefits",
   "Cash",
@@ -370,6 +378,84 @@ const seedData = {
       due: "",
       next: "Identify nearby schools, colleges, tutoring programs, and academic support offices that hire teaching assistants, tutors, or lab helpers, then submit applications and save proof of submission.",
       notes: "Track employer name, role title, subject area, pay rate, location, schedule, application date, contact person, interview status, and whether transportation is realistic. Focus on math, physics, tutoring, and classroom support roles first."
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "Identify why consistent employment keeps failing",
+      category: "Job barriers",
+      owner: "Patrick + Deric",
+      status: "Not started",
+      priority: "Urgent",
+      due: "",
+      next: "Review the last 12 months of job attempts and write down where opportunities are breaking down: applications, resume screening, interviews, coding tests, follow-through, transportation, health, age bias, confidence, or communication.",
+      notes: "This is the root-cause card. The goal is to stop treating the problem as only 'apply to more jobs' and instead identify the actual blockers. Track patterns such as not hearing back, getting filtered out before interviews, struggling with modern-stack assessments, energy or health crashes, lack of references, inconsistent follow-up, and possible ageism.",
+      tag: "New",
+      tagTone: "purple"
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "Build a realistic path to $25,000 per year",
+      category: "Income pathways",
+      owner: "Patrick + Deric",
+      status: "Not started",
+      priority: "Urgent",
+      due: "",
+      next: "Map the minimum combinations of work needed to reach at least $25,000/year, such as one steady part-time job, two smaller remote streams, tutoring plus contract work, or local hourly work plus AI/evaluation gigs.",
+      notes: "Annual target: at least $25,000. Break this into monthly and weekly targets, then compare each path for realism, consistency, transportation, health impact, and time to first income. Do not assume one perfect job will solve everything. Evaluate mixes of local work, tutoring, technical freelancing, AI evaluation, contract programming, and benefits-supported transition plans.",
+      tag: "New",
+      tagTone: "purple"
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "Test whether ageism is affecting Patrick's job search",
+      category: "Job barriers",
+      owner: "Deric + Patrick",
+      status: "Not started",
+      priority: "High",
+      due: "",
+      next: "Compare how Patrick is presenting himself on resumes, LinkedIn, application dates, technologies, and interview framing to see whether age or outdated presentation may be filtering him out before he gets a fair review.",
+      notes: "Possible signals include graduation dates, very old experience framing, older terminology, lack of recent portfolio proof, and interview answers that focus too much on the past. The goal is not to prove bias abstractly, but to test whether modernizing presentation increases callbacks and whether some markets are more age-tolerant than others.",
+      tag: "New",
+      tagTone: "purple"
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "Reposition Patrick's background for modern hiring",
+      category: "Career strategy",
+      owner: "Patrick + Deric",
+      status: "Not started",
+      priority: "High",
+      due: "",
+      next: "Create one modern resume version for software engineering, one for tutoring or teaching support, and one for AI evaluation or contract work, each emphasizing current value instead of only long tenure.",
+      notes: "Patrick has a Master's in Physics and 30+ years of software development experience, which is valuable, but it may need better packaging for today's market. Focus on current frameworks, recent hands-on ability, problem-solving depth, reliability, and measurable outcomes. Remove anything that makes him look disconnected from current tools if it is not helping him.",
+      tag: "New",
+      tagTone: "purple"
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "Choose backup income paths that can start faster than traditional hiring",
+      category: "Income pathways",
+      owner: "Patrick + brother",
+      status: "Not started",
+      priority: "High",
+      due: "",
+      next: "List income options that can start within 2 to 6 weeks even if full-time software work does not materialize, then rank them by speed, consistency, transportation needs, and expected weekly income.",
+      notes: "Examples may include tutoring physics and math, substitute teaching support, local hourly work, library or school support roles, remote grading or help-desk style work, contract coding, AI evaluation, and project-based technical assistance. The goal is income stability first, not prestige.",
+      tag: "New",
+      tagTone: "purple"
+    },
+    {
+      id: crypto.randomUUID(),
+      title: "Stabilize health, routine, and follow-through so work can stick",
+      category: "Career strategy",
+      owner: "Patrick + family",
+      status: "Not started",
+      priority: "High",
+      due: "",
+      next: "Identify whether fatigue, depression, anxiety, medication issues, missed routines, or inconsistent sleep are interfering with applications, interviews, assessments, and ongoing work performance.",
+      notes: "Even the right opportunity may fail if Patrick cannot sustain a routine or recover from setbacks. Track how health, stress, rejection, transportation instability, and confidence affect execution. This card is about making employment durable, not just getting one offer.",
+      tag: "New",
+      tagTone: "purple"
     },
     {
       id: crypto.randomUUID(),
@@ -2253,6 +2339,7 @@ function taskGroupRank(groupName) {
 
 function taskGroupName(category = "N/A") {
   if (category.startsWith("Job -") || category === "Income" || category === "Cash") return "Jobs and Income";
+  if (category === "Career strategy" || category === "Job barriers" || category === "Income pathways") return "Career Strategy and Income Reset";
   if (category === "Benefits") return "Benefits and Assistance";
   if (category === "Transportation" || category === "Transportation - Turo rental" || category === "Vehicle") return "Transportation and Vehicle";
   if (category === "Debt" || category === "Debt - lender hardship" || category === "Medical bills") return "Debt, Bills, and Legal";
