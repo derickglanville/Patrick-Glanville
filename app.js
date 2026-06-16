@@ -1,12 +1,12 @@
 const STORAGE_KEY = "patrick-glanville-support-tracker-v1";
 const PATRICK_WATCH_KEY = "patrick-glanville-patrick-watch-v1";
 const TASK_VIEW_KEY = "patrick-glanville-task-view-v1";
-const DATA_VERSION = 2026061501;
+const DATA_VERSION = 2026061602;
 const PANEL_VISIBILITY_VERSION = 2026052603;
 const BUILD_INFO = {
-  commit: "926ad52",
-  timestamp: "2026-05-25T11:18:12-04:00",
-  builtAt: "2026-05-28T00:00:00-04:00",
+  commit: "156b32a",
+  timestamp: "2026-06-15T10:31:00-04:00",
+  builtAt: "2026-06-16T00:00:00-04:00",
   label: "Local build"
 };
 const GITHUB_COMMIT_API = "https://api.github.com/repos/derickglanville/Patrick-Glanville/commits/main";
@@ -197,6 +197,22 @@ function buildSeedTaskKey(title = "") {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function findTaskByTitleOrSeedKey(tasks, title) {
+  if (!Array.isArray(tasks) || !title) return null;
+  const exactMatch = tasks.find(task => task.title === title);
+  if (exactMatch) return exactMatch;
+
+  const seedKey = buildSeedTaskKey(title);
+  const seedMatch = tasks.find(task => task.seedKey === seedKey);
+  if (seedMatch) return seedMatch;
+
+  if (title === MEDICATION_LIST_TASK_TITLE) {
+    return tasks.find(task => isMedicationGridTask(task) || isMedicationLikeTask(task)) || null;
+  }
+
+  return null;
 }
 
 function buildSeedComment(text, authorName = "Opportunity note", authorEmail = "") {
@@ -972,6 +988,17 @@ function initializeState(loaded) {
   stateAdjusted = addMissingSeedTasks(loaded) || stateAdjusted;
   loaded.bills = Array.isArray(loaded.bills) ? loaded.bills : structuredClone(seedData.bills);
   ensureSeedBills(loaded);
+  const repairSnapshot = JSON.stringify({
+    tasks: loaded.tasks,
+    bills: loaded.bills,
+    documents: loaded.documents
+  });
+  applyOngoingStateRepairs(loaded);
+  stateAdjusted = JSON.stringify({
+    tasks: loaded.tasks,
+    bills: loaded.bills,
+    documents: loaded.documents
+  }) !== repairSnapshot || stateAdjusted;
   loaded.dataVersion = Number(loaded.dataVersion) || DATA_VERSION;
   let panelVisibilityReset = false;
   loaded.currentUser = allowedUsers.some(user => user.email === loaded.currentUser)
@@ -1340,9 +1367,7 @@ function addMissingSeedTasks(loaded) {
   return changed;
 }
 
-function applyDataMigrations(loaded) {
-  if ((Number(loaded.dataVersion) || 0) >= DATA_VERSION) return false;
-
+function applyOngoingStateRepairs(loaded) {
   applyTaskDefaults(loaded.tasks, "Apply for CloudResearch Connect studies", {
     priority: "Urgent",
     due: "2026-05-25"
@@ -1416,8 +1441,8 @@ function applyDataMigrations(loaded) {
   });
 
   updateTaskContent(loaded.tasks, MEDICATION_LIST_TASK_TITLE, {
-    next: "Confirm the strength and dosage for Eloquis, Entresto, Jardiance, Metoprolol, and Rosuvastatin, then add refill dates, prescribing doctor, pharmacy, and days of supply remaining.",
-    notes: "Use this notes field to track medication details, refill timing, side effects, copay, prior authorization issues, pharmacy contact information, and any gaps caused by insurance changes. Current medications to verify for strength/dosage: Eloquis, Entresto, Jardiance, Metoprolol, and Rosuvastatin.",
+    next: "Confirm the strength and dosage for Eliquis, Entresto, Jardiance, Metoprolol, and Rosuvastatin, then add refill dates, prescribing doctor, pharmacy, and days of supply remaining.",
+    notes: "Use this notes field to track medication details, refill timing, side effects, copay, prior authorization issues, pharmacy contact information, and any gaps caused by insurance changes. Current medications to verify for strength/dosage: Eliquis, Entresto, Jardiance, Metoprolol, and Rosuvastatin.",
     tag: "Updated",
     tagTone: "purple"
   });
@@ -1451,6 +1476,12 @@ function applyDataMigrations(loaded) {
       source: savedDocument.path || savedDocument.filePath ? "path" : "metadata-only"
     }));
   }
+}
+
+function applyDataMigrations(loaded) {
+  if ((Number(loaded.dataVersion) || 0) >= DATA_VERSION) return false;
+
+  applyOngoingStateRepairs(loaded);
 
   loaded.dataVersion = DATA_VERSION;
   loaded.lastSavedAt = new Date().toISOString();
@@ -1458,13 +1489,13 @@ function applyDataMigrations(loaded) {
 }
 
 function updateTaskFields(tasks, title, updates) {
-  const task = tasks.find(item => item.title === title);
+  const task = findTaskByTitleOrSeedKey(tasks, title);
   if (!task) return;
   Object.assign(task, updates);
 }
 
 function applyTaskDefaults(tasks, title, updates) {
-  const task = tasks.find(item => item.title === title);
+  const task = findTaskByTitleOrSeedKey(tasks, title);
   if (!task) return;
 
   Object.entries(updates).forEach(([field, value]) => {
@@ -1476,13 +1507,13 @@ function applyTaskDefaults(tasks, title, updates) {
 }
 
 function updateTaskContent(tasks, title, updates) {
-  const task = tasks.find(item => item.title === title);
+  const task = findTaskByTitleOrSeedKey(tasks, title);
   if (!task) return;
   Object.assign(task, updates);
 }
 
 function ensureTaskComment(tasks, title, text, authorName = "Opportunity note", authorEmail = "") {
-  const task = tasks.find(item => item.title === title);
+  const task = findTaskByTitleOrSeedKey(tasks, title);
   if (!task) return;
   if (!Array.isArray(task.comments)) task.comments = [];
   const normalizedText = String(text || "").trim();
@@ -1492,7 +1523,7 @@ function ensureTaskComment(tasks, title, text, authorName = "Opportunity note", 
 }
 
 function refreshSeedCommentTimestamps(tasks, title, authorName = "Opportunity note") {
-  const task = tasks.find(item => item.title === title);
+  const task = findTaskByTitleOrSeedKey(tasks, title);
   if (!task || !Array.isArray(task.comments) || !task.comments.length) return;
 
   const seededComments = task.comments.filter(comment => (comment?.authorName || "") === authorName);
@@ -1514,10 +1545,10 @@ function refreshSeedCommentTimestamps(tasks, title, authorName = "Opportunity no
 }
 
 function ensureMedicationListDefaults(tasks) {
-  const task = tasks.find(item => item.title === MEDICATION_LIST_TASK_TITLE);
+  const task = findTaskByTitleOrSeedKey(tasks, MEDICATION_LIST_TASK_TITLE);
   if (!task) return;
 
-  const requiredNames = ["Eloquis", "Entresto", "Jardiance", "Metoprolol", "Rosuvastatin"];
+  const requiredNames = ["Eliquis", "Entresto", "Jardiance", "Metoprolol", "Rosuvastatin"];
   task.medications = normalizeMedicationEntries(task.medications);
 
   const existingNames = new Set(
@@ -1541,23 +1572,19 @@ function restoreJobResearchTasksToOnHold(tasks) {
 
   tasks.forEach(task => {
     if (!titles.has(task.title)) return;
-    const percent = normalizePercent(task.percent);
-    const due = task.due || "";
-    const looksLikeMigrationOverride = task.status === "In progress"
-      && percent === 15
-      && (
-        (task.title === "Apply for CloudResearch Connect studies" && due === "2026-05-25") ||
-        (task.title === "Apply for Data Annotation work" && due === "2026-05-24") ||
-        (task.title === "Apply for Prolific research studies" && due === "2026-05-24")
-      );
-
-    if (!looksLikeMigrationOverride) return;
-
     task.status = "On-Hold";
     task.percent = 0;
     task.priority = "Urgent";
     task.completedAt = task.completedAt || new Date().toISOString();
   });
+}
+
+function medicationDataScore(entries) {
+  return normalizeMedicationEntries(entries).reduce((score, entry) => score
+    + (entry.name ? 1 : 0)
+    + (entry.dosage ? 1 : 0)
+    + (entry.refillDate ? 2 : 0)
+    + ((entry.pillsPrescribed ?? "") !== "" ? 1 : 0), 0);
 }
 
 function mergeTaskData(primary, duplicate) {
@@ -1598,9 +1625,9 @@ function mergeTaskData(primary, duplicate) {
 
   const primaryMedications = normalizeMedicationEntries(primary.medications);
   const duplicateMedications = normalizeMedicationEntries(duplicate.medications);
-  const primaryHasMedicationValues = primaryMedications.some(entry => entry.name || entry.dosage || entry.refillDate);
-  const duplicateHasMedicationValues = duplicateMedications.some(entry => entry.name || entry.dosage || entry.refillDate);
-  if (!primaryHasMedicationValues && duplicateHasMedicationValues) {
+  const primaryMedicationScore = medicationDataScore(primaryMedications);
+  const duplicateMedicationScore = medicationDataScore(duplicateMedications);
+  if (duplicateMedicationScore > primaryMedicationScore) {
     primary.medications = duplicateMedications;
   }
 
