@@ -3,10 +3,11 @@ const PATRICK_WATCH_KEY = "patrick-glanville-patrick-watch-v1";
 const TASK_VIEW_KEY = "patrick-glanville-task-view-v1";
 const DATA_VERSION = 2026061602;
 const PANEL_VISIBILITY_VERSION = 2026052603;
+const TASK_GROUP_COLLAPSE_VERSION = 2026061701;
 const BUILD_INFO = {
   commit: "working-tree",
-  timestamp: "2026-06-17T00:00:00-04:00",
-  builtAt: "2026-06-17T00:00:00-04:00",
+  timestamp: "2026-06-17T12:00:00-04:00",
+  builtAt: "2026-06-17T12:00:00-04:00",
   label: "Local build"
 };
 const GITHUB_COMMIT_API = "https://api.github.com/repos/derickglanville/Patrick-Glanville/commits/main";
@@ -146,12 +147,7 @@ Cons
 Assessment
 This may be the bigger upside opportunity. If Patrick interviews well and demonstrates current skills in modern frameworks, the payoff could be much higher than gig-based AI training.`;
 const defaultExpandedTaskGroups = [
-  "Daily Project Manager",
-  "Jobs and Income",
-  "Career Strategy and Income Reset",
-  "Benefits and Assistance",
-  "Transportation and Vehicle",
-  "Debt, Bills, and Legal"
+  "Daily Project Manager"
 ];
 const categoryOrder = [
   "Daily action manager",
@@ -265,6 +261,7 @@ const seedData = {
   },
   runningNotes: [],
   documents: [],
+  collapsedTaskGroupsVersion: TASK_GROUP_COLLAPSE_VERSION,
   collapsedTaskGroups: {},
   billMonth: "",
   bills: [
@@ -978,6 +975,7 @@ function loadState() {
       notes: parsed.notes || "",
       runningNotes: Array.isArray(parsed.runningNotes) ? parsed.runningNotes : [],
       documents: Array.isArray(parsed.documents) ? parsed.documents : [],
+      collapsedTaskGroupsVersion: Number(parsed.collapsedTaskGroupsVersion) || 0,
       currentUser: parsed.currentUser || PATRICK_EMAIL,
       history: Array.isArray(parsed.history) ? parsed.history : [],
       lastSavedAt: parsed.lastSavedAt || "",
@@ -1051,9 +1049,15 @@ function initializeState(loaded) {
       lifeAdmin: Boolean(loaded.hiddenPanels?.lifeAdmin)
     };
   }
+  const shouldResetCollapsedTaskGroups = Number(loaded.collapsedTaskGroupsVersion) !== TASK_GROUP_COLLAPSE_VERSION;
   loaded.collapsedTaskGroups = loaded.collapsedTaskGroups && typeof loaded.collapsedTaskGroups === "object"
     ? loaded.collapsedTaskGroups
     : {};
+  if (shouldResetCollapsedTaskGroups) {
+    loaded.collapsedTaskGroups = Object.fromEntries(taskGroupOrder.map(groupName => [groupName, true]));
+    loaded.collapsedTaskGroupsVersion = TASK_GROUP_COLLAPSE_VERSION;
+    stateAdjusted = true;
+  }
   defaultExpandedTaskGroups.forEach(groupName => {
     loaded.collapsedTaskGroups[groupName] = false;
   });
