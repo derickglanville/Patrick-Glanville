@@ -736,6 +736,10 @@ textarea {
   gap: 12px;
 }
 
+.daily-project-card {
+  grid-column: 1 / -1;
+}
+
 .job-card {
   border-color: #2f6db7;
   box-shadow: 0 18px 45px rgba(47, 109, 183, .16);
@@ -1015,6 +1019,120 @@ textarea {
 .task-comment-popout-button {
   padding: 6px 10px;
   font-size: .82rem;
+}
+
+.daily-project-section {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfe;
+}
+
+.daily-project-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.daily-project-summary article,
+.daily-project-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+}
+
+.daily-project-summary article {
+  padding: 12px;
+}
+
+.daily-project-summary strong {
+  display: block;
+  font-size: 1.05rem;
+}
+
+.daily-project-summary span,
+.daily-project-item-meta {
+  color: var(--muted);
+  font-size: .85rem;
+}
+
+.daily-project-add-box {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.8fr) minmax(140px, .8fr) minmax(220px, 1.4fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.daily-project-add-box textarea {
+  min-height: 42px;
+}
+
+.daily-project-list {
+  display: grid;
+  gap: 10px;
+}
+
+.daily-project-item {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.daily-project-item.is-complete {
+  background: #f4f7fb;
+}
+
+.daily-project-item-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.daily-project-check {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+
+.daily-project-check input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.daily-project-item-title {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 0 0 4px;
+  background: transparent;
+  color: var(--ink);
+  font-weight: 700;
+  min-width: 0;
+}
+
+.daily-project-item-title:focus {
+  outline: none;
+  border-bottom-color: var(--blue);
+}
+
+.daily-project-item.is-complete .daily-project-item-title {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.daily-project-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.daily-project-item-notes {
+  min-height: 78px;
 }
 
 .task-comment-history-dialog {
@@ -1608,6 +1726,9 @@ dialog::backdrop {
   .budget-panel header,
   .panel-actions,
   .task-inline-metrics,
+  .daily-project-summary,
+  .daily-project-add-box,
+  .daily-project-item-top,
   .life-admin-item,
   .notes-panel {
     grid-template-columns: 1fr;

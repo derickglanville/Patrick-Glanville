@@ -4,9 +4,9 @@ const TASK_VIEW_KEY = "patrick-glanville-task-view-v1";
 const DATA_VERSION = 2026061602;
 const PANEL_VISIBILITY_VERSION = 2026052603;
 const BUILD_INFO = {
-  commit: "156b32a",
-  timestamp: "2026-06-15T10:31:00-04:00",
-  builtAt: "2026-06-16T00:00:00-04:00",
+  commit: "working-tree",
+  timestamp: "2026-06-17T00:00:00-04:00",
+  builtAt: "2026-06-17T00:00:00-04:00",
   label: "Local build"
 };
 const GITHUB_COMMIT_API = "https://api.github.com/repos/derickglanville/Patrick-Glanville/commits/main";
@@ -27,6 +27,7 @@ const MEDICATION_LIST_TASK_TITLE = "Create medication list with dosage and refil
 const HEALTH_INSURANCE_TASK_TITLE = "Get health insurance before current coverage expires";
 const DEPRESSION_TASK_TITLE = "Assess depression and anxiety impact on job search";
 const ETHOS_TASK_TITLE = "Look into life insurance through Ethos";
+const DAILY_PROJECT_MANAGER_TITLE = "Daily Action Project Manager";
 const MEDICATION_REFILL_ALERT_WINDOW_DAYS = 7;
 let supabaseClient = null;
 let supabaseEnabled = false;
@@ -42,6 +43,7 @@ const allowedUsers = [
   { name: "Georgette Hemmings", email: "hemmgeor@gmail.com" }
 ];
 const baseCategories = [
+  "Daily action manager",
   "Job - CloudResearch",
   "Job - Data Annotation",
   "Job - Easy Money (HEB, Walmart, Home Depot, Kroger)",
@@ -75,6 +77,7 @@ const statusOptions = ["N/A", "Not started", "In progress", "Waiting", "Blocked"
 const priorityOptions = ["Urgent", "High", "Medium", "Low"];
 const billStatusOptions = ["Unpaid", "Scheduled", "Paid", "Deferred", "Past due", "N/A"];
 const taskGroupOrder = [
+  "Daily Project Manager",
   "Jobs and Income",
   "Career Strategy and Income Reset",
   "Benefits and Assistance",
@@ -143,6 +146,7 @@ Cons
 Assessment
 This may be the bigger upside opportunity. If Patrick interviews well and demonstrates current skills in modern frameworks, the payoff could be much higher than gig-based AI training.`;
 const defaultExpandedTaskGroups = [
+  "Daily Project Manager",
   "Jobs and Income",
   "Career Strategy and Income Reset",
   "Benefits and Assistance",
@@ -150,6 +154,7 @@ const defaultExpandedTaskGroups = [
   "Debt, Bills, and Legal"
 ];
 const categoryOrder = [
+  "Daily action manager",
   "Job - CloudResearch",
   "Job - Data Annotation",
   "Job - Prolific",
@@ -240,6 +245,13 @@ function isMedicationGridTask(task) {
   return task?.seedKey === buildSeedTaskKey(MEDICATION_LIST_TASK_TITLE) || isMedicationLikeTask(task);
 }
 
+function isDailyProjectManagerTask(task) {
+  const seedKey = buildSeedTaskKey(DAILY_PROJECT_MANAGER_TITLE);
+  return task?.seedKey === seedKey
+    || task?.title === DAILY_PROJECT_MANAGER_TITLE
+    || task?.category === "Daily action manager";
+}
+
 const seedData = {
   dataVersion: DATA_VERSION,
   notes: "",
@@ -270,6 +282,25 @@ const seedData = {
     { id: crypto.randomUUID(), item: "Organize important documents", due: "", status: "Open", notes: "Collect IDs, medical bills, loan statements, benefit notices, and insurance papers." }
   ],
   tasks: [
+    {
+      id: crypto.randomUUID(),
+      title: DAILY_PROJECT_MANAGER_TITLE,
+      category: "Daily action manager",
+      owner: "Patrick + Deric",
+      status: "In progress",
+      priority: "Urgent",
+      due: "",
+      next: "Use this daily project notebook to track the specific tasks Patrick needs to complete today and over the next few days, then check items off as they are finished.",
+      notes: "This card is the daily command center for urgent life-management work. Track daily actions such as finding health insurance, getting medication, paying Kia of Frisco storage fees, terminating the Wells Fargo car loan, and moving job applications forward.",
+      dailyChecklist: [
+        { id: crypto.randomUUID(), title: "Find health insurance options and compare coverage", taskDate: "", status: "open", notes: "", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), completedAt: "" },
+        { id: crypto.randomUUID(), title: "Confirm medication needs, refill timing, and pickup plan", taskDate: "", status: "open", notes: "", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), completedAt: "" },
+        { id: crypto.randomUUID(), title: "Apply or follow up on at least one job opportunity", taskDate: "", status: "open", notes: "", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), completedAt: "" },
+        { id: crypto.randomUUID(), title: "Resolve Kia of Frisco storage payment and Wells Fargo loan next step", taskDate: "", status: "open", notes: "", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), completedAt: "" }
+      ],
+      tag: "New",
+      tagTone: "purple"
+    },
     {
       id: crypto.randomUUID(),
       title: "Check Social Security retirement benefits",
@@ -1189,6 +1220,29 @@ function normalizeRunningNotes(notes, legacyText = "") {
   return normalized;
 }
 
+function normalizeDailyChecklist(items) {
+  const normalized = Array.isArray(items)
+    ? items.map(item => ({
+      id: item.id || crypto.randomUUID(),
+      title: String(item.title || "").trim(),
+      taskDate: item.taskDate || "",
+      status: item.status === "done" ? "done" : "open",
+      notes: String(item.notes || "").trim(),
+      createdAt: item.createdAt || new Date().toISOString(),
+      updatedAt: item.updatedAt || item.createdAt || new Date().toISOString(),
+      completedAt: item.status === "done"
+        ? (item.completedAt || item.updatedAt || item.createdAt || new Date().toISOString())
+        : ""
+    })).filter(item => item.title)
+    : [];
+
+  return normalized.sort((a, b) => {
+    if (a.status !== b.status) return a.status === "open" ? -1 : 1;
+    if ((a.taskDate || "") !== (b.taskDate || "")) return (b.taskDate || "").localeCompare(a.taskDate || "");
+    return (b.updatedAt || "").localeCompare(a.updatedAt || "");
+  });
+}
+
 function normalizeDocuments(documents) {
   return Array.isArray(documents) ? documents.map(savedDocument => ({
     id: savedDocument.id || crypto.randomUUID(),
@@ -1314,6 +1368,9 @@ function syncTaskCompletionState(task) {
 function normalizeTaskState(task) {
   const normalizedTask = syncTaskCompletionState(task);
   normalizedTask.seedKey = normalizedTask.seedKey || inferSeedTaskKey(normalizedTask);
+  if (isDailyProjectManagerTask(normalizedTask)) {
+    normalizedTask.dailyChecklist = normalizeDailyChecklist(normalizedTask.dailyChecklist);
+  }
   if (isMedicationGridTask(normalizedTask)) {
     normalizedTask.medications = normalizeMedicationEntries(normalizedTask.medications);
     if (!normalizedTask.medications.length) {
@@ -1335,6 +1392,7 @@ function statusToPercent(status) {
 function inferSeedTaskKey(task) {
   if (!task) return "";
   if (task.seedKey) return task.seedKey;
+  if (isDailyProjectManagerTask(task)) return buildSeedTaskKey(DAILY_PROJECT_MANAGER_TITLE);
   if (isMedicationLikeTask(task)) return buildSeedTaskKey(MEDICATION_LIST_TASK_TITLE);
   const exactSeedTask = seedData.tasks.find(seedTask => seedTask.title === task.title);
   return exactSeedTask?.seedKey || "";
@@ -1622,6 +1680,21 @@ function mergeTaskData(primary, duplicate) {
     }
   });
   primary.comments = primaryComments;
+
+  const primaryChecklist = normalizeDailyChecklist(primary.dailyChecklist);
+  const duplicateChecklist = normalizeDailyChecklist(duplicate.dailyChecklist);
+  if (!primaryChecklist.length && duplicateChecklist.length) {
+    primary.dailyChecklist = duplicateChecklist;
+  } else if (primaryChecklist.length && duplicateChecklist.length) {
+    const mergedChecklist = [...primaryChecklist];
+    const seenChecklistIds = new Set(mergedChecklist.map(item => item.id));
+    duplicateChecklist.forEach(item => {
+      if (seenChecklistIds.has(item.id)) return;
+      mergedChecklist.push(item);
+      seenChecklistIds.add(item.id);
+    });
+    primary.dailyChecklist = normalizeDailyChecklist(mergedChecklist);
+  }
 
   const primaryMedications = normalizeMedicationEntries(primary.medications);
   const duplicateMedications = normalizeMedicationEntries(duplicate.medications);
@@ -1980,7 +2053,7 @@ function render() {
   const category = categoryFilter.value;
 
   const filtered = state.tasks.filter(task => {
-    const haystack = Object.values(task).join(" ").toLowerCase();
+    const haystack = buildTaskSearchText(task);
     const matchesView = taskViewMode === "done"
       ? isClosedTask(task)
       : taskViewMode === "all"
@@ -2015,6 +2088,16 @@ function render() {
   renderRunningNotes();
   userSelect.value = state.currentUser || "";
   updateTaskLabelControls();
+}
+
+function buildTaskSearchText(task) {
+  const base = Object.values(task || {}).join(" ").toLowerCase();
+  if (!isDailyProjectManagerTask(task)) return base;
+  const checklist = normalizeDailyChecklist(task.dailyChecklist)
+    .map(item => `${item.title} ${item.taskDate} ${item.status} ${item.notes}`)
+    .join(" ")
+    .toLowerCase();
+  return `${base} ${checklist}`.trim();
 }
 
 function renderPatrickWatch() {
@@ -2365,6 +2448,7 @@ function taskGroupRank(groupName) {
 }
 
 function taskGroupName(category = "N/A") {
+  if (category === "Daily action manager") return "Daily Project Manager";
   if (category.startsWith("Job -") || category === "Income" || category === "Cash") return "Jobs and Income";
   if (category === "Career strategy" || category === "Job barriers" || category === "Income pathways") return "Career Strategy and Income Reset";
   if (category === "Benefits") return "Benefits and Assistance";
@@ -2620,6 +2704,7 @@ function sortTasksForDashboard(tasks) {
 
 function dashboardTaskOrderRank(task) {
   const groupName = taskGroupName(task?.category);
+  if (groupName === "Daily Project Manager") return 0;
   if (groupName === "Health and Insurance") {
     const index = healthAndInsuranceCardOrder.indexOf(task?.seedKey || buildSeedTaskKey(task?.title || ""));
     return index >= 0 ? index : healthAndInsuranceCardOrder.length;
@@ -2667,6 +2752,7 @@ function populateCategories() {
 function createTaskCard(task) {
   const card = document.createElement("article");
   card.className = "task-card";
+  if (isDailyProjectManagerTask(task)) card.classList.add("daily-project-card");
   if ((task.category || "").startsWith("Job -")) card.classList.add("job-card");
 
   const header = document.createElement("header");
@@ -2760,12 +2846,17 @@ function createTaskCard(task) {
   meter.innerHTML = `<span style="width: ${normalizePercent(task.percent)}%"></span>`;
 
   const detailsBox = createTaskDetailsBox(task);
+  const dailyProjectManager = isDailyProjectManagerTask(task)
+    ? createDailyProjectManagerSection(task)
+    : null;
 
   const medicationSummary = isMedicationGridTask(task)
     ? createMedicationSummary(task)
     : null;
 
-  const commentBox = createInlineCommentBox(task);
+  const commentBox = isDailyProjectManagerTask(task)
+    ? null
+    : createInlineCommentBox(task);
 
   const footer = document.createElement("footer");
   const categorySelect = document.createElement("select");
@@ -2831,8 +2922,10 @@ function createTaskCard(task) {
 
   footer.append(categorySelect, select, prioritySelect, edit);
   card.append(header, meta, inlineMetrics, meter, detailsBox);
+  if (dailyProjectManager) card.appendChild(dailyProjectManager);
   if (medicationSummary) card.appendChild(medicationSummary);
-  card.append(commentBox, footer);
+  if (commentBox) card.appendChild(commentBox);
+  card.appendChild(footer);
   return card;
 }
 
@@ -2877,6 +2970,227 @@ function createInlineNotesBox(task) {
   textarea.addEventListener("blur", saveNotesChange);
   wrapper.appendChild(textarea);
   return wrapper;
+}
+
+function createDailyProjectManagerSection(task) {
+  task.dailyChecklist = normalizeDailyChecklist(task.dailyChecklist);
+  const section = document.createElement("section");
+  section.className = "daily-project-section";
+
+  const summary = document.createElement("div");
+  summary.className = "daily-project-summary";
+  const openItems = task.dailyChecklist.filter(item => item.status === "open");
+  const completedItems = task.dailyChecklist.filter(item => item.status === "done");
+  const latestDate = task.dailyChecklist
+    .map(item => item.taskDate)
+    .filter(Boolean)
+    .sort((a, b) => b.localeCompare(a))[0];
+  summary.innerHTML = `
+    <article>
+      <strong>${openItems.length}</strong>
+      <span>active daily tasks</span>
+    </article>
+    <article>
+      <strong>${completedItems.length}</strong>
+      <span>completed tasks</span>
+    </article>
+    <article>
+      <strong>${escapeHtml(latestDate ? formatShortDate(latestDate) : "No date set")}</strong>
+      <span>latest tracked date</span>
+    </article>
+  `;
+
+  const addBox = document.createElement("div");
+  addBox.className = "daily-project-add-box";
+
+  const titleInput = document.createElement("input");
+  titleInput.type = "text";
+  titleInput.placeholder = "Add a new daily task";
+
+  const dateInput = document.createElement("input");
+  dateInput.type = "date";
+
+  const notesInput = document.createElement("textarea");
+  notesInput.rows = 2;
+  notesInput.placeholder = "Add notes for this task";
+
+  const addButton = document.createElement("button");
+  addButton.type = "button";
+  addButton.className = "ghost";
+  addButton.textContent = "Add daily task";
+  addButton.addEventListener("click", () => {
+    addDailyProjectItem(task, {
+      title: titleInput.value,
+      taskDate: dateInput.value,
+      notes: notesInput.value
+    });
+  });
+
+  [titleInput, dateInput, notesInput].forEach(input => {
+    input.addEventListener("keydown", event => {
+      if (event.key === "Enter" && !event.shiftKey && input !== notesInput) {
+        event.preventDefault();
+        addDailyProjectItem(task, {
+          title: titleInput.value,
+          taskDate: dateInput.value,
+          notes: notesInput.value
+        });
+      }
+    });
+  });
+
+  addBox.append(titleInput, dateInput, notesInput, addButton);
+
+  const list = document.createElement("div");
+  list.className = "daily-project-list";
+
+  if (!task.dailyChecklist.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-notes";
+    empty.textContent = "No daily action items yet. Add the first one above.";
+    list.appendChild(empty);
+  } else {
+    task.dailyChecklist.forEach(item => list.appendChild(createDailyProjectItem(task, item)));
+  }
+
+  section.append(summary, addBox, list);
+  return section;
+}
+
+function createDailyProjectItem(task, item) {
+  const article = document.createElement("article");
+  article.className = `daily-project-item${item.status === "done" ? " is-complete" : ""}`;
+
+  const topRow = document.createElement("div");
+  topRow.className = "daily-project-item-top";
+
+  const checkWrap = document.createElement("label");
+  checkWrap.className = "daily-project-check";
+
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.checked = item.status === "done";
+  checkbox.addEventListener("change", () => toggleDailyProjectItem(task, item.id, checkbox.checked));
+
+  const title = document.createElement("input");
+  title.type = "text";
+  title.className = "daily-project-item-title";
+  title.value = item.title || "";
+  title.placeholder = "Daily task title";
+  title.addEventListener("change", () => updateDailyProjectItem(task, item.id, "title", title.value));
+  title.addEventListener("blur", () => updateDailyProjectItem(task, item.id, "title", title.value));
+
+  checkWrap.append(checkbox, title);
+
+  const dateInput = document.createElement("input");
+  dateInput.type = "date";
+  dateInput.value = item.taskDate || "";
+  dateInput.addEventListener("change", () => updateDailyProjectItem(task, item.id, "taskDate", dateInput.value));
+
+  const deleteButton = document.createElement("button");
+  deleteButton.type = "button";
+  deleteButton.className = "ghost";
+  deleteButton.textContent = "Delete";
+  deleteButton.addEventListener("click", () => deleteDailyProjectItem(task, item.id));
+
+  topRow.append(checkWrap, dateInput, deleteButton);
+
+  const meta = document.createElement("div");
+  meta.className = "daily-project-item-meta";
+  meta.innerHTML = `
+    <span>${item.status === "done" ? "Completed" : "Active"}</span>
+    <span>Created ${escapeHtml(formatDateTime(item.createdAt))}</span>
+    ${item.completedAt ? `<span>Completed ${escapeHtml(formatDateTime(item.completedAt))}</span>` : `<span>Updated ${escapeHtml(formatDateTime(item.updatedAt))}</span>`}
+  `;
+
+  const notes = document.createElement("textarea");
+  notes.className = "daily-project-item-notes";
+  notes.rows = 3;
+  notes.placeholder = "Task notes";
+  notes.value = item.notes || "";
+  notes.addEventListener("change", () => updateDailyProjectItem(task, item.id, "notes", notes.value));
+  notes.addEventListener("blur", () => updateDailyProjectItem(task, item.id, "notes", notes.value));
+
+  article.append(topRow, meta, notes);
+  return article;
+}
+
+function addDailyProjectItem(task, { title = "", taskDate = "", notes = "" }) {
+  const user = ensureCurrentUser("add a daily project task");
+  if (!user) return;
+  const cleanTitle = String(title || "").trim();
+  const cleanNotes = String(notes || "").trim();
+  if (!cleanTitle) return;
+
+  const now = new Date().toISOString();
+  task.dailyChecklist = normalizeDailyChecklist(task.dailyChecklist);
+  task.dailyChecklist.push({
+    id: crypto.randomUUID(),
+    title: cleanTitle,
+    taskDate,
+    status: "open",
+    notes: cleanNotes,
+    createdAt: now,
+    updatedAt: now,
+    completedAt: ""
+  });
+  task.dailyChecklist = normalizeDailyChecklist(task.dailyChecklist);
+  recordUpdate(task, `Daily task added: ${cleanTitle}`);
+  saveState();
+  render();
+}
+
+function updateDailyProjectItem(task, itemId, field, value) {
+  const user = ensureCurrentUser("update a daily project task");
+  if (!user) return;
+  task.dailyChecklist = normalizeDailyChecklist(task.dailyChecklist);
+  const item = task.dailyChecklist.find(entry => entry.id === itemId);
+  if (!item) return;
+
+  const normalizedValue = typeof value === "string" ? value.trim() : value;
+  if ((item[field] || "") === (normalizedValue || "")) return;
+  if (field === "title" && !normalizedValue) return;
+
+  item[field] = normalizedValue;
+  item.updatedAt = new Date().toISOString();
+  task.dailyChecklist = normalizeDailyChecklist(task.dailyChecklist);
+  const summary = field === "taskDate"
+    ? `Daily task date updated: ${item.title}`
+    : field === "notes"
+      ? `Daily task notes updated: ${item.title}`
+      : `Daily task updated: ${item.title}`;
+  recordUpdate(task, summary);
+  saveState();
+  render();
+}
+
+function toggleDailyProjectItem(task, itemId, completed) {
+  const user = ensureCurrentUser(completed ? "complete a daily project task" : "reopen a daily project task");
+  if (!user) return;
+  task.dailyChecklist = normalizeDailyChecklist(task.dailyChecklist);
+  const item = task.dailyChecklist.find(entry => entry.id === itemId);
+  if (!item) return;
+
+  item.status = completed ? "done" : "open";
+  item.updatedAt = new Date().toISOString();
+  item.completedAt = completed ? item.updatedAt : "";
+  task.dailyChecklist = normalizeDailyChecklist(task.dailyChecklist);
+  recordUpdate(task, completed ? `Daily task completed: ${item.title}` : `Daily task reopened: ${item.title}`);
+  saveState();
+  render();
+}
+
+function deleteDailyProjectItem(task, itemId) {
+  const user = ensureCurrentUser("delete a daily project task");
+  if (!user) return;
+  const item = normalizeDailyChecklist(task.dailyChecklist).find(entry => entry.id === itemId);
+  if (!item) return;
+  if (!confirm(`Delete daily task "${item.title}"?`)) return;
+
+  task.dailyChecklist = normalizeDailyChecklist(task.dailyChecklist).filter(entry => entry.id !== itemId);
+  recordUpdate(task, `Daily task deleted: ${item.title}`);
+  saveState();
+  render();
 }
 
 function createInlineCommentBox(task) {
