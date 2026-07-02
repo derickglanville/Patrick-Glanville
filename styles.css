@@ -736,6 +736,7 @@ textarea {
   gap: 12px;
 }
 
+.top-todo-card,
 .daily-project-card {
   grid-column: 1 / -1;
 }
@@ -805,12 +806,20 @@ textarea {
   font-size: .76rem;
   font-weight: 900;
   white-space: nowrap;
+  cursor: pointer;
 }
 
 .change-tag-purple {
   background: #eadcff;
   color: #5e2a9e;
   border-color: #c6a6f7;
+}
+
+.change-tag:hover,
+.change-tag:focus-visible {
+  filter: brightness(.96);
+  outline: 2px solid rgba(37, 99, 235, .35);
+  outline-offset: 2px;
 }
 
 .Urgent {
@@ -1019,6 +1028,121 @@ textarea {
 .task-comment-popout-button {
   padding: 6px 10px;
   font-size: .82rem;
+}
+
+.top-todo-section {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfe;
+}
+
+.top-todo-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.top-todo-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(100px, 160px));
+  gap: 10px;
+}
+
+.top-todo-metrics article {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: white;
+}
+
+.top-todo-metrics strong {
+  display: block;
+  font-size: 1.05rem;
+}
+
+.top-todo-metrics span,
+.top-todo-dates {
+  color: var(--muted);
+  font-size: .85rem;
+}
+
+.top-todo-view-switch {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.top-todo-add-box {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) 150px minmax(220px, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.top-todo-add-box textarea {
+  min-height: 42px;
+}
+
+.top-todo-list {
+  max-height: 520px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  display: grid;
+  gap: 10px;
+  padding-right: 4px;
+}
+
+.top-todo-item {
+  display: grid;
+  grid-template-columns: 24px minmax(180px, 1.1fr) 150px minmax(190px, .9fr) minmax(220px, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+}
+
+.top-todo-item.is-closed {
+  background: #f4f7fb;
+}
+
+.top-todo-item input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.top-todo-title {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 0 0 4px;
+  background: transparent;
+  font-weight: 800;
+}
+
+.top-todo-title:focus {
+  outline: none;
+  border-bottom-color: var(--blue);
+}
+
+.top-todo-item.is-closed .top-todo-title {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.top-todo-dates {
+  display: grid;
+  gap: 3px;
+}
+
+.top-todo-notes {
+  min-height: 54px;
 }
 
 .daily-project-section {
@@ -1800,6 +1924,10 @@ dialog::backdrop {
   .budget-panel header,
   .panel-actions,
   .task-inline-metrics,
+  .top-todo-toolbar,
+  .top-todo-metrics,
+  .top-todo-add-box,
+  .top-todo-item,
   .daily-project-summary,
   .daily-project-add-box,
   .daily-project-item-top,

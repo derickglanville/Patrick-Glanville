@@ -1,13 +1,13 @@
 const STORAGE_KEY = "patrick-glanville-support-tracker-v1";
 const PATRICK_WATCH_KEY = "patrick-glanville-patrick-watch-v1";
 const TASK_VIEW_KEY = "patrick-glanville-task-view-v1";
-const DATA_VERSION = 2026061602;
-const PANEL_VISIBILITY_VERSION = 2026052603;
-const TASK_GROUP_COLLAPSE_VERSION = 2026061701;
+const DATA_VERSION = 2026070101;
+const PANEL_VISIBILITY_VERSION = 2026070101;
+const TASK_GROUP_COLLAPSE_VERSION = 2026070101;
 const BUILD_INFO = {
   commit: "working-tree",
-  timestamp: "2026-06-17T01:00:00-04:00",
-  builtAt: "2026-06-17T01:00:00-04:00",
+  timestamp: "2026-07-01T03:00:00-04:00",
+  builtAt: "2026-07-01T03:00:00-04:00",
   label: "Local build"
 };
 const GITHUB_COMMIT_API = "https://api.github.com/repos/derickglanville/Patrick-Glanville/commits/main";
@@ -28,6 +28,7 @@ const MEDICATION_LIST_TASK_TITLE = "Create medication list with dosage and refil
 const HEALTH_INSURANCE_TASK_TITLE = "Get health insurance before current coverage expires";
 const DEPRESSION_TASK_TITLE = "Assess depression and anxiety impact on job search";
 const ETHOS_TASK_TITLE = "Look into life insurance through Ethos";
+const TOP_TODO_LIST_TITLE = "Priority To-Do List";
 const DAILY_PROJECT_MANAGER_TITLE = "Daily Action Project Manager";
 const MEDICATION_REFILL_ALERT_WINDOW_DAYS = 7;
 let supabaseClient = null;
@@ -44,6 +45,7 @@ const allowedUsers = [
   { name: "Georgette Hemmings", email: "hemmgeor@gmail.com" }
 ];
 const baseCategories = [
+  "Priority to-do list",
   "Daily action manager",
   "Job - CloudResearch",
   "Job - Data Annotation",
@@ -78,6 +80,7 @@ const statusOptions = ["N/A", "Not started", "In progress", "Waiting", "Blocked"
 const priorityOptions = ["Urgent", "High", "Medium", "Low"];
 const billStatusOptions = ["Unpaid", "Scheduled", "Paid", "Deferred", "Past due", "N/A"];
 const taskGroupOrder = [
+  "Priority To-Do List",
   "Daily Project Manager",
   "Jobs and Income",
   "Career Strategy and Income Reset",
@@ -147,9 +150,10 @@ Cons
 Assessment
 This may be the bigger upside opportunity. If Patrick interviews well and demonstrates current skills in modern frameworks, the payoff could be much higher than gig-based AI training.`;
 const defaultExpandedTaskGroups = [
-  "Daily Project Manager"
+  "Priority To-Do List"
 ];
 const categoryOrder = [
+  "Priority to-do list",
   "Daily action manager",
   "Job - CloudResearch",
   "Job - Data Annotation",
@@ -248,6 +252,25 @@ function isDailyProjectManagerTask(task) {
     || task?.category === "Daily action manager";
 }
 
+function isTopTodoListTask(task) {
+  const seedKey = buildSeedTaskKey(TOP_TODO_LIST_TITLE);
+  return task?.seedKey === seedKey
+    || task?.title === TOP_TODO_LIST_TITLE
+    || task?.category === "Priority to-do list";
+}
+
+function buildTodoItem(title) {
+  const now = new Date().toISOString();
+  return {
+    id: crypto.randomUUID(),
+    title,
+    status: "Not started",
+    createdAt: now,
+    closedAt: "",
+    notes: ""
+  };
+}
+
 const seedData = {
   dataVersion: DATA_VERSION,
   notes: "",
@@ -279,6 +302,36 @@ const seedData = {
     { id: crypto.randomUUID(), item: "Organize important documents", due: "", status: "Open", notes: "Collect IDs, medical bills, loan statements, benefit notices, and insurance papers." }
   ],
   tasks: [
+    {
+      id: crypto.randomUUID(),
+      title: TOP_TODO_LIST_TITLE,
+      category: "Priority to-do list",
+      owner: "Patrick + Deric",
+      status: "In progress",
+      priority: "Urgent",
+      due: "",
+      next: "Use this list for the highest-priority daily and household actions. Keep active work visible and review closed items when needed.",
+      notes: "Track completion status, creation date, closed date, and short notes for each item.",
+      todoView: "active",
+      todoItems: [
+        "Training for EBT",
+        "Have the necessary new uniform with extras",
+        "Migrate ATT number to Verizon",
+        "Pay health insurance",
+        "Wells Fargo payoff",
+        "Work at Market Street",
+        "Prepare for Outlier AI test",
+        "Manage medication list",
+        "Cook meals",
+        "Clean house",
+        "Contribute to groceries",
+        "Lawn maintenance",
+        "Mow the grass",
+        "Take out garbage"
+      ].map(buildTodoItem),
+      tag: "New",
+      tagTone: "purple"
+    },
     {
       id: crypto.randomUUID(),
       title: DAILY_PROJECT_MANAGER_TITLE,
@@ -1248,6 +1301,32 @@ function normalizeDailyChecklist(items) {
   });
 }
 
+function normalizeTodoListItems(items) {
+  const normalized = Array.isArray(items)
+    ? items.map(item => {
+      const status = statusOptions.includes(item.status) ? item.status : "Not started";
+      const isClosed = isClosedTaskStatus(status);
+      return {
+        id: item.id || crypto.randomUUID(),
+        title: String(item.title || "").trim(),
+        status,
+        createdAt: item.createdAt || new Date().toISOString(),
+        closedAt: isClosed ? (item.closedAt || item.updatedAt || new Date().toISOString()) : "",
+        updatedAt: item.updatedAt || item.createdAt || new Date().toISOString(),
+        notes: String(item.notes || "").trim()
+      };
+    }).filter(item => item.title)
+    : [];
+
+  return normalized.sort((a, b) => {
+    const aClosed = isClosedTaskStatus(a.status);
+    const bClosed = isClosedTaskStatus(b.status);
+    if (aClosed !== bClosed) return aClosed ? 1 : -1;
+    if (aClosed && bClosed) return (b.closedAt || "").localeCompare(a.closedAt || "");
+    return (b.updatedAt || "").localeCompare(a.updatedAt || "");
+  });
+}
+
 function normalizeDailyProjectNoteEntries(entries, legacyText = "", fallbackTimestamp = "") {
   const normalized = Array.isArray(entries)
     ? entries.map(entry => ({
@@ -1398,6 +1477,10 @@ function syncTaskCompletionState(task) {
 function normalizeTaskState(task) {
   const normalizedTask = syncTaskCompletionState(task);
   normalizedTask.seedKey = normalizedTask.seedKey || inferSeedTaskKey(normalizedTask);
+  if (isTopTodoListTask(normalizedTask)) {
+    normalizedTask.todoItems = normalizeTodoListItems(normalizedTask.todoItems);
+    normalizedTask.todoView = normalizedTask.todoView === "closed" ? "closed" : "active";
+  }
   if (isDailyProjectManagerTask(normalizedTask)) {
     normalizedTask.dailyChecklist = normalizeDailyChecklist(normalizedTask.dailyChecklist);
   }
@@ -1422,6 +1505,7 @@ function statusToPercent(status) {
 function inferSeedTaskKey(task) {
   if (!task) return "";
   if (task.seedKey) return task.seedKey;
+  if (isTopTodoListTask(task)) return buildSeedTaskKey(TOP_TODO_LIST_TITLE);
   if (isDailyProjectManagerTask(task)) return buildSeedTaskKey(DAILY_PROJECT_MANAGER_TITLE);
   if (isMedicationLikeTask(task)) return buildSeedTaskKey(MEDICATION_LIST_TASK_TITLE);
   const exactSeedTask = seedData.tasks.find(seedTask => seedTask.title === task.title);
@@ -1710,6 +1794,21 @@ function mergeTaskData(primary, duplicate) {
     }
   });
   primary.comments = primaryComments;
+
+  const primaryTodos = normalizeTodoListItems(primary.todoItems);
+  const duplicateTodos = normalizeTodoListItems(duplicate.todoItems);
+  if (!primaryTodos.length && duplicateTodos.length) {
+    primary.todoItems = duplicateTodos;
+  } else if (primaryTodos.length && duplicateTodos.length) {
+    const mergedTodos = [...primaryTodos];
+    const seenTodoIds = new Set(mergedTodos.map(item => item.id));
+    duplicateTodos.forEach(item => {
+      if (seenTodoIds.has(item.id)) return;
+      mergedTodos.push(item);
+      seenTodoIds.add(item.id);
+    });
+    primary.todoItems = normalizeTodoListItems(mergedTodos);
+  }
 
   const primaryChecklist = normalizeDailyChecklist(primary.dailyChecklist);
   const duplicateChecklist = normalizeDailyChecklist(duplicate.dailyChecklist);
@@ -2122,6 +2221,13 @@ function render() {
 
 function buildTaskSearchText(task) {
   const base = Object.values(task || {}).join(" ").toLowerCase();
+  if (isTopTodoListTask(task)) {
+    const todos = normalizeTodoListItems(task.todoItems)
+      .map(item => `${item.title} ${item.status} ${item.createdAt} ${item.closedAt} ${item.notes}`)
+      .join(" ")
+      .toLowerCase();
+    return `${base} ${todos}`.trim();
+  }
   if (!isDailyProjectManagerTask(task)) return base;
   const checklist = normalizeDailyChecklist(task.dailyChecklist)
     .map(item => `${item.title} ${item.taskDate} ${item.status} ${item.notes}`)
@@ -2478,6 +2584,7 @@ function taskGroupRank(groupName) {
 }
 
 function taskGroupName(category = "N/A") {
+  if (category === "Priority to-do list") return "Priority To-Do List";
   if (category === "Daily action manager") return "Daily Project Manager";
   if (category.startsWith("Job -") || category === "Income" || category === "Cash") return "Jobs and Income";
   if (category === "Career strategy" || category === "Job barriers" || category === "Income pathways") return "Career Strategy and Income Reset";
@@ -2734,6 +2841,7 @@ function sortTasksForDashboard(tasks) {
 
 function dashboardTaskOrderRank(task) {
   const groupName = taskGroupName(task?.category);
+  if (groupName === "Priority To-Do List") return 0;
   if (groupName === "Daily Project Manager") return 0;
   if (groupName === "Health and Insurance") {
     const index = healthAndInsuranceCardOrder.indexOf(task?.seedKey || buildSeedTaskKey(task?.title || ""));
@@ -2782,6 +2890,7 @@ function populateCategories() {
 function createTaskCard(task) {
   const card = document.createElement("article");
   card.className = "task-card";
+  if (isTopTodoListTask(task)) card.classList.add("top-todo-card");
   if (isDailyProjectManagerTask(task)) card.classList.add("daily-project-card");
   if ((task.category || "").startsWith("Job -")) card.classList.add("job-card");
 
@@ -2816,9 +2925,13 @@ function createTaskCard(task) {
   badges.className = "badge-row";
   badges.appendChild(priority);
   if (task.tag) {
-    const tag = document.createElement("span");
+    const tag = document.createElement("button");
+    tag.type = "button";
     tag.className = `change-tag${task.tagTone === "purple" ? " change-tag-purple" : ""}`;
     tag.textContent = task.tag;
+    tag.title = `Clear ${task.tag} flag`;
+    tag.setAttribute("aria-label", `Clear ${task.tag} flag for ${task.title || "this card"}`);
+    tag.addEventListener("click", () => clearTaskTag(task));
     badges.appendChild(tag);
   }
   header.append(titleInput, badges);
@@ -2876,6 +2989,9 @@ function createTaskCard(task) {
   meter.innerHTML = `<span style="width: ${normalizePercent(task.percent)}%"></span>`;
 
   const detailsBox = createTaskDetailsBox(task);
+  const topTodoList = isTopTodoListTask(task)
+    ? createTopTodoListSection(task)
+    : null;
   const dailyProjectManager = isDailyProjectManagerTask(task)
     ? createDailyProjectManagerSection(task)
     : null;
@@ -2884,7 +3000,7 @@ function createTaskCard(task) {
     ? createMedicationSummary(task)
     : null;
 
-  const commentBox = isDailyProjectManagerTask(task)
+  const commentBox = isTopTodoListTask(task) || isDailyProjectManagerTask(task)
     ? null
     : createInlineCommentBox(task);
 
@@ -2952,6 +3068,7 @@ function createTaskCard(task) {
 
   footer.append(categorySelect, select, prioritySelect, edit);
   card.append(header, meta, inlineMetrics, meter, detailsBox);
+  if (topTodoList) card.appendChild(topTodoList);
   if (dailyProjectManager) card.appendChild(dailyProjectManager);
   if (medicationSummary) card.appendChild(medicationSummary);
   if (commentBox) card.appendChild(commentBox);
@@ -3000,6 +3117,230 @@ function createInlineNotesBox(task) {
   textarea.addEventListener("blur", saveNotesChange);
   wrapper.appendChild(textarea);
   return wrapper;
+}
+
+function createTopTodoListSection(task) {
+  task.todoItems = normalizeTodoListItems(task.todoItems);
+  task.todoView = task.todoView === "closed" ? "closed" : "active";
+
+  const section = document.createElement("section");
+  section.className = "top-todo-section";
+
+  const openItems = task.todoItems.filter(item => !isClosedTaskStatus(item.status));
+  const closedItems = task.todoItems.filter(item => isClosedTaskStatus(item.status));
+
+  const toolbar = document.createElement("div");
+  toolbar.className = "top-todo-toolbar";
+  toolbar.innerHTML = `
+    <div class="top-todo-metrics">
+      <article><strong>${openItems.length}</strong><span>active</span></article>
+      <article><strong>${closedItems.length}</strong><span>closed</span></article>
+    </div>
+  `;
+
+  const viewSwitch = document.createElement("div");
+  viewSwitch.className = "top-todo-view-switch";
+  const activeButton = document.createElement("button");
+  activeButton.type = "button";
+  activeButton.className = task.todoView === "active" ? "" : "ghost";
+  activeButton.textContent = "Active";
+  activeButton.addEventListener("click", () => setTopTodoView(task, "active"));
+
+  const closedButton = document.createElement("button");
+  closedButton.type = "button";
+  closedButton.className = task.todoView === "closed" ? "" : "ghost";
+  closedButton.textContent = "Closed";
+  closedButton.addEventListener("click", () => setTopTodoView(task, "closed"));
+  viewSwitch.append(activeButton, closedButton);
+  toolbar.appendChild(viewSwitch);
+
+  const addBox = document.createElement("div");
+  addBox.className = "top-todo-add-box";
+  const newTitle = document.createElement("input");
+  newTitle.type = "text";
+  newTitle.placeholder = "Create a new to-do item";
+  const newStatus = document.createElement("select");
+  statusOptions.forEach(status => {
+    const option = document.createElement("option");
+    option.value = status;
+    option.textContent = status;
+    option.selected = status === "Not started";
+    newStatus.appendChild(option);
+  });
+  const newNotes = document.createElement("textarea");
+  newNotes.rows = 2;
+  newNotes.placeholder = "Optional notes";
+  const addButton = document.createElement("button");
+  addButton.type = "button";
+  addButton.className = "ghost";
+  addButton.textContent = "Add item";
+  addButton.addEventListener("click", () => addTopTodoItem(task, newTitle.value, newStatus.value, newNotes.value));
+  newTitle.addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      addTopTodoItem(task, newTitle.value, newStatus.value, newNotes.value);
+    }
+  });
+  addBox.append(newTitle, newStatus, newNotes, addButton);
+
+  const list = document.createElement("div");
+  list.className = "top-todo-list";
+  const visibleItems = task.todoView === "closed" ? closedItems : openItems;
+  if (!visibleItems.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-notes";
+    empty.textContent = task.todoView === "closed" ? "No closed to-do items yet." : "No active to-do items right now.";
+    list.appendChild(empty);
+  } else {
+    visibleItems.forEach(item => list.appendChild(createTopTodoItem(task, item)));
+  }
+
+  section.append(toolbar, addBox, list);
+  return section;
+}
+
+function createTopTodoItem(task, item) {
+  const isClosed = isClosedTaskStatus(item.status);
+  const article = document.createElement("article");
+  article.className = `top-todo-item${isClosed ? " is-closed" : ""}`;
+
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.checked = isClosed;
+  checkbox.addEventListener("change", () => updateTopTodoItemStatus(task, item.id, checkbox.checked ? "Done" : "In progress"));
+
+  const title = document.createElement("input");
+  title.type = "text";
+  title.className = "top-todo-title";
+  title.value = item.title;
+  title.addEventListener("change", () => updateTopTodoItemField(task, item.id, "title", title.value));
+  title.addEventListener("blur", () => updateTopTodoItemField(task, item.id, "title", title.value));
+
+  const status = document.createElement("select");
+  status.className = "top-todo-status";
+  statusOptions.forEach(statusName => {
+    const option = document.createElement("option");
+    option.value = statusName;
+    option.textContent = statusName;
+    option.selected = item.status === statusName;
+    status.appendChild(option);
+  });
+  status.addEventListener("change", () => updateTopTodoItemStatus(task, item.id, status.value));
+
+  const dates = document.createElement("div");
+  dates.className = "top-todo-dates";
+  dates.innerHTML = `
+    <span>Created ${escapeHtml(formatDateTime(item.createdAt))}</span>
+    <span>${item.closedAt ? `Closed ${escapeHtml(formatDateTime(item.closedAt))}` : "Not closed"}</span>
+  `;
+
+  const notes = document.createElement("textarea");
+  notes.rows = 2;
+  notes.className = "top-todo-notes";
+  notes.placeholder = "Notes";
+  notes.value = item.notes || "";
+  notes.addEventListener("change", () => updateTopTodoItemField(task, item.id, "notes", notes.value));
+  notes.addEventListener("blur", () => updateTopTodoItemField(task, item.id, "notes", notes.value));
+
+  const deleteButton = document.createElement("button");
+  deleteButton.type = "button";
+  deleteButton.className = "ghost";
+  deleteButton.textContent = "Delete";
+  deleteButton.addEventListener("click", () => deleteTopTodoItem(task, item.id));
+
+  article.append(checkbox, title, status, dates, notes, deleteButton);
+  return article;
+}
+
+function setTopTodoView(task, view) {
+  task.todoView = view === "closed" ? "closed" : "active";
+  saveState();
+  render();
+}
+
+function addTopTodoItem(task, title, status = "Not started", notes = "") {
+  const user = ensureCurrentUser("add a to-do item");
+  if (!user) return;
+  const cleanTitle = String(title || "").trim();
+  if (!cleanTitle) return;
+
+  const now = new Date().toISOString();
+  const itemStatus = statusOptions.includes(status) ? status : "Not started";
+  task.todoItems = normalizeTodoListItems(task.todoItems);
+  task.todoItems.push({
+    id: crypto.randomUUID(),
+    title: cleanTitle,
+    status: itemStatus,
+    createdAt: now,
+    updatedAt: now,
+    closedAt: isClosedTaskStatus(itemStatus) ? now : "",
+    notes: String(notes || "").trim()
+  });
+  task.todoView = task.todoView === "closed" ? "closed" : "active";
+  task.todoItems = normalizeTodoListItems(task.todoItems);
+  recordUpdate(task, `To-do item added: ${cleanTitle}`);
+  saveState();
+  render();
+}
+
+function updateTopTodoItemField(task, itemId, field, value) {
+  const user = ensureCurrentUser("update a to-do item");
+  if (!user) return;
+  task.todoItems = normalizeTodoListItems(task.todoItems);
+  const item = task.todoItems.find(entry => entry.id === itemId);
+  if (!item) return;
+
+  const nextValue = String(value || "").trim();
+  if (field === "title" && !nextValue) return;
+  if ((item[field] || "") === nextValue) return;
+
+  item[field] = nextValue;
+  item.updatedAt = new Date().toISOString();
+  task.todoItems = normalizeTodoListItems(task.todoItems);
+  recordUpdate(task, `To-do item updated: ${item.title}`);
+  saveState();
+  render();
+}
+
+function updateTopTodoItemStatus(task, itemId, status) {
+  const user = ensureCurrentUser("update a to-do item status");
+  if (!user) return;
+  task.todoItems = normalizeTodoListItems(task.todoItems);
+  const item = task.todoItems.find(entry => entry.id === itemId);
+  if (!item || !statusOptions.includes(status)) return;
+
+  const wasClosed = isClosedTaskStatus(item.status);
+  const isNowClosed = isClosedTaskStatus(status);
+  if (item.status === status) return;
+
+  item.status = status;
+  item.updatedAt = new Date().toISOString();
+  item.closedAt = isNowClosed ? (wasClosed ? item.closedAt || item.updatedAt : item.updatedAt) : "";
+  task.todoItems = normalizeTodoListItems(task.todoItems);
+  recordUpdate(task, `To-do item status changed to ${status}: ${item.title}`);
+  saveState();
+  render();
+}
+
+function clearTaskTag(task) {
+  if (!task?.tag) return;
+  task.tag = "";
+  task.tagTone = "";
+  saveState();
+  render();
+}
+
+function deleteTopTodoItem(task, itemId) {
+  const user = ensureCurrentUser("delete a to-do item");
+  if (!user) return;
+  const item = normalizeTodoListItems(task.todoItems).find(entry => entry.id === itemId);
+  if (!item) return;
+  if (!confirm(`Delete to-do item "${item.title}"?`)) return;
+
+  task.todoItems = normalizeTodoListItems(task.todoItems).filter(entry => entry.id !== itemId);
+  recordUpdate(task, `To-do item deleted: ${item.title}`);
+  saveState();
+  render();
 }
 
 function createDailyProjectManagerSection(task) {
