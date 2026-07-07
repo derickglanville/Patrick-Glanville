@@ -1,29 +1,82 @@
-const STORAGE_KEY = "patrick-glanville-support-tracker-v1";
-const PATRICK_WATCH_KEY = "patrick-glanville-patrick-watch-v1";
-const TASK_VIEW_KEY = "patrick-glanville-task-view-v1";
+const PATRICK_STORAGE_KEY = "patrick-glanville-support-tracker-v1";
+const THEODORE_STORAGE_KEY = "theodore-glanville-support-tracker-v1";
+const PATRICK_WATCH_STORAGE_KEY = "patrick-glanville-patrick-watch-v1";
+const THEODORE_WATCH_STORAGE_KEY = "theodore-glanville-client-watch-v1";
+const PATRICK_TASK_VIEW_KEY = "patrick-glanville-task-view-v1";
+const THEODORE_TASK_VIEW_KEY = "theodore-glanville-task-view-v1";
 const DATA_VERSION = 2026070101;
 const PANEL_VISIBILITY_VERSION = 2026070101;
 const TASK_GROUP_COLLAPSE_VERSION = 2026070101;
 const BUILD_INFO = {
   commit: "working-tree",
-  timestamp: "2026-07-01T03:00:00-04:00",
-  builtAt: "2026-07-01T03:00:00-04:00",
+  timestamp: "2026-07-06T10:00:00-04:00",
+  builtAt: "2026-07-06T10:00:00-04:00",
   label: "Local build"
 };
 const GITHUB_COMMIT_API = "https://api.github.com/repos/derickglanville/Patrick-Glanville/commits/main";
 const SUPABASE_TABLE = "tracker_state";
-const SUPABASE_STATE_ID = "patrick-glanville";
+const PATRICK_SUPABASE_STATE_ID = "patrick-glanville";
+const THEODORE_SUPABASE_STATE_ID = "theodore-glanville";
 const SUPABASE_SAVE_DELAY_MS = 700;
-const SUPABASE_REMOTE_UPDATED_AT_KEY = "patrick-glanville-remote-updated-at-v1";
+const PATRICK_REMOTE_UPDATED_AT_KEY = "patrick-glanville-remote-updated-at-v1";
+const THEODORE_REMOTE_UPDATED_AT_KEY = "theodore-glanville-remote-updated-at-v1";
 const SUPABASE_SYNC_POLL_MS = 60 * 60 * 1000;
 const URGENCY_REPORT_HELPER_URL = "http://127.0.0.1:8767";
 const DERIC_EMAIL = "dglanville@gmail.com";
 const DERIC_PIN = "3141";
+const CLIENT_ACCESS_PIN = "3141";
 const PATRICK_EMAIL = "patrick.glanville@gmail.com";
+const THEODORE_EMAIL = "theodore.glanville@gmail.com";
 const EMAIL_REPORT_RECIPIENTS = [
   DERIC_EMAIL,
   PATRICK_EMAIL
 ];
+const clientConfigs = {
+  patrick: {
+    id: "patrick",
+    shortName: "Patrick",
+    fullName: "Patrick Glanville",
+    title: "Patrick Glanville Issue Tracker",
+    browserTitle: "Patrick Glanville Support Tracker",
+    lede: "A practical dashboard for tracking transportation, income, benefits, family communication, and home-safety tasks.",
+    storageKey: PATRICK_STORAGE_KEY,
+    watchKey: PATRICK_WATCH_STORAGE_KEY,
+    taskViewKey: PATRICK_TASK_VIEW_KEY,
+    supabaseStateId: PATRICK_SUPABASE_STATE_ID,
+    remoteUpdatedAtKey: PATRICK_REMOTE_UPDATED_AT_KEY,
+    requiresAccessPin: false,
+    supportsReports: true,
+    supportsLifeAdmin: true,
+    overviewCards: [
+      { label: "Car repair estimate", value: "$6,000", detail: "2023 Kia damaged while working Uber Eats" },
+      { label: "Loan balance", value: "$15,000", detail: "Clarify lender, hardship options, and status" },
+      { label: "Primary risk", value: "No transport", detail: "Compare bicycle, Turo, and rental costs against actual income" },
+      { label: "Support needs", value: "Anxiety", detail: "Track mental health, honesty, and Plan B steps" }
+    ]
+  },
+  theodore: {
+    id: "theodore",
+    shortName: "Theo",
+    fullName: "Theodore Glanville",
+    title: "Theodore Glanville Issue Tracker",
+    browserTitle: "Theodore Glanville Support Tracker",
+    lede: "A focused dashboard for tracking Theo's work, expenses, and daily follow-through.",
+    storageKey: THEODORE_STORAGE_KEY,
+    watchKey: THEODORE_WATCH_STORAGE_KEY,
+    taskViewKey: THEODORE_TASK_VIEW_KEY,
+    supabaseStateId: THEODORE_SUPABASE_STATE_ID,
+    remoteUpdatedAtKey: THEODORE_REMOTE_UPDATED_AT_KEY,
+    requiresAccessPin: true,
+    supportsReports: false,
+    supportsLifeAdmin: false,
+    overviewCards: [
+      { label: "Immediate income goal", value: "Food industry work", detail: "Target restaurants, prep, dish, cafeteria, catering, and kitchen support jobs" },
+      { label: "Training priority", value: "Stay current", detail: "Resume paying for physical training sessions on a consistent schedule" },
+      { label: "Primary risk", value: "Income instability", detail: "Keep job applications and follow-ups moving until steady pay begins" },
+      { label: "Support needs", value: "Daily structure", detail: "Track check-ins, next actions, and completed items each day" }
+    ]
+  }
+};
 const MEDICATION_LIST_TASK_TITLE = "Create medication list with dosage and refill dates";
 const HEALTH_INSURANCE_TASK_TITLE = "Get health insurance before current coverage expires";
 const DEPRESSION_TASK_TITLE = "Assess depression and anxiety impact on job search";
@@ -920,18 +973,106 @@ const seedData = {
   ]
 };
 
-seedData.tasks.forEach(task => {
-  task.seedKey = task.seedKey || buildSeedTaskKey(task.title);
+function buildTheoSeedData() {
+  return {
+    dataVersion: DATA_VERSION,
+    notes: "",
+    runningNotes: [],
+    documents: [],
+    history: [],
+    lastSavedAt: "",
+    currentUser: PATRICK_EMAIL,
+    hiddenPanels: {
+      overview: true,
+      patrickWatch: true,
+      bills: true,
+      lifeAdmin: true
+    },
+    collapsedTaskGroupsVersion: TASK_GROUP_COLLAPSE_VERSION,
+    collapsedTaskGroups: {},
+    panelVisibilityVersion: PANEL_VISIBILITY_VERSION,
+    billMonth: "",
+    bills: [],
+    lifeAdminNotes: [],
+    tasks: [
+      {
+        id: crypto.randomUUID(),
+        title: TOP_TODO_LIST_TITLE,
+        category: "Priority to-do list",
+        owner: "Theodore + Deric",
+        status: "In progress",
+        priority: "Urgent",
+        due: "",
+        next: "Use this list for Theo's highest-priority income and expense actions. Keep active work visible and move completed work to the closed view.",
+        notes: "Track completion status, creation date, closed date, and short notes for each item.",
+        todoView: "active",
+        todoItems: [
+          "Find a job in the food industry",
+          "Start paying for physical training sessions"
+        ].map(buildTodoItem),
+        tag: "New",
+        tagTone: "purple"
+      }
+    ]
+  };
+}
+
+const seedDataByClient = {
+  patrick: seedData,
+  theodore: buildTheoSeedData()
+};
+
+Object.values(seedDataByClient).forEach(clientSeedData => {
+  clientSeedData.tasks.forEach(task => {
+    task.seedKey = task.seedKey || buildSeedTaskKey(task.title);
+  });
 });
 
-const seedTaskTitleByKey = Object.fromEntries(
-  seedData.tasks.map(task => [task.seedKey, task.title])
-);
+let activeClientId = "patrick";
+
+function currentClientConfig() {
+  return clientConfigs[activeClientId] || clientConfigs.patrick;
+}
+
+function getSeedData() {
+  return seedDataByClient[activeClientId] || seedDataByClient.patrick;
+}
+
+function getStorageKey() {
+  return currentClientConfig().storageKey;
+}
+
+function getPatrickWatchKey() {
+  return currentClientConfig().watchKey;
+}
+
+function getTaskViewKey() {
+  return currentClientConfig().taskViewKey;
+}
+
+function getSupabaseStateId() {
+  return currentClientConfig().supabaseStateId;
+}
+
+function getRemoteUpdatedAtKey() {
+  return currentClientConfig().remoteUpdatedAtKey;
+}
+
+function getSeedTaskTitle(seedKey) {
+  return getSeedData().tasks.find(task => task.seedKey === seedKey)?.title || "";
+}
+
+function isPatrickClient() {
+  return currentClientConfig().id === "patrick";
+}
 
 let state = loadState();
 let patrickWatchState = loadPatrickWatchState();
 
 const taskList = document.querySelector("#taskList");
+const appEyebrow = document.querySelector("#appEyebrow");
+const appTitle = document.querySelector("#appTitle");
+const appLede = document.querySelector("#appLede");
 const searchInput = document.querySelector("#searchInput");
 const statusFilter = document.querySelector("#statusFilter");
 const priorityFilter = document.querySelector("#priorityFilter");
@@ -944,8 +1085,11 @@ const runningNotesList = document.querySelector("#runningNotesList");
 const taskDialog = document.querySelector("#taskDialog");
 const taskForm = document.querySelector("#taskForm");
 const userSelect = document.querySelector("#userSelect");
+const clientSwitchBtn = document.querySelector("#clientSwitchBtn");
+const topClientSwitchBtn = document.querySelector("#topClientSwitchBtn");
 const overviewPanel = document.querySelector("#overviewPanel");
 const overviewContent = document.querySelector("#overviewContent");
+const overviewCards = document.querySelector("#overviewCards");
 const toggleOverviewBtn = document.querySelector("#toggleOverviewBtn");
 const accountGateDialog = document.querySelector("#accountGateDialog");
 const accountGateForm = document.querySelector("#accountGateForm");
@@ -954,6 +1098,13 @@ const accountGatePinWrap = document.querySelector("#accountGatePinWrap");
 const accountGatePin = document.querySelector("#accountGatePin");
 const accountGateMessage = document.querySelector("#accountGateMessage");
 const accountGateError = document.querySelector("#accountGateError");
+const clientGateDialog = document.querySelector("#clientGateDialog");
+const clientGateForm = document.querySelector("#clientGateForm");
+const clientGateSelect = document.querySelector("#clientGateSelect");
+const clientGatePinWrap = document.querySelector("#clientGatePinWrap");
+const clientGatePin = document.querySelector("#clientGatePin");
+const clientGateMessage = document.querySelector("#clientGateMessage");
+const clientGateError = document.querySelector("#clientGateError");
 const historyDialog = document.querySelector("#historyDialog");
 const urgencyReportDialog = document.querySelector("#urgencyReportDialog");
 const patrickChangeReportDialog = document.querySelector("#patrickChangeReportDialog");
@@ -975,6 +1126,10 @@ const lifeAdminPanel = document.querySelector("#lifeAdminPanel");
 const lifeAdminPanelContent = document.querySelector("#lifeAdminPanelContent");
 const patrickWatchContent = document.querySelector("#patrickWatchContent");
 const togglePatrickWatchBtn = document.querySelector("#togglePatrickWatchBtn");
+const processGuideBtn = document.querySelector("#processGuideBtn");
+const urgencyReportBtn = document.querySelector("#urgencyReportBtn");
+const patrickChangeReportBtn = document.querySelector("#patrickChangeReportBtn");
+const htmlEmailDashboardReportBtn = document.querySelector("#htmlEmailDashboardReportBtn");
 const toggleBillsBtn = document.querySelector("#toggleBillsBtn");
 const toggleLifeAdminBtn = document.querySelector("#toggleLifeAdminBtn");
 const hideBillsBtn = document.querySelector("#hideBillsBtn");
@@ -996,6 +1151,7 @@ const patrickViewOpenBtn = document.querySelector("#patrickViewOpenBtn");
 const patrickViewClosedBtn = document.querySelector("#patrickViewClosedBtn");
 const patrickViewAllBtn = document.querySelector("#patrickViewAllBtn");
 let dericPinValidatedForSession = false;
+let theodoreClientValidatedForSession = false;
 let taskViewMode = loadTaskViewMode();
 let activeMedicationTaskId = "";
 
@@ -1019,7 +1175,8 @@ const fields = {
 const taskLabelAdminRow = document.querySelector("#taskLabelAdminRow");
 
 function loadState() {
-  const saved = localStorage.getItem(STORAGE_KEY);
+  const seedData = getSeedData();
+  const saved = localStorage.getItem(getStorageKey());
   if (!saved) return initializeState(structuredClone(seedData));
   try {
     const parsed = JSON.parse(saved);
@@ -1042,7 +1199,7 @@ function loadState() {
     };
     const migrated = applyDataMigrations(loaded);
     const initialized = initializeState(loaded);
-    if (migrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(initialized));
+    if (migrated) localStorage.setItem(getStorageKey(), JSON.stringify(initialized));
     return initialized;
   } catch {
     return initializeState(structuredClone(seedData));
@@ -1051,7 +1208,7 @@ function loadState() {
 
 function loadTaskViewMode() {
   try {
-    const saved = localStorage.getItem(TASK_VIEW_KEY);
+    const saved = localStorage.getItem(getTaskViewKey());
     return ["active", "done", "all"].includes(saved) ? saved : "active";
   } catch {
     return "active";
@@ -1059,10 +1216,11 @@ function loadTaskViewMode() {
 }
 
 function saveTaskViewMode() {
-  localStorage.setItem(TASK_VIEW_KEY, taskViewMode);
+  localStorage.setItem(getTaskViewKey(), taskViewMode);
 }
 
 function initializeState(loaded) {
+  const seedData = getSeedData();
   loaded = loaded && typeof loaded === "object" ? loaded : structuredClone(seedData);
   loaded.notes = loaded.notes || "";
   loaded.tasks = Array.isArray(loaded.tasks) ? loaded.tasks : structuredClone(seedData.tasks);
@@ -1130,7 +1288,7 @@ function initializeState(loaded) {
   }));
   stateAdjusted = dedupeTasksBySeedKey(loaded.tasks) || stateAdjusted;
   if (panelVisibilityReset || stateAdjusted) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(loaded));
+    localStorage.setItem(getStorageKey(), JSON.stringify(loaded));
   }
   return loaded;
 }
@@ -1159,6 +1317,7 @@ function currentMonthlyDueDate(dayOfMonth) {
 }
 
 function ensureSeedBills(loaded) {
+  const seedData = getSeedData();
   const existingNames = new Set((loaded.bills || []).map(bill => (bill.name || "").trim().toLowerCase()));
   seedData.bills.forEach(seedBill => {
     const normalizedName = (seedBill.name || "").trim().toLowerCase();
@@ -1368,7 +1527,7 @@ function normalizeDocuments(documents) {
 
 function loadPatrickWatchState() {
   try {
-    const saved = localStorage.getItem(PATRICK_WATCH_KEY);
+    const saved = localStorage.getItem(getPatrickWatchKey());
     if (!saved) {
       return {
         lastReviewedAt: "",
@@ -1395,7 +1554,7 @@ function loadPatrickWatchState() {
 }
 
 function savePatrickWatchState(nextState) {
-  localStorage.setItem(PATRICK_WATCH_KEY, JSON.stringify({
+  localStorage.setItem(getPatrickWatchKey(), JSON.stringify({
     lastReviewedAt: nextState.lastReviewedAt || "",
     view: ["open", "closed", "all"].includes(nextState.view) ? nextState.view : "open",
     reviewedEntries: nextState.reviewedEntries || {},
@@ -1508,7 +1667,7 @@ function inferSeedTaskKey(task) {
   if (isTopTodoListTask(task)) return buildSeedTaskKey(TOP_TODO_LIST_TITLE);
   if (isDailyProjectManagerTask(task)) return buildSeedTaskKey(DAILY_PROJECT_MANAGER_TITLE);
   if (isMedicationLikeTask(task)) return buildSeedTaskKey(MEDICATION_LIST_TASK_TITLE);
-  const exactSeedTask = seedData.tasks.find(seedTask => seedTask.title === task.title);
+  const exactSeedTask = getSeedData().tasks.find(seedTask => seedTask.title === task.title);
   return exactSeedTask?.seedKey || "";
 }
 
@@ -1525,6 +1684,7 @@ function assignSeedKeys(tasks) {
 }
 
 function addMissingSeedTasks(loaded) {
+  const seedData = getSeedData();
   markUpdatedSections(loaded.tasks);
   const existingSeedKeys = new Set(loaded.tasks.map(task => task.seedKey).filter(Boolean));
   const existingTitles = new Set(loaded.tasks.map(task => task.title));
@@ -1540,6 +1700,7 @@ function addMissingSeedTasks(loaded) {
 }
 
 function applyOngoingStateRepairs(loaded) {
+  if (!isPatrickClient()) return;
   applyTaskDefaults(loaded.tasks, "Apply for CloudResearch Connect studies", {
     priority: "Urgent",
     due: "2026-05-25"
@@ -1763,7 +1924,7 @@ function mergeTaskData(primary, duplicate) {
   if (!primary || !duplicate) return;
 
   primary.seedKey = primary.seedKey || duplicate.seedKey || inferSeedTaskKey(primary) || inferSeedTaskKey(duplicate);
-  const seedTitle = primary.seedKey ? seedTaskTitleByKey[primary.seedKey] : "";
+  const seedTitle = primary.seedKey ? getSeedTaskTitle(primary.seedKey) : "";
   if (seedTitle && primary.title === seedTitle && duplicate.title && duplicate.title !== seedTitle) {
     primary.title = duplicate.title;
   }
@@ -1841,7 +2002,7 @@ function taskMergeScore(task) {
   const medications = normalizeMedicationEntries(task.medications);
   const medicationValueCount = medications.filter(entry => entry.name || entry.dosage || entry.refillDate).length;
   const commentCount = Array.isArray(task.comments) ? task.comments.length : 0;
-  const seedTitle = task.seedKey ? seedTaskTitleByKey[task.seedKey] : "";
+  const seedTitle = task.seedKey ? getSeedTaskTitle(task.seedKey) : "";
   const customTitleBonus = seedTitle && task.title && task.title !== seedTitle ? 25 : 0;
   return (medicationValueCount * 30) + (commentCount * 15) + normalizePercent(task.percent) + customTitleBonus;
 }
@@ -1977,19 +2138,19 @@ function markUpdatedSections(tasks) {
 
 function saveState() {
   state.lastSavedAt = new Date().toISOString();
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  localStorage.setItem(getStorageKey(), JSON.stringify(state));
   updateDataStoreStatus();
   queueSharedStateSave();
 }
 
 function cacheRemoteUpdatedAt(value) {
   remoteUpdatedAt = value || "";
-  if (remoteUpdatedAt) localStorage.setItem(SUPABASE_REMOTE_UPDATED_AT_KEY, remoteUpdatedAt);
-  else localStorage.removeItem(SUPABASE_REMOTE_UPDATED_AT_KEY);
+  if (remoteUpdatedAt) localStorage.setItem(getRemoteUpdatedAtKey(), remoteUpdatedAt);
+  else localStorage.removeItem(getRemoteUpdatedAtKey());
 }
 
 function readCachedRemoteUpdatedAt() {
-  return localStorage.getItem(SUPABASE_REMOTE_UPDATED_AT_KEY) || "";
+  return localStorage.getItem(getRemoteUpdatedAtKey()) || "";
 }
 
 function supabaseConfig() {
@@ -2027,7 +2188,7 @@ async function fetchRemoteUpdatedAt() {
   const { data, error } = await supabaseClient
     .from(SUPABASE_TABLE)
     .select("updated_at")
-    .eq("id", SUPABASE_STATE_ID)
+    .eq("id", getSupabaseStateId())
     .maybeSingle();
 
   if (error) throw error;
@@ -2038,7 +2199,7 @@ async function fetchSharedState() {
   const { data, error } = await supabaseClient
     .from(SUPABASE_TABLE)
     .select("state, updated_at")
-    .eq("id", SUPABASE_STATE_ID)
+    .eq("id", getSupabaseStateId())
     .maybeSingle();
 
   if (error) throw error;
@@ -2080,7 +2241,7 @@ async function loadSharedState(force = false) {
   state = initializeState(remoteState);
   if (selectedUserEmail) state.currentUser = selectedUserEmail;
   cacheRemoteUpdatedAt(data.updated_at || latestRemoteUpdatedAt);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  localStorage.setItem(getStorageKey(), JSON.stringify(state));
   supabaseStatus = `Supabase shared storage; synced ${formatDateTime(remoteUpdatedAt || state.lastSavedAt)}`;
   render();
   updateDataStoreStatus();
@@ -2103,7 +2264,7 @@ async function saveSharedStateNow() {
   if (!supabaseEnabled) return;
 
   const payload = {
-    id: SUPABASE_STATE_ID,
+    id: getSupabaseStateId(),
     state,
     updated_by: state.currentUser || "",
     updated_at: new Date().toISOString()
@@ -2175,7 +2336,40 @@ function updateDataStoreStatus() {
   dataStoreStatus.textContent = `${locationLabel}; local backup ${formatDateTime(state.lastSavedAt)}`;
 }
 
+function renderOverviewCards() {
+  if (!overviewCards) return;
+  const cards = currentClientConfig().overviewCards || [];
+  overviewCards.innerHTML = "";
+  cards.forEach(card => {
+    const article = document.createElement("article");
+    article.innerHTML = `
+      <span class="metric-label">${escapeHtml(card.label)}</span>
+      <strong>${escapeHtml(card.value)}</strong>
+      <span>${escapeHtml(card.detail)}</span>
+    `;
+    overviewCards.appendChild(article);
+  });
+}
+
+function updateClientChrome() {
+  const client = currentClientConfig();
+  if (clientSwitchBtn) clientSwitchBtn.textContent = `Client: ${client.shortName}`;
+  if (topClientSwitchBtn) topClientSwitchBtn.textContent = `Change Client`;
+  if (appTitle) appTitle.textContent = client.title;
+  if (appLede) appLede.textContent = client.lede;
+  if (appEyebrow) appEyebrow.textContent = `${client.fullName} support plan`;
+  document.title = client.browserTitle;
+  renderOverviewCards();
+
+  if (processGuideBtn) processGuideBtn.hidden = !client.supportsReports;
+  if (urgencyReportBtn) urgencyReportBtn.hidden = !client.supportsReports;
+  if (patrickChangeReportBtn) patrickChangeReportBtn.hidden = !client.supportsReports;
+  if (htmlEmailDashboardReportBtn) htmlEmailDashboardReportBtn.hidden = !client.supportsReports;
+  if (toggleLifeAdminBtn) toggleLifeAdminBtn.hidden = !client.supportsLifeAdmin;
+}
+
 function render() {
+  updateClientChrome();
   const query = searchInput.value.trim().toLowerCase();
   const status = statusFilter.value;
   const priority = priorityFilter.value;
@@ -2238,8 +2432,9 @@ function buildTaskSearchText(task) {
 
 function renderPatrickWatch() {
   const isDeric = state.currentUser === DERIC_EMAIL;
-  patrickWatchPanel.hidden = !isDeric;
-  if (!isDeric) return;
+  const canShowPatrickWatch = isPatrickClient() && isDeric;
+  patrickWatchPanel.hidden = !canShowPatrickWatch;
+  if (!canShowPatrickWatch) return;
 
   setPanelCollapsed(
     patrickWatchPanel,
@@ -2362,7 +2557,7 @@ function renderRunningNotes() {
   if (!state.runningNotes.length) {
     const empty = document.createElement("p");
     empty.className = "empty-notes";
-    empty.textContent = "No running notes have been saved yet.";
+    empty.textContent = "No client notes have been saved yet.";
     runningNotesList.appendChild(empty);
     return;
   }
@@ -2612,13 +2807,18 @@ function renderPanelVisibility() {
     state.hiddenPanels.bills,
     "Monthly Bills"
   );
-  setPanelHidden(
-    lifeAdminPanel,
-    lifeAdminPanelContent,
-    toggleLifeAdminBtn,
-    state.hiddenPanels.lifeAdmin,
-    "Patrick To-Do Notes"
-  );
+  if (currentClientConfig().supportsLifeAdmin) {
+    setPanelHidden(
+      lifeAdminPanel,
+      lifeAdminPanelContent,
+      toggleLifeAdminBtn,
+      state.hiddenPanels.lifeAdmin,
+      "Patrick To-Do Notes"
+    );
+  } else {
+    lifeAdminPanel.hidden = true;
+    lifeAdminPanelContent.hidden = true;
+  }
 }
 
 function setPanelHidden(panel, content, button, hidden, label) {
@@ -3278,7 +3478,10 @@ function addTopTodoItem(task, title, status = "Not started", notes = "") {
   });
   task.todoView = task.todoView === "closed" ? "closed" : "active";
   task.todoItems = normalizeTodoListItems(task.todoItems);
-  recordUpdate(task, `To-do item added: ${cleanTitle}`);
+  recordUpdate(task, `To-do item added: ${cleanTitle}`, {
+    status: itemStatus,
+    percent: statusToPercent(itemStatus)
+  });
   saveState();
   render();
 }
@@ -3297,7 +3500,10 @@ function updateTopTodoItemField(task, itemId, field, value) {
   item[field] = nextValue;
   item.updatedAt = new Date().toISOString();
   task.todoItems = normalizeTodoListItems(task.todoItems);
-  recordUpdate(task, `To-do item updated: ${item.title}`);
+  recordUpdate(task, `To-do item updated: ${item.title}`, {
+    status: item.status,
+    percent: statusToPercent(item.status)
+  });
   saveState();
   render();
 }
@@ -3317,7 +3523,10 @@ function updateTopTodoItemStatus(task, itemId, status) {
   item.updatedAt = new Date().toISOString();
   item.closedAt = isNowClosed ? (wasClosed ? item.closedAt || item.updatedAt : item.updatedAt) : "";
   task.todoItems = normalizeTodoListItems(task.todoItems);
-  recordUpdate(task, `To-do item status changed to ${status}: ${item.title}`);
+  recordUpdate(task, `To-do item status changed to ${status}: ${item.title}`, {
+    status: item.status,
+    percent: statusToPercent(item.status)
+  });
   saveState();
   render();
 }
@@ -3338,7 +3547,10 @@ function deleteTopTodoItem(task, itemId) {
   if (!confirm(`Delete to-do item "${item.title}"?`)) return;
 
   task.todoItems = normalizeTodoListItems(task.todoItems).filter(entry => entry.id !== itemId);
-  recordUpdate(task, `To-do item deleted: ${item.title}`);
+  recordUpdate(task, `To-do item deleted: ${item.title}`, {
+    status: item.status,
+    percent: statusToPercent(item.status)
+  });
   saveState();
   render();
 }
@@ -4146,6 +4358,42 @@ function accountSelectionMessage(actionText = "make updates") {
   return `Select an account before you ${actionText}.`;
 }
 
+function updateClientGatePinVisibility() {
+  const needsPin = clientGateSelect.value === "theodore";
+  clientGatePinWrap.hidden = !needsPin;
+  if (!needsPin) clientGatePin.value = "";
+}
+
+function openClientGateDialog() {
+  clientGateDialog.hidden = false;
+  if (typeof clientGateDialog.showModal === "function" && !clientGateDialog.open) {
+    clientGateDialog.showModal();
+  } else {
+    clientGateDialog.setAttribute("open", "open");
+    clientGateDialog.style.display = "block";
+  }
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function closeClientGateDialog() {
+  if (clientGateDialog.open && typeof clientGateDialog.close === "function") {
+    clientGateDialog.close();
+  }
+  clientGateDialog.removeAttribute("open");
+  clientGateDialog.hidden = true;
+  clientGateDialog.style.display = "none";
+}
+
+function showClientGate(message = "Choose which client dashboard to open.") {
+  clientGateMessage.textContent = message;
+  clientGateError.hidden = true;
+  clientGateError.textContent = "";
+  clientGateSelect.value = activeClientId;
+  clientGatePin.value = "";
+  updateClientGatePinVisibility();
+  openClientGateDialog();
+}
+
 function updateAccountGatePinVisibility() {
   const needsPin = accountGateSelect.value === DERIC_EMAIL;
   accountGatePinWrap.hidden = !needsPin;
@@ -4154,11 +4402,19 @@ function updateAccountGatePinVisibility() {
 
 function openAccountGateDialog() {
   accountGateDialog.hidden = false;
-  accountGateDialog.setAttribute("open", "open");
-  accountGateDialog.style.display = "block";
+  if (typeof accountGateDialog.showModal === "function" && !accountGateDialog.open) {
+    accountGateDialog.showModal();
+  } else {
+    accountGateDialog.setAttribute("open", "open");
+    accountGateDialog.style.display = "block";
+  }
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function closeAccountGateDialog() {
+  if (accountGateDialog.open && typeof accountGateDialog.close === "function") {
+    accountGateDialog.close();
+  }
   accountGateDialog.removeAttribute("open");
   accountGateDialog.hidden = true;
   accountGateDialog.style.display = "none";
@@ -4268,6 +4524,80 @@ function requestUserSwitch(email) {
 
   if (email !== DERIC_EMAIL) dericPinValidatedForSession = false;
   setCurrentUserEmail(email, { save: true, renderView: true });
+}
+
+async function switchClient(clientId, pin = "") {
+  const nextClient = clientConfigs[clientId];
+  if (!nextClient) {
+    clientGateError.textContent = "Select a client to continue.";
+    clientGateError.hidden = false;
+    return false;
+  }
+
+  if (nextClient.requiresAccessPin && pin !== CLIENT_ACCESS_PIN) {
+    clientGateError.textContent = "The access code for Theodore's dashboard is incorrect.";
+    clientGateError.hidden = false;
+    return false;
+  }
+
+  if (supabaseEnabled && !applyingRemoteState) {
+    window.clearTimeout(supabaseSaveTimer);
+    await saveSharedStateNow();
+  }
+
+  activeClientId = nextClient.id;
+  remoteUpdatedAt = readCachedRemoteUpdatedAt();
+  state = loadState();
+  patrickWatchState = loadPatrickWatchState();
+  taskViewMode = loadTaskViewMode();
+  theodoreClientValidatedForSession = nextClient.id === "theodore";
+
+  closeClientGateDialog();
+  if (supabaseEnabled) {
+    supabaseStatus = `Connecting to Supabase shared storage for ${nextClient.shortName}`;
+    updateDataStoreStatus();
+    await loadSharedState(true);
+  }
+  updateSyncStatus();
+  render();
+  return true;
+}
+
+function handleClientGateSelection() {
+  const selectedClientId = clientGateSelect.value;
+  clientGateError.hidden = true;
+  clientGateError.textContent = "";
+  updateClientGatePinVisibility();
+
+  if (!selectedClientId) return;
+  if (selectedClientId === "theodore") {
+    clientGatePin.focus();
+    return;
+  }
+
+  switchClient(selectedClientId, "");
+}
+
+function maybeSubmitTheodoreClientPin() {
+  if (clientGateSelect.value !== "theodore") return;
+  const pin = clientGatePin.value.trim();
+  if (pin.length < CLIENT_ACCESS_PIN.length) return;
+  switchClient("theodore", pin);
+}
+
+function handleTheodoreClientPinKeyboardSubmit(event) {
+  if (event.key !== "Enter" && event.key !== "Go" && event.key !== "Done") return;
+  event.preventDefault();
+  const pin = clientGatePin.value.trim();
+  if (!pin) return;
+  switchClient("theodore", pin);
+}
+
+function handleTheodoreClientPinCommit() {
+  if (clientGateSelect.value !== "theodore") return;
+  const pin = clientGatePin.value.trim();
+  if (!pin || pin.length < CLIENT_ACCESS_PIN.length) return;
+  switchClient("theodore", pin);
 }
 
 function updateTaskLabelControls() {
@@ -4434,15 +4764,15 @@ function buildChangeSummary(before, after, commentText) {
   return changes.join("; ") || "Task saved";
 }
 
-function recordUpdate(task, summary) {
+function recordUpdate(task, summary, overrides = {}) {
   recordHistoryEntry({
     itemType: "task",
     itemId: task.id,
     taskId: task.id,
     title: task.title,
     summary,
-    percent: task.percent,
-    status: task.status
+    percent: Object.prototype.hasOwnProperty.call(overrides, "percent") ? overrides.percent : task.percent,
+    status: overrides.status || task.status
   });
 }
 
@@ -5172,6 +5502,22 @@ function populateUsers() {
   });
 }
 
+function populateClients() {
+  if (!clientGateSelect) return;
+  clientGateSelect.innerHTML = "";
+  const placeholderOption = document.createElement("option");
+  placeholderOption.value = "";
+  placeholderOption.textContent = "Select client...";
+  clientGateSelect.appendChild(placeholderOption);
+
+  Object.values(clientConfigs).forEach(client => {
+    const option = document.createElement("option");
+    option.value = client.id;
+    option.textContent = client.fullName;
+    clientGateSelect.appendChild(option);
+  });
+}
+
 taskForm.addEventListener("submit", event => {
   event.preventDefault();
   const user = ensureCurrentUser("save a task update");
@@ -5348,6 +5694,22 @@ userSelect.addEventListener("change", () => {
   requestUserSwitch(userSelect.value);
 });
 
+function openClientSwitcher() {
+  showClientGate("Choose which client dashboard to open. Theodore's dashboard requires an access code.");
+}
+
+window.openClientSwitcher = openClientSwitcher;
+
+if (clientSwitchBtn) {
+  clientSwitchBtn.addEventListener("click", openClientSwitcher);
+}
+
+if (topClientSwitchBtn) {
+  topClientSwitchBtn.addEventListener("click", openClientSwitcher);
+  topClientSwitchBtn.addEventListener("pointerup", openClientSwitcher);
+  topClientSwitchBtn.addEventListener("touchend", openClientSwitcher, { passive: true });
+}
+
 accountGateSelect.addEventListener("change", updateAccountGatePinVisibility);
 accountGateSelect.addEventListener("change", handleAccountGateSelection);
 accountGateSelect.addEventListener("input", handleAccountGateSelection);
@@ -5363,6 +5725,28 @@ accountGatePin.addEventListener("keyup", handleDericPinKeyboardSubmit);
 accountGatePin.addEventListener("input", maybeSubmitDericPin);
 accountGatePin.addEventListener("change", handleDericPinCommit);
 accountGatePin.addEventListener("blur", handleDericPinCommit);
+if (clientGateSelect) {
+  clientGateSelect.addEventListener("change", updateClientGatePinVisibility);
+  clientGateSelect.addEventListener("change", handleClientGateSelection);
+  clientGateSelect.addEventListener("input", handleClientGateSelection);
+}
+if (clientGateDialog) {
+  clientGateDialog.addEventListener("cancel", event => {
+    event.preventDefault();
+  });
+}
+if (clientGateForm) {
+  clientGateForm.addEventListener("submit", event => {
+    event.preventDefault();
+  });
+}
+if (clientGatePin) {
+  clientGatePin.addEventListener("keydown", handleTheodoreClientPinKeyboardSubmit);
+  clientGatePin.addEventListener("keyup", handleTheodoreClientPinKeyboardSubmit);
+  clientGatePin.addEventListener("input", maybeSubmitTheodoreClientPin);
+  clientGatePin.addEventListener("change", handleTheodoreClientPinCommit);
+  clientGatePin.addEventListener("blur", handleTheodoreClientPinCommit);
+}
 
 document.querySelectorAll(".emoji-button").forEach(button => {
   button.addEventListener("click", () => {
@@ -5376,7 +5760,7 @@ document.querySelector("#exportBtn").addEventListener("click", () => {
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
-  link.download = `patrick-glanville-tracker-${new Date().toISOString().slice(0, 10)}.json`;
+  link.download = `${currentClientConfig().fullName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-tracker-${new Date().toISOString().slice(0, 10)}.json`;
   link.click();
   URL.revokeObjectURL(link.href);
 });
@@ -5472,7 +5856,7 @@ if (closeDocumentsDialogBtn && documentsDialog) {
 document.querySelector("#resetBtn").addEventListener("click", () => {
   if (!confirm("Reset tracker to the original starting tasks?")) return;
   const selectedUserEmail = state.currentUser;
-  state = initializeState(structuredClone(seedData));
+  state = initializeState(structuredClone(getSeedData()));
   if (selectedUserEmail) state.currentUser = selectedUserEmail;
   saveState();
   render();
@@ -5537,8 +5921,10 @@ taskViewAllBtn.addEventListener("click", () => {
 });
 
 populateUsers();
+populateClients();
 populateCategories();
 render();
 closeAccountGateDialog();
+closeClientGateDialog();
 updateSyncStatus();
 initializeSharedDataSource();

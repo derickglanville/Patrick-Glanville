@@ -15,6 +15,9 @@
       <h2>Collaboration</h2>
       <p>Select an account before making updates. Deric's account requires a PIN at startup.</p>
     </div>
+      <div class="collaboration-client-switch">
+        <button id="topClientSwitchBtn" type="button" class="ghost client-switch-shortcut" title="Switch between client dashboards" aria-label="Change active client" onclick="window.openClientSwitcher && window.openClientSwitcher(); return false;">Change Client</button>
+      </div>
     <label for="userSelect">Current user
       <select id="userSelect"></select>
     </label>
@@ -42,11 +45,12 @@
 
   <header class="app-header">
     <div>
-      <p class="eyebrow">Frisco, Texas support plan</p>
-      <h1>Patrick Glanville Issue Tracker</h1>
-      <p class="lede">A practical dashboard for tracking transportation, income, benefits, family communication, and home-safety tasks.</p>
+      <p class="eyebrow" id="appEyebrow">Frisco, Texas support plan</p>
+      <h1 id="appTitle">Patrick Glanville Issue Tracker</h1>
+      <p class="lede" id="appLede">A practical dashboard for tracking transportation, income, benefits, family communication, and home-safety tasks.</p>
     </div>
     <div class="header-actions" aria-label="Data actions">
+      <button id="clientSwitchBtn" type="button" class="ghost" title="Switch between client dashboards">Client: Patrick</button>
       <button id="processGuideBtn" type="button" title="Open the full process guide PDF for this project">Process Guide PDF</button>
       <button id="urgencyReportBtn" type="button" title="Run the local urgency report process if the helper is running, otherwise save directly into the Email folder">Urgency Report</button>
       <button id="patrickChangeReportBtn" type="button" title="Review Patrick's change report and save it to the local Email folder">Patrick Change Report</button>
@@ -73,28 +77,7 @@
         </div>
       </header>
       <div class="collapsible-content" id="overviewContent">
-        <div class="overview">
-          <article>
-            <span class="metric-label">Car repair estimate</span>
-            <strong>$6,000</strong>
-            <span>2023 Kia damaged while working Uber Eats</span>
-          </article>
-          <article>
-            <span class="metric-label">Loan balance</span>
-            <strong>$15,000</strong>
-            <span>Clarify lender, hardship options, and status</span>
-          </article>
-          <article>
-            <span class="metric-label">Primary risk</span>
-            <strong>No transport</strong>
-            <span>Compare bicycle, Turo, and rental costs against actual income</span>
-          </article>
-          <article>
-            <span class="metric-label">Support needs</span>
-            <strong>Anxiety</strong>
-            <span>Track mental health, honesty, and Plan B steps</span>
-          </article>
-        </div>
+        <div class="overview" id="overviewCards"></div>
       </div>
     </section>
 
@@ -253,12 +236,12 @@
 
     <section class="notes-panel" aria-label="Shared notes">
       <div>
-        <h2>Running Notes</h2>
-        <p>Save dated notes for calls, documents requested, account follow-ups, and family updates. Avoid storing full Social Security numbers, bank logins, or passwords here.</p>
+        <h2>Client Notes</h2>
+        <p>Save dated notes for calls, documents requested, account follow-ups, client updates, and household coordination. Avoid storing full Social Security numbers, bank logins, or passwords here.</p>
       </div>
       <div class="running-notes-workspace">
         <label>New note
-          <textarea id="newRunningNote" rows="4" placeholder="Example: Called Kia of Frisco and asked about storage fees..."></textarea>
+          <textarea id="newRunningNote" rows="4" placeholder="Example: Called employer and asked about next steps..."></textarea>
         </label>
         <div class="emoji-toolbar" aria-label="Insert emoji into running note">
           <button type="button" class="emoji-button" data-target="newRunningNote" data-emoji="👍" aria-label="Insert thumbs up">👍</button>
@@ -453,8 +436,24 @@
     </form>
   </dialog>
 
+  <dialog id="clientGateDialog">
+    <form id="clientGateForm" class="account-gate-dialog" novalidate>
+      <div class="dialog-head">
+        <h2>Change client</h2>
+      </div>
+      <p id="clientGateMessage" class="account-gate-message">Choose which client dashboard to open. Theodore's dashboard requires an access code.</p>
+      <label for="clientGateSelect">Client
+        <select id="clientGateSelect"></select>
+      </label>
+      <label for="clientGatePin" id="clientGatePinWrap" hidden>Access code for Theodore's dashboard
+        <input id="clientGatePin" type="password" inputmode="numeric" autocomplete="off" placeholder="Enter access code">
+      </label>
+      <p id="clientGateError" class="account-gate-error" hidden></p>
+    </form>
+  </dialog>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js?v=2026-05-28-001"></script>
-  <script src="app.js?v=2026-07-01-004"></script>
-</body>
-</html>
+  <script src="app.js?v=2026-07-06-004"></script>
+  </body>
+  </html>

@@ -149,12 +149,31 @@ main {
   margin: 0;
   padding: 12px clamp(18px, 4vw, 56px);
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(240px, 340px) minmax(260px, 1fr);
+  grid-template-columns: minmax(220px, 1fr) auto minmax(240px, 340px) minmax(260px, 1fr);
   gap: 16px;
   align-items: center;
   border-width: 0 0 1px;
   border-radius: 0;
   box-shadow: none;
+}
+
+.collaboration-client-switch {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+}
+
+.collaboration-client-switch .ghost {
+  min-width: 150px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.client-switch-shortcut {
+  font-weight: 700;
+  box-shadow: 0 0 0 1px rgba(24, 32, 42, .06);
 }
 
 .collaboration-panel h2 {
@@ -198,15 +217,18 @@ main {
   font-size: .88rem;
 }
 
-#accountGateDialog {
+#accountGateDialog,
+#clientGateDialog {
   width: min(440px, calc(100vw - 32px));
   border: 0;
   border-radius: 12px;
   padding: 0;
+  margin: 8vh auto auto;
   box-shadow: 0 26px 60px rgba(24, 32, 42, .24);
 }
 
-#accountGateDialog::backdrop {
+#accountGateDialog::backdrop,
+#clientGateDialog::backdrop {
   background: rgba(16, 22, 31, .52);
 }
 
