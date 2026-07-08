@@ -7,7 +7,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>Patrick Glanville Support Tracker</title>
-  <link rel="stylesheet" href="styles.css?v=2026-07-01-003">
+  <link rel="stylesheet" href="styles.css?v=2026-07-08-004">
 </head>
 <body>
   <section class="collaboration-panel" aria-label="Collaboration access">
@@ -16,7 +16,17 @@
       <p>Select an account before making updates. Deric's account requires a PIN at startup.</p>
     </div>
       <div class="collaboration-client-switch">
-        <button id="topClientSwitchBtn" type="button" class="ghost client-switch-shortcut" title="Switch between client dashboards" aria-label="Change active client" onclick="window.openClientSwitcher && window.openClientSwitcher(); return false;">Change Client</button>
+        <button id="topClientSwitchBtn" type="button" class="ghost client-switch-shortcut" title="Switch between client dashboards" aria-label="Change active client" hidden>Change Client</button>
+        <label for="topClientSelect">Client
+          <select id="topClientSelect" aria-label="Choose client dashboard">
+            <option value="">Select client...</option>
+            <option value="patrick">Patrick Glanville</option>
+            <option value="theodore">Theodore Glanville</option>
+          </select>
+        </label>
+        <label for="topClientPin" id="topClientPinWrapInline" hidden>Access code
+          <input id="topClientPin" type="password" inputmode="numeric" autocomplete="off" placeholder="Theo access code" hidden>
+        </label>
       </div>
     <label for="userSelect">Current user
       <select id="userSelect"></select>
@@ -452,8 +462,23 @@
     </form>
   </dialog>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="supabase-config.js?v=2026-05-28-001"></script>
-  <script src="app.js?v=2026-07-06-004"></script>
+  <script>
+    window.__firebaseLibraryLoaded = false;
+    window.__firebaseLibraryLoadError = "";
+    window.__firebaseConfigLoaded = false;
+    window.__firebaseConfigLoadError = "";
+    window.__firebaseInitError = "";
+    window.__firebaseInitPromise = Promise.resolve();
+    window.__firebaseInitStage = "not-started";
+    window.__appBootStage = "pre-app";
+    window.__appBootError = "";
+  </script>
+  <script
+    src="firebase-config.js?v=2026-07-08-001"
+    onload="window.__firebaseConfigLoaded = true"
+    onerror="window.__firebaseConfigLoadError = 'firebase-config.js failed to load';"
+  ></script>
+  <script src="firebase-init.js?v=2026-07-08-003"></script>
+  <script src="app.js?v=2026-07-08-014"></script>
   </body>
   </html>

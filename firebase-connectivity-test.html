@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Firebase Connectivity Test</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      margin: 0;
+      padding: 24px;
+    }
+    .card {
+      max-width: 880px;
+      margin: 0 auto;
+      background: #111827;
+      border: 1px solid #334155;
+      border-radius: 14px;
+      padding: 24px;
+    }
+    h1 {
+      margin-top: 0;
+      font-size: 28px;
+    }
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #020617;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 16px;
+      min-height: 160px;
+    }
+    .ok { color: #86efac; }
+    .warn { color: #fcd34d; }
+    .err { color: #fca5a5; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Firebase Firestore Connectivity Test</h1>
+    <p>This page uses the same Firebase config as the dashboard and tries a simple write and read.</p>
+    <pre id="log">Starting test...</pre>
+  </div>
+
+  <script src="firebase-config.js?v=2026-07-08-001"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+
+    const logEl = document.getElementById("log");
+    const lines = [];
+    const log = (text) => {
+      lines.push(text);
+      logEl.textContent = lines.join("\n");
+    };
+
+    try {
+      const config = window.PATRICK_FIREBASE_CONFIG || {};
+      log("Loaded firebase-config.js");
+      log(`Project ID: ${config.projectId || "(missing)"}`);
+
+      const app = initializeApp(config);
+      const db = getFirestore(app);
+      const docRef = doc(db, "tracker_state", "connectivity-test");
+
+      log("Firebase initialized");
+      log("Attempting Firestore write...");
+
+      await setDoc(docRef, {
+        checkedAt: new Date().toISOString(),
+        checkedAtServer: serverTimestamp(),
+        source: "firebase-connectivity-test.html"
+      }, { merge: true });
+
+      log("Write succeeded");
+      log("Attempting Firestore read...");
+
+      const snapshot = await getDoc(docRef);
+      if (!snapshot.exists()) {
+        log("Read completed but document was not found");
+      } else {
+        log("Read succeeded");
+        log("");
+        log("Document data:");
+        log(JSON.stringify(snapshot.data(), null, 2));
+      }
+    } catch (error) {
+      log("");
+      log("Connectivity test failed");
+      log(`Error: ${error.message}`);
+      if (error.code) log(`Code: ${error.code}`);
+      console.error(error);
+    }
+  </script>
+</body>
+</html>

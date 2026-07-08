@@ -86,9 +86,11 @@ const DAILY_PROJECT_MANAGER_TITLE = "Daily Action Project Manager";
 const MEDICATION_REFILL_ALERT_WINDOW_DAYS = 7;
 let supabaseClient = null;
 let supabaseEnabled = false;
-let supabaseStatus = "Local browser storage";
+let supabaseStatus = "Checking Firebase Firestore availability";
 let supabaseSaveTimer = null;
 let supabaseSyncTimer = null;
+let supabaseInitTimeout = null;
+let supabaseInitStartedAt = 0;
 let remoteUpdatedAt = "";
 let applyingRemoteState = false;
 const allowedUsers = [
@@ -981,7 +983,7 @@ function buildTheoSeedData() {
     documents: [],
     history: [],
     lastSavedAt: "",
-    currentUser: PATRICK_EMAIL,
+    currentUser: THEODORE_EMAIL,
     hiddenPanels: {
       overview: true,
       patrickWatch: true,
@@ -1028,34 +1030,59 @@ Object.values(seedDataByClient).forEach(clientSeedData => {
   });
 });
 
-let activeClientId = "patrick";
+function buildUnselectedClientState() {
+  return {
+    dataVersion: DATA_VERSION,
+    notes: "",
+    runningNotes: [],
+    documents: [],
+    history: [],
+    lastSavedAt: "",
+    currentUser: "",
+    hiddenPanels: {
+      overview: true,
+      patrickWatch: true,
+      bills: true,
+      lifeAdmin: true
+    },
+    collapsedTaskGroupsVersion: TASK_GROUP_COLLAPSE_VERSION,
+    collapsedTaskGroups: Object.fromEntries(taskGroupOrder.map(groupName => [groupName, true])),
+    panelVisibilityVersion: PANEL_VISIBILITY_VERSION,
+    billMonth: "",
+    bills: [],
+    lifeAdminNotes: [],
+    tasks: []
+  };
+}
+
+let activeClientId = "";
 
 function currentClientConfig() {
-  return clientConfigs[activeClientId] || clientConfigs.patrick;
+  return clientConfigs[activeClientId] || null;
 }
 
 function getSeedData() {
-  return seedDataByClient[activeClientId] || seedDataByClient.patrick;
+  return seedDataByClient[activeClientId] || buildUnselectedClientState();
 }
 
 function getStorageKey() {
-  return currentClientConfig().storageKey;
+  return currentClientConfig()?.storageKey || "";
 }
 
 function getPatrickWatchKey() {
-  return currentClientConfig().watchKey;
+  return currentClientConfig()?.watchKey || "";
 }
 
 function getTaskViewKey() {
-  return currentClientConfig().taskViewKey;
+  return currentClientConfig()?.taskViewKey || "";
 }
 
 function getSupabaseStateId() {
-  return currentClientConfig().supabaseStateId;
+  return currentClientConfig()?.supabaseStateId || "";
 }
 
 function getRemoteUpdatedAtKey() {
-  return currentClientConfig().remoteUpdatedAtKey;
+  return currentClientConfig()?.remoteUpdatedAtKey || "";
 }
 
 function getSeedTaskTitle(seedKey) {
@@ -1063,11 +1090,16 @@ function getSeedTaskTitle(seedKey) {
 }
 
 function isPatrickClient() {
-  return currentClientConfig().id === "patrick";
+  return currentClientConfig()?.id === "patrick";
 }
 
-let state = loadState();
-let patrickWatchState = loadPatrickWatchState();
+let state = buildUnselectedClientState();
+let patrickWatchState = {
+  lastReviewedAt: "",
+  view: "open",
+  reviewedEntries: {},
+  closedEntries: {}
+};
 
 const taskList = document.querySelector("#taskList");
 const appEyebrow = document.querySelector("#appEyebrow");
@@ -1087,6 +1119,9 @@ const taskForm = document.querySelector("#taskForm");
 const userSelect = document.querySelector("#userSelect");
 const clientSwitchBtn = document.querySelector("#clientSwitchBtn");
 const topClientSwitchBtn = document.querySelector("#topClientSwitchBtn");
+const topClientSelect = document.querySelector("#topClientSelect");
+const topClientPinWrapInline = document.querySelector("#topClientPinWrapInline");
+const topClientPin = document.querySelector("#topClientPin");
 const overviewPanel = document.querySelector("#overviewPanel");
 const overviewContent = document.querySelector("#overviewContent");
 const overviewCards = document.querySelector("#overviewCards");
@@ -1175,6 +1210,7 @@ const fields = {
 const taskLabelAdminRow = document.querySelector("#taskLabelAdminRow");
 
 function loadState() {
+  if (!activeClientId || !getStorageKey()) return buildUnselectedClientState();
   const seedData = getSeedData();
   const saved = localStorage.getItem(getStorageKey());
   if (!saved) return initializeState(structuredClone(seedData));
@@ -1207,6 +1243,7 @@ function loadState() {
 }
 
 function loadTaskViewMode() {
+  if (!activeClientId || !getTaskViewKey()) return "active";
   try {
     const saved = localStorage.getItem(getTaskViewKey());
     return ["active", "done", "all"].includes(saved) ? saved : "active";
@@ -1216,6 +1253,7 @@ function loadTaskViewMode() {
 }
 
 function saveTaskViewMode() {
+  if (!activeClientId || !getTaskViewKey()) return;
   localStorage.setItem(getTaskViewKey(), taskViewMode);
 }
 
@@ -1243,7 +1281,7 @@ function initializeState(loaded) {
   let panelVisibilityReset = false;
   loaded.currentUser = allowedUsers.some(user => user.email === loaded.currentUser)
     ? loaded.currentUser
-    : PATRICK_EMAIL;
+    : (activeClientId ? PATRICK_EMAIL : "");
   loaded.history = Array.isArray(loaded.history) ? loaded.history : [];
   loaded.lastSavedAt = loaded.lastSavedAt || new Date().toISOString();
   loaded.runningNotes = normalizeRunningNotes(loaded.runningNotes, loaded.notes);
@@ -1526,6 +1564,14 @@ function normalizeDocuments(documents) {
 }
 
 function loadPatrickWatchState() {
+  if (!activeClientId || !getPatrickWatchKey()) {
+    return {
+      lastReviewedAt: "",
+      view: "open",
+      reviewedEntries: {},
+      closedEntries: {}
+    };
+  }
   try {
     const saved = localStorage.getItem(getPatrickWatchKey());
     if (!saved) {
@@ -1554,6 +1600,7 @@ function loadPatrickWatchState() {
 }
 
 function savePatrickWatchState(nextState) {
+  if (!activeClientId || !getPatrickWatchKey()) return;
   localStorage.setItem(getPatrickWatchKey(), JSON.stringify({
     lastReviewedAt: nextState.lastReviewedAt || "",
     view: ["open", "closed", "all"].includes(nextState.view) ? nextState.view : "open",
@@ -2138,7 +2185,10 @@ function markUpdatedSections(tasks) {
 
 function saveState() {
   state.lastSavedAt = new Date().toISOString();
-  localStorage.setItem(getStorageKey(), JSON.stringify(state));
+  const storageKey = getStorageKey();
+  if (storageKey) {
+    localStorage.setItem(storageKey, JSON.stringify(state));
+  }
   updateDataStoreStatus();
   queueSharedStateSave();
 }
@@ -2154,60 +2204,134 @@ function readCachedRemoteUpdatedAt() {
 }
 
 function supabaseConfig() {
-  return window.PATRICK_SUPABASE_CONFIG || {};
+  return window.PATRICK_FIREBASE_CONFIG || {};
+}
+
+function getSupabaseSetupIssue() {
+  if (window.__firebaseConfigLoadError) return window.__firebaseConfigLoadError;
+  if (window.__firebaseLibraryLoadError) return window.__firebaseLibraryLoadError;
+  if (window.__firebaseInitError) return window.__firebaseInitError;
+  const config = supabaseConfig();
+  if (!config.apiKey) return "Firebase config is missing apiKey";
+  if (!config.authDomain) return "Firebase config is missing authDomain";
+  if (!config.projectId) return "Firebase config is missing projectId";
+  if (!config.appId) return "Firebase config is missing appId";
+  if (!window.__firebaseInitPromise) return "Firebase bootstrap did not start";
+  return "";
 }
 
 function hasSupabaseConfig() {
-  const config = supabaseConfig();
-  return Boolean(config.url && config.anonKey && window.supabase?.createClient);
+  return !getSupabaseSetupIssue();
 }
 
+function finalizeSupabaseInitStatusIfPending() {
+  if (supabaseEnabled) return;
+  if (supabaseStatus !== "Checking Firebase Firestore availability") return;
+  const setupIssue = getSupabaseSetupIssue();
+  supabaseStatus = setupIssue
+    ? `Firebase Firestore unavailable: ${setupIssue}`
+    : "Firebase Firestore unavailable: initialization timed out";
+  updateDataStoreStatus();
+}
+
+function getFirebaseDebugStatus() {
+  return [
+    `bootStage=${window.__appBootStage || "unknown"}`,
+    `bootError=${window.__appBootError || "none"}`,
+    `stage=${window.__firebaseInitStage || "unknown"}`,
+    `configLoaded=${window.__firebaseConfigLoaded ? "yes" : "no"}`,
+    `libraryLoaded=${window.__firebaseLibraryLoaded ? "yes" : "no"}`,
+    `hasBootstrap=${window.__firebaseInitPromise ? "yes" : "no"}`,
+    `hasInstance=${window.__patrickFirebase?.db ? "yes" : "no"}`,
+    `backendEnabled=${supabaseEnabled ? "yes" : "no"}`,
+    `client=${activeClientId || "none"}`,
+    `configError=${window.__firebaseConfigLoadError || "none"}`,
+    `libraryError=${window.__firebaseLibraryLoadError || "none"}`,
+    `initError=${window.__firebaseInitError || "none"}`
+  ].join(", ");
+}
+
+window.addEventListener("error", event => {
+  window.__appBootError = event?.error?.message || event?.message || "unknown script error";
+  updateDataStoreStatus();
+});
+
+window.addEventListener("unhandledrejection", event => {
+  window.__appBootError = event?.reason?.message || String(event?.reason || "unknown promise rejection");
+  updateDataStoreStatus();
+});
+
 async function initializeSharedDataSource() {
+  window.__firebaseInitStage = "starting";
+  supabaseInitStartedAt = Date.now();
+  supabaseStatus = "Checking Firebase Firestore availability";
+  updateDataStoreStatus();
+  window.clearTimeout(supabaseInitTimeout);
+  supabaseInitTimeout = window.setTimeout(() => {
+    finalizeSupabaseInitStatusIfPending();
+  }, 2500);
   if (!hasSupabaseConfig()) {
-    supabaseStatus = "Local browser storage; Supabase is not configured";
+    window.__firebaseInitStage = "config-check-failed";
+    supabaseStatus = `Firebase Firestore unavailable: ${getSupabaseSetupIssue()}`;
+    window.clearTimeout(supabaseInitTimeout);
     updateDataStoreStatus();
     return;
   }
 
-  const config = supabaseConfig();
   try {
-    supabaseClient = window.supabase.createClient(config.url, config.anonKey);
+    window.__firebaseInitStage = "waiting-for-bootstrap";
+    await window.__firebaseInitPromise;
+    window.__firebaseInitStage = "bootstrap-resolved";
+    if (!window.__patrickFirebase?.db) {
+      window.__firebaseInitStage = "missing-db-instance";
+      throw new Error(getSupabaseSetupIssue() || "Firebase Firestore did not initialize");
+    }
+    supabaseClient = window.__patrickFirebase;
     supabaseEnabled = true;
-    supabaseStatus = "Connecting to Supabase shared storage";
+    window.__firebaseInitStage = "backend-enabled";
+    window.clearTimeout(supabaseInitTimeout);
+    supabaseStatus = activeClientId
+      ? "Connecting to Firebase Firestore shared storage"
+      : "Firebase Firestore ready; choose a client to load data";
     updateDataStoreStatus();
-    await loadSharedState();
-    startSharedStatePolling();
+    if (activeClientId) {
+      window.__firebaseInitStage = "loading-shared-state";
+      await loadSharedState();
+      window.__firebaseInitStage = "shared-state-loaded";
+      startSharedStatePolling();
+      window.__firebaseInitStage = "polling-started";
+    }
   } catch (error) {
     supabaseEnabled = false;
-    supabaseStatus = `Supabase unavailable: ${error.message}`;
+    window.__firebaseInitStage = "init-catch";
+    window.clearTimeout(supabaseInitTimeout);
+    supabaseStatus = `Firebase Firestore unavailable: ${error.message}`;
     updateDataStoreStatus();
   }
 }
 
 async function fetchRemoteUpdatedAt() {
-  const { data, error } = await supabaseClient
-    .from(SUPABASE_TABLE)
-    .select("updated_at")
-    .eq("id", getSupabaseStateId())
-    .maybeSingle();
-
-  if (error) throw error;
-  return data?.updated_at || "";
+  if (!getSupabaseStateId()) return "";
+  const docRef = supabaseClient.doc(supabaseClient.db, SUPABASE_TABLE, getSupabaseStateId());
+  const snapshot = await supabaseClient.getDoc(docRef);
+  if (!snapshot.exists()) return "";
+  return snapshot.data()?.updated_at || "";
 }
 
 async function fetchSharedState() {
-  const { data, error } = await supabaseClient
-    .from(SUPABASE_TABLE)
-    .select("state, updated_at")
-    .eq("id", getSupabaseStateId())
-    .maybeSingle();
-
-  if (error) throw error;
-  return data;
+  if (!getSupabaseStateId()) return null;
+  const docRef = supabaseClient.doc(supabaseClient.db, SUPABASE_TABLE, getSupabaseStateId());
+  const snapshot = await supabaseClient.getDoc(docRef);
+  if (!snapshot.exists()) return null;
+  const data = snapshot.data() || {};
+  return {
+    state: data.state,
+    updated_at: data.updated_at || ""
+  };
 }
 
 async function loadSharedState(force = false) {
-  if (!supabaseEnabled) return;
+  if (!supabaseEnabled || !activeClientId || !getSupabaseStateId()) return;
 
   const cachedRemoteUpdatedAt = readCachedRemoteUpdatedAt();
   const latestRemoteUpdatedAt = await fetchRemoteUpdatedAt();
@@ -2220,7 +2344,7 @@ async function loadSharedState(force = false) {
 
   if (!force && hasLocalTasks && cachedRemoteUpdatedAt && latestRemoteUpdatedAt === cachedRemoteUpdatedAt) {
     cacheRemoteUpdatedAt(latestRemoteUpdatedAt);
-    supabaseStatus = `Supabase shared storage; synced ${formatDateTime(latestRemoteUpdatedAt)}`;
+    supabaseStatus = `Firebase Firestore shared storage; synced ${formatDateTime(latestRemoteUpdatedAt)}`;
     updateDataStoreStatus();
     return;
   }
@@ -2242,7 +2366,7 @@ async function loadSharedState(force = false) {
   if (selectedUserEmail) state.currentUser = selectedUserEmail;
   cacheRemoteUpdatedAt(data.updated_at || latestRemoteUpdatedAt);
   localStorage.setItem(getStorageKey(), JSON.stringify(state));
-  supabaseStatus = `Supabase shared storage; synced ${formatDateTime(remoteUpdatedAt || state.lastSavedAt)}`;
+  supabaseStatus = `Firebase Firestore shared storage; synced ${formatDateTime(remoteUpdatedAt || state.lastSavedAt)}`;
   render();
   updateDataStoreStatus();
   applyingRemoteState = false;
@@ -2253,55 +2377,54 @@ async function loadSharedState(force = false) {
 }
 
 function queueSharedStateSave() {
-  if (!supabaseEnabled || applyingRemoteState) return;
+  if (!supabaseEnabled || applyingRemoteState || !activeClientId || !getSupabaseStateId()) return;
   window.clearTimeout(supabaseSaveTimer);
   supabaseSaveTimer = window.setTimeout(() => {
-    saveSharedStateNow();
+    saveSharedStateNow().catch(error => {
+      supabaseStatus = `Firebase Firestore save failed: ${error.message}`;
+      updateDataStoreStatus();
+    });
   }, SUPABASE_SAVE_DELAY_MS);
 }
 
 async function saveSharedStateNow() {
-  if (!supabaseEnabled) return;
+  if (!supabaseEnabled || !activeClientId || !getSupabaseStateId()) return;
+  try {
+    const payload = {
+      id: getSupabaseStateId(),
+      state,
+      updated_by: state.currentUser || "",
+      updated_at: new Date().toISOString()
+    };
 
-  const payload = {
-    id: getSupabaseStateId(),
-    state,
-    updated_by: state.currentUser || "",
-    updated_at: new Date().toISOString()
-  };
+    const docRef = supabaseClient.doc(supabaseClient.db, SUPABASE_TABLE, getSupabaseStateId());
+    await supabaseClient.setDoc(docRef, payload, { merge: true });
 
-  const { data, error } = await supabaseClient
-    .from(SUPABASE_TABLE)
-    .upsert(payload, { onConflict: "id" })
-    .select("updated_at")
-    .single();
-
-  if (error) {
-    supabaseStatus = `Supabase save failed: ${error.message}`;
+    cacheRemoteUpdatedAt(payload.updated_at);
+    supabaseStatus = `Firebase Firestore shared storage; saved ${formatDateTime(remoteUpdatedAt)}`;
     updateDataStoreStatus();
-    return;
+  } catch (error) {
+    supabaseStatus = `Firebase Firestore save failed: ${error.message}`;
+    updateDataStoreStatus();
+    throw error;
   }
-
-  cacheRemoteUpdatedAt(data?.updated_at || payload.updated_at);
-  supabaseStatus = `Supabase shared storage; saved ${formatDateTime(remoteUpdatedAt)}`;
-  updateDataStoreStatus();
 }
 
 async function pollForSharedStateChanges() {
-  if (!supabaseEnabled || applyingRemoteState) return;
+  if (!supabaseEnabled || applyingRemoteState || !activeClientId || !getSupabaseStateId()) return;
 
   try {
     const latestRemoteUpdatedAt = await fetchRemoteUpdatedAt();
     if (!latestRemoteUpdatedAt || latestRemoteUpdatedAt === remoteUpdatedAt) return;
     await loadSharedState(true);
   } catch (error) {
-    supabaseStatus = `Supabase sync check failed: ${error.message}`;
+    supabaseStatus = `Firebase Firestore sync check failed: ${error.message}`;
     updateDataStoreStatus();
   }
 }
 
 function startSharedStatePolling() {
-  if (!supabaseEnabled || supabaseSyncTimer) return;
+  if (!supabaseEnabled || supabaseSyncTimer || !activeClientId || !getSupabaseStateId()) return;
   supabaseSyncTimer = window.setInterval(() => {
     pollForSharedStateChanges();
   }, SUPABASE_SYNC_POLL_MS);
@@ -2332,13 +2455,32 @@ function updateDataStoreStatus() {
   const fallbackLabel = window.location.protocol === "file:"
     ? "local file browser storage"
     : `${window.location.hostname} browser storage`;
+  if (
+    !supabaseEnabled &&
+    supabaseStatus === "Checking Firebase Firestore availability" &&
+    supabaseInitStartedAt &&
+    Date.now() - supabaseInitStartedAt > 3000
+  ) {
+    finalizeSupabaseInitStatusIfPending();
+  }
+  if (!activeClientId) {
+    dataStoreStatus.textContent = supabaseEnabled
+      ? "Firebase Firestore ready; choose a client to load data"
+      : supabaseStatus === "Checking Firebase Firestore availability"
+        ? `${fallbackLabel}; ${supabaseStatus}; ${getFirebaseDebugStatus()}`
+        : `${fallbackLabel}; ${supabaseStatus}`;
+    return;
+  }
   const locationLabel = supabaseEnabled ? supabaseStatus : `${fallbackLabel}; ${supabaseStatus}`;
-  dataStoreStatus.textContent = `${locationLabel}; local backup ${formatDateTime(state.lastSavedAt)}`;
+  const debugSuffix = !supabaseEnabled && supabaseStatus === "Checking Firebase Firestore availability"
+    ? `; ${getFirebaseDebugStatus()}`
+    : "";
+  dataStoreStatus.textContent = `${locationLabel}${debugSuffix}; local backup ${formatDateTime(state.lastSavedAt)}`;
 }
 
 function renderOverviewCards() {
   if (!overviewCards) return;
-  const cards = currentClientConfig().overviewCards || [];
+  const cards = currentClientConfig()?.overviewCards || [];
   overviewCards.innerHTML = "";
   cards.forEach(card => {
     const article = document.createElement("article");
@@ -2353,19 +2495,34 @@ function renderOverviewCards() {
 
 function updateClientChrome() {
   const client = currentClientConfig();
-  if (clientSwitchBtn) clientSwitchBtn.textContent = `Client: ${client.shortName}`;
-  if (topClientSwitchBtn) topClientSwitchBtn.textContent = `Change Client`;
-  if (appTitle) appTitle.textContent = client.title;
-  if (appLede) appLede.textContent = client.lede;
-  if (appEyebrow) appEyebrow.textContent = `${client.fullName} support plan`;
-  document.title = client.browserTitle;
+  if (clientSwitchBtn) clientSwitchBtn.textContent = client ? `Client: ${client.shortName}` : "Choose Client";
+  if (topClientSwitchBtn) topClientSwitchBtn.hidden = true;
+  if (topClientSelect) topClientSelect.value = client?.id || "";
+  if (topClientPin) {
+    const needsTheoPin = !!(topClientSelect && topClientSelect.value === "theodore" && !theodoreClientValidatedForSession);
+    if (topClientPinWrapInline) topClientPinWrapInline.hidden = !needsTheoPin;
+    topClientPin.hidden = !needsTheoPin;
+    if (topClientPin.hidden) topClientPin.value = "";
+  }
+  if (userSelect) {
+    userSelect.disabled = !client;
+    if (userSelect.options.length) {
+      userSelect.options[0].textContent = client ? "Select account..." : "Choose client first...";
+    }
+  }
+  if (appTitle) appTitle.textContent = client ? client.title : "Family Support Dashboard";
+  if (appLede) appLede.textContent = client
+    ? client.lede
+    : "Choose a client to load their separate dashboard, notes, reports, and saved history.";
+  if (appEyebrow) appEyebrow.textContent = client ? `${client.fullName} support plan` : "Multi-client support plan";
+  document.title = client ? client.browserTitle : "Family Support Dashboard";
   renderOverviewCards();
 
-  if (processGuideBtn) processGuideBtn.hidden = !client.supportsReports;
-  if (urgencyReportBtn) urgencyReportBtn.hidden = !client.supportsReports;
-  if (patrickChangeReportBtn) patrickChangeReportBtn.hidden = !client.supportsReports;
-  if (htmlEmailDashboardReportBtn) htmlEmailDashboardReportBtn.hidden = !client.supportsReports;
-  if (toggleLifeAdminBtn) toggleLifeAdminBtn.hidden = !client.supportsLifeAdmin;
+  if (processGuideBtn) processGuideBtn.hidden = !client?.supportsReports;
+  if (urgencyReportBtn) urgencyReportBtn.hidden = !client?.supportsReports;
+  if (patrickChangeReportBtn) patrickChangeReportBtn.hidden = !client?.supportsReports;
+  if (htmlEmailDashboardReportBtn) htmlEmailDashboardReportBtn.hidden = !client?.supportsReports;
+  if (toggleLifeAdminBtn) toggleLifeAdminBtn.hidden = !client?.supportsLifeAdmin;
 }
 
 function render() {
@@ -2617,7 +2774,7 @@ function renderSavedDocuments() {
             </div>
           </div>
         </header>
-        <p>Only document metadata is kept in Supabase to reduce bandwidth use.</p>
+        <p>Only document metadata is kept in Firebase Firestore to reduce bandwidth use.</p>
       `;
       documentsList.appendChild(item);
     });
@@ -2641,14 +2798,14 @@ function renderTaskViewControls() {
 function openSavedDocument(documentId) {
   const savedDocument = state.documents.find(item => item.id === documentId);
   if (!savedDocument?.path) {
-    alert("This document no longer has an openable PDF stored in Supabase.");
+    alert("This document no longer has an openable PDF stored in Firebase Firestore.");
     return;
   }
   alert(`Open this PDF from its saved path instead:\n${savedDocument.path}`);
 }
 
 function savePdfDocument(file) {
-  alert("PDF uploads to Supabase have been disabled to reduce egress. Keep only file metadata or a shared file path outside tracker_state.");
+  alert("PDF uploads to Firebase Firestore have been disabled to reduce egress. Keep only file metadata or a shared file path outside tracker_state.");
   return Promise.resolve(false);
 }
 
@@ -2807,7 +2964,8 @@ function renderPanelVisibility() {
     state.hiddenPanels.bills,
     "Monthly Bills"
   );
-  if (currentClientConfig().supportsLifeAdmin) {
+  const client = currentClientConfig();
+  if (client?.supportsLifeAdmin) {
     setPanelHidden(
       lifeAdminPanel,
       lifeAdminPanelContent,
@@ -4364,6 +4522,14 @@ function updateClientGatePinVisibility() {
   if (!needsPin) clientGatePin.value = "";
 }
 
+function updateTopClientPinVisibility() {
+  if (!topClientPin) return;
+  const needsPin = topClientSelect?.value === "theodore" && !theodoreClientValidatedForSession;
+  if (topClientPinWrapInline) topClientPinWrapInline.hidden = !needsPin;
+  topClientPin.hidden = !needsPin;
+  if (!needsPin) topClientPin.value = "";
+}
+
 function openClientGateDialog() {
   clientGateDialog.hidden = false;
   if (typeof clientGateDialog.showModal === "function" && !clientGateDialog.open) {
@@ -4388,7 +4554,7 @@ function showClientGate(message = "Choose which client dashboard to open.") {
   clientGateMessage.textContent = message;
   clientGateError.hidden = true;
   clientGateError.textContent = "";
-  clientGateSelect.value = activeClientId;
+  clientGateSelect.value = activeClientId || "";
   clientGatePin.value = "";
   updateClientGatePinVisibility();
   openClientGateDialog();
@@ -4551,16 +4717,56 @@ async function switchClient(clientId, pin = "") {
   patrickWatchState = loadPatrickWatchState();
   taskViewMode = loadTaskViewMode();
   theodoreClientValidatedForSession = nextClient.id === "theodore";
+  updateTopClientPinVisibility();
 
   closeClientGateDialog();
   if (supabaseEnabled) {
-    supabaseStatus = `Connecting to Supabase shared storage for ${nextClient.shortName}`;
+    supabaseStatus = `Connecting to Firebase Firestore shared storage for ${nextClient.shortName}`;
     updateDataStoreStatus();
     await loadSharedState(true);
+    startSharedStatePolling();
   }
   updateSyncStatus();
   render();
   return true;
+}
+
+function handleTopClientSelection() {
+  if (!topClientSelect) return;
+  const selectedClientId = topClientSelect.value;
+  updateTopClientPinVisibility();
+  if (!selectedClientId) return;
+  if (selectedClientId === "theodore" && !theodoreClientValidatedForSession) {
+    if (topClientPin) topClientPin.focus();
+    return;
+  }
+  switchClient(selectedClientId, "");
+}
+
+function maybeSubmitTopClientPin() {
+  if (!topClientSelect || !topClientPin) return;
+  if (topClientSelect.value !== "theodore") return;
+  const pin = topClientPin.value.trim();
+  if (pin.length < CLIENT_ACCESS_PIN.length) return;
+  switchClient("theodore", pin);
+}
+
+function handleTopClientPinKeyboardSubmit(event) {
+  if (!topClientSelect || !topClientPin) return;
+  if (topClientSelect.value !== "theodore") return;
+  if (event.key !== "Enter" && event.key !== "Go" && event.key !== "Done") return;
+  event.preventDefault();
+  const pin = topClientPin.value.trim();
+  if (!pin) return;
+  switchClient("theodore", pin);
+}
+
+function handleTopClientPinCommit() {
+  if (!topClientSelect || !topClientPin) return;
+  if (topClientSelect.value !== "theodore") return;
+  const pin = topClientPin.value.trim();
+  if (!pin || pin.length < CLIENT_ACCESS_PIN.length) return;
+  switchClient("theodore", pin);
 }
 
 function handleClientGateSelection() {
@@ -4905,7 +5111,7 @@ function renderPatrickChangeReport() {
   patrickChangeReport.innerHTML = `
     <section class="report-summary">
       <p class="report-kicker">Generated ${escapeHtml(formatDateTime(new Date().toISOString()))}</p>
-      <p>This report is built from Patrick's tracked Supabase history for today and highlights every captured change plus the items he marked done.</p>
+      <p>This report is built from Patrick's tracked Firebase Firestore history for today and highlights every captured change plus the items he marked done.</p>
       <p><strong>Daily archive flow:</strong> the local report generator saves the current-day file in the Email folder and rolls older dated files into the Archive folder.</p>
       <div class="report-metrics">
         <article><strong>${entries.length}</strong><span>Patrick changes today</span></article>
@@ -5236,7 +5442,7 @@ function buildPatrickChangeReportHtml() {
       <p>Generated ${escapeHtml(generated)} | Report date ${escapeHtml(getTodayIsoDate())}</p>
     </header>
     <section class="content">
-      <p class="notice"><strong>Source:</strong> This report is based on Patrick's tracker history captured in Supabase for the current day, including all changes and any items he marked done.</p>
+      <p class="notice"><strong>Source:</strong> This report is based on Patrick's tracker history captured in Firebase Firestore for the current day, including all changes and any items he marked done.</p>
       <div class="metrics">
         ${metricHtml(entries.length, "Patrick changes today")}
         ${metricHtml(closedEntries.length, "closed today")}
@@ -5503,19 +5709,31 @@ function populateUsers() {
 }
 
 function populateClients() {
-  if (!clientGateSelect) return;
-  clientGateSelect.innerHTML = "";
-  const placeholderOption = document.createElement("option");
-  placeholderOption.value = "";
-  placeholderOption.textContent = "Select client...";
-  clientGateSelect.appendChild(placeholderOption);
+  if (clientGateSelect) {
+    clientGateSelect.innerHTML = "";
+    const placeholderOption = document.createElement("option");
+    placeholderOption.value = "";
+    placeholderOption.textContent = "Select client...";
+    clientGateSelect.appendChild(placeholderOption);
+  }
+  if (topClientSelect) {
+    topClientSelect.innerHTML = "";
+    const topPlaceholderOption = document.createElement("option");
+    topPlaceholderOption.value = "";
+    topPlaceholderOption.textContent = "Select client...";
+    topClientSelect.appendChild(topPlaceholderOption);
+  }
 
   Object.values(clientConfigs).forEach(client => {
     const option = document.createElement("option");
     option.value = client.id;
     option.textContent = client.fullName;
-    clientGateSelect.appendChild(option);
+    if (clientGateSelect) clientGateSelect.appendChild(option);
+    if (topClientSelect) topClientSelect.appendChild(option.cloneNode(true));
   });
+
+  if (topClientSelect) topClientSelect.value = activeClientId || "";
+  updateTopClientPinVisibility();
 }
 
 taskForm.addEventListener("submit", event => {
@@ -5695,6 +5913,14 @@ userSelect.addEventListener("change", () => {
 });
 
 function openClientSwitcher() {
+  if (topClientSelect) {
+    if (typeof topClientSelect.showPicker === "function") {
+      topClientSelect.showPicker();
+    } else {
+      topClientSelect.focus();
+    }
+    return;
+  }
   showClientGate("Choose which client dashboard to open. Theodore's dashboard requires an access code.");
 }
 
@@ -5705,9 +5931,29 @@ if (clientSwitchBtn) {
 }
 
 if (topClientSwitchBtn) {
-  topClientSwitchBtn.addEventListener("click", openClientSwitcher);
-  topClientSwitchBtn.addEventListener("pointerup", openClientSwitcher);
-  topClientSwitchBtn.addEventListener("touchend", openClientSwitcher, { passive: true });
+  topClientSwitchBtn.addEventListener("click", () => {
+    if (topClientSelect) {
+      if (typeof topClientSelect.showPicker === "function") {
+        topClientSelect.showPicker();
+      } else {
+        topClientSelect.focus();
+      }
+      return;
+    }
+    openClientSwitcher();
+  });
+}
+
+if (topClientSelect) {
+  topClientSelect.addEventListener("change", handleTopClientSelection);
+  topClientSelect.addEventListener("input", handleTopClientSelection);
+}
+if (topClientPin) {
+  topClientPin.addEventListener("input", maybeSubmitTopClientPin);
+  topClientPin.addEventListener("keydown", handleTopClientPinKeyboardSubmit);
+  topClientPin.addEventListener("keyup", handleTopClientPinKeyboardSubmit);
+  topClientPin.addEventListener("change", handleTopClientPinCommit);
+  topClientPin.addEventListener("blur", handleTopClientPinCommit);
 }
 
 accountGateSelect.addEventListener("change", updateAccountGatePinVisibility);
@@ -5760,7 +6006,11 @@ document.querySelector("#exportBtn").addEventListener("click", () => {
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
-  link.download = `${currentClientConfig().fullName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-tracker-${new Date().toISOString().slice(0, 10)}.json`;
+    const exportClient = currentClientConfig();
+    const exportPrefix = exportClient
+      ? exportClient.fullName.toLowerCase().replace(/[^a-z0-9]+/g, "-")
+      : "family-support";
+    link.download = `${exportPrefix}-tracker-${new Date().toISOString().slice(0, 10)}.json`;
   link.click();
   URL.revokeObjectURL(link.href);
 });
@@ -5920,11 +6170,30 @@ taskViewAllBtn.addEventListener("click", () => {
   render();
 });
 
-populateUsers();
-populateClients();
-populateCategories();
-render();
-closeAccountGateDialog();
-closeClientGateDialog();
-updateSyncStatus();
-initializeSharedDataSource();
+try {
+  window.__appBootStage = "populate-users";
+  populateUsers();
+  window.__appBootStage = "populate-clients";
+  populateClients();
+  window.__appBootStage = "populate-categories";
+  populateCategories();
+  window.__appBootStage = "render";
+  render();
+  window.__appBootStage = "close-account-gate";
+  closeAccountGateDialog();
+  window.__appBootStage = "close-client-gate";
+  closeClientGateDialog();
+  window.__appBootStage = "update-sync-status";
+  updateSyncStatus();
+  window.__appBootStage = "initialize-shared-data-source";
+  initializeSharedDataSource();
+  window.__appBootStage = "post-init-timeout";
+  window.setTimeout(() => {
+    finalizeSupabaseInitStatusIfPending();
+  }, 3000);
+  window.__appBootStage = "boot-complete";
+} catch (error) {
+  window.__appBootError = error?.message || "unknown boot error";
+  window.__appBootStage = "boot-failed";
+  updateDataStoreStatus();
+}

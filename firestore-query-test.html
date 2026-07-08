@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Firestore Query Test</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #020617;
+      --line: #334155;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --ok: #86efac;
+      --warn: #fcd34d;
+      --accent: #60a5fa;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .shell {
+      max-width: 1080px;
+      margin: 0 auto;
+      display: grid;
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 20px;
+    }
+
+    h1, h2 {
+      margin: 0 0 10px;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    button {
+      border: 1px solid #1d4ed8;
+      background: #2563eb;
+      color: white;
+      border-radius: 10px;
+      padding: 10px 16px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      background: transparent;
+      border-color: var(--line);
+      color: var(--text);
+    }
+
+    .status {
+      color: var(--warn);
+      font-weight: 700;
+    }
+
+    .status.ok {
+      color: var(--ok);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    .metric {
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .metric .label {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .metric .value {
+      font-size: 18px;
+      font-weight: 800;
+      word-break: break-word;
+    }
+
+    pre {
+      margin: 0;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      min-height: 240px;
+      overflow: auto;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="card">
+      <h1>Firestore Query Test</h1>
+      <p>Use this page to load the shared Firestore document for Patrick or Theodore and inspect the saved data.</p>
+    </section>
+
+    <section class="card">
+      <div class="actions">
+        <button data-client="patrick-glanville">Load Patrick</button>
+        <button data-client="theodore-glanville">Load Theodore</button>
+        <button id="reloadBtn" class="secondary" type="button">Reload Current Client</button>
+      </div>
+      <div style="height:12px"></div>
+      <div id="status" class="status">Waiting to connect...</div>
+      <div style="height:8px"></div>
+      <div id="currentDoc" class="hint">No client loaded yet.</div>
+    </section>
+
+    <section class="card">
+      <h2>Summary</h2>
+      <div class="grid" id="summaryGrid">
+        <div class="metric"><span class="label">Client document</span><span class="value">None</span></div>
+        <div class="metric"><span class="label">Updated at</span><span class="value">-</span></div>
+        <div class="metric"><span class="label">Updated by</span><span class="value">-</span></div>
+        <div class="metric"><span class="label">Current user</span><span class="value">-</span></div>
+        <div class="metric"><span class="label">Task count</span><span class="value">0</span></div>
+        <div class="metric"><span class="label">History count</span><span class="value">0</span></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Raw JSON</h2>
+      <pre id="output">Click “Load Patrick” or “Load Theodore”.</pre>
+    </section>
+  </div>
+
+  <script src="firebase-config.js?v=2026-07-08-001"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+
+    const statusEl = document.getElementById("status");
+    const currentDocEl = document.getElementById("currentDoc");
+    const outputEl = document.getElementById("output");
+    const reloadBtn = document.getElementById("reloadBtn");
+    const summaryGrid = document.getElementById("summaryGrid");
+    const buttons = [...document.querySelectorAll("[data-client]")];
+
+    let db = null;
+    let currentClientId = "";
+
+    function setStatus(text, ok = false) {
+      statusEl.textContent = text;
+      statusEl.classList.toggle("ok", ok);
+    }
+
+    function renderSummary(docId, payload = null) {
+      const state = payload?.state || {};
+      const values = [
+        docId || "None",
+        payload?.updated_at || "-",
+        payload?.updated_by || "-",
+        state.currentUser || "-",
+        Array.isArray(state.tasks) ? String(state.tasks.length) : "0",
+        Array.isArray(state.history) ? String(state.history.length) : "0"
+      ];
+
+      [...summaryGrid.querySelectorAll(".value")].forEach((node, index) => {
+        node.textContent = values[index] || "-";
+      });
+    }
+
+    async function loadClient(docId) {
+      if (!db) {
+        setStatus("Firebase is not initialized.", false);
+        return;
+      }
+
+      currentClientId = docId;
+      currentDocEl.textContent = `Loading tracker_state/${docId}...`;
+      setStatus("Reading Firestore document...", false);
+      outputEl.textContent = "Loading...";
+
+      try {
+        const ref = doc(db, "tracker_state", docId);
+        const snapshot = await getDoc(ref);
+
+        if (!snapshot.exists()) {
+          setStatus("Document not found.", false);
+          currentDocEl.textContent = `tracker_state/${docId}`;
+          renderSummary(docId, null);
+          outputEl.textContent = `No Firestore document exists yet for ${docId}.`;
+          return;
+        }
+
+        const data = snapshot.data();
+        setStatus("Read succeeded.", true);
+        currentDocEl.textContent = `tracker_state/${docId}`;
+        renderSummary(docId, data);
+        outputEl.textContent = JSON.stringify(data, null, 2);
+      } catch (error) {
+        setStatus(`Read failed: ${error.message}`, false);
+        outputEl.textContent = `Error loading ${docId}\n\n${error.stack || error.message}`;
+        console.error(error);
+      }
+    }
+
+    try {
+      const config = window.PATRICK_FIREBASE_CONFIG || {};
+      const app = initializeApp(config);
+      db = getFirestore(app);
+      setStatus("Firebase initialized. Ready to query Firestore.", true);
+    } catch (error) {
+      setStatus(`Firebase init failed: ${error.message}`, false);
+      outputEl.textContent = error.stack || error.message;
+      console.error(error);
+    }
+
+    buttons.forEach(button => {
+      button.addEventListener("click", () => loadClient(button.dataset.client));
+    });
+
+    reloadBtn.addEventListener("click", () => {
+      if (!currentClientId) {
+        setStatus("Choose Patrick or Theodore first.", false);
+        return;
+      }
+      loadClient(currentClientId);
+    });
+  </script>
+</body>
+</html>

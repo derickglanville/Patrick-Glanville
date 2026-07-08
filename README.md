@@ -25,17 +25,15 @@ Expected public Pages URL if hosted under the `dglanville23` account:
 
 ## Shared Data Backend
 
-The page still works with browser local storage, but this project now includes a Supabase shared-storage path for live collaboration.
+The page still works with browser local storage, but this project now includes a Firebase Firestore shared-storage path for live collaboration.
 
-To finish the Supabase setup:
+To finish the Firebase setup:
 
-1. Create or open the Supabase project you want this tracker to use.
-2. Run `SUPABASE_SETUP.sql` in the Supabase SQL Editor.
-3. Paste the project's URL and anon public key into `supabase-config.js`.
+1. Create or open the Firebase project you want this tracker to use.
+2. Enable Cloud Firestore for that project.
+3. Paste the web app configuration object into `firebase-config.js`.
 4. Publish the updated files to GitHub Pages or whichever static host you use.
 
-Detailed steps are in `SUPABASE_README.md`.
-
-Do not put a GitHub password, personal access token, or Supabase service-role key directly into this web page. Anything shipped to GitHub Pages can be inspected by visitors.
+Do not put a GitHub password, personal access token, or any privileged Firebase admin credential directly into this web page. Anything shipped to GitHub Pages can be inspected by visitors.
 
 This is an organizing tool, not legal, medical, financial, or benefits advice. Confirm Social Security, disability, bankruptcy, car-loan, and insurance decisions with the relevant agency or a qualified professional.

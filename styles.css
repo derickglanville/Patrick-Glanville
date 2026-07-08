@@ -161,8 +161,17 @@ main {
   display: flex;
   justify-content: center;
   align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
   position: relative;
   z-index: 2;
+}
+
+.collaboration-client-switch label {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+  color: var(--ink);
 }
 
 .collaboration-client-switch .ghost {
@@ -174,6 +183,25 @@ main {
 .client-switch-shortcut {
   font-weight: 700;
   box-shadow: 0 0 0 1px rgba(24, 32, 42, .06);
+}
+
+#topClientSelect,
+#topClientPin {
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font: inherit;
+  background: #fff;
+  color: var(--ink);
+}
+
+#topClientSelect {
+  min-width: 210px;
+}
+
+#topClientPin {
+  min-width: 160px;
 }
 
 .collaboration-panel h2 {
