@@ -186,7 +186,8 @@ main {
 }
 
 #topClientSelect,
-#topClientPin {
+#topClientPin,
+#userSelect {
   min-height: 44px;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -202,6 +203,48 @@ main {
 
 #topClientPin {
   min-width: 160px;
+}
+
+.current-user-panel {
+  display: grid;
+  gap: 8px;
+  min-width: 260px;
+}
+
+.current-user-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.current-user-header strong {
+  color: var(--ink);
+}
+
+.current-user-header .ghost {
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+.current-user-select-label {
+  display: block;
+}
+
+#userSelect {
+  width: 100%;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .collaboration-panel h2 {

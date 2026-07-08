@@ -20,7 +20,6 @@ const THEODORE_SUPABASE_STATE_ID = "theodore-glanville";
 const SUPABASE_SAVE_DELAY_MS = 700;
 const PATRICK_REMOTE_UPDATED_AT_KEY = "patrick-glanville-remote-updated-at-v1";
 const THEODORE_REMOTE_UPDATED_AT_KEY = "theodore-glanville-remote-updated-at-v1";
-const SUPABASE_SYNC_POLL_MS = 60 * 60 * 1000;
 const URGENCY_REPORT_HELPER_URL = "http://127.0.0.1:8767";
 const DERIC_EMAIL = "dglanville@gmail.com";
 const DERIC_PIN = "3141";
@@ -88,11 +87,12 @@ let supabaseClient = null;
 let supabaseEnabled = false;
 let supabaseStatus = "Checking Firebase Firestore availability";
 let supabaseSaveTimer = null;
-let supabaseSyncTimer = null;
 let supabaseInitTimeout = null;
 let supabaseInitStartedAt = 0;
 let remoteUpdatedAt = "";
 let applyingRemoteState = false;
+let sharedStateUnsubscribe = null;
+let sharedStateListenerId = "";
 const allowedUsers = [
   { name: "Deric Glanville", email: DERIC_EMAIL },
   { name: "Patrick Glanville", email: PATRICK_EMAIL },
@@ -1117,6 +1117,8 @@ const runningNotesList = document.querySelector("#runningNotesList");
 const taskDialog = document.querySelector("#taskDialog");
 const taskForm = document.querySelector("#taskForm");
 const userSelect = document.querySelector("#userSelect");
+const currentUserContent = document.querySelector("#currentUserContent");
+const toggleCurrentUserBtn = document.querySelector("#toggleCurrentUserBtn");
 const clientSwitchBtn = document.querySelector("#clientSwitchBtn");
 const topClientSwitchBtn = document.querySelector("#topClientSwitchBtn");
 const topClientSelect = document.querySelector("#topClientSelect");
@@ -1208,6 +1210,7 @@ const fields = {
 };
 
 const taskLabelAdminRow = document.querySelector("#taskLabelAdminRow");
+let currentUserCollapsed = true;
 
 function loadState() {
   if (!activeClientId || !getStorageKey()) return buildUnselectedClientState();
@@ -2295,11 +2298,9 @@ async function initializeSharedDataSource() {
       : "Firebase Firestore ready; choose a client to load data";
     updateDataStoreStatus();
     if (activeClientId) {
-      window.__firebaseInitStage = "loading-shared-state";
-      await loadSharedState();
-      window.__firebaseInitStage = "shared-state-loaded";
-      startSharedStatePolling();
-      window.__firebaseInitStage = "polling-started";
+      window.__firebaseInitStage = "subscribing-live-sync";
+      await subscribeToSharedState();
+      window.__firebaseInitStage = "live-sync-active";
     }
   } catch (error) {
     supabaseEnabled = false;
@@ -2310,70 +2311,103 @@ async function initializeSharedDataSource() {
   }
 }
 
-async function fetchRemoteUpdatedAt() {
-  if (!getSupabaseStateId()) return "";
-  const docRef = supabaseClient.doc(supabaseClient.db, SUPABASE_TABLE, getSupabaseStateId());
-  const snapshot = await supabaseClient.getDoc(docRef);
-  if (!snapshot.exists()) return "";
-  return snapshot.data()?.updated_at || "";
+function stopSharedStateSync() {
+  if (typeof sharedStateUnsubscribe === "function") {
+    sharedStateUnsubscribe();
+  }
+  sharedStateUnsubscribe = null;
+  sharedStateListenerId = "";
 }
 
-async function fetchSharedState() {
-  if (!getSupabaseStateId()) return null;
-  const docRef = supabaseClient.doc(supabaseClient.db, SUPABASE_TABLE, getSupabaseStateId());
-  const snapshot = await supabaseClient.getDoc(docRef);
-  if (!snapshot.exists()) return null;
-  const data = snapshot.data() || {};
-  return {
-    state: data.state,
-    updated_at: data.updated_at || ""
-  };
-}
-
-async function loadSharedState(force = false) {
-  if (!supabaseEnabled || !activeClientId || !getSupabaseStateId()) return;
-
-  const cachedRemoteUpdatedAt = readCachedRemoteUpdatedAt();
-  const latestRemoteUpdatedAt = await fetchRemoteUpdatedAt();
-  const hasLocalTasks = Array.isArray(state.tasks) && state.tasks.length > 0;
-
-  if (!latestRemoteUpdatedAt) {
-    await saveSharedStateNow();
-    return;
-  }
-
-  if (!force && hasLocalTasks && cachedRemoteUpdatedAt && latestRemoteUpdatedAt === cachedRemoteUpdatedAt) {
-    cacheRemoteUpdatedAt(latestRemoteUpdatedAt);
-    supabaseStatus = `Firebase Firestore shared storage; synced ${formatDateTime(latestRemoteUpdatedAt)}`;
-    updateDataStoreStatus();
-    return;
-  }
-
-  const data = await fetchSharedState();
-
-  if (!data?.state || !Array.isArray(data.state.tasks)) {
-    cacheRemoteUpdatedAt(data?.updated_at || latestRemoteUpdatedAt);
-    await saveSharedStateNow();
-    return;
-  }
-
-  const originalStateJson = JSON.stringify(data.state);
-  const remoteState = structuredClone(data.state);
-  applyDataMigrations(remoteState);
+function applyRemoteSharedState(remoteState, updatedAt = "") {
+  const originalStateJson = JSON.stringify(remoteState);
+  const normalizedState = structuredClone(remoteState);
+  applyDataMigrations(normalizedState);
+  const normalizedStateJson = JSON.stringify(normalizedState);
   const selectedUserEmail = state.currentUser;
   applyingRemoteState = true;
-  state = initializeState(remoteState);
+  state = initializeState(normalizedState);
   if (selectedUserEmail) state.currentUser = selectedUserEmail;
-  cacheRemoteUpdatedAt(data.updated_at || latestRemoteUpdatedAt);
-  localStorage.setItem(getStorageKey(), JSON.stringify(state));
-  supabaseStatus = `Firebase Firestore shared storage; synced ${formatDateTime(remoteUpdatedAt || state.lastSavedAt)}`;
+  cacheRemoteUpdatedAt(updatedAt || state.lastSavedAt || "");
+  if (getStorageKey()) {
+    localStorage.setItem(getStorageKey(), JSON.stringify(state));
+  }
+  supabaseStatus = `Firebase Firestore shared storage; live sync active for ${currentClientConfig()?.shortName || "client"}${updatedAt ? `; synced ${formatDateTime(updatedAt)}` : ""}`;
   render();
   updateDataStoreStatus();
   applyingRemoteState = false;
+  return normalizedStateJson !== originalStateJson;
+}
 
-  if (JSON.stringify(state) !== originalStateJson) {
-    await saveSharedStateNow();
-  }
+async function subscribeToSharedState() {
+  if (!supabaseEnabled || !activeClientId || !getSupabaseStateId()) return;
+  stopSharedStateSync();
+  const clientId = activeClientId;
+  const stateId = getSupabaseStateId();
+  const docRef = supabaseClient.doc(supabaseClient.db, SUPABASE_TABLE, stateId);
+  sharedStateListenerId = `${clientId}:${stateId}`;
+  supabaseStatus = `Firebase Firestore shared storage; connecting live sync for ${currentClientConfig()?.shortName || "client"}`;
+  updateDataStoreStatus();
+
+  await new Promise((resolve, reject) => {
+    let settled = false;
+    const settleResolve = () => {
+      if (!settled) {
+        settled = true;
+        resolve();
+      }
+    };
+    const settleReject = error => {
+      if (!settled) {
+        settled = true;
+        reject(error);
+      }
+    };
+
+    sharedStateUnsubscribe = supabaseClient.onSnapshot(
+      docRef,
+      async snapshot => {
+        if (sharedStateListenerId !== `${clientId}:${stateId}` || activeClientId !== clientId) {
+          settleResolve();
+          return;
+        }
+
+        try {
+          if (!snapshot.exists()) {
+            cacheRemoteUpdatedAt("");
+            settleResolve();
+            await saveSharedStateNow();
+            return;
+          }
+
+          const data = snapshot.data() || {};
+          const remoteState = data.state;
+          const updatedAt = data.updated_at || "";
+
+          if (!remoteState || !Array.isArray(remoteState.tasks)) {
+            settleResolve();
+            await saveSharedStateNow();
+            return;
+          }
+
+          const needsNormalizationSave = applyRemoteSharedState(remoteState, updatedAt);
+          settleResolve();
+          if (needsNormalizationSave) {
+            await saveSharedStateNow();
+          }
+        } catch (error) {
+          supabaseStatus = `Firebase Firestore sync failed: ${error.message}`;
+          updateDataStoreStatus();
+          settleReject(error);
+        }
+      },
+      error => {
+        supabaseStatus = `Firebase Firestore listener failed: ${error.message}`;
+        updateDataStoreStatus();
+        settleReject(error);
+      }
+    );
+  });
 }
 
 function queueSharedStateSave() {
@@ -2401,33 +2435,13 @@ async function saveSharedStateNow() {
     await supabaseClient.setDoc(docRef, payload, { merge: true });
 
     cacheRemoteUpdatedAt(payload.updated_at);
-    supabaseStatus = `Firebase Firestore shared storage; saved ${formatDateTime(remoteUpdatedAt)}`;
+    supabaseStatus = `Firebase Firestore shared storage; live sync active for ${currentClientConfig()?.shortName || "client"}; saved ${formatDateTime(remoteUpdatedAt)}`;
     updateDataStoreStatus();
   } catch (error) {
     supabaseStatus = `Firebase Firestore save failed: ${error.message}`;
     updateDataStoreStatus();
     throw error;
   }
-}
-
-async function pollForSharedStateChanges() {
-  if (!supabaseEnabled || applyingRemoteState || !activeClientId || !getSupabaseStateId()) return;
-
-  try {
-    const latestRemoteUpdatedAt = await fetchRemoteUpdatedAt();
-    if (!latestRemoteUpdatedAt || latestRemoteUpdatedAt === remoteUpdatedAt) return;
-    await loadSharedState(true);
-  } catch (error) {
-    supabaseStatus = `Firebase Firestore sync check failed: ${error.message}`;
-    updateDataStoreStatus();
-  }
-}
-
-function startSharedStatePolling() {
-  if (!supabaseEnabled || supabaseSyncTimer || !activeClientId || !getSupabaseStateId()) return;
-  supabaseSyncTimer = window.setInterval(() => {
-    pollForSharedStateChanges();
-  }, SUPABASE_SYNC_POLL_MS);
 }
 
 async function updateSyncStatus() {
@@ -2465,13 +2479,15 @@ function updateDataStoreStatus() {
   }
   if (!activeClientId) {
     dataStoreStatus.textContent = supabaseEnabled
-      ? "Firebase Firestore ready; choose a client to load data"
+      ? "Firebase Firestore ready; choose a client to load shared data"
       : supabaseStatus === "Checking Firebase Firestore availability"
         ? `${fallbackLabel}; ${supabaseStatus}; ${getFirebaseDebugStatus()}`
         : `${fallbackLabel}; ${supabaseStatus}`;
     return;
   }
-  const locationLabel = supabaseEnabled ? supabaseStatus : `${fallbackLabel}; ${supabaseStatus}`;
+  const locationLabel = supabaseEnabled
+    ? `${supabaseStatus}; local cache standby`
+    : `${fallbackLabel}; ${supabaseStatus}`;
   const debugSuffix = !supabaseEnabled && supabaseStatus === "Checking Firebase Firestore availability"
     ? `; ${getFirebaseDebugStatus()}`
     : "";
@@ -2509,6 +2525,12 @@ function updateClientChrome() {
     if (userSelect.options.length) {
       userSelect.options[0].textContent = client ? "Select account..." : "Choose client first...";
     }
+  }
+  if (currentUserContent && toggleCurrentUserBtn) {
+    currentUserContent.hidden = currentUserCollapsed;
+    toggleCurrentUserBtn.textContent = currentUserCollapsed ? "Show" : "Hide";
+    toggleCurrentUserBtn.setAttribute("aria-expanded", String(!currentUserCollapsed));
+    toggleCurrentUserBtn.setAttribute("aria-label", `${currentUserCollapsed ? "Show" : "Hide"} Current user`);
   }
   if (appTitle) appTitle.textContent = client ? client.title : "Family Support Dashboard";
   if (appLede) appLede.textContent = client
@@ -4711,6 +4733,8 @@ async function switchClient(clientId, pin = "") {
     await saveSharedStateNow();
   }
 
+  stopSharedStateSync();
+
   activeClientId = nextClient.id;
   remoteUpdatedAt = readCachedRemoteUpdatedAt();
   state = loadState();
@@ -4723,8 +4747,8 @@ async function switchClient(clientId, pin = "") {
   if (supabaseEnabled) {
     supabaseStatus = `Connecting to Firebase Firestore shared storage for ${nextClient.shortName}`;
     updateDataStoreStatus();
-    await loadSharedState(true);
-    startSharedStatePolling();
+    render();
+    await subscribeToSharedState();
   }
   updateSyncStatus();
   render();
@@ -5911,6 +5935,13 @@ hideLifeAdminBtn.addEventListener("click", () => {
 userSelect.addEventListener("change", () => {
   requestUserSwitch(userSelect.value);
 });
+
+if (toggleCurrentUserBtn) {
+  toggleCurrentUserBtn.addEventListener("click", () => {
+    currentUserCollapsed = !currentUserCollapsed;
+    updateClientChrome();
+  });
+}
 
 function openClientSwitcher() {
   if (topClientSelect) {

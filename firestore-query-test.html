@@ -135,14 +135,15 @@
   <div class="shell">
     <section class="card">
       <h1>Firestore Query Test</h1>
-      <p>Use this page to load the shared Firestore document for Patrick or Theodore and inspect the saved data.</p>
+      <p>Use this page to live-watch the shared Firestore document for Patrick or Theodore and confirm local and GitHub Pages are reading the same data.</p>
     </section>
 
     <section class="card">
       <div class="actions">
-        <button data-client="patrick-glanville">Load Patrick</button>
-        <button data-client="theodore-glanville">Load Theodore</button>
+        <button data-client="patrick-glanville">Watch Patrick</button>
+        <button data-client="theodore-glanville">Watch Theodore</button>
         <button id="reloadBtn" class="secondary" type="button">Reload Current Client</button>
+        <button id="stopBtn" class="secondary" type="button">Stop Watching</button>
       </div>
       <div style="height:12px"></div>
       <div id="status" class="status">Waiting to connect...</div>
@@ -164,24 +165,26 @@
 
     <section class="card">
       <h2>Raw JSON</h2>
-      <pre id="output">Click “Load Patrick” or “Load Theodore”.</pre>
+      <pre id="output">Click “Watch Patrick” or “Watch Theodore”.</pre>
     </section>
   </div>
 
   <script src="firebase-config.js?v=2026-07-08-001"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
-    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+    import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
     const statusEl = document.getElementById("status");
     const currentDocEl = document.getElementById("currentDoc");
     const outputEl = document.getElementById("output");
     const reloadBtn = document.getElementById("reloadBtn");
+    const stopBtn = document.getElementById("stopBtn");
     const summaryGrid = document.getElementById("summaryGrid");
     const buttons = [...document.querySelectorAll("[data-client]")];
 
     let db = null;
     let currentClientId = "";
+    let unsubscribe = null;
 
     function setStatus(text, ok = false) {
       statusEl.textContent = text;
@@ -204,36 +207,48 @@
       });
     }
 
+    function stopWatching() {
+      if (typeof unsubscribe === "function") {
+        unsubscribe();
+      }
+      unsubscribe = null;
+    }
+
     async function loadClient(docId) {
       if (!db) {
         setStatus("Firebase is not initialized.", false);
         return;
       }
 
+      stopWatching();
       currentClientId = docId;
-      currentDocEl.textContent = `Loading tracker_state/${docId}...`;
-      setStatus("Reading Firestore document...", false);
+      currentDocEl.textContent = `Watching tracker_state/${docId}...`;
+      setStatus("Starting Firestore listener...", false);
       outputEl.textContent = "Loading...";
 
       try {
         const ref = doc(db, "tracker_state", docId);
-        const snapshot = await getDoc(ref);
+        unsubscribe = onSnapshot(ref, snapshot => {
+          if (!snapshot.exists()) {
+            setStatus("Listener active, but document not found.", false);
+            currentDocEl.textContent = `tracker_state/${docId}`;
+            renderSummary(docId, null);
+            outputEl.textContent = `No Firestore document exists yet for ${docId}.`;
+            return;
+          }
 
-        if (!snapshot.exists()) {
-          setStatus("Document not found.", false);
+          const data = snapshot.data();
+          setStatus("Listener active. Live Firestore updates are flowing.", true);
           currentDocEl.textContent = `tracker_state/${docId}`;
-          renderSummary(docId, null);
-          outputEl.textContent = `No Firestore document exists yet for ${docId}.`;
-          return;
-        }
-
-        const data = snapshot.data();
-        setStatus("Read succeeded.", true);
-        currentDocEl.textContent = `tracker_state/${docId}`;
-        renderSummary(docId, data);
-        outputEl.textContent = JSON.stringify(data, null, 2);
+          renderSummary(docId, data);
+          outputEl.textContent = JSON.stringify(data, null, 2);
+        }, error => {
+          setStatus(`Listener failed: ${error.message}`, false);
+          outputEl.textContent = `Error watching ${docId}\n\n${error.stack || error.message}`;
+          console.error(error);
+        });
       } catch (error) {
-        setStatus(`Read failed: ${error.message}`, false);
+        setStatus(`Watch failed: ${error.message}`, false);
         outputEl.textContent = `Error loading ${docId}\n\n${error.stack || error.message}`;
         console.error(error);
       }
@@ -260,6 +275,15 @@
         return;
       }
       loadClient(currentClientId);
+    });
+
+    stopBtn.addEventListener("click", () => {
+      stopWatching();
+      currentClientId = "";
+      setStatus("Listener stopped.", false);
+      currentDocEl.textContent = "No client loaded yet.";
+      renderSummary("", null);
+      outputEl.textContent = "Click “Watch Patrick” or “Watch Theodore”.";
     });
   </script>
 </body>

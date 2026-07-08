@@ -7,13 +7,13 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>Patrick Glanville Support Tracker</title>
-  <link rel="stylesheet" href="styles.css?v=2026-07-08-004">
+  <link rel="stylesheet" href="styles.css?v=2026-07-08-005">
 </head>
 <body>
   <section class="collaboration-panel" aria-label="Collaboration access">
     <div>
       <h2>Collaboration</h2>
-      <p>Select an account before making updates. Deric's account requires a PIN at startup.</p>
+      <p>Select an account before making updates.</p>
     </div>
       <div class="collaboration-client-switch">
         <button id="topClientSwitchBtn" type="button" class="ghost client-switch-shortcut" title="Switch between client dashboards" aria-label="Change active client" hidden>Change Client</button>
@@ -28,9 +28,18 @@
           <input id="topClientPin" type="password" inputmode="numeric" autocomplete="off" placeholder="Theo access code" hidden>
         </label>
       </div>
-    <label for="userSelect">Current user
-      <select id="userSelect"></select>
-    </label>
+    <div class="current-user-panel">
+      <div class="current-user-header">
+        <strong>Current user</strong>
+        <button id="toggleCurrentUserBtn" type="button" class="ghost" aria-expanded="false" aria-controls="currentUserContent">Show</button>
+      </div>
+      <div id="currentUserContent" hidden>
+        <label for="userSelect" class="current-user-select-label">
+          <span class="sr-only">Current user</span>
+          <select id="userSelect"></select>
+        </label>
+      </div>
+    </div>
     <div class="access-note">
       <strong>Email-only access list</strong>
       <span>Choose the account that should be credited for the next update or comment.</span>
@@ -479,6 +488,6 @@
     onerror="window.__firebaseConfigLoadError = 'firebase-config.js failed to load';"
   ></script>
   <script src="firebase-init.js?v=2026-07-08-003"></script>
-  <script src="app.js?v=2026-07-08-014"></script>
+  <script src="app.js?v=2026-07-08-016"></script>
   </body>
   </html>

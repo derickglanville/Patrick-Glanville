@@ -1,7 +1,7 @@
 (function () {
   window.__firebaseInitPromise = (async () => {
     try {
-      const [{ initializeApp }, { getFirestore, doc, getDoc, setDoc }] = await Promise.all([
+      const [{ initializeApp }, { getFirestore, doc, getDoc, setDoc, onSnapshot }] = await Promise.all([
         import("https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js"),
         import("https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js")
       ]);
@@ -18,7 +18,7 @@
 
       const app = initializeApp(config);
       const db = getFirestore(app);
-      window.__patrickFirebase = { app, db, doc, getDoc, setDoc };
+      window.__patrickFirebase = { app, db, doc, getDoc, setDoc, onSnapshot };
       return window.__patrickFirebase;
     } catch (error) {
       window.__firebaseLibraryLoadError = error?.message || "Firebase library failed to load";
