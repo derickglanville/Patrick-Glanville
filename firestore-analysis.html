@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Firestore Analysis</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #08111f;
+      --panel: #101a2d;
+      --panel-2: #0b1424;
+      --line: #2c3b57;
+      --text: #e5edf8;
+      --muted: #9fb0c8;
+      --accent: #60a5fa;
+      --accent-2: #34d399;
+      --warn: #fbbf24;
+      --danger: #f87171;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: linear-gradient(180deg, #08111f 0%, #0c1628 100%);
+      color: var(--text);
+    }
+
+    .shell {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, .18);
+    }
+
+    h1, h2, h3 {
+      margin: 0;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    button {
+      border: 1px solid #2563eb;
+      background: #2563eb;
+      color: #fff;
+      border-radius: 10px;
+      padding: 10px 16px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button.ghost {
+      background: transparent;
+      border-color: var(--line);
+      color: var(--text);
+    }
+
+    .status {
+      font-weight: 700;
+      color: var(--warn);
+    }
+
+    .status.ok {
+      color: var(--accent-2);
+    }
+
+    .summary-grid,
+    .client-grid,
+    .metric-grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .summary-grid {
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+
+    .client-grid {
+      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+    }
+
+    .metric-grid {
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    }
+
+    .metric {
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .metric .label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+    }
+
+    .metric .value {
+      font-size: 24px;
+      font-weight: 800;
+      word-break: break-word;
+    }
+
+    .client-panel {
+      display: grid;
+      gap: 14px;
+    }
+
+    .client-panel header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: baseline;
+      flex-wrap: wrap;
+    }
+
+    .stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    .history-list {
+      display: grid;
+      gap: 10px;
+      max-height: 360px;
+      overflow: auto;
+      padding-right: 6px;
+    }
+
+    .history-item {
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .history-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .history-title {
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .history-meta,
+    .history-summary {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .status-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .pill {
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(96, 165, 250, .08);
+      padding: 6px 10px;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .raw-box {
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+      max-height: 260px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 13px;
+    }
+
+    @media (max-width: 700px) {
+      body {
+        padding: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="card">
+      <h1>Firestore Client Analysis</h1>
+      <p>Live side-by-side analysis of Patrick and Theodore using the shared Firestore documents that power both the local site and GitHub Pages.</p>
+    </section>
+
+    <section class="card">
+      <div class="toolbar">
+        <button id="startBtn" type="button">Start Live Analysis</button>
+        <button id="refreshBtn" type="button" class="ghost">Refresh Once</button>
+        <button id="stopBtn" type="button" class="ghost">Stop Listeners</button>
+      </div>
+      <div style="height:12px"></div>
+      <div id="status" class="status">Waiting to connect...</div>
+    </section>
+
+    <section class="card">
+      <h2>Overall Summary</h2>
+      <div style="height:12px"></div>
+      <div class="summary-grid" id="overallSummary"></div>
+    </section>
+
+    <section class="client-grid">
+      <section class="card client-panel">
+        <header>
+          <div class="stack">
+            <h2>Patrick</h2>
+            <p id="patrickDocLabel">tracker_state/patrick-glanville</p>
+          </div>
+          <div class="status-pills" id="patrickStatusPills"></div>
+        </header>
+        <div class="metric-grid" id="patrickMetrics"></div>
+        <div class="stack">
+          <h3>Recent History</h3>
+          <div class="history-list" id="patrickHistory"></div>
+        </div>
+        <div class="stack">
+          <h3>Raw Summary</h3>
+          <div class="raw-box" id="patrickRaw"></div>
+        </div>
+      </section>
+
+      <section class="card client-panel">
+        <header>
+          <div class="stack">
+            <h2>Theodore</h2>
+            <p id="theodoreDocLabel">tracker_state/theodore-glanville</p>
+          </div>
+          <div class="status-pills" id="theodoreStatusPills"></div>
+        </header>
+        <div class="metric-grid" id="theodoreMetrics"></div>
+        <div class="stack">
+          <h3>Recent History</h3>
+          <div class="history-list" id="theodoreHistory"></div>
+        </div>
+        <div class="stack">
+          <h3>Raw Summary</h3>
+          <div class="raw-box" id="theodoreRaw"></div>
+        </div>
+      </section>
+    </section>
+  </div>
+
+  <script src="firebase-config.js?v=2026-07-08-001"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+    import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+
+    const statusEl = document.getElementById("status");
+    const overallSummaryEl = document.getElementById("overallSummary");
+    const startBtn = document.getElementById("startBtn");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const stopBtn = document.getElementById("stopBtn");
+
+    const clientViews = {
+      patrick: {
+        id: "patrick-glanville",
+        metrics: document.getElementById("patrickMetrics"),
+        history: document.getElementById("patrickHistory"),
+        raw: document.getElementById("patrickRaw"),
+        pills: document.getElementById("patrickStatusPills")
+      },
+      theodore: {
+        id: "theodore-glanville",
+        metrics: document.getElementById("theodoreMetrics"),
+        history: document.getElementById("theodoreHistory"),
+        raw: document.getElementById("theodoreRaw"),
+        pills: document.getElementById("theodoreStatusPills")
+      }
+    };
+
+    let db = null;
+    let unsubscribers = [];
+    const latestDocs = {};
+
+    function setStatus(text, ok = false) {
+      statusEl.textContent = text;
+      statusEl.classList.toggle("ok", ok);
+    }
+
+    function formatDateTime(value) {
+      if (!value) return "-";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return String(value);
+      return date.toLocaleString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        second: "2-digit"
+      });
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function computeClientSummary(payload) {
+      const state = payload?.state || {};
+      const tasks = Array.isArray(state.tasks) ? state.tasks : [];
+      const history = Array.isArray(state.history) ? state.history : [];
+      const runningNotes = Array.isArray(state.runningNotes) ? state.runningNotes : [];
+      const documents = Array.isArray(state.documents) ? state.documents : [];
+      const bills = Array.isArray(state.bills) ? state.bills : [];
+      const lastHistoryEntry = history[history.length - 1] || null;
+
+      const countsByStatus = tasks.reduce((acc, task) => {
+        const key = task?.status || "Unknown";
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {});
+
+      const closedTaskCount = tasks.filter(task => ["Done", "On-Hold"].includes(task?.status)).length;
+      const activeTaskCount = tasks.length - closedTaskCount;
+
+      return {
+        currentUser: state.currentUser || "-",
+        updatedAt: payload?.updated_at || "",
+        updatedBy: payload?.updated_by || "",
+        totalTasks: tasks.length,
+        activeTasks: activeTaskCount,
+        closedTasks: closedTaskCount,
+        historyCount: history.length,
+        runningNotesCount: runningNotes.length,
+        documentsCount: documents.length,
+        billsCount: bills.length,
+        taskCompletionPercent: tasks.length ? Math.round((closedTaskCount / tasks.length) * 100) : 0,
+        countsByStatus,
+        recentHistory: history
+          .slice()
+          .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+          .slice(0, 12),
+        lastHistoryEntry
+      };
+    }
+
+    function renderMetricGrid(container, summary) {
+      const metrics = [
+        ["Current user", summary.currentUser || "-"],
+        ["Updated at", formatDateTime(summary.updatedAt)],
+        ["Updated by", summary.updatedBy || "-"],
+        ["Total tasks", summary.totalTasks],
+        ["Active tasks", summary.activeTasks],
+        ["Closed tasks", summary.closedTasks],
+        ["History entries", summary.historyCount],
+        ["Running notes", summary.runningNotesCount],
+        ["Saved documents", summary.documentsCount],
+        ["Bills", summary.billsCount],
+        ["Completion", `${summary.taskCompletionPercent}%`]
+      ];
+
+      container.innerHTML = metrics.map(([label, value]) => `
+        <article class="metric">
+          <span class="label">${escapeHtml(label)}</span>
+          <span class="value">${escapeHtml(value)}</span>
+        </article>
+      `).join("");
+    }
+
+    function renderStatusPills(container, countsByStatus) {
+      const entries = Object.entries(countsByStatus);
+      if (!entries.length) {
+        container.innerHTML = `<span class="pill">No tasks loaded</span>`;
+        return;
+      }
+      container.innerHTML = entries
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([status, count]) => `<span class="pill">${escapeHtml(status)}: ${escapeHtml(count)}</span>`)
+        .join("");
+    }
+
+    function renderHistory(container, historyEntries) {
+      if (!historyEntries.length) {
+        container.innerHTML = `<article class="history-item"><div class="history-summary">No history entries found.</div></article>`;
+        return;
+      }
+
+      container.innerHTML = historyEntries.map(entry => `
+        <article class="history-item">
+          <div class="history-head">
+            <span class="history-title">${escapeHtml(entry.taskTitle || "Untitled change")}</span>
+            <span class="history-meta">${escapeHtml(formatDateTime(entry.createdAt))}</span>
+          </div>
+          <div class="history-meta">${escapeHtml(entry.userName || "-")} • ${escapeHtml(entry.userEmail || "-")} • ${escapeHtml(entry.status || "-")}</div>
+          <div class="history-summary">${escapeHtml(entry.summary || "No summary")}</div>
+        </article>
+      `).join("");
+    }
+
+    function renderRaw(container, summary) {
+      container.textContent = JSON.stringify({
+        currentUser: summary.currentUser,
+        updatedAt: summary.updatedAt,
+        updatedBy: summary.updatedBy,
+        totalTasks: summary.totalTasks,
+        activeTasks: summary.activeTasks,
+        closedTasks: summary.closedTasks,
+        historyCount: summary.historyCount,
+        runningNotesCount: summary.runningNotesCount,
+        documentsCount: summary.documentsCount,
+        billsCount: summary.billsCount,
+        countsByStatus: summary.countsByStatus,
+        lastHistoryEntry: summary.lastHistoryEntry
+      }, null, 2);
+    }
+
+    function renderOverall() {
+      const patrickSummary = latestDocs.patrick ? computeClientSummary(latestDocs.patrick) : null;
+      const theodoreSummary = latestDocs.theodore ? computeClientSummary(latestDocs.theodore) : null;
+
+      const metrics = [
+        ["Patrick tasks", patrickSummary?.totalTasks ?? "-"],
+        ["Theo tasks", theodoreSummary?.totalTasks ?? "-"],
+        ["Patrick history", patrickSummary?.historyCount ?? "-"],
+        ["Theo history", theodoreSummary?.historyCount ?? "-"],
+        ["Patrick updated", patrickSummary ? formatDateTime(patrickSummary.updatedAt) : "-"],
+        ["Theo updated", theodoreSummary ? formatDateTime(theodoreSummary.updatedAt) : "-"],
+        ["Patrick current user", patrickSummary?.currentUser ?? "-"],
+        ["Theo current user", theodoreSummary?.currentUser ?? "-"]
+      ];
+
+      overallSummaryEl.innerHTML = metrics.map(([label, value]) => `
+        <article class="metric">
+          <span class="label">${escapeHtml(label)}</span>
+          <span class="value">${escapeHtml(value)}</span>
+        </article>
+      `).join("");
+    }
+
+    function renderClient(clientKey, payload) {
+      latestDocs[clientKey] = payload;
+      const summary = computeClientSummary(payload);
+      const view = clientViews[clientKey];
+      renderMetricGrid(view.metrics, summary);
+      renderStatusPills(view.pills, summary.countsByStatus);
+      renderHistory(view.history, summary.recentHistory);
+      renderRaw(view.raw, summary);
+      renderOverall();
+    }
+
+    function clearListeners() {
+      unsubscribers.forEach(unsubscribe => {
+        if (typeof unsubscribe === "function") unsubscribe();
+      });
+      unsubscribers = [];
+    }
+
+    async function refreshClient(clientKey) {
+      const ref = doc(db, "tracker_state", clientViews[clientKey].id);
+      const snapshot = await getDoc(ref);
+      const payload = snapshot.exists() ? snapshot.data() : {};
+      renderClient(clientKey, payload);
+    }
+
+    async function refreshAll() {
+      await Promise.all(Object.keys(clientViews).map(refreshClient));
+      setStatus("Firestore read complete.", true);
+    }
+
+    function startLiveAnalysis() {
+      if (!db) {
+        setStatus("Firebase is not initialized.", false);
+        return;
+      }
+
+      clearListeners();
+      Object.entries(clientViews).forEach(([clientKey, view]) => {
+        const ref = doc(db, "tracker_state", view.id);
+        const unsubscribe = onSnapshot(ref, snapshot => {
+          const payload = snapshot.exists() ? snapshot.data() : {};
+          renderClient(clientKey, payload);
+          setStatus("Live Firestore analysis is active for Patrick and Theodore.", true);
+        }, error => {
+          setStatus(`Firestore listener failed: ${error.message}`, false);
+          console.error(error);
+        });
+        unsubscribers.push(unsubscribe);
+      });
+    }
+
+    try {
+      const config = window.PATRICK_FIREBASE_CONFIG || {};
+      const app = initializeApp(config);
+      db = getFirestore(app);
+      setStatus("Firebase initialized. Ready for analysis.", true);
+      startLiveAnalysis();
+    } catch (error) {
+      setStatus(`Firebase init failed: ${error.message}`, false);
+      console.error(error);
+    }
+
+    startBtn.addEventListener("click", startLiveAnalysis);
+    refreshBtn.addEventListener("click", () => {
+      if (!db) {
+        setStatus("Firebase is not initialized.", false);
+        return;
+      }
+      refreshAll().catch(error => {
+        setStatus(`Refresh failed: ${error.message}`, false);
+      });
+    });
+    stopBtn.addEventListener("click", () => {
+      clearListeners();
+      setStatus("Live listeners stopped.", false);
+    });
+  </script>
+</body>
+</html>

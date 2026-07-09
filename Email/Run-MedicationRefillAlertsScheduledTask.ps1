@@ -1,10 +1,15 @@
 $ErrorActionPreference = "Stop"
 
 $ScriptFolder = Split-Path -Parent $MyInvocation.MyCommand.Path
-$WatcherScript = Join-Path $ScriptFolder "Watch-MedicationRefillAlerts.ps1"
+$SchedulerScript = Join-Path $ScriptFolder "weekly_report_scheduler.py"
+$Python311 = "C:\edb\languagepack\v4\Python-3.11\python.exe"
 
-if (-not (Test-Path -LiteralPath $WatcherScript)) {
-  throw "Missing medication refill watcher script: $WatcherScript"
+if (-not (Test-Path -LiteralPath $SchedulerScript)) {
+  throw "Missing weekly report scheduler script: $SchedulerScript"
 }
 
-& powershell -NoProfile -ExecutionPolicy Bypass -File $WatcherScript -Once
+if (-not (Test-Path -LiteralPath $Python311)) {
+  throw "Missing Python interpreter: $Python311"
+}
+
+& $Python311 $SchedulerScript --run-now --report-kind medication

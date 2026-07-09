@@ -55,11 +55,11 @@ const clientConfigs = {
   },
   theodore: {
     id: "theodore",
-    shortName: "Theo",
-    fullName: "Theodore Glanville",
-    title: "Theodore Glanville Issue Tracker",
-    browserTitle: "Theodore Glanville Support Tracker",
-    lede: "A focused dashboard for tracking Theo's work, expenses, and daily follow-through.",
+    shortName: "Derick",
+    fullName: "Derick Glanville",
+    title: "Derick Glanville Issue Tracker",
+    browserTitle: "Derick Glanville Support Tracker",
+    lede: "A focused dashboard for tracking Theodore's work, expenses, and daily follow-through.",
     storageKey: THEODORE_STORAGE_KEY,
     watchKey: THEODORE_WATCH_STORAGE_KEY,
     taskViewKey: THEODORE_TASK_VIEW_KEY,
@@ -4723,7 +4723,7 @@ async function switchClient(clientId, pin = "") {
   }
 
   if (nextClient.requiresAccessPin && pin !== CLIENT_ACCESS_PIN) {
-    clientGateError.textContent = "The access code for Theodore's dashboard is incorrect.";
+    clientGateError.textContent = "The access code for Derick's dashboard is incorrect.";
     clientGateError.hidden = false;
     return false;
   }
@@ -5952,7 +5952,7 @@ function openClientSwitcher() {
     }
     return;
   }
-  showClientGate("Choose which client dashboard to open. Theodore's dashboard requires an access code.");
+  showClientGate("Choose which client dashboard to open. Derick's dashboard requires an access code.");
 }
 
 window.openClientSwitcher = openClientSwitcher;

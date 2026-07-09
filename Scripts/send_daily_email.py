@@ -24,16 +24,16 @@ REPORT_DEFAULTS = {
     "change": {
         "folder": ARCHIVE_FOLDER,
         "filename_prefix": "patrick-change-report",
-        "subject_prefix": "Patrick Change Report",
+        "subject_prefix": "Patrick Weekly Change Report",
         "recipients": [
             "dglanville@gmail.com",
         ],
-        "send_time": "08:00",
+        "send_time": "09:30",
     },
     "urgency": {
         "folder": EMAIL_FOLDER,
         "filename_prefix": "patrick-urgency-report",
-        "subject_prefix": "Patrick Glanville Urgency Report",
+        "subject_prefix": "Patrick Glanville Weekly Urgency Report",
         "recipients": [
             "dglanville@gmail.com",
             "patrick.glanville@gmail.com",
@@ -43,7 +43,7 @@ REPORT_DEFAULTS = {
     "medication": {
         "folder": EMAIL_FOLDER,
         "filename_prefix": "patrick-medication-refill-alert",
-        "subject_prefix": "Medication Refill Alert",
+        "subject_prefix": "Patrick Weekly Medication Report",
         "recipients": [
             "dglanville@gmail.com",
             "patrick.glanville@gmail.com",
@@ -51,7 +51,18 @@ REPORT_DEFAULTS = {
             "hemmgeor@gmail.com",
             "rowena.montgomery@gmail.com",
         ],
-        "send_time": "10:00",
+        "send_time": "09:30",
+    },
+    "todo": {
+        "folder": EMAIL_FOLDER,
+        "filename_prefix": "patrick-open-todo-report",
+        "subject_prefix": "Patrick Weekly Open To-Do Report",
+        "recipients": [
+            "dglanville@gmail.com",
+            "patrick.glanville@gmail.com",
+            "courtney.glanville@gmail.com",
+        ],
+        "send_time": "09:30",
     },
 }
 
@@ -195,12 +206,12 @@ if __name__ == "__main__":
     if schedule is None:
         raise SystemExit("Missing Python package 'schedule'. Install it or use --send-now mode.")
 
-    print(f"Daily report scheduler started for '{args.report_kind}'. Will send at {send_time} every day.")
+    print(f"Weekly report scheduler started for '{args.report_kind}'. Legacy direct schedule will check Mondays at {send_time}.")
     print(f"   Folder : {folder}")
     print(f"   Recipients: {', '.join(recipients)}")
     print("   Press Ctrl+C to stop.\n")
 
-    schedule.every().day.at(send_time).do(send_daily_report, args.report_kind, args.report_file, args.recipients)
+    schedule.every().monday.at(send_time).do(send_daily_report, args.report_kind, args.report_file, args.recipients)
 
     while True:
         schedule.run_pending()
