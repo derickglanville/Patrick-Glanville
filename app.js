@@ -1503,7 +1503,7 @@ function normalizeDailyChecklist(items) {
 
 function normalizeTodoListItems(items) {
   const normalized = Array.isArray(items)
-    ? items.map(item => {
+    ? items.map((item, index) => {
       const status = statusOptions.includes(item.status) ? item.status : "Not started";
       const isClosed = isClosedTaskStatus(status);
       return {
@@ -1513,18 +1513,21 @@ function normalizeTodoListItems(items) {
         createdAt: item.createdAt || new Date().toISOString(),
         closedAt: isClosed ? (item.closedAt || item.updatedAt || new Date().toISOString()) : "",
         updatedAt: item.updatedAt || item.createdAt || new Date().toISOString(),
-        notes: String(item.notes || "").trim()
+        notes: String(item.notes || "").trim(),
+        order: Number.isFinite(Number(item.order)) ? Number(item.order) : index
       };
     }).filter(item => item.title)
     : [];
 
-  return normalized.sort((a, b) => {
-    const aClosed = isClosedTaskStatus(a.status);
-    const bClosed = isClosedTaskStatus(b.status);
-    if (aClosed !== bClosed) return aClosed ? 1 : -1;
-    if (aClosed && bClosed) return (b.closedAt || "").localeCompare(a.closedAt || "");
-    return (b.updatedAt || "").localeCompare(a.updatedAt || "");
-  });
+  return normalized
+    .sort((a, b) => {
+      if ((a.order ?? 0) !== (b.order ?? 0)) return (a.order ?? 0) - (b.order ?? 0);
+      return (a.createdAt || "").localeCompare(b.createdAt || "");
+    })
+    .map((item, index) => ({
+      ...item,
+      order: index
+    }));
 }
 
 function normalizeDailyProjectNoteEntries(entries, legacyText = "", fallbackTimestamp = "") {
@@ -3531,7 +3534,13 @@ function createTopTodoListSection(task) {
   closedButton.className = task.todoView === "closed" ? "" : "ghost";
   closedButton.textContent = "Closed";
   closedButton.addEventListener("click", () => setTopTodoView(task, "closed"));
-  viewSwitch.append(activeButton, closedButton);
+  const reportButton = document.createElement("button");
+  reportButton.type = "button";
+  reportButton.className = "ghost";
+  reportButton.textContent = "Generate Report";
+  reportButton.hidden = !currentClientConfig()?.supportsReports;
+  reportButton.addEventListener("click", downloadOpenTodoReportHtml);
+  viewSwitch.append(activeButton, closedButton, reportButton);
   toolbar.appendChild(viewSwitch);
 
   const addBox = document.createElement("div");
@@ -3572,14 +3581,14 @@ function createTopTodoListSection(task) {
     empty.textContent = task.todoView === "closed" ? "No closed to-do items yet." : "No active to-do items right now.";
     list.appendChild(empty);
   } else {
-    visibleItems.forEach(item => list.appendChild(createTopTodoItem(task, item)));
+    visibleItems.forEach((item, index) => list.appendChild(createTopTodoItem(task, item, visibleItems, index)));
   }
 
   section.append(toolbar, addBox, list);
   return section;
 }
 
-function createTopTodoItem(task, item) {
+function createTopTodoItem(task, item, visibleItems = [], visibleIndex = 0) {
   const isClosed = isClosedTaskStatus(item.status);
   const article = document.createElement("article");
   article.className = `top-todo-item${isClosed ? " is-closed" : ""}`;
@@ -3628,7 +3637,26 @@ function createTopTodoItem(task, item) {
   deleteButton.textContent = "Delete";
   deleteButton.addEventListener("click", () => deleteTopTodoItem(task, item.id));
 
-  article.append(checkbox, title, status, dates, notes, deleteButton);
+  const moveControls = document.createElement("div");
+  moveControls.className = "top-todo-move-controls";
+
+  const moveUpButton = document.createElement("button");
+  moveUpButton.type = "button";
+  moveUpButton.className = "ghost";
+  moveUpButton.textContent = "Up";
+  moveUpButton.disabled = visibleIndex === 0;
+  moveUpButton.addEventListener("click", () => moveTopTodoItem(task, item.id, -1));
+
+  const moveDownButton = document.createElement("button");
+  moveDownButton.type = "button";
+  moveDownButton.className = "ghost";
+  moveDownButton.textContent = "Down";
+  moveDownButton.disabled = visibleIndex === visibleItems.length - 1;
+  moveDownButton.addEventListener("click", () => moveTopTodoItem(task, item.id, 1));
+
+  moveControls.append(moveUpButton, moveDownButton, deleteButton);
+
+  article.append(checkbox, title, status, dates, notes, moveControls);
   return article;
 }
 
@@ -3654,7 +3682,8 @@ function addTopTodoItem(task, title, status = "Not started", notes = "") {
     createdAt: now,
     updatedAt: now,
     closedAt: isClosedTaskStatus(itemStatus) ? now : "",
-    notes: String(notes || "").trim()
+    notes: String(notes || "").trim(),
+    order: task.todoItems.length
   });
   task.todoView = task.todoView === "closed" ? "closed" : "active";
   task.todoItems = normalizeTodoListItems(task.todoItems);
@@ -3706,6 +3735,32 @@ function updateTopTodoItemStatus(task, itemId, status) {
   recordUpdate(task, `To-do item status changed to ${status}: ${item.title}`, {
     status: item.status,
     percent: statusToPercent(item.status)
+  });
+  saveState();
+  render();
+}
+
+function moveTopTodoItem(task, itemId, direction) {
+  const user = ensureCurrentUser("move a to-do item");
+  if (!user) return;
+  task.todoItems = normalizeTodoListItems(task.todoItems);
+  const visibleItems = task.todoView === "closed"
+    ? task.todoItems.filter(item => isClosedTaskStatus(item.status))
+    : task.todoItems.filter(item => !isClosedTaskStatus(item.status));
+  const currentVisibleIndex = visibleItems.findIndex(item => item.id === itemId);
+  if (currentVisibleIndex < 0) return;
+  const targetVisibleIndex = currentVisibleIndex + direction;
+  if (targetVisibleIndex < 0 || targetVisibleIndex >= visibleItems.length) return;
+
+  const currentItem = visibleItems[currentVisibleIndex];
+  const targetItem = visibleItems[targetVisibleIndex];
+  const currentOrder = currentItem.order;
+  currentItem.order = targetItem.order;
+  targetItem.order = currentOrder;
+  task.todoItems = normalizeTodoListItems(task.todoItems);
+  recordUpdate(task, `To-do item moved ${direction < 0 ? "up" : "down"}: ${currentItem.title}`, {
+    status: currentItem.status,
+    percent: statusToPercent(currentItem.status)
   });
   saveState();
   render();
@@ -5549,6 +5604,14 @@ function buildPatrickChangeReportFileName() {
   return `patrick-change-report-${year}-${month}-${day}.html`;
 }
 
+function buildOpenTodoReportFileName() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `patrick-open-todo-report-${year}-${month}-${day}.html`;
+}
+
 function isUrgencyReportFileName(fileName) {
   return /^patrick-urgency-report-\d{4}-\d{2}-\d{2}\.html$/i.test(fileName || "");
 }
@@ -5565,6 +5628,122 @@ function downloadPatrickChangeReportHtml() {
   link.click();
   URL.revokeObjectURL(link.href);
   alert("Save the Patrick change report HTML to C:\\Software Developement\\ChatGPT Codex\\Patrick Glanville\\Email if the browser does not save it there automatically.");
+}
+
+function buildOpenTodoReportHtml() {
+  const task = state.tasks.find(isTopTodoListTask) || {};
+  task.todoItems = normalizeTodoListItems(task.todoItems);
+  const openItems = task.todoItems.filter(item => !isClosedTaskStatus(item.status));
+  const closedItems = task.todoItems.filter(item => isClosedTaskStatus(item.status));
+  const ownerLabel = task.owner || "Patrick + Deric";
+  const cardStatus = task.status || "N/A";
+  const latestUpdate = openItems.length
+    ? openItems.reduce((latest, item) => {
+      const candidate = item.updatedAt || item.createdAt || "";
+      return candidate > latest ? candidate : latest;
+    }, "")
+    : "";
+
+  const itemHtml = openItems.length
+    ? openItems.map((item, index) => {
+      const notes = (item.notes || "").trim();
+      return `
+        <article class="todo-item">
+          <div class="todo-item-top">
+            <div class="todo-index">#${index + 1}</div>
+            <div class="todo-heading">
+              <h3>${escapeHtml(item.title || "Untitled to-do item")}</h3>
+              <div class="todo-meta-row">
+                <span class="status-badge">${escapeHtml(item.status || "Not started")}</span>
+                <span class="meta-chip">Created ${escapeHtml(formatDateTime(item.createdAt))}</span>
+                <span class="meta-chip">Updated ${escapeHtml(formatDateTime(item.updatedAt || item.createdAt))}</span>
+              </div>
+            </div>
+          </div>
+          <div class="todo-notes-box">
+            <div class="todo-notes-label">Notes</div>
+            <p>${escapeHtml(notes || "No notes recorded.")}</p>
+          </div>
+        </article>
+      `;
+    }).join("")
+    : '<p class="empty">Patrick has no open priority to-do items right now.</p>';
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Patrick Open To-Do Report</title>
+  <style>
+    body { margin:0; background:#eef2f7; color:#18202a; font-family:Arial, Helvetica, sans-serif; }
+    .wrap { max-width:980px; margin:0 auto; background:#ffffff; box-shadow:0 18px 40px rgba(24,32,42,0.08); }
+    .header { padding:30px 36px; background:linear-gradient(135deg, #18324d 0%, #244a73 100%); color:#ffffff; }
+    .eyebrow { margin:0 0 8px; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:#c9d9ec; font-weight:700; }
+    .header h1 { margin:0 0 10px; font-size:30px; }
+    .header p { margin:0; color:#dbe7f5; }
+    .content { padding:28px 36px 38px; }
+    .notice { margin:0 0 18px; padding:14px 16px; background:#f3f7fc; border:1px solid #cdddf0; border-radius:10px; line-height:1.5; }
+    .metrics { display:grid; grid-template-columns: repeat(4, 1fr); gap:12px; margin:18px 0 24px; }
+    .metric { border:1px solid #d9dee7; border-radius:10px; padding:14px; background:#fbfcfe; }
+    .metric strong { display:block; font-size:24px; color:#204f86; }
+    .metric span { color:#5b6573; font-size:13px; }
+    .section-title { display:flex; justify-content:space-between; gap:12px; align-items:flex-end; margin:0 0 14px; padding-bottom:10px; border-bottom:2px solid #d9dee7; }
+    .section-title h2 { margin:0; font-size:22px; color:#18324d; }
+    .section-title p { margin:4px 0 0; color:#5b6573; font-size:14px; }
+    .todo-count { color:#204f86; font-weight:700; font-size:14px; }
+    .todo-item { border:1px solid #d9dee7; border-radius:12px; padding:16px; margin-top:14px; background:#ffffff; }
+    .todo-item-top { display:flex; gap:14px; align-items:flex-start; }
+    .todo-index { width:34px; height:34px; border-radius:999px; background:#eaf1fb; color:#204f86; font-weight:700; display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
+    .todo-heading { flex:1; }
+    .todo-heading h3 { margin:0 0 8px; font-size:19px; color:#18202a; }
+    .todo-meta-row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+    .status-badge { display:inline-block; padding:5px 10px; border-radius:999px; background:#eef3fb; border:1px solid #c7d7ea; color:#315b8a; font-weight:700; font-size:12px; }
+    .meta-chip { display:inline-block; padding:5px 10px; border-radius:999px; background:#f7f9fc; border:1px solid #d9dee7; color:#526173; font-size:12px; }
+    .todo-notes-box { margin-top:14px; padding:14px 16px; background:#f8fafc; border:1px solid #e0e6ef; border-radius:10px; }
+    .todo-notes-label { font-size:12px; text-transform:uppercase; letter-spacing:0.08em; font-weight:700; color:#5b6573; margin-bottom:8px; }
+    .todo-notes-box p { margin:0; line-height:1.55; white-space:pre-wrap; }
+    .empty { color:#5b6573; padding:18px 0; }
+    .footer { padding: 18px 36px; color: #5b6573; font-size: 12px; border-top: 1px solid #d9dee7; background:#fbfcfe; }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header class="header">
+      <p class="eyebrow">Weekly Open Action Summary</p>
+      <h1>Patrick Open To-Do Report</h1>
+      <p>Generated ${escapeHtml(formatDateTime(new Date().toISOString()))} | Weekly send schedule: Mondays at 9:30 AM</p>
+    </header>
+    <section class="content">
+      <p class="notice"><strong>Distribution:</strong> This weekly report is sent to Derick, Patrick, and Courtney so everyone sees Patrick's current open priority items, current progress, and any notes that still need attention.</p>
+      <div class="metrics">
+        ${metricHtml(openItems.length, "open to-do items")}
+        ${metricHtml(closedItems.length, "closed to-do items")}
+        ${metricHtml(ownerLabel, "owner")}
+        ${metricHtml(cardStatus, "card status")}
+      </div>
+      <div class="section-title">
+        <div>
+          <h2>Open Priority Items</h2>
+          <p>Items remain in their assigned manual order until someone explicitly moves them.</p>
+        </div>
+        <div class="todo-count">Latest update: ${escapeHtml(latestUpdate ? formatDateTime(latestUpdate) : "None")}</div>
+      </div>
+      ${itemHtml}
+    </section>
+    <footer class="footer">Prepared from the Patrick Glanville Support Tracker stored in Firebase Firestore.</footer>
+  </main>
+</body>
+</html>`;
+}
+
+function downloadOpenTodoReportHtml() {
+  const blob = new Blob([buildOpenTodoReportHtml()], { type: "text/html" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = buildOpenTodoReportFileName();
+  link.click();
+  URL.revokeObjectURL(link.href);
+  alert("Save the Patrick open to-do report HTML to C:\\Software Developement\\ChatGPT Codex\\Patrick Glanville\\Email if the browser does not save it there automatically.");
 }
 
 async function moveFileHandleToArchive(sourceDirectoryHandle, archiveDirectoryHandle, fileName) {

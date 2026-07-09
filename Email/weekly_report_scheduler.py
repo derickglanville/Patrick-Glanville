@@ -552,21 +552,36 @@ def build_open_todo_report_html(state, report_time):
     open_items = [item for item in todo_items if not is_closed_task_status(item.get("status"))]
     closed_items = [item for item in todo_items if is_closed_task_status(item.get("status"))]
     open_items = sorted(open_items, key=lambda item: ((item.get("createdAt") or ""), str(item.get("title") or "").lower()))
+    owner_label = task.get("owner") or "Patrick + Deric"
+    card_status = task.get("status") or "N/A"
+    latest_update = max(
+        [item.get("updatedAt") or item.get("createdAt") or "" for item in open_items],
+        default=""
+    )
 
-    item_html = "".join(
-        f"""
+    def render_item(item, index):
+        notes = (item.get("notes") or "").strip()
+        return f"""
         <article class="todo-item">
-          <div class="todo-heading">
-            <strong>{html.escape(item.get('title') or 'Untitled to-do item')}</strong>
-            <span class="status-badge">{html.escape(item.get('status') or 'Not started')}</span>
+          <div class="todo-item-top">
+            <div class="todo-index">#{index}</div>
+            <div class="todo-heading">
+              <h3>{html.escape(item.get('title') or 'Untitled to-do item')}</h3>
+              <div class="todo-meta-row">
+                <span class="status-badge">{html.escape(item.get('status') or 'Not started')}</span>
+                <span class="meta-chip">Created {html.escape(format_dt(item.get('createdAt')))}</span>
+                <span class="meta-chip">Updated {html.escape(format_dt(item.get('updatedAt') or item.get('createdAt')))}</span>
+              </div>
+            </div>
           </div>
-          <p><strong>Created:</strong> {html.escape(format_dt(item.get('createdAt')))}</p>
-          <p><strong>Last updated:</strong> {html.escape(format_dt(item.get('updatedAt') or item.get('createdAt')))}</p>
-          <p><strong>Notes:</strong> {html.escape(item.get('notes') or 'No notes recorded.')}</p>
+          <div class="todo-notes-box">
+            <div class="todo-notes-label">Notes</div>
+            <p>{html.escape(notes or 'No notes recorded.')}</p>
+          </div>
         </article>
         """
-        for item in open_items
-    ) or '<p class="empty">Patrick has no open priority to-do items right now.</p>'
+
+    item_html = "".join(render_item(item, index + 1) for index, item in enumerate(open_items)) or '<p class="empty">Patrick has no open priority to-do items right now.</p>'
 
     return f"""<!doctype html>
 <html lang="en">
@@ -574,37 +589,58 @@ def build_open_todo_report_html(state, report_time):
   <meta charset="utf-8">
   <title>Patrick Open To-Do Report</title>
   <style>
-    body {{ margin:0; background:#f4f6f9; color:#18202a; font-family:Arial, Helvetica, sans-serif; }}
-    .wrap {{ max-width:960px; margin:0 auto; background:#ffffff; }}
-    .header {{ padding:28px 32px; background:#18324d; color:#ffffff; }}
-    .header h1 {{ margin:0 0 8px; font-size:28px; }}
+    body {{ margin:0; background:#eef2f7; color:#18202a; font-family:Arial, Helvetica, sans-serif; }}
+    .wrap {{ max-width:980px; margin:0 auto; background:#ffffff; box-shadow:0 18px 40px rgba(24,32,42,0.08); }}
+    .header {{ padding:30px 36px; background:linear-gradient(135deg, #18324d 0%, #244a73 100%); color:#ffffff; }}
+    .eyebrow {{ margin:0 0 8px; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:#c9d9ec; font-weight:700; }}
+    .header h1 {{ margin:0 0 10px; font-size:30px; }}
     .header p {{ margin:0; color:#dbe7f5; }}
-    .content {{ padding:26px 32px 34px; }}
-    .notice {{ margin:0 0 18px; padding:12px 14px; background:#eef3fb; border:1px solid #c7d7ea; border-radius:6px; }}
-    .metrics {{ display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; margin:18px 0 22px; }}
-    .metric {{ border:1px solid #d9dee7; border-radius:6px; padding:12px; }}
-    .metric strong {{ display:block; font-size:22px; color:#2f6db7; }}
+    .content {{ padding:28px 36px 38px; }}
+    .notice {{ margin:0 0 18px; padding:14px 16px; background:#f3f7fc; border:1px solid #cdddf0; border-radius:10px; line-height:1.5; }}
+    .metrics {{ display:grid; grid-template-columns: repeat(4, 1fr); gap:12px; margin:18px 0 24px; }}
+    .metric {{ border:1px solid #d9dee7; border-radius:10px; padding:14px; background:#fbfcfe; }}
+    .metric strong {{ display:block; font-size:24px; color:#204f86; }}
     .metric span {{ color:#5b6573; font-size:13px; }}
-    .todo-item {{ border:1px solid #d9dee7; border-radius:8px; padding:14px; margin-top:12px; background:#ffffff; }}
-    .todo-heading {{ display:flex; justify-content:space-between; gap:12px; align-items:center; }}
-    .status-badge {{ display:inline-block; padding:4px 8px; border-radius:999px; background:#eef3fb; border:1px solid #c7d7ea; color:#315b8a; font-weight:700; font-size:12px; }}
-    .empty {{ color:#5b6573; }}
-    .footer {{ padding: 18px 32px; color: #5b6573; font-size: 12px; border-top: 1px solid #d9dee7; }}
+    .section-title {{ display:flex; justify-content:space-between; gap:12px; align-items:flex-end; margin:0 0 14px; padding-bottom:10px; border-bottom:2px solid #d9dee7; }}
+    .section-title h2 {{ margin:0; font-size:22px; color:#18324d; }}
+    .section-title p {{ margin:4px 0 0; color:#5b6573; font-size:14px; }}
+    .todo-count {{ color:#204f86; font-weight:700; font-size:14px; }}
+    .todo-item {{ border:1px solid #d9dee7; border-radius:12px; padding:16px; margin-top:14px; background:#ffffff; }}
+    .todo-item-top {{ display:flex; gap:14px; align-items:flex-start; }}
+    .todo-index {{ width:34px; height:34px; border-radius:999px; background:#eaf1fb; color:#204f86; font-weight:700; display:flex; align-items:center; justify-content:center; flex:0 0 auto; }}
+    .todo-heading {{ flex:1; }}
+    .todo-heading h3 {{ margin:0 0 8px; font-size:19px; color:#18202a; }}
+    .todo-meta-row {{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; }}
+    .status-badge {{ display:inline-block; padding:5px 10px; border-radius:999px; background:#eef3fb; border:1px solid #c7d7ea; color:#315b8a; font-weight:700; font-size:12px; }}
+    .meta-chip {{ display:inline-block; padding:5px 10px; border-radius:999px; background:#f7f9fc; border:1px solid #d9dee7; color:#526173; font-size:12px; }}
+    .todo-notes-box {{ margin-top:14px; padding:14px 16px; background:#f8fafc; border:1px solid #e0e6ef; border-radius:10px; }}
+    .todo-notes-label {{ font-size:12px; text-transform:uppercase; letter-spacing:0.08em; font-weight:700; color:#5b6573; margin-bottom:8px; }}
+    .todo-notes-box p {{ margin:0; line-height:1.55; white-space:pre-wrap; }}
+    .empty {{ color:#5b6573; padding:18px 0; }}
+    .footer {{ padding: 18px 36px; color: #5b6573; font-size: 12px; border-top: 1px solid #d9dee7; background:#fbfcfe; }}
   </style>
 </head>
 <body>
   <main class="wrap">
     <header class="header">
-      <h1>Patrick Weekly Open To-Do Report</h1>
+      <p class="eyebrow">Weekly Open Action Summary</p>
+      <h1>Patrick Open To-Do Report</h1>
       <p>Generated {html.escape(format_dt(report_time))} | Weekly send schedule: Mondays at 9:30 AM</p>
     </header>
     <section class="content">
-      <p class="notice"><strong>Recipients:</strong> This weekly open to-do report is sent to Derick, Patrick, and Courtney so everyone sees Patrick's current open priority items.</p>
+      <p class="notice"><strong>Distribution:</strong> This weekly report is sent to Derick, Patrick, and Courtney so everyone sees Patrick's current open priority items, current progress, and any notes that still need attention.</p>
       <div class="metrics">
         {metric_html(len(open_items), "open to-do items")}
         {metric_html(len(closed_items), "closed to-do items")}
-        {metric_html(task.get('owner') or 'Patrick + Deric', "owner")}
-        {metric_html(task.get('status') or 'N/A', "card status")}
+        {metric_html(owner_label, "owner")}
+        {metric_html(card_status, "card status")}
+      </div>
+      <div class="section-title">
+        <div>
+          <h2>Open Priority Items</h2>
+          <p>Items are listed from oldest to newest open entry so long-running obligations stay visible.</p>
+        </div>
+        <div class="todo-count">Latest update: {html.escape(format_dt(latest_update))}</div>
       </div>
       {item_html}
     </section>

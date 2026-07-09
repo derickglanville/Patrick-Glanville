@@ -1167,6 +1167,7 @@ textarea {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .top-todo-add-box {
@@ -1236,6 +1237,18 @@ textarea {
 
 .top-todo-notes {
   min-height: 54px;
+}
+
+.top-todo-move-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.top-todo-move-controls button {
+  min-width: 64px;
 }
 
 .daily-project-section {
