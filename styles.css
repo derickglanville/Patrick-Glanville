@@ -1182,43 +1182,50 @@ textarea {
 }
 
 .top-todo-list {
-  max-height: 520px;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
-  display: grid;
-  gap: 10px;
-  padding-right: 4px;
-}
+    max-height: 430px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    display: grid;
+    gap: 6px;
+    padding: 6px;
+    padding-right: 8px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #f5f8fd;
+  }
 
 .top-todo-item {
-  display: grid;
-  grid-template-columns: 24px minmax(180px, 1.1fr) 150px minmax(190px, .9fr) minmax(220px, 1fr) auto;
-  gap: 10px;
-  align-items: center;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: white;
-}
+    display: grid;
+    grid-template-columns: 20px minmax(150px, 1fr) 138px minmax(150px, .8fr) minmax(180px, .95fr) auto;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: white;
+  }
 
 .top-todo-item.is-closed {
   background: #f4f7fb;
 }
 
 .top-todo-item input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  margin: 0;
-}
+    width: 16px;
+    height: 16px;
+    margin: 0;
+  }
 
 .top-todo-title {
   border: 0;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  padding: 0 0 4px;
-  background: transparent;
-  font-weight: 800;
-}
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    padding: 0 0 2px;
+    background: transparent;
+    font-weight: 800;
+    font-size: .98rem;
+    line-height: 1.25;
+  }
 
 .top-todo-title:focus {
   outline: none;
@@ -1231,25 +1238,30 @@ textarea {
 }
 
 .top-todo-dates {
-  display: grid;
-  gap: 3px;
-}
+    display: grid;
+    gap: 2px;
+    font-size: .78rem;
+    line-height: 1.2;
+  }
 
 .top-todo-notes {
-  min-height: 54px;
-}
+    min-height: 40px;
+    padding: 8px 10px;
+    line-height: 1.3;
+  }
 
 .top-todo-move-controls {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-}
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
 
 .top-todo-move-controls button {
-  min-width: 64px;
-}
+    min-width: 54px;
+    padding: 8px 10px;
+  }
 
 .daily-project-section {
   display: grid;

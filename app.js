@@ -3624,7 +3624,7 @@ function createTopTodoItem(task, item, visibleItems = [], visibleIndex = 0) {
   `;
 
   const notes = document.createElement("textarea");
-  notes.rows = 2;
+  notes.rows = 1;
   notes.className = "top-todo-notes";
   notes.placeholder = "Notes";
   notes.value = item.notes || "";
