@@ -3620,6 +3620,7 @@ function createTopTodoItem(task, item, visibleItems = [], visibleIndex = 0) {
   dates.className = "top-todo-dates";
   dates.innerHTML = `
     <span>Created ${escapeHtml(formatDateTime(item.createdAt))}</span>
+    <span>Modified ${escapeHtml(formatDateTime(item.updatedAt || item.createdAt))}</span>
     <span>${item.closedAt ? `Closed ${escapeHtml(formatDateTime(item.closedAt))}` : "Not closed"}</span>
   `;
 
