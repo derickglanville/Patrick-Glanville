@@ -200,38 +200,53 @@
       <header>
         <div>
           <h2>Monthly Bills</h2>
-          <p>Track every bill for the month, including amount, due date, payment status, and hardship notes.</p>
+          <p>Track every bill for the month, compare it against the Monthly Budget Fund, and save each month for later review.</p>
         </div>
         <div class="panel-actions">
+          <label for="billMBF">Monthly Budget Fund (MBF)
+            <input id="billMBF" type="number" min="0" step="0.01">
+          </label>
           <label for="billMonth">Month
             <input id="billMonth" type="month">
           </label>
+          <button id="saveBudgetSnapshotBtn" type="button">Save Month</button>
           <button id="hideBillsBtn" type="button" class="ghost">Hide</button>
         </div>
       </header>
       <div class="collapsible-content" id="budgetPanelContent">
         <div class="budget-metrics">
+          <article><strong id="billMBFDisplay">$0.00</strong><span>MBF</span></article>
           <article><strong id="billTotal">$0.00</strong><span>Total bills</span></article>
           <article><strong id="billPaid">$0.00</strong><span>Paid</span></article>
           <article><strong id="billRemaining">$0.00</strong><span>Remaining</span></article>
+          <article><strong id="billCashFlow">$0.00</strong><span>Cash flow</span></article>
+          <article><strong id="billCoverage">Covered</strong><span>MBF coverage</span></article>
           <article><strong id="billPastDue">0</strong><span>Past due</span></article>
         </div>
-        <div class="bill-table-wrap">
-          <table class="bill-table">
-            <thead>
-              <tr>
-                <th>Bill</th>
-                <th>Amount</th>
-                <th>Due date</th>
-                <th>Status</th>
-                <th>Notes</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="billList"></tbody>
-          </table>
+        <p id="budgetAlert" class="budget-alert" hidden></p>
+        <div class="budget-bill-group" aria-label="Monthly bills list">
+          <div class="budget-bill-list-header" aria-hidden="true">
+            <span>Bill</span>
+            <span>Amount / Due</span>
+            <span>Status</span>
+            <span>Notes</span>
+            <span>Actions</span>
+          </div>
+          <div id="billList" class="budget-bill-list"></div>
         </div>
         <button id="addBillBtn" type="button">Add bill</button>
+        <section class="budget-snapshots" aria-label="Saved monthly budgets">
+          <div class="budget-snapshots-header">
+            <div>
+              <h3>Saved Monthly Budgets</h3>
+              <p>Review previously saved monthly budget totals and funding coverage.</p>
+            </div>
+            <button id="toggleBudgetSnapshotsBtn" type="button" class="ghost">Show Saved Monthly Budgets</button>
+          </div>
+          <div id="budgetSnapshotsContent">
+            <div id="budgetSnapshotList" class="budget-snapshot-list"></div>
+          </div>
+        </section>
       </div>
     </section>
 

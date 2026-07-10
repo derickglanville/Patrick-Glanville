@@ -4,8 +4,8 @@ const PATRICK_WATCH_STORAGE_KEY = "patrick-glanville-patrick-watch-v1";
 const THEODORE_WATCH_STORAGE_KEY = "theodore-glanville-client-watch-v1";
 const PATRICK_TASK_VIEW_KEY = "patrick-glanville-task-view-v1";
 const THEODORE_TASK_VIEW_KEY = "theodore-glanville-task-view-v1";
-const DATA_VERSION = 2026070101;
-const PANEL_VISIBILITY_VERSION = 2026070101;
+const DATA_VERSION = 2026071001;
+const PANEL_VISIBILITY_VERSION = 2026071003;
 const TASK_GROUP_COLLAPSE_VERSION = 2026070101;
 const BUILD_INFO = {
   commit: "working-tree",
@@ -335,6 +335,7 @@ const seedData = {
     overview: true,
     patrickWatch: true,
     bills: true,
+    budgetSnapshots: true,
     lifeAdmin: true
   },
   runningNotes: [],
@@ -342,6 +343,8 @@ const seedData = {
   collapsedTaskGroupsVersion: TASK_GROUP_COLLAPSE_VERSION,
   collapsedTaskGroups: {},
   billMonth: "",
+  monthlyBudgetFund: 1500,
+  budgetSnapshots: [],
   bills: [
     { id: crypto.randomUUID(), name: "Housing / rent", amount: 0, due: "", status: "Unpaid", notes: "" },
     { id: crypto.randomUUID(), name: "Car loan", amount: 0, due: "", status: "Unpaid", notes: "Ask lender about hardship suspension or deferment." },
@@ -988,12 +991,15 @@ function buildTheoSeedData() {
       overview: true,
       patrickWatch: true,
       bills: true,
+      budgetSnapshots: true,
       lifeAdmin: true
     },
     collapsedTaskGroupsVersion: TASK_GROUP_COLLAPSE_VERSION,
     collapsedTaskGroups: {},
     panelVisibilityVersion: PANEL_VISIBILITY_VERSION,
     billMonth: "",
+    monthlyBudgetFund: 0,
+    budgetSnapshots: [],
     bills: [],
     lifeAdminNotes: [],
     tasks: [
@@ -1043,12 +1049,15 @@ function buildUnselectedClientState() {
       overview: true,
       patrickWatch: true,
       bills: true,
+      budgetSnapshots: true,
       lifeAdmin: true
     },
     collapsedTaskGroupsVersion: TASK_GROUP_COLLAPSE_VERSION,
     collapsedTaskGroups: Object.fromEntries(taskGroupOrder.map(groupName => [groupName, true])),
     panelVisibilityVersion: PANEL_VISIBILITY_VERSION,
     billMonth: "",
+    monthlyBudgetFund: 0,
+    budgetSnapshots: [],
     bills: [],
     lifeAdminNotes: [],
     tasks: []
@@ -1151,11 +1160,18 @@ const medicationDialogBody = document.querySelector("#medicationDialogBody");
 const patrickWatchPanel = document.querySelector("#patrickWatchPanel");
 const patrickChangeReport = document.querySelector("#patrickChangeReport");
 const billMonthInput = document.querySelector("#billMonth");
+const billMBFInput = document.querySelector("#billMBF");
+const billMBFDisplay = document.querySelector("#billMBFDisplay");
 const billList = document.querySelector("#billList");
 const billTotal = document.querySelector("#billTotal");
 const billPaid = document.querySelector("#billPaid");
 const billRemaining = document.querySelector("#billRemaining");
+const billCashFlow = document.querySelector("#billCashFlow");
+const billCoverage = document.querySelector("#billCoverage");
 const billPastDue = document.querySelector("#billPastDue");
+const budgetAlert = document.querySelector("#budgetAlert");
+const budgetSnapshotList = document.querySelector("#budgetSnapshotList");
+const budgetSnapshotsContent = document.querySelector("#budgetSnapshotsContent");
 const lifeAdminNotes = document.querySelector("#lifeAdminNotes");
 const budgetPanel = document.querySelector("#budgetPanel");
 const budgetPanelContent = document.querySelector("#budgetPanelContent");
@@ -1169,6 +1185,7 @@ const patrickChangeReportBtn = document.querySelector("#patrickChangeReportBtn")
 const htmlEmailDashboardReportBtn = document.querySelector("#htmlEmailDashboardReportBtn");
 const toggleBillsBtn = document.querySelector("#toggleBillsBtn");
 const toggleLifeAdminBtn = document.querySelector("#toggleLifeAdminBtn");
+const toggleBudgetSnapshotsBtn = document.querySelector("#toggleBudgetSnapshotsBtn");
 const hideBillsBtn = document.querySelector("#hideBillsBtn");
 const hideLifeAdminBtn = document.querySelector("#hideLifeAdminBtn");
 const pdfUploadInput = document.querySelector("#pdfUploadInput");
@@ -1232,6 +1249,9 @@ function loadState() {
       hiddenPanels: parsed.hiddenPanels || {},
       collapsedTaskGroups: parsed.collapsedTaskGroups || {},
       billMonth: parsed.billMonth || "",
+      monthlyBudgetFund: normalizeMoney(parsed.monthlyBudgetFund ?? seedData.monthlyBudgetFund ?? 0),
+      monthlyBudgets: parsed.monthlyBudgets || {},
+      budgetSnapshots: Array.isArray(parsed.budgetSnapshots) ? parsed.budgetSnapshots : structuredClone(seedData.budgetSnapshots || []),
       bills: Array.isArray(parsed.bills) ? parsed.bills : structuredClone(seedData.bills),
       lifeAdminNotes: Array.isArray(parsed.lifeAdminNotes) ? parsed.lifeAdminNotes : structuredClone(seedData.lifeAdminNotes),
       tasks: Array.isArray(parsed.tasks) ? parsed.tasks : structuredClone(seedData.tasks)
@@ -1290,14 +1310,15 @@ function initializeState(loaded) {
   loaded.runningNotes = normalizeRunningNotes(loaded.runningNotes, loaded.notes);
   loaded.documents = normalizeDocuments(loaded.documents);
   if (loaded.panelVisibilityVersion !== PANEL_VISIBILITY_VERSION) {
-    loaded.hiddenPanels = { overview: true, patrickWatch: true, bills: true, lifeAdmin: true };
+    loaded.hiddenPanels = { overview: true, patrickWatch: true, bills: true, budgetSnapshots: true, lifeAdmin: true };
     loaded.panelVisibilityVersion = PANEL_VISIBILITY_VERSION;
     panelVisibilityReset = true;
   } else {
     loaded.hiddenPanels = {
       overview: loaded.hiddenPanels?.overview ?? true,
       patrickWatch: loaded.hiddenPanels?.patrickWatch ?? true,
-      bills: Boolean(loaded.hiddenPanels?.bills),
+      bills: loaded.hiddenPanels?.bills ?? true,
+      budgetSnapshots: loaded.hiddenPanels?.budgetSnapshots ?? true,
       lifeAdmin: Boolean(loaded.hiddenPanels?.lifeAdmin)
     };
   }
@@ -1314,7 +1335,22 @@ function initializeState(loaded) {
     loaded.collapsedTaskGroups[groupName] = false;
   });
   loaded.billMonth = loaded.billMonth || defaultBillMonth();
-  loaded.bills = loaded.bills.map(normalizeBill);
+  loaded.monthlyBudgetFund = normalizeMoney(loaded.monthlyBudgetFund ?? seedData.monthlyBudgetFund ?? 0);
+  loaded.monthlyBudgets = normalizeMonthlyBudgetsMap(loaded.monthlyBudgets, seedData);
+  const legacyBills = Array.isArray(loaded.bills) ? loaded.bills.map(normalizeBill) : structuredClone(seedData.bills).map(normalizeBill);
+  if (!loaded.monthlyBudgets[loaded.billMonth]) {
+    loaded.monthlyBudgets[loaded.billMonth] = normalizeMonthlyBudgetEntry({
+      month: loaded.billMonth,
+      monthlyBudgetFund: loaded.monthlyBudgetFund,
+      bills: legacyBills
+    }, loaded.billMonth, seedData);
+  }
+  const activeMonthlyBudget = loaded.monthlyBudgets[loaded.billMonth] || buildDefaultMonthlyBudget(loaded.billMonth, seedData);
+  loaded.monthlyBudgetFund = activeMonthlyBudget.monthlyBudgetFund;
+  loaded.budgetSnapshots = Array.isArray(loaded.budgetSnapshots)
+    ? loaded.budgetSnapshots.map(normalizeBudgetSnapshot).filter(Boolean)
+    : structuredClone(seedData.budgetSnapshots || []).map(normalizeBudgetSnapshot).filter(Boolean);
+  loaded.bills = activeMonthlyBudget.bills.map(normalizeBill);
   loaded.lifeAdminNotes = Array.isArray(loaded.lifeAdminNotes)
     ? loaded.lifeAdminNotes.map(normalizeLifeAdminNote)
     : structuredClone(seedData.lifeAdminNotes).map(normalizeLifeAdminNote);
@@ -1350,6 +1386,160 @@ function normalizeBill(bill) {
   };
 }
 
+function normalizeBudgetSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") return null;
+  const month = String(snapshot.month || "").trim();
+  if (!month) return null;
+  return {
+    id: snapshot.id || crypto.randomUUID(),
+    month,
+    monthlyBudgetFund: normalizeMoney(snapshot.monthlyBudgetFund),
+    totalBills: normalizeMoney(snapshot.totalBills),
+    paidBills: normalizeMoney(snapshot.paidBills),
+    remainingBills: normalizeMoney(snapshot.remainingBills),
+    cashFlow: Math.round(Number(snapshot.cashFlow || 0) * 100) / 100,
+    fundingGap: normalizeMoney(snapshot.fundingGap),
+    covered: Boolean(snapshot.covered),
+    pastDueCount: Math.max(0, Number(snapshot.pastDueCount) || 0),
+    savedAt: snapshot.savedAt || new Date().toISOString(),
+    updatedAt: snapshot.updatedAt || snapshot.savedAt || new Date().toISOString()
+  };
+}
+
+const BUDGET_TRACKING_START_MONTH = "2026-07";
+
+function isBeforeBudgetTrackingStart(month) {
+  return String(month || "").trim() && String(month) < BUDGET_TRACKING_START_MONTH;
+}
+
+function buildBudgetBillTemplate(sourceBill = {}, zeroAmounts = false) {
+  const normalized = normalizeBill(sourceBill);
+  return {
+    ...normalized,
+    id: normalized.id || crypto.randomUUID(),
+    amount: zeroAmounts ? 0 : normalized.amount,
+    due: zeroAmounts ? "" : normalized.due,
+    status: zeroAmounts ? "Unpaid" : normalized.status
+  };
+}
+
+function buildDefaultMonthlyBudget(month, seed = getSeedData()) {
+  const zeroAmounts = isBeforeBudgetTrackingStart(month);
+  return {
+    month,
+    monthlyBudgetFund: zeroAmounts ? 0 : normalizeMoney(seed.monthlyBudgetFund ?? 0),
+    bills: (seed.bills || []).map(bill => buildBudgetBillTemplate(bill, zeroAmounts))
+  };
+}
+
+function normalizeMonthlyBudgetEntry(entry, fallbackMonth = "", seed = getSeedData()) {
+  const month = String(entry?.month || fallbackMonth || "").trim();
+  if (!month) return null;
+  const zeroAmounts = isBeforeBudgetTrackingStart(month);
+  const fallback = buildDefaultMonthlyBudget(month, seed);
+  const incomingBills = Array.isArray(entry?.bills) ? entry.bills : fallback.bills;
+  return {
+    month,
+    monthlyBudgetFund: zeroAmounts ? 0 : normalizeMoney(entry?.monthlyBudgetFund ?? fallback.monthlyBudgetFund),
+    bills: incomingBills.map(bill => buildBudgetBillTemplate(bill, zeroAmounts))
+  };
+}
+
+function normalizeMonthlyBudgetsMap(monthlyBudgets, seed = getSeedData()) {
+  const normalized = {};
+  if (monthlyBudgets && typeof monthlyBudgets === "object") {
+    Object.entries(monthlyBudgets).forEach(([month, value]) => {
+      const entry = normalizeMonthlyBudgetEntry(value, month, seed);
+      if (entry) normalized[entry.month] = entry;
+    });
+  }
+  return normalized;
+}
+
+function calculateBudgetTotals(monthlyBudgetFund, bills) {
+  const totalBills = bills.reduce((sum, bill) => sum + normalizeMoney(bill.amount), 0);
+  const paidBills = bills
+    .filter(bill => bill.status === "Paid")
+    .reduce((sum, bill) => sum + normalizeMoney(bill.amount), 0);
+  const remainingBills = Math.max(0, totalBills - paidBills);
+  const cashFlow = Math.round((normalizeMoney(monthlyBudgetFund) - totalBills) * 100) / 100;
+  const covered = cashFlow >= 0;
+  const fundingGap = covered ? 0 : Math.abs(cashFlow);
+  const pastDueCount = bills.filter(bill => isBillPastDue(bill)).length;
+  return {
+    totalBills,
+    paidBills,
+    remainingBills,
+    cashFlow,
+    covered,
+    fundingGap,
+    pastDueCount
+  };
+}
+
+function ensureMonthlyBudgetState(month) {
+  const targetMonth = month || state.billMonth || defaultBillMonth();
+  state.monthlyBudgets = normalizeMonthlyBudgetsMap(state.monthlyBudgets);
+  if (!state.monthlyBudgets[targetMonth]) {
+    state.monthlyBudgets[targetMonth] = buildDefaultMonthlyBudget(targetMonth);
+  }
+  return state.monthlyBudgets[targetMonth];
+}
+
+function syncBudgetSnapshotForMonth(month) {
+  const monthlyBudget = ensureMonthlyBudgetState(month);
+  const totals = calculateBudgetTotals(monthlyBudget.monthlyBudgetFund, monthlyBudget.bills);
+  const now = new Date().toISOString();
+  const existing = (state.budgetSnapshots || []).find(entry => entry.month === monthlyBudget.month);
+  if (existing) {
+    existing.monthlyBudgetFund = monthlyBudget.monthlyBudgetFund;
+    existing.totalBills = totals.totalBills;
+    existing.paidBills = totals.paidBills;
+    existing.remainingBills = totals.remainingBills;
+    existing.cashFlow = totals.cashFlow;
+    existing.fundingGap = totals.fundingGap;
+    existing.covered = totals.covered;
+    existing.pastDueCount = totals.pastDueCount;
+    existing.updatedAt = now;
+  } else {
+    state.budgetSnapshots.push(normalizeBudgetSnapshot({
+      id: crypto.randomUUID(),
+      month: monthlyBudget.month,
+      monthlyBudgetFund: monthlyBudget.monthlyBudgetFund,
+      totalBills: totals.totalBills,
+      paidBills: totals.paidBills,
+      remainingBills: totals.remainingBills,
+      cashFlow: totals.cashFlow,
+      fundingGap: totals.fundingGap,
+      covered: totals.covered,
+      pastDueCount: totals.pastDueCount,
+      savedAt: now,
+      updatedAt: now
+    }));
+  }
+  state.budgetSnapshots = state.budgetSnapshots.map(normalizeBudgetSnapshot).filter(Boolean);
+}
+
+function syncCurrentBudgetMonth(saveSnapshot = true) {
+  const month = state.billMonth || defaultBillMonth();
+  state.monthlyBudgets = normalizeMonthlyBudgetsMap(state.monthlyBudgets);
+  state.monthlyBudgets[month] = normalizeMonthlyBudgetEntry({
+    month,
+    monthlyBudgetFund: state.monthlyBudgetFund,
+    bills: state.bills
+  }, month);
+  if (saveSnapshot) syncBudgetSnapshotForMonth(month);
+}
+
+function loadBudgetMonth(month, options = {}) {
+  const targetMonth = month || defaultBillMonth();
+  state.billMonth = targetMonth;
+  const monthlyBudget = ensureMonthlyBudgetState(targetMonth);
+  state.monthlyBudgetFund = monthlyBudget.monthlyBudgetFund;
+  state.bills = monthlyBudget.bills.map(normalizeBill);
+  if (options.syncSnapshot !== false) syncBudgetSnapshotForMonth(targetMonth);
+}
+
 function currentMonthlyDueDate(dayOfMonth) {
   const today = new Date();
   const month = String(today.getMonth() + 1).padStart(2, "0");
@@ -1373,6 +1563,16 @@ function normalizeMoney(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return 0;
   return Math.max(0, Math.round(number * 100) / 100);
+}
+
+function formatSignedCurrency(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return formatCurrency(0);
+  const absolute = Math.abs(number).toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD"
+  });
+  return number < 0 ? `-${absolute}` : absolute;
 }
 
 function formatCurrency(value) {
@@ -2190,6 +2390,9 @@ function markUpdatedSections(tasks) {
 }
 
 function saveState() {
+  if (activeClientId && state.billMonth) {
+    syncCurrentBudgetMonth();
+  }
   state.lastSavedAt = new Date().toISOString();
   const storageKey = getStorageKey();
   if (storageKey) {
@@ -2982,13 +3185,22 @@ function renderPanelVisibility() {
     state.hiddenPanels.overview,
     "Situation Overview"
   );
-  setPanelHidden(
+  setPanelCollapsed(
     budgetPanel,
     budgetPanelContent,
     toggleBillsBtn,
     state.hiddenPanels.bills,
     "Monthly Bills"
   );
+  if (toggleBudgetSnapshotsBtn && budgetSnapshotsContent) {
+    setPanelCollapsed(
+      document.querySelector(".budget-snapshots"),
+      budgetSnapshotsContent,
+      toggleBudgetSnapshotsBtn,
+      state.hiddenPanels.budgetSnapshots,
+      "Saved Monthly Budgets"
+    );
+  }
   const client = currentClientConfig();
   if (client?.supportsLifeAdmin) {
     setPanelHidden(
@@ -3024,32 +3236,63 @@ function setPanelCollapsed(panel, content, button, hidden, label) {
 
 function renderBills() {
   billMonthInput.value = state.billMonth || defaultBillMonth();
+  if (billMBFInput) billMBFInput.value = normalizeMoney(state.monthlyBudgetFund);
   billList.innerHTML = "";
 
   state.bills.forEach(bill => {
-    const row = document.createElement("tr");
+    const row = document.createElement("article");
+    row.className = `budget-bill-item${isBillPastDue(bill) ? " is-past-due" : ""}${bill.status === "Paid" ? " is-paid" : ""}`;
     row.dataset.billId = bill.id;
     row.innerHTML = `
-      <td><input class="bill-name" value="${escapeAttribute(bill.name)}" aria-label="Bill name"></td>
-      <td><input class="bill-amount" type="number" min="0" step="0.01" value="${normalizeMoney(bill.amount)}" aria-label="Bill amount"></td>
-      <td><input class="bill-due" type="date" value="${escapeAttribute(bill.due)}" aria-label="Bill due date"></td>
-      <td>
-        <select class="bill-status" aria-label="Bill status">
-          ${billStatusOptions.map(status => `<option${status === bill.status ? " selected" : ""}>${escapeHtml(status)}</option>`).join("")}
-        </select>
-      </td>
-      <td><input class="bill-notes" value="${escapeAttribute(bill.notes)}" aria-label="Bill notes"></td>
-      <td><button type="button" class="icon-button delete-bill" aria-label="Delete bill">x</button></td>
+      <div class="budget-bill-name-box">
+        <label class="budget-bill-field">
+          <span>Bill</span>
+          <input class="bill-name" value="${escapeAttribute(bill.name)}" aria-label="Bill name">
+        </label>
+      </div>
+      <div class="budget-bill-amount-due">
+        <label class="budget-bill-field">
+          <span>Amount</span>
+          <input class="bill-amount" type="number" min="0" step="0.01" value="${normalizeMoney(bill.amount)}" aria-label="Bill amount">
+        </label>
+        <label class="budget-bill-field">
+          <span>Due date</span>
+          <input class="bill-due" type="date" value="${escapeAttribute(bill.due)}" aria-label="Bill due date">
+        </label>
+      </div>
+      <div class="budget-bill-status-box">
+        <label class="budget-bill-field">
+          <span>Status</span>
+          <select class="bill-status" aria-label="Bill status">
+            ${billStatusOptions.map(status => `<option${status === bill.status ? " selected" : ""}>${escapeHtml(status)}</option>`).join("")}
+          </select>
+        </label>
+      </div>
+      <div class="budget-bill-notes-box">
+        <label class="budget-bill-field">
+          <span>Notes</span>
+          <textarea class="bill-notes" rows="2" aria-label="Bill notes" placeholder="Optional notes">${escapeHtml(bill.notes || "")}</textarea>
+        </label>
+      </div>
+      <div class="budget-bill-actions">
+        <button type="button" class="delete-bill" aria-label="Delete bill">Delete</button>
+      </div>
     `;
 
-    row.querySelectorAll("input, select").forEach(input => {
-      input.addEventListener("change", () => updateBillFromRow(row));
-    });
+    row.querySelector(".bill-name").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false }));
+    row.querySelector(".bill-amount").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false }));
+    row.querySelector(".bill-notes").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false }));
+    row.querySelector(".bill-name").addEventListener("change", () => updateBillFromRow(row));
+    row.querySelector(".bill-amount").addEventListener("change", () => updateBillFromRow(row));
+    row.querySelector(".bill-due").addEventListener("change", () => updateBillFromRow(row));
+    row.querySelector(".bill-status").addEventListener("change", () => updateBillFromRow(row));
+    row.querySelector(".bill-notes").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".delete-bill").addEventListener("click", () => deleteBill(bill.id));
     billList.appendChild(row);
   });
 
   updateBillTotals();
+  renderBudgetSnapshots();
 }
 
 function buildBillChangeSummary(before, after) {
@@ -3062,10 +3305,11 @@ function buildBillChangeSummary(before, after) {
   return summarizeLines(changes, "Monthly bill updated");
 }
 
-function updateBillFromRow(row) {
+function updateBillFromRow(row, options = {}) {
   const bill = state.bills.find(item => item.id === row.dataset.billId);
   if (!bill) return;
   if (!ensureCurrentUser("update a monthly bill")) return;
+  const recordHistory = options.recordHistory !== false;
   const before = { ...bill };
   bill.name = row.querySelector(".bill-name").value.trim();
   bill.amount = normalizeMoney(row.querySelector(".bill-amount").value);
@@ -3073,7 +3317,7 @@ function updateBillFromRow(row) {
   bill.status = row.querySelector(".bill-status").value;
   bill.notes = row.querySelector(".bill-notes").value.trim();
   const summary = buildBillChangeSummary(before, bill);
-  if (summary !== "Monthly bill updated" || JSON.stringify(before) !== JSON.stringify(bill)) {
+  if (recordHistory && (summary !== "Monthly bill updated" || JSON.stringify(before) !== JSON.stringify(bill))) {
     recordHistoryEntry({
       itemType: "bill",
       itemId: bill.id,
@@ -3083,22 +3327,124 @@ function updateBillFromRow(row) {
       percent: percentFromBillStatus(bill.status)
     });
   }
+  syncCurrentBudgetMonth();
   saveState();
   updateBillTotals();
 }
 
 function updateBillTotals() {
-  const total = state.bills.reduce((sum, bill) => sum + normalizeMoney(bill.amount), 0);
-  const paid = state.bills
-    .filter(bill => bill.status === "Paid")
-    .reduce((sum, bill) => sum + normalizeMoney(bill.amount), 0);
-  const remaining = Math.max(0, total - paid);
-  const pastDue = state.bills.filter(bill => isBillPastDue(bill)).length;
+  const monthlyBudgetFund = normalizeMoney(state.monthlyBudgetFund);
+  const {
+    totalBills: total,
+    paidBills: paid,
+    remainingBills: remaining,
+    cashFlow,
+    covered,
+    fundingGap,
+    pastDueCount: pastDue
+  } = calculateBudgetTotals(monthlyBudgetFund, state.bills);
 
+  if (billMBFDisplay) billMBFDisplay.textContent = formatCurrency(monthlyBudgetFund);
   billTotal.textContent = formatCurrency(total);
   billPaid.textContent = formatCurrency(paid);
   billRemaining.textContent = formatCurrency(remaining);
+  if (billCashFlow) {
+    billCashFlow.textContent = formatSignedCurrency(cashFlow);
+    billCashFlow.parentElement?.classList.toggle("is-negative", !covered);
+    billCashFlow.parentElement?.classList.toggle("is-positive", covered && cashFlow > 0);
+  }
+  if (billCoverage) {
+    billCoverage.textContent = covered ? "Covered" : `Short ${formatCurrency(fundingGap)}`;
+    billCoverage.parentElement?.classList.toggle("is-negative", !covered);
+    billCoverage.parentElement?.classList.toggle("is-positive", covered);
+  }
   billPastDue.textContent = pastDue;
+  if (budgetAlert) {
+    if (covered) {
+      budgetAlert.hidden = true;
+      budgetAlert.textContent = "";
+    } else {
+      budgetAlert.hidden = false;
+      budgetAlert.textContent = `Monthly Budget Fund does not cover this month's bills. Additional funding needed: ${formatCurrency(fundingGap)}.`;
+    }
+  }
+}
+
+function currentBudgetSnapshot() {
+  const monthlyBudgetFund = normalizeMoney(state.monthlyBudgetFund);
+  const totals = calculateBudgetTotals(monthlyBudgetFund, state.bills);
+  return {
+    month: state.billMonth || defaultBillMonth(),
+    monthlyBudgetFund,
+    totalBills: totals.totalBills,
+    paidBills: totals.paidBills,
+    remainingBills: totals.remainingBills,
+    cashFlow: totals.cashFlow,
+    fundingGap: totals.fundingGap,
+    covered: totals.covered,
+    pastDueCount: totals.pastDueCount
+  };
+}
+
+function renderBudgetSnapshots() {
+  if (!budgetSnapshotList) return;
+  budgetSnapshotList.innerHTML = "";
+  const storedSnapshots = new Map(
+    (state.budgetSnapshots || [])
+      .map(normalizeBudgetSnapshot)
+      .filter(Boolean)
+      .map(snapshot => [snapshot.month, snapshot])
+  );
+  const snapshots = Object.values(normalizeMonthlyBudgetsMap(state.monthlyBudgets))
+    .map(monthlyBudget => {
+      const totals = calculateBudgetTotals(monthlyBudget.monthlyBudgetFund, monthlyBudget.bills);
+      const stored = storedSnapshots.get(monthlyBudget.month);
+      return normalizeBudgetSnapshot({
+        id: stored?.id || crypto.randomUUID(),
+        month: monthlyBudget.month,
+        monthlyBudgetFund: monthlyBudget.monthlyBudgetFund,
+        totalBills: totals.totalBills,
+        paidBills: totals.paidBills,
+        remainingBills: totals.remainingBills,
+        cashFlow: totals.cashFlow,
+        fundingGap: totals.fundingGap,
+        covered: totals.covered,
+        pastDueCount: totals.pastDueCount,
+        savedAt: stored?.savedAt || stored?.updatedAt || new Date().toISOString(),
+        updatedAt: stored?.updatedAt || stored?.savedAt || new Date().toISOString()
+      });
+    })
+    .filter(Boolean)
+    .sort((a, b) => (b.month || "").localeCompare(a.month || "") || (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+
+  if (!snapshots.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-notes";
+    empty.textContent = "No monthly budgets have been saved yet.";
+    budgetSnapshotList.appendChild(empty);
+    return;
+  }
+
+  snapshots.forEach(snapshot => {
+    const card = document.createElement("article");
+    card.className = `budget-snapshot-card${snapshot.covered ? "" : " is-negative"}`;
+    card.innerHTML = `
+      <div class="budget-snapshot-card-header">
+        <strong>${escapeHtml(snapshot.month)}</strong>
+        <span>${snapshot.covered ? "Covered" : `Short ${escapeHtml(formatCurrency(snapshot.fundingGap))}`}</span>
+      </div>
+      <div class="budget-snapshot-grid">
+        <span>MBF: ${escapeHtml(formatCurrency(snapshot.monthlyBudgetFund))}</span>
+        <span>Total: ${escapeHtml(formatCurrency(snapshot.totalBills))}</span>
+        <span>Paid: ${escapeHtml(formatCurrency(snapshot.paidBills))}</span>
+        <span>Remaining: ${escapeHtml(formatCurrency(snapshot.remainingBills))}</span>
+        <span>Cash flow: ${escapeHtml(formatSignedCurrency(snapshot.cashFlow))}</span>
+        <span>Past due: ${escapeHtml(String(snapshot.pastDueCount))}</span>
+      </div>
+      <p>Saved ${escapeHtml(formatDateTime(snapshot.savedAt))}${snapshot.updatedAt && snapshot.updatedAt !== snapshot.savedAt ? ` | Updated ${escapeHtml(formatDateTime(snapshot.updatedAt))}` : ""}</p>
+    `;
+    budgetSnapshotList.appendChild(card);
+  });
 }
 
 function isBillPastDue(bill) {
@@ -3118,6 +3464,23 @@ function deleteBill(id) {
     percent: 0
   });
   state.bills = state.bills.filter(item => item.id !== id);
+  syncCurrentBudgetMonth();
+  saveState();
+  renderBills();
+}
+
+function saveBudgetSnapshot() {
+  if (!ensureCurrentUser("save a monthly budget")) return;
+  syncCurrentBudgetMonth();
+  const snapshotData = currentBudgetSnapshot();
+  recordHistoryEntry({
+    itemType: "bill",
+    itemId: snapshotData.month,
+    title: historyTitleFor("bill", `Budget snapshot ${snapshotData.month}`),
+    summary: `Monthly budget saved for ${snapshotData.month}${snapshotData.covered ? "" : ` with funding gap ${formatCurrency(snapshotData.fundingGap)}`}`,
+    status: snapshotData.covered ? "Covered" : "Short",
+    percent: snapshotData.covered ? 100 : 0
+  });
   saveState();
   renderBills();
 }
@@ -6046,9 +6409,29 @@ toggleOverviewBtn.addEventListener("click", () => {
   renderPanelVisibility();
 });
 billMonthInput.addEventListener("change", () => {
-  state.billMonth = billMonthInput.value || defaultBillMonth();
+  syncCurrentBudgetMonth();
+  loadBudgetMonth(billMonthInput.value || defaultBillMonth());
   saveState();
+  renderBills();
 });
+if (billMBFInput) {
+  billMBFInput.addEventListener("input", () => {
+    state.monthlyBudgetFund = normalizeMoney(billMBFInput.value);
+    syncCurrentBudgetMonth();
+    saveState();
+    updateBillTotals();
+  });
+  billMBFInput.addEventListener("change", () => {
+    state.monthlyBudgetFund = normalizeMoney(billMBFInput.value);
+    syncCurrentBudgetMonth();
+    saveState();
+    renderBills();
+  });
+}
+const saveBudgetSnapshotBtn = document.querySelector("#saveBudgetSnapshotBtn");
+if (saveBudgetSnapshotBtn) {
+  saveBudgetSnapshotBtn.addEventListener("click", saveBudgetSnapshot);
+}
 document.querySelector("#addBillBtn").addEventListener("click", () => {
   if (!ensureCurrentUser("add a bill")) return;
   const newBill = {
@@ -6060,6 +6443,7 @@ document.querySelector("#addBillBtn").addEventListener("click", () => {
     notes: ""
   };
   state.bills.push(newBill);
+  syncCurrentBudgetMonth();
   recordHistoryEntry({
     itemType: "bill",
     itemId: newBill.id,
@@ -6081,6 +6465,13 @@ hideBillsBtn.addEventListener("click", () => {
   saveState();
   renderPanelVisibility();
 });
+if (toggleBudgetSnapshotsBtn) {
+  toggleBudgetSnapshotsBtn.addEventListener("click", () => {
+    state.hiddenPanels.budgetSnapshots = !state.hiddenPanels.budgetSnapshots;
+    saveState();
+    renderPanelVisibility();
+  });
+}
 document.querySelector("#addLifeAdminNoteBtn").addEventListener("click", () => {
   if (!ensureCurrentUser("add a Patrick to-do note")) return;
   const newNote = {
@@ -6244,6 +6635,9 @@ document.querySelector("#importInput").addEventListener("change", event => {
         hiddenPanels: imported.hiddenPanels,
         collapsedTaskGroups: imported.collapsedTaskGroups,
         billMonth: imported.billMonth,
+        monthlyBudgetFund: imported.monthlyBudgetFund,
+        monthlyBudgets: imported.monthlyBudgets,
+        budgetSnapshots: imported.budgetSnapshots,
         bills: imported.bills,
         lifeAdminNotes: imported.lifeAdminNotes,
         documents: imported.documents,

@@ -483,7 +483,7 @@ textarea {
 
 .budget-panel header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 180px;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 16px;
   align-items: start;
 }
@@ -523,7 +523,7 @@ textarea {
 
 .budget-metrics {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 10px;
 }
 
@@ -531,6 +531,16 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 12px;
+}
+
+.budget-metrics article.is-negative {
+  border-color: #c94b4b;
+  background: #fff1f1;
+}
+
+.budget-metrics article.is-positive {
+  border-color: #6cb48b;
+  background: #f1fbf5;
 }
 
 .budget-metrics strong {
@@ -543,48 +553,173 @@ textarea {
   font-size: .86rem;
 }
 
-.bill-table-wrap {
-  overflow-x: auto;
+.budget-alert {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid #c94b4b;
+  border-radius: 8px;
+  background: #fff1f1;
+  color: #8f2424;
+  font-weight: 700;
 }
 
-.bill-table {
-  width: 100%;
-  min-width: 900px;
-  border-collapse: collapse;
+.budget-bill-group {
+  display: grid;
+  gap: 8px;
 }
 
-.bill-table th {
-  text-align: left;
+.budget-bill-list-header {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.1fr) minmax(220px, 1fr) 150px minmax(240px, 1.15fr) 88px;
+  gap: 8px;
+  padding: 0 10px;
   color: var(--muted);
-  font-size: .78rem;
+  font-size: .76rem;
+  font-weight: 700;
   text-transform: uppercase;
-  padding: 0 8px 8px;
+  letter-spacing: .04em;
 }
 
-.bill-table td {
-  border-top: 1px solid var(--line);
-  padding: 8px;
-  vertical-align: middle;
+.budget-bill-list {
+  max-height: 560px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  display: grid;
+  gap: 6px;
+  padding: 6px;
+  padding-right: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f5f8fd;
 }
 
-.bill-table td:nth-child(1) {
-  width: 22%;
+.budget-bill-item {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.1fr) minmax(220px, 1fr) 150px minmax(240px, 1.15fr) 88px;
+  gap: 8px;
+  align-items: start;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
 }
 
-.bill-table td:nth-child(2) {
-  width: 120px;
+.budget-bill-item.is-past-due {
+  border-color: #d97706;
+  background: #fff8eb;
 }
 
-.bill-table td:nth-child(3) {
-  width: 165px;
+.budget-bill-item.is-paid {
+  background: #f4fbf7;
 }
 
-.bill-table td:nth-child(4) {
-  width: 150px;
+.budget-bill-field {
+  display: grid;
+  gap: 4px;
 }
 
-.bill-table td:last-child {
-  width: 48px;
+.budget-bill-field > span {
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.budget-bill-item .budget-bill-field > span {
+  display: none;
+}
+
+.budget-bill-amount-due {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) minmax(120px, 1fr);
+  gap: 8px;
+}
+
+.budget-bill-notes-box textarea {
+  min-height: 54px;
+  height: 54px;
+  resize: vertical;
+}
+
+.budget-bill-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  height: 100%;
+}
+
+.budget-bill-actions button {
+  padding: 8px 10px;
+  font-size: .82rem;
+}
+
+.budget-snapshots {
+  display: grid;
+  gap: 10px;
+}
+
+.budget-snapshots-header h3 {
+  margin: 0 0 4px;
+}
+
+.budget-snapshots-header p {
+  margin: 0;
+}
+
+.budget-snapshots-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.budget-snapshot-list {
+  max-height: 260px;
+  overflow-y: auto;
+  display: grid;
+  gap: 8px;
+  padding-right: 4px;
+}
+
+.budget-snapshot-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fbfcfe;
+}
+
+.budget-snapshot-card.is-negative {
+  border-color: #c94b4b;
+  background: #fff5f5;
+}
+
+.budget-snapshot-card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.budget-snapshot-card-header strong {
+  font-size: 1rem;
+}
+
+.budget-snapshot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 6px 10px;
+  color: var(--muted);
+  font-size: .88rem;
+  margin-bottom: 8px;
+}
+
+.budget-snapshot-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: .82rem;
 }
 
 .life-admin-panel {
@@ -2052,6 +2187,15 @@ dialog::backdrop {
   .daily-project-item-top,
   .life-admin-item,
   .notes-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .budget-bill-list-header {
+    display: none;
+  }
+
+  .budget-bill-item,
+  .budget-bill-amount-due {
     grid-template-columns: 1fr;
   }
 
