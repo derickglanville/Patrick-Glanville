@@ -22,10 +22,11 @@
             <option value="">Select client...</option>
             <option value="patrick">Patrick Glanville</option>
             <option value="theodore">Derick Glanville</option>
+            <option value="admin">Admin</option>
           </select>
         </label>
         <label for="topClientPin" id="topClientPinWrapInline" hidden>Access code
-          <input id="topClientPin" type="password" inputmode="numeric" autocomplete="off" placeholder="Derick access code" hidden>
+          <input id="topClientPin" type="password" inputmode="numeric" autocomplete="off" placeholder="Client access code" hidden>
         </label>
       </div>
     <div class="current-user-panel">
@@ -203,12 +204,20 @@
           <p>Track every bill for the month, compare it against the Monthly Budget Fund, and save each month for later review.</p>
         </div>
         <div class="panel-actions">
+          <div id="upcomingBillsBanner" class="budget-upcoming-banner" hidden></div>
           <label for="billMBF">Monthly Budget Fund (MBF)
             <input id="billMBF" type="number" min="0" step="0.01">
           </label>
-          <label for="billMonth">Month
-            <input id="billMonth" type="month">
-          </label>
+          <div class="bill-month-nav">
+            <button id="billPrevMonthBtn" type="button" class="ghost" aria-label="Previous month">Prev</button>
+            <label for="billMonth">Month
+              <input id="billMonth" type="month">
+            </label>
+            <button id="billNextMonthBtn" type="button" class="ghost" aria-label="Next month">Next</button>
+          </div>
+          <button id="copyBillsToNextMonthBtn" type="button" class="ghost">Copy To Next Month</button>
+          <button id="undoCopyBillsToNextMonthBtn" type="button" class="ghost">Undo Next Month Copy</button>
+          <button id="toggleBillsPopoutBtn" type="button" class="ghost">Pop Out</button>
           <button id="saveBudgetSnapshotBtn" type="button">Save Month</button>
           <button id="hideBillsBtn" type="button" class="ghost">Hide</button>
         </div>
@@ -224,16 +233,44 @@
           <article><strong id="billPastDue">0</strong><span>Past due</span></article>
         </div>
         <p id="budgetAlert" class="budget-alert" hidden></p>
+        <div class="budget-group-toolbar" aria-label="Bill due-date groups">
+          <span class="budget-group-toolbar-label">Bill group</span>
+          <div class="segmented-toggle">
+            <button id="billGroupFullBtn" type="button" class="ghost">Full</button>
+            <button id="billGroupEarlyBtn" type="button" class="ghost">Early</button>
+            <button id="billGroupMidBtn" type="button" class="ghost">Mid</button>
+            <button id="billGroupLateBtn" type="button" class="ghost">Late</button>
+          </div>
+        </div>
         <div class="budget-bill-group" aria-label="Monthly bills list">
           <div class="budget-bill-list-header" aria-hidden="true">
-            <span>Bill</span>
-            <span>Amount / Due</span>
+            <span>Bill / APR</span>
+            <span>Current Bal</span>
+            <span>Credit Line</span>
+            <span>Amount</span>
+            <span>Paid Amt</span>
+            <span>Recommended</span>
+            <span>Tran #</span>
+            <span>Due</span>
+            <span>Date Paid</span>
             <span>Status</span>
             <span>Notes</span>
             <span>Actions</span>
           </div>
-          <div id="billList" class="budget-bill-list"></div>
+          <div id="billList" class="budget-bill-groups"></div>
         </div>
+        <section class="hidden-bills-panel" aria-label="Hidden monthly bills">
+          <div class="hidden-bills-header">
+            <div>
+              <h3>Hidden Bills</h3>
+              <p>Temporarily remove bills from the main view without changing totals.</p>
+            </div>
+            <button id="toggleHiddenBillsBtn" type="button" class="ghost">Show Hidden Bills</button>
+          </div>
+          <div id="hiddenBillsContent" hidden>
+            <div id="hiddenBillList" class="budget-bill-list hidden-bill-list"></div>
+          </div>
+        </section>
         <button id="addBillBtn" type="button">Add bill</button>
         <section class="budget-snapshots" aria-label="Saved monthly budgets">
           <div class="budget-snapshots-header">
@@ -475,15 +512,23 @@
       <div class="dialog-head">
         <h2>Change client</h2>
       </div>
-      <p id="clientGateMessage" class="account-gate-message">Choose which client dashboard to open. Derick's dashboard requires an access code.</p>
+      <p id="clientGateMessage" class="account-gate-message">Choose which client dashboard to open. Protected client dashboards require an access code.</p>
       <label for="clientGateSelect">Client
         <select id="clientGateSelect"></select>
       </label>
-      <label for="clientGatePin" id="clientGatePinWrap" hidden>Access code for Derick's dashboard
+      <label for="clientGatePin" id="clientGatePinWrap" hidden>Access code for protected dashboard
         <input id="clientGatePin" type="password" inputmode="numeric" autocomplete="off" placeholder="Enter access code">
       </label>
       <p id="clientGateError" class="account-gate-error" hidden></p>
     </form>
+  </dialog>
+
+  <dialog id="upcomingBillsDialog">
+    <div class="dialog-head">
+      <h2>Upcoming Bills In 7 Days</h2>
+      <button type="button" id="closeUpcomingBillsDialog" class="icon-button" aria-label="Close">x</button>
+    </div>
+    <div id="upcomingBillsDialogList" class="upcoming-bills-dialog-list"></div>
   </dialog>
 
   <script>

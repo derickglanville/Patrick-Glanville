@@ -12,4 +12,4 @@ if (-not (Test-Path -LiteralPath $Python311)) {
   throw "Missing Python interpreter: $Python311"
 }
 
-& $Python311 $SchedulerScript --run-now --report-kind medication
+& $Python311 $SchedulerScript --run-if-due --report-kind medication

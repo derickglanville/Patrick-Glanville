@@ -208,6 +208,10 @@ def filter_patrick_history_weekly(state, report_time):
     return sorted(entries, key=lambda item: item["_created_local"], reverse=True)
 
 
+def get_weekly_change_entries(state, report_time):
+    return filter_patrick_history_weekly(state, report_time)
+
+
 def get_urgent_tasks(state):
     tasks = [task for task in state.get("tasks", []) if task.get("priority") == "Urgent"]
     return sorted(tasks, key=compare_report_sort_key)
@@ -430,6 +434,15 @@ def get_medication_task(state):
     return None
 
 
+def get_medication_entries(state):
+    task = get_medication_task(state) or {}
+    return [
+        entry
+        for entry in task.get("medications", [])
+        if any(str(entry.get(key) or "").strip() for key in ("name", "dosage", "refillDate"))
+    ]
+
+
 def get_medication_refill_alert(entry, report_time):
     refill_date = str(entry.get("refillDate") or "").strip()
     if not refill_date:
@@ -452,15 +465,22 @@ def get_medication_refill_alert(entry, report_time):
     return None
 
 
-def build_medication_report_html(state, report_time):
-    task = get_medication_task(state) or {}
-    medications = [entry for entry in task.get("medications", []) if any(str(entry.get(key) or "").strip() for key in ("name", "dosage", "refillDate"))]
-    rows = []
-    active_alerts = []
-    for entry in medications:
+def get_active_medication_alerts(state, report_time):
+    alerts = []
+    for entry in get_medication_entries(state):
         alert = get_medication_refill_alert(entry, report_time)
         if alert:
-            active_alerts.append((entry, alert))
+            alerts.append((entry, alert))
+    return alerts
+
+
+def build_medication_report_html(state, report_time):
+    medications = get_medication_entries(state)
+    rows = []
+    active_alerts = get_active_medication_alerts(state, report_time)
+    active_alert_map = {id(entry): alert for entry, alert in active_alerts}
+    for entry in medications:
+        alert = active_alert_map.get(id(entry))
         background = "#ffffff"
         if alert:
             background = "#ffe2e0" if alert["level"] == "red" else "#fff7bf"
@@ -509,7 +529,7 @@ def build_medication_report_html(state, report_time):
       <p>Generated {html.escape(format_dt(report_time))} | Weekly send schedule: Mondays at 9:30 AM</p>
     </header>
     <section class="content">
-      <p class="notice"><strong>Medication status:</strong> This weekly report is sent whenever the Monday batch runs and includes any active refill alerts plus the current medication list.</p>
+      <p class="notice"><strong>Medication status:</strong> This weekly report is only emailed when at least one active refill alert exists and includes the current medication list for context.</p>
       <div class="metrics">
         {metric_html(len(active_alerts), "active alerts")}
         {metric_html(len(medications), "medications listed")}
@@ -546,12 +566,18 @@ def get_priority_todo_task(state):
     return None
 
 
-def build_open_todo_report_html(state, report_time):
+def get_open_todo_items(state):
     task = get_priority_todo_task(state) or {}
     todo_items = task.get("todoItems", []) if isinstance(task.get("todoItems"), list) else []
     open_items = [item for item in todo_items if not is_closed_task_status(item.get("status"))]
+    return sorted(open_items, key=lambda item: ((item.get("createdAt") or ""), str(item.get("title") or "").lower()))
+
+
+def build_open_todo_report_html(state, report_time):
+    task = get_priority_todo_task(state) or {}
+    todo_items = task.get("todoItems", []) if isinstance(task.get("todoItems"), list) else []
+    open_items = get_open_todo_items(state)
     closed_items = [item for item in todo_items if is_closed_task_status(item.get("status"))]
-    open_items = sorted(open_items, key=lambda item: ((item.get("createdAt") or ""), str(item.get("title") or "").lower()))
     owner_label = task.get("owner") or "Patrick + Deric"
     card_status = task.get("status") or "N/A"
     latest_update = max(
@@ -670,6 +696,38 @@ def generate_report_files(report_time, kinds):
     return generated
 
 
+def report_should_send(kind, state, report_time):
+    if kind == "urgency":
+        return bool(get_urgent_tasks(state))
+    if kind == "change":
+        return bool(get_weekly_change_entries(state, report_time))
+    if kind == "medication":
+        return bool(get_active_medication_alerts(state, report_time))
+    if kind == "todo":
+        return bool(get_open_todo_items(state))
+    return True
+
+
+def evaluate_report_triggers(state, report_time, kinds):
+    triggered = []
+    skipped = []
+    for kind in kinds:
+        if report_should_send(kind, state, report_time):
+            triggered.append(kind)
+        else:
+            skipped.append(kind)
+    return triggered, skipped
+
+
+def check_report_triggers(kinds=None):
+    report_time = now_ny()
+    selected = kinds or list(REPORT_CONFIG.keys())
+    payload = load_patrick_payload()
+    state = payload["state"]
+    triggered_kinds, skipped_kinds = evaluate_report_triggers(state, report_time, selected)
+    return report_time, triggered_kinds, skipped_kinds
+
+
 def send_report(kind, report_path):
     subprocess.run(
         [
@@ -688,11 +746,26 @@ def send_report(kind, report_path):
 def run_weekly_reports(send_emails=True, kinds=None):
     report_time = now_ny()
     selected = kinds or list(REPORT_CONFIG.keys())
-    generated = generate_report_files(report_time, selected)
+    payload = load_patrick_payload()
+    state = payload["state"]
+    triggered_kinds, skipped_kinds = evaluate_report_triggers(state, report_time, selected)
+    target_kinds = triggered_kinds if send_emails else selected
+    generated = {}
+    if target_kinds:
+        generated = generate_report_files(report_time, target_kinds)
     if send_emails:
         for kind, report_path in generated.items():
             send_report(kind, report_path)
-    return generated
+    return generated, skipped_kinds
+
+
+def is_scheduled_send_time(current_time):
+    target_hour, target_minute = (int(part) for part in WEEKLY_REPORT_TIME.split(":", 1))
+    return (
+        current_time.weekday() == WEEKLY_REPORT_WEEKDAY
+        and current_time.hour == target_hour
+        and current_time.minute == target_minute
+    )
 
 
 def sleep_until_next_minute():
@@ -733,7 +806,13 @@ def scheduler_loop():
 def main():
     parser = argparse.ArgumentParser(description="Generate and send Patrick's weekly Firestore-backed reports.")
     parser.add_argument("--run-now", action="store_true", help="Generate and send the weekly report batch immediately.")
+    parser.add_argument(
+        "--run-if-due",
+        action="store_true",
+        help="Generate and send the weekly report batch only when the current New York time matches the Monday 9:30 AM schedule.",
+    )
     parser.add_argument("--generate-only", action="store_true", help="Generate the weekly report batch without emailing it.")
+    parser.add_argument("--check-only", action="store_true", help="Check which weekly reports are currently eligible to send without generating or emailing anything.")
     parser.add_argument(
         "--report-kind",
         choices=["all", *REPORT_CONFIG.keys()],
@@ -744,10 +823,36 @@ def main():
 
     kinds = list(REPORT_CONFIG.keys()) if args.report_kind == "all" else [args.report_kind]
 
-    if args.run_now or args.generate_only:
-        results = run_weekly_reports(send_emails=not args.generate_only, kinds=kinds)
+    if args.check_only:
+        report_time, triggered, skipped = check_report_triggers(kinds=kinds)
+        print(f"Checked at {report_time.isoformat()}")
+        for kind in triggered:
+            print(f"{kind}: ready")
+        for kind in skipped:
+            print(f"{kind}: skipped (trigger condition not met)")
+        return 0
+
+    if args.run_if_due:
+        current = now_ny()
+        if not is_scheduled_send_time(current):
+            print(
+                f"Not due. Current New York time is {current.isoformat()} and the weekly send window is Mondays at {WEEKLY_REPORT_TIME}."
+            )
+            return 0
+        results, skipped = run_weekly_reports(send_emails=True, kinds=kinds)
         for kind, report_path in results.items():
             print(f"{kind}: {report_path}")
+        for kind in skipped:
+            print(f"{kind}: skipped (trigger condition not met)")
+        return 0
+
+    if args.run_now or args.generate_only:
+        results, skipped = run_weekly_reports(send_emails=not args.generate_only, kinds=kinds)
+        for kind, report_path in results.items():
+            print(f"{kind}: {report_path}")
+        if not args.generate_only:
+            for kind in skipped:
+                print(f"{kind}: skipped (trigger condition not met)")
         return 0
 
     return scheduler_loop()

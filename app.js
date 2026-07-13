@@ -1,11 +1,14 @@
 const PATRICK_STORAGE_KEY = "patrick-glanville-support-tracker-v1";
 const THEODORE_STORAGE_KEY = "theodore-glanville-support-tracker-v1";
+const ADMIN_STORAGE_KEY = "admin-glanville-support-tracker-v1";
 const PATRICK_WATCH_STORAGE_KEY = "patrick-glanville-patrick-watch-v1";
 const THEODORE_WATCH_STORAGE_KEY = "theodore-glanville-client-watch-v1";
+const ADMIN_WATCH_STORAGE_KEY = "admin-glanville-client-watch-v1";
 const PATRICK_TASK_VIEW_KEY = "patrick-glanville-task-view-v1";
 const THEODORE_TASK_VIEW_KEY = "theodore-glanville-task-view-v1";
-const DATA_VERSION = 2026071001;
-const PANEL_VISIBILITY_VERSION = 2026071003;
+const ADMIN_TASK_VIEW_KEY = "admin-glanville-task-view-v1";
+const DATA_VERSION = 2026071301;
+const PANEL_VISIBILITY_VERSION = 2026071302;
 const TASK_GROUP_COLLAPSE_VERSION = 2026070101;
 const BUILD_INFO = {
   commit: "working-tree",
@@ -17,15 +20,18 @@ const GITHUB_COMMIT_API = "https://api.github.com/repos/derickglanville/Patrick-
 const SUPABASE_TABLE = "tracker_state";
 const PATRICK_SUPABASE_STATE_ID = "patrick-glanville";
 const THEODORE_SUPABASE_STATE_ID = "theodore-glanville";
+const ADMIN_SUPABASE_STATE_ID = "admin-glanville";
 const SUPABASE_SAVE_DELAY_MS = 700;
 const PATRICK_REMOTE_UPDATED_AT_KEY = "patrick-glanville-remote-updated-at-v1";
 const THEODORE_REMOTE_UPDATED_AT_KEY = "theodore-glanville-remote-updated-at-v1";
+const ADMIN_REMOTE_UPDATED_AT_KEY = "admin-glanville-remote-updated-at-v1";
 const URGENCY_REPORT_HELPER_URL = "http://127.0.0.1:8767";
 const DERIC_EMAIL = "dglanville@gmail.com";
 const DERIC_PIN = "3141";
 const CLIENT_ACCESS_PIN = "3141";
 const PATRICK_EMAIL = "patrick.glanville@gmail.com";
 const THEODORE_EMAIL = "theodore.glanville@gmail.com";
+const ADMIN_EMAIL = DERIC_EMAIL;
 const EMAIL_REPORT_RECIPIENTS = [
   DERIC_EMAIL,
   PATRICK_EMAIL
@@ -73,6 +79,28 @@ const clientConfigs = {
       { label: "Training priority", value: "Stay current", detail: "Resume paying for physical training sessions on a consistent schedule" },
       { label: "Primary risk", value: "Income instability", detail: "Keep job applications and follow-ups moving until steady pay begins" },
       { label: "Support needs", value: "Daily structure", detail: "Track check-ins, next actions, and completed items each day" }
+    ]
+  },
+  admin: {
+    id: "admin",
+    shortName: "Admin",
+    fullName: "Admin",
+    title: "Admin Issue Tracker",
+    browserTitle: "Admin Support Tracker",
+    lede: "An administrative dashboard for managing monthly bills, follow-through, and shared household financial actions.",
+    storageKey: ADMIN_STORAGE_KEY,
+    watchKey: ADMIN_WATCH_STORAGE_KEY,
+    taskViewKey: ADMIN_TASK_VIEW_KEY,
+    supabaseStateId: ADMIN_SUPABASE_STATE_ID,
+    remoteUpdatedAtKey: ADMIN_REMOTE_UPDATED_AT_KEY,
+    requiresAccessPin: true,
+    supportsReports: false,
+    supportsLifeAdmin: false,
+    overviewCards: [
+      { label: "Monthly Budget Fund", value: "$5,000", detail: "Track whether the monthly fund covers all listed obligations" },
+      { label: "Primary action", value: "Pay monthly bills", detail: "Keep due dates, paid dates, and balances organized in one place" },
+      { label: "Primary risk", value: "Coverage gap", detail: "Watch for months where MBF does not cover total bill amounts" },
+      { label: "Support needs", value: "Admin discipline", detail: "Maintain current paid status, due dates, and notes for every account" }
     ]
   }
 };
@@ -324,6 +352,77 @@ function buildTodoItem(title) {
     closedAt: "",
     notes: ""
   };
+}
+
+function normalizeCurrencyCell(value) {
+  if (value === null || value === undefined) return 0;
+  const cleaned = String(value).replace(/[$,\s]/g, "").trim();
+  if (!cleaned || cleaned.toUpperCase() === "N/A") return 0;
+  const number = Number(cleaned);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function normalizeSpreadsheetDate(value) {
+  const text = String(value || "").trim();
+  if (!text || text.toUpperCase() === "N/A" || text === "1/0/1900") return "";
+  const parts = text.split("/");
+  if (parts.length !== 3) return "";
+  const [monthText, dayText, yearText] = parts;
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const year = Number(yearText);
+  if (!Number.isFinite(month) || !Number.isFinite(day) || !Number.isFinite(year)) return "";
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function buildAdminBillFromTable(row) {
+  const due = normalizeSpreadsheetDate(row.due);
+  const paidDate = normalizeSpreadsheetDate(row.paidDate);
+  const amount = normalizeCurrencyCell(row.paidAmount);
+
+  return {
+    id: crypto.randomUUID(),
+    name: row.name,
+    amount,
+    due,
+    status: paidDate ? "Paid" : "Unpaid",
+    notes: "",
+    apr: row.apr && row.apr !== "N/A" ? String(row.apr) : "",
+    currentBalance: normalizeCurrencyCell(row.currentBalance),
+    creditLimit: normalizeCurrencyCell(row.creditLimit),
+    paidAmount: normalizeCurrencyCell(row.paidAmount),
+    transactionNumber: row.transactionNumber && row.transactionNumber !== "N/A" ? String(row.transactionNumber) : "",
+    paidDate,
+    statusTracksPaidDate: true
+  };
+}
+
+function buildAdminSeedBills() {
+  return [
+    { name: "Yorktown Taxes and Insurance", apr: "N/A", currentBalance: "$0.00", creditLimit: "$0.00", paidAmount: "N/A", transactionNumber: "N/A", due: "7/15/2026", paidDate: "N/A" },
+    { name: "Green Sky", apr: "10%", currentBalance: "$38,040.00", creditLimit: "$49,000.00", paidAmount: "$0.00", transactionNumber: "7/1/2026", due: "7/1/2026", paidDate: "7/1/2026" },
+    { name: "YouTube TV", apr: "N/A", currentBalance: "$0.00", creditLimit: "$0.00", paidAmount: "$72.99", transactionNumber: "7/1/2026", due: "6/1/2026", paidDate: "1/0/1900" },
+    { name: "FIOS Internet", apr: "N/A", currentBalance: "$0.00", creditLimit: "$0.00", paidAmount: "$95.00", transactionNumber: "7/1/2026", due: "6/1/2026", paidDate: "7/1/2026" },
+    { name: "Verizon Cellphone", apr: "N/A", currentBalance: "$0.00", creditLimit: "$0.00", paidAmount: "$136.00", transactionNumber: "7/1/2026", due: "6/1/2026", paidDate: "7/1/2026" },
+    { name: "BJ's Club", apr: "30%", currentBalance: "$420.00", creditLimit: "$3,300.00", paidAmount: "$80.00", transactionNumber: "", due: "7/2/2026", paidDate: "7/2/2026" },
+    { name: "Citi Simplicity", apr: "25.99", currentBalance: "$4,300.00", creditLimit: "$6,700.00", paidAmount: "$120.00", transactionNumber: "4504", due: "7/2/2026", paidDate: "7/2/2026" },
+    { name: "Bank of America", apr: "22.24", currentBalance: "$7,626.77", creditLimit: "$17,000.00", paidAmount: "$220.00", transactionNumber: "b142qh3bcb", due: "7/2/2026", paidDate: "7/2/2026" },
+    { name: "Lowe's", apr: "26.99", currentBalance: "$4,561.65", creditLimit: "$8,474.00", paidAmount: "$180.00", transactionNumber: "3428268456", due: "7/2/2026", paidDate: "7/2/2026" },
+    { name: "Third Federal", apr: "5.5", currentBalance: "$60,999.00", creditLimit: "$75,000.00", paidAmount: "$0.00", transactionNumber: "", due: "7/6/2026", paidDate: "" },
+    { name: "American Express", apr: "27.24", currentBalance: "$9,270.00", creditLimit: "$15,000.00", paidAmount: "$300.00", transactionNumber: ";W4732.", due: "7/6/2026", paidDate: "7/6/2026" },
+    { name: "Raymour Flanigan", apr: "29.99", currentBalance: "$0.00", creditLimit: "$7,000.00", paidAmount: "N/A", transactionNumber: "N/A", due: "N/A", paidDate: "N/A" },
+    { name: "Barclay View (Uber)", apr: "29.99", currentBalance: "$2,700.00", creditLimit: "$3,550.00", paidAmount: "$150.00", transactionNumber: "1432991600", due: "7/8/2026", paidDate: "7/8/2026" },
+    { name: "Amazon - Chase", apr: "27.29", currentBalance: "$5,897.16", creditLimit: "$8,000.00", paidAmount: "$200.00", transactionNumber: "9529078151", due: "7/11/2026", paidDate: "7/11/2026" },
+    { name: "Citi Bank - Money", apr: "25.24", currentBalance: "$2,800.00", creditLimit: "$5,370.00", paidAmount: "", transactionNumber: "", due: "7/16/2026", paidDate: "" },
+    { name: "Best Buy", apr: "29.99", currentBalance: "$2,800.00", creditLimit: "$5,600.00", paidAmount: "", transactionNumber: "", due: "7/16/2026", paidDate: "" },
+    { name: "Key Bank", apr: "20.24", currentBalance: "$3,600.00", creditLimit: "$6,700.00", paidAmount: "", transactionNumber: "", due: "7/18/2026", paidDate: "" },
+    { name: "Amex Centurion", apr: "27.24", currentBalance: "$3,080.00", creditLimit: "$3,000.00", paidAmount: "", transactionNumber: "", due: "7/18/2026", paidDate: "" },
+    { name: "Wells Fargo Credit", apr: "29.99", currentBalance: "$2,760.00", creditLimit: "$6,000.00", paidAmount: "", transactionNumber: "", due: "7/19/2026", paidDate: "" },
+    { name: "Citizen Bank", apr: "20.24", currentBalance: "$2,744.00", creditLimit: "$5,000.00", paidAmount: "", transactionNumber: "", due: "7/21/2026", paidDate: "" },
+    { name: "QuickSilver-CapOne", apr: "28.24", currentBalance: "$2,700.00", creditLimit: "$5,000.00", paidAmount: "", transactionNumber: "", due: "7/27/2026", paidDate: "" },
+    { name: "CareCredit", apr: "26.99", currentBalance: "$0.00", creditLimit: "$3,600.00", paidAmount: "", transactionNumber: "", due: "7/30/2026", paidDate: "" },
+    { name: "Apple Card", apr: "24.24", currentBalance: "$4,400.00", creditLimit: "$7,000.00", paidAmount: "", transactionNumber: "", due: "7/30/2026", paidDate: "" }
+  ].map(buildAdminBillFromTable);
 }
 
 const seedData = {
@@ -1025,9 +1124,56 @@ function buildTheoSeedData() {
   };
 }
 
+function buildAdminSeedData() {
+  return {
+    dataVersion: DATA_VERSION,
+    notes: "",
+    runningNotes: [],
+    documents: [],
+    history: [],
+    lastSavedAt: "",
+    currentUser: ADMIN_EMAIL,
+    hiddenPanels: {
+      overview: true,
+      patrickWatch: true,
+      bills: true,
+      budgetSnapshots: true,
+      lifeAdmin: true
+    },
+    collapsedTaskGroupsVersion: TASK_GROUP_COLLAPSE_VERSION,
+    collapsedTaskGroups: {},
+    panelVisibilityVersion: PANEL_VISIBILITY_VERSION,
+    billMonth: "",
+    monthlyBudgetFund: 5000,
+    budgetSnapshots: [],
+    bills: buildAdminSeedBills(),
+    lifeAdminNotes: [],
+    tasks: [
+      {
+        id: crypto.randomUUID(),
+        title: TOP_TODO_LIST_TITLE,
+        category: "Priority to-do list",
+        owner: "Admin + Deric",
+        status: "In progress",
+        priority: "Urgent",
+        due: "",
+        next: "Use this list for admin-level financial follow-through and bill management.",
+        notes: "Track the highest-priority monthly financial actions here and move completed items to the closed view.",
+        todoView: "active",
+        todoItems: [
+          "Pay monthly bills"
+        ].map(buildTodoItem),
+        tag: "New",
+        tagTone: "purple"
+      }
+    ]
+  };
+}
+
 const seedDataByClient = {
   patrick: seedData,
-  theodore: buildTheoSeedData()
+  theodore: buildTheoSeedData(),
+  admin: buildAdminSeedData()
 };
 
 Object.values(seedDataByClient).forEach(clientSeedData => {
@@ -1074,6 +1220,18 @@ function getSeedData() {
   return seedDataByClient[activeClientId] || buildUnselectedClientState();
 }
 
+function clientNeedsAccessPin(clientId) {
+  return Boolean(clientId && clientConfigs[clientId]?.requiresAccessPin);
+}
+
+function isClientAccessValidated(clientId) {
+  return !clientNeedsAccessPin(clientId) || validatedProtectedClientIds.has(clientId);
+}
+
+function clientAccessLabel(clientId) {
+  return clientConfigs[clientId]?.fullName || "this client";
+}
+
 function getStorageKey() {
   return currentClientConfig()?.storageKey || "";
 }
@@ -1100,6 +1258,10 @@ function getSeedTaskTitle(seedKey) {
 
 function isPatrickClient() {
   return currentClientConfig()?.id === "patrick";
+}
+
+function isAdminClient() {
+  return currentClientConfig()?.id === "admin";
 }
 
 let state = buildUnselectedClientState();
@@ -1161,6 +1323,10 @@ const patrickWatchPanel = document.querySelector("#patrickWatchPanel");
 const patrickChangeReport = document.querySelector("#patrickChangeReport");
 const billMonthInput = document.querySelector("#billMonth");
 const billMBFInput = document.querySelector("#billMBF");
+const billPrevMonthBtn = document.querySelector("#billPrevMonthBtn");
+const billNextMonthBtn = document.querySelector("#billNextMonthBtn");
+const copyBillsToNextMonthBtn = document.querySelector("#copyBillsToNextMonthBtn");
+const undoCopyBillsToNextMonthBtn = document.querySelector("#undoCopyBillsToNextMonthBtn");
 const billMBFDisplay = document.querySelector("#billMBFDisplay");
 const billList = document.querySelector("#billList");
 const billTotal = document.querySelector("#billTotal");
@@ -1170,6 +1336,17 @@ const billCashFlow = document.querySelector("#billCashFlow");
 const billCoverage = document.querySelector("#billCoverage");
 const billPastDue = document.querySelector("#billPastDue");
 const budgetAlert = document.querySelector("#budgetAlert");
+const upcomingBillsBanner = document.querySelector("#upcomingBillsBanner");
+const billGroupFullBtn = document.querySelector("#billGroupFullBtn");
+const billGroupEarlyBtn = document.querySelector("#billGroupEarlyBtn");
+const billGroupMidBtn = document.querySelector("#billGroupMidBtn");
+const billGroupLateBtn = document.querySelector("#billGroupLateBtn");
+const upcomingBillsDialog = document.querySelector("#upcomingBillsDialog");
+const upcomingBillsDialogList = document.querySelector("#upcomingBillsDialogList");
+const closeUpcomingBillsDialogBtn = document.querySelector("#closeUpcomingBillsDialog");
+const hiddenBillList = document.querySelector("#hiddenBillList");
+const hiddenBillsContent = document.querySelector("#hiddenBillsContent");
+const toggleHiddenBillsBtn = document.querySelector("#toggleHiddenBillsBtn");
 const budgetSnapshotList = document.querySelector("#budgetSnapshotList");
 const budgetSnapshotsContent = document.querySelector("#budgetSnapshotsContent");
 const lifeAdminNotes = document.querySelector("#lifeAdminNotes");
@@ -1187,6 +1364,7 @@ const toggleBillsBtn = document.querySelector("#toggleBillsBtn");
 const toggleLifeAdminBtn = document.querySelector("#toggleLifeAdminBtn");
 const toggleBudgetSnapshotsBtn = document.querySelector("#toggleBudgetSnapshotsBtn");
 const hideBillsBtn = document.querySelector("#hideBillsBtn");
+const toggleBillsPopoutBtn = document.querySelector("#toggleBillsPopoutBtn");
 const hideLifeAdminBtn = document.querySelector("#hideLifeAdminBtn");
 const pdfUploadInput = document.querySelector("#pdfUploadInput");
 const viewDocumentsBtn = document.querySelector("#viewDocumentsBtn");
@@ -1205,9 +1383,10 @@ const patrickViewOpenBtn = document.querySelector("#patrickViewOpenBtn");
 const patrickViewClosedBtn = document.querySelector("#patrickViewClosedBtn");
 const patrickViewAllBtn = document.querySelector("#patrickViewAllBtn");
 let dericPinValidatedForSession = false;
-let theodoreClientValidatedForSession = false;
+const validatedProtectedClientIds = new Set();
 let taskViewMode = loadTaskViewMode();
 let activeMedicationTaskId = "";
+let forceCurrentBillMonthOnNextRemoteApply = false;
 
 const fields = {
   id: document.querySelector("#taskId"),
@@ -1307,6 +1486,10 @@ function initializeState(loaded) {
     : (activeClientId ? PATRICK_EMAIL : "");
   loaded.history = Array.isArray(loaded.history) ? loaded.history : [];
   loaded.lastSavedAt = loaded.lastSavedAt || new Date().toISOString();
+  const preNormalizedBudgetSnapshot = JSON.stringify({
+    bills: loaded.bills,
+    monthlyBudgets: loaded.monthlyBudgets
+  });
   loaded.runningNotes = normalizeRunningNotes(loaded.runningNotes, loaded.notes);
   loaded.documents = normalizeDocuments(loaded.documents);
   if (loaded.panelVisibilityVersion !== PANEL_VISIBILITY_VERSION) {
@@ -1335,15 +1518,21 @@ function initializeState(loaded) {
     loaded.collapsedTaskGroups[groupName] = false;
   });
   loaded.billMonth = loaded.billMonth || defaultBillMonth();
+  loaded.billGroupView = ["full", "early", "mid", "late"].includes(loaded.billGroupView)
+    ? loaded.billGroupView
+    : defaultBillGroupView(loaded.billMonth);
   loaded.monthlyBudgetFund = normalizeMoney(loaded.monthlyBudgetFund ?? seedData.monthlyBudgetFund ?? 0);
   loaded.monthlyBudgets = normalizeMonthlyBudgetsMap(loaded.monthlyBudgets, seedData);
+  const hasStoredMonthlyBudgets = Object.keys(loaded.monthlyBudgets).length > 0;
   const legacyBills = Array.isArray(loaded.bills) ? loaded.bills.map(normalizeBill) : structuredClone(seedData.bills).map(normalizeBill);
   if (!loaded.monthlyBudgets[loaded.billMonth]) {
-    loaded.monthlyBudgets[loaded.billMonth] = normalizeMonthlyBudgetEntry({
-      month: loaded.billMonth,
-      monthlyBudgetFund: loaded.monthlyBudgetFund,
-      bills: legacyBills
-    }, loaded.billMonth, seedData);
+    loaded.monthlyBudgets[loaded.billMonth] = hasStoredMonthlyBudgets
+      ? buildDefaultMonthlyBudget(loaded.billMonth, seedData)
+      : normalizeMonthlyBudgetEntry({
+          month: loaded.billMonth,
+          monthlyBudgetFund: loaded.monthlyBudgetFund,
+          bills: legacyBills
+        }, loaded.billMonth, seedData);
   }
   const activeMonthlyBudget = loaded.monthlyBudgets[loaded.billMonth] || buildDefaultMonthlyBudget(loaded.billMonth, seedData);
   loaded.monthlyBudgetFund = activeMonthlyBudget.monthlyBudgetFund;
@@ -1351,6 +1540,10 @@ function initializeState(loaded) {
     ? loaded.budgetSnapshots.map(normalizeBudgetSnapshot).filter(Boolean)
     : structuredClone(seedData.budgetSnapshots || []).map(normalizeBudgetSnapshot).filter(Boolean);
   loaded.bills = activeMonthlyBudget.bills.map(normalizeBill);
+  stateAdjusted = JSON.stringify({
+    bills: loaded.bills,
+    monthlyBudgets: loaded.monthlyBudgets
+  }) !== preNormalizedBudgetSnapshot || stateAdjusted;
   loaded.lifeAdminNotes = Array.isArray(loaded.lifeAdminNotes)
     ? loaded.lifeAdminNotes.map(normalizeLifeAdminNote)
     : structuredClone(seedData.lifeAdminNotes).map(normalizeLifeAdminNote);
@@ -1375,14 +1568,162 @@ function defaultBillMonth() {
   return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
 }
 
+function defaultBillGroupView(month = defaultBillMonth()) {
+  if (month !== defaultBillMonth()) return "full";
+  const day = new Date().getDate();
+  if (day <= 10) return "early";
+  if (day <= 20) return "mid";
+  return "late";
+}
+
+function getBillDueGroup(bill) {
+  const due = String(bill?.due || "").trim();
+  if (!due) return "late";
+  const parts = due.split("-");
+  if (parts.length !== 3) return "late";
+  const day = Number(parts[2]);
+  if (!Number.isFinite(day)) return "late";
+  if (day <= 10) return "early";
+  if (day <= 20) return "mid";
+  return "late";
+}
+
+function getBillGroupMeta(groupKey) {
+  if (groupKey === "full") {
+    return { key: "full", label: "Full bill view", range: "All monthly bills" };
+  }
+  if (groupKey === "mid") {
+    return { key: "mid", label: "Mid month bills", range: "Due on days 11-20" };
+  }
+  if (groupKey === "late") {
+    return { key: "late", label: "Late month bills", range: "Due on days 21-31 or without a due date" };
+  }
+  return { key: "early", label: "Early month bills", range: "Due on days 1-10" };
+}
+
+function setBillGroupView(groupKey) {
+  if (!["full", "early", "mid", "late"].includes(groupKey)) return;
+  state.billGroupView = groupKey;
+  saveState();
+  renderBills();
+}
+
+function shiftMonthString(month, offset) {
+  const [yearText, monthText] = String(month || defaultBillMonth()).split("-");
+  const year = Number(yearText);
+  const monthNumber = Number(monthText);
+  if (!Number.isFinite(year) || !Number.isFinite(monthNumber)) return defaultBillMonth();
+  const shifted = new Date(year, monthNumber - 1 + offset, 1);
+  return `${shifted.getFullYear()}-${String(shifted.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function formatBudgetMonthLabel(month) {
+  const [yearText, monthText] = String(month || "").split("-");
+  const year = Number(yearText);
+  const monthNumber = Number(monthText);
+  if (!Number.isFinite(year) || !Number.isFinite(monthNumber)) return String(month || "");
+  return new Date(year, monthNumber - 1, 1).toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric"
+  });
+}
+
+function normalizeBillDateLike(value) {
+  const text = String(value || "").trim();
+  if (!text || text.toUpperCase() === "N/A") return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+  return normalizeSpreadsheetDate(text);
+}
+
+function extractLegacyBillMetadata(notes = "") {
+  const sourceText = String(notes || "").trim();
+  if (!sourceText) {
+    return {
+      notes: "",
+      apr: "",
+      currentBalance: null,
+      creditLimit: null,
+      transactionNumber: "",
+      paidDate: ""
+    };
+  }
+
+  const metadata = {
+    apr: "",
+    currentBalance: null,
+    creditLimit: null,
+    transactionNumber: "",
+    paidDate: ""
+  };
+
+  const pattern = /(APR|Current balance|Credit line|Tran #|Paid date):\s*([\s\S]*?)(?=(?:APR|Current balance|Credit line|Tran #|Paid date):|$)/gi;
+  let matched = false;
+  let cleaned = sourceText.replace(pattern, (_, label, rawValue) => {
+    matched = true;
+    const value = String(rawValue || "").trim().replace(/^[.\s]+|[.\s]+$/g, "");
+    switch (label.toLowerCase()) {
+      case "apr":
+        metadata.apr = value && value.toUpperCase() !== "N/A" ? value : "";
+        break;
+      case "current balance":
+        metadata.currentBalance = normalizeCurrencyCell(value);
+        break;
+      case "credit line":
+        metadata.creditLimit = normalizeCurrencyCell(value);
+        break;
+      case "tran #":
+        metadata.transactionNumber = value && value.toUpperCase() !== "N/A" ? value : "";
+        break;
+      case "paid date":
+        metadata.paidDate = normalizeBillDateLike(value);
+        break;
+      default:
+        break;
+    }
+    return " ";
+  });
+
+  cleaned = cleaned
+    .replace(/\s*[|]\s*/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\s*\.\s*/g, ". ")
+    .replace(/\s*,\s*/g, ", ")
+    .trim()
+    .replace(/^[,.;\s-]+|[,.;\s-]+$/g, "");
+
+  return {
+    notes: matched ? cleaned : sourceText,
+    ...metadata
+  };
+}
+
 function normalizeBill(bill) {
+  const legacyMetadata = extractLegacyBillMetadata(bill.notes || "");
+  const apr = String(legacyMetadata.apr || bill.apr || "").trim();
+  const transactionNumber = String(legacyMetadata.transactionNumber || bill.transactionNumber || "").trim();
+  const due = normalizeBillDateLike(bill.due || "");
+  const paidDate = normalizeBillDateLike(legacyMetadata.paidDate || bill.paidDate || "");
+  const statusTracksPaidDate = isAdminClient() ? true : Boolean(bill.statusTracksPaidDate);
+  const explicitStatus = billStatusOptions.includes(bill.status) ? bill.status : "Unpaid";
   return {
     id: bill.id || crypto.randomUUID(),
     name: bill.name || "",
     amount: normalizeMoney(bill.amount),
-    due: bill.due || "",
-    status: billStatusOptions.includes(bill.status) ? bill.status : "Unpaid",
-    notes: bill.notes || ""
+    due,
+    status: statusTracksPaidDate ? (paidDate ? "Paid" : "Unpaid") : explicitStatus,
+    notes: legacyMetadata.notes || "",
+    apr,
+    currentBalance: legacyMetadata.currentBalance !== null
+      ? normalizeMoney(legacyMetadata.currentBalance)
+      : normalizeMoney(bill.currentBalance),
+    creditLimit: legacyMetadata.creditLimit !== null
+      ? normalizeMoney(legacyMetadata.creditLimit)
+      : normalizeMoney(bill.creditLimit),
+    paidAmount: normalizeMoney(bill.paidAmount),
+    transactionNumber,
+    paidDate,
+    statusTracksPaidDate,
+    hidden: Boolean(bill.hidden)
   };
 }
 
@@ -1407,28 +1748,119 @@ function normalizeBudgetSnapshot(snapshot) {
 }
 
 const BUDGET_TRACKING_START_MONTH = "2026-07";
+const FUTURE_BILL_DEFAULT_AMOUNTS = {
+  "American Express": 180,
+  "Phone / internet": 35
+};
+const ADMIN_FUTURE_BILL_SCHEDULE = {
+  "2026-09": {
+    "Yorktown Taxes and Insurance": {
+      amount: 4275.12,
+      due: "2026-09-10"
+    }
+  },
+  "2026-12": {
+    "Yorktown Taxes and Insurance": {
+      amount: 3592.00,
+      due: "2026-12-14"
+    }
+  },
+  "2027-01": {
+    "Yorktown Taxes and Insurance": {
+      amount: 4275.12,
+      due: "2027-01-31"
+    }
+  },
+  "2027-04": {
+    "Yorktown Taxes and Insurance": {
+      amount: 5033.12,
+      due: "2027-04-30"
+    }
+  }
+};
 
 function isBeforeBudgetTrackingStart(month) {
   return String(month || "").trim() && String(month) < BUDGET_TRACKING_START_MONTH;
 }
 
-function buildBudgetBillTemplate(sourceBill = {}, zeroAmounts = false) {
+function isFutureBudgetMonth(month) {
+  const normalizedMonth = String(month || "").trim();
+  return normalizedMonth && normalizedMonth > defaultBillMonth();
+}
+
+function isFutureBudgetBillLockedToDefault(name = "") {
+  return Object.prototype.hasOwnProperty.call(FUTURE_BILL_DEFAULT_AMOUNTS, name);
+}
+
+function getFutureBudgetBillOverride(name = "", month = "") {
+  if (!isAdminClient()) return null;
+  const monthSchedule = ADMIN_FUTURE_BILL_SCHEDULE[String(month || "").trim()];
+  if (!monthSchedule) return null;
+  return monthSchedule[String(name || "").trim()] || null;
+}
+
+function buildBudgetBillTemplate(sourceBill = {}, options = {}) {
+  const { zeroAmounts = false, futureDefaults = false, month = "" } = options;
   const normalized = normalizeBill(sourceBill);
+  const scheduledOverride = futureDefaults ? getFutureBudgetBillOverride(normalized.name, month) : null;
+  const defaultAmount = futureDefaults
+    ? normalizeMoney(scheduledOverride?.amount ?? FUTURE_BILL_DEFAULT_AMOUNTS[normalized.name] ?? 0)
+    : normalized.amount;
+  const defaultDue = futureDefaults
+    ? (scheduledOverride?.due || "")
+    : normalized.due;
   return {
     ...normalized,
     id: normalized.id || crypto.randomUUID(),
-    amount: zeroAmounts ? 0 : normalized.amount,
-    due: zeroAmounts ? "" : normalized.due,
-    status: zeroAmounts ? "Unpaid" : normalized.status
+    amount: zeroAmounts ? 0 : defaultAmount,
+    due: zeroAmounts ? "" : defaultDue,
+    status: zeroAmounts ? "Unpaid" : normalized.status,
+    notes: futureDefaults ? "" : normalized.notes,
+    paidAmount: futureDefaults ? 0 : normalized.paidAmount,
+    paidDate: futureDefaults ? "" : normalized.paidDate,
+    transactionNumber: futureDefaults ? "" : normalized.transactionNumber
   };
 }
 
 function buildDefaultMonthlyBudget(month, seed = getSeedData()) {
   const zeroAmounts = isBeforeBudgetTrackingStart(month);
+  const futureDefaults = !zeroAmounts && isFutureBudgetMonth(month);
   return {
     month,
     monthlyBudgetFund: zeroAmounts ? 0 : normalizeMoney(seed.monthlyBudgetFund ?? 0),
-    bills: (seed.bills || []).map(bill => buildBudgetBillTemplate(bill, zeroAmounts))
+    bills: (seed.bills || []).map(bill => buildBudgetBillTemplate(bill, { zeroAmounts, futureDefaults, month }))
+  };
+}
+
+function sanitizeFutureMonthlyBudgetEntry(entry, seed = getSeedData()) {
+  if (!entry || !isFutureBudgetMonth(entry.month)) return entry;
+  if (entry.copiedForwardFrom) {
+    return {
+      ...entry,
+      monthlyBudgetFund: normalizeMoney(entry.monthlyBudgetFund),
+      bills: (entry.bills || []).map(bill => normalizeBill(bill))
+    };
+  }
+  const template = buildDefaultMonthlyBudget(entry.month, seed);
+  const templateByName = new Map(template.bills.map(bill => [bill.name, bill]));
+  return {
+    ...entry,
+    monthlyBudgetFund: template.monthlyBudgetFund,
+    bills: entry.bills.map(bill => {
+      const normalized = normalizeBill(bill);
+      const fallback = templateByName.get(normalized.name) || buildBudgetBillTemplate(normalized, { zeroAmounts: false, futureDefaults: true, month: entry.month });
+      const scheduledOverride = getFutureBudgetBillOverride(normalized.name, entry.month);
+      return {
+        ...normalized,
+        amount: scheduledOverride ? fallback.amount : (isFutureBudgetBillLockedToDefault(normalized.name) ? fallback.amount : 0),
+        due: scheduledOverride?.due || "",
+        status: "Unpaid",
+        notes: "",
+        paidAmount: 0,
+        paidDate: "",
+        transactionNumber: ""
+      };
+    })
   };
 }
 
@@ -1437,12 +1869,29 @@ function normalizeMonthlyBudgetEntry(entry, fallbackMonth = "", seed = getSeedDa
   if (!month) return null;
   const zeroAmounts = isBeforeBudgetTrackingStart(month);
   const fallback = buildDefaultMonthlyBudget(month, seed);
-  const incomingBills = Array.isArray(entry?.bills) ? entry.bills : fallback.bills;
-  return {
+  const incomingBills = Array.isArray(entry?.bills) && entry.bills.length
+    ? entry.bills
+    : fallback.bills;
+  const normalizedBills = incomingBills.map(bill => buildBudgetBillTemplate(bill, { zeroAmounts, month }));
+  const billsByName = new Map(normalizedBills.map(bill => [(bill.name || "").trim().toLowerCase(), bill]));
+  fallback.bills.forEach(seedBill => {
+    const normalizedName = (seedBill.name || "").trim().toLowerCase();
+    if (!normalizedName || billsByName.has(normalizedName)) return;
+    const mergedBill = buildBudgetBillTemplate(seedBill, {
+      zeroAmounts,
+      futureDefaults: isFutureBudgetMonth(month),
+      month
+    });
+    normalizedBills.push(mergedBill);
+    billsByName.set(normalizedName, mergedBill);
+  });
+  const normalizedEntry = {
     month,
     monthlyBudgetFund: zeroAmounts ? 0 : normalizeMoney(entry?.monthlyBudgetFund ?? fallback.monthlyBudgetFund),
-    bills: incomingBills.map(bill => buildBudgetBillTemplate(bill, zeroAmounts))
+    bills: normalizedBills,
+    copiedForwardFrom: entry?.copiedForwardFrom || ""
   };
+  return sanitizeFutureMonthlyBudgetEntry(normalizedEntry, seed);
 }
 
 function normalizeMonthlyBudgetsMap(monthlyBudgets, seed = getSeedData()) {
@@ -1547,6 +1996,94 @@ function currentMonthlyDueDate(dayOfMonth) {
   return `${today.getFullYear()}-${month}-${day}`;
 }
 
+function shiftDateByMonths(dateString, offset) {
+  const text = String(dateString || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return "";
+  const [yearText, monthText, dayText] = text.split("-");
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return "";
+  const shifted = new Date(year, month - 1 + offset, day);
+  if (shifted.getDate() !== day) {
+    shifted.setDate(0);
+  }
+  return `${shifted.getFullYear()}-${String(shifted.getMonth() + 1).padStart(2, "0")}-${String(shifted.getDate()).padStart(2, "0")}`;
+}
+
+function moveDateToTargetMonth(dateString, targetMonth) {
+  const text = normalizeBillDateLike(dateString);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return "";
+  const [targetYearText, targetMonthText] = String(targetMonth || "").split("-");
+  const targetYear = Number(targetYearText);
+  const targetMonthNumber = Number(targetMonthText);
+  const day = Number(text.split("-")[2]);
+  if (!Number.isFinite(targetYear) || !Number.isFinite(targetMonthNumber) || !Number.isFinite(day)) return "";
+  const targetDate = new Date(targetYear, targetMonthNumber - 1, day);
+  if (targetDate.getMonth() !== targetMonthNumber - 1) {
+    targetDate.setDate(0);
+  }
+  return `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, "0")}-${String(targetDate.getDate()).padStart(2, "0")}`;
+}
+
+function getBillsDueWithinDays(bills, daysAhead = 7) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const end = new Date(today);
+  end.setDate(end.getDate() + daysAhead);
+  return bills
+    .filter(bill => String(bill.due || "").trim())
+    .map(bill => {
+      const dueDate = new Date(`${bill.due}T00:00:00`);
+      return Number.isNaN(dueDate.getTime()) ? null : { bill, dueDate };
+    })
+    .filter(Boolean)
+    .filter(({ dueDate }) => dueDate >= today && dueDate <= end)
+    .sort((a, b) => a.dueDate - b.dueDate);
+}
+
+function renderUpcomingBillsBanner() {
+  if (!upcomingBillsBanner) return;
+  const dueSoon = getBillsDueWithinDays(state.bills, 7);
+  if (!dueSoon.length) {
+    upcomingBillsBanner.hidden = true;
+    upcomingBillsBanner.textContent = "";
+    upcomingBillsBanner.removeAttribute("role");
+    upcomingBillsBanner.removeAttribute("tabindex");
+    if (upcomingBillsDialogList) upcomingBillsDialogList.innerHTML = "";
+    return;
+  }
+
+  upcomingBillsBanner.textContent = `${dueSoon.length} bill${dueSoon.length === 1 ? "" : "s"} due within 7 days. Click to review.`;
+  upcomingBillsBanner.setAttribute("role", "button");
+  upcomingBillsBanner.setAttribute("tabindex", "0");
+  upcomingBillsBanner.hidden = false;
+
+  if (upcomingBillsDialogList) {
+    upcomingBillsDialogList.innerHTML = "";
+    dueSoon.forEach(({ bill, dueDate }) => {
+      const item = document.createElement("article");
+      item.className = "upcoming-bill-item";
+
+      const title = document.createElement("strong");
+      title.textContent = bill.name || "Untitled bill";
+
+      const meta = document.createElement("span");
+      meta.textContent = `${formatCurrency(bill.amount)} due ${bill.due}${bill.hidden ? " • hidden from main list" : ""}`;
+
+      item.append(title, meta);
+      upcomingBillsDialogList.appendChild(item);
+    });
+  }
+}
+
+function openUpcomingBillsDialog() {
+  renderUpcomingBillsBanner();
+  const dueSoon = getBillsDueWithinDays(state.bills, 7);
+  if (!dueSoon.length || !upcomingBillsDialog) return;
+  upcomingBillsDialog.showModal();
+}
+
 function ensureSeedBills(loaded) {
   const seedData = getSeedData();
   const existingNames = new Set((loaded.bills || []).map(bill => (bill.name || "").trim().toLowerCase()));
@@ -1580,6 +2117,86 @@ function formatCurrency(value) {
     style: "currency",
     currency: "USD"
   });
+}
+
+function formatApr(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  return text.includes("%") ? text : `${text}%`;
+}
+
+function formatCurrencyInputValue(value) {
+  return formatCurrency(normalizeCurrencyCell(value));
+}
+
+function calculateCreditRemainingPercent(bill) {
+  const limit = normalizeMoney(bill.creditLimit);
+  const balance = normalizeMoney(bill.currentBalance);
+  if (!limit) return null;
+  const remaining = Math.max(0, limit - balance);
+  return Math.max(0, Math.min(100, Math.round((remaining / limit) * 1000) / 10));
+}
+
+function formatPercentLabel(value) {
+  if (value === null || value === undefined || Number.isNaN(value)) return "N/A";
+  return `${Number(value).toFixed(1)}%`;
+}
+
+function parseAprNumber(value) {
+  const text = String(value || "").replace(/[^0-9.]+/g, "").trim();
+  const number = Number(text);
+  return Number.isFinite(number) ? Math.max(0, number) : 0;
+}
+
+function calculateRecommendedBillPayments(bills) {
+  const normalizedBills = Array.isArray(bills) ? bills : [];
+  const debtCandidates = normalizedBills
+    .map(bill => {
+      const balance = normalizeMoney(bill.currentBalance);
+      const creditLimit = normalizeMoney(bill.creditLimit);
+      const apr = parseAprNumber(bill.apr);
+      const scheduledAmount = normalizeMoney(bill.amount);
+      const targetBalance = creditLimit > 0 ? creditLimit * 0.25 : 0;
+      const reducibleBalance = Math.max(0, balance - targetBalance);
+      const payoffBalance = creditLimit > 0 ? reducibleBalance : balance;
+      return {
+        id: bill.id,
+        balance,
+        creditLimit,
+        apr,
+        scheduledAmount,
+        targetBalance,
+        payoffBalance,
+        monthlyInterest: balance * (apr / 100 / 12)
+      };
+    })
+    .filter(item => item.balance > 0 || item.scheduledAmount > 0);
+
+  const weightedTotal = debtCandidates.reduce((sum, item) => {
+    if (item.payoffBalance <= 0) return sum;
+    return sum + (item.payoffBalance * (1 + item.apr / 100));
+  }, 0);
+
+  const payoffPool = debtCandidates.reduce((sum, item) => sum + item.payoffBalance, 0) / 36;
+  const recommendations = new Map();
+
+  debtCandidates.forEach(item => {
+    let recommended = item.scheduledAmount;
+    if (item.balance > 0) {
+      const baseFloor = Math.max(item.scheduledAmount, item.monthlyInterest);
+      if (item.payoffBalance > 0 && weightedTotal > 0) {
+        const weightedShare = (item.payoffBalance * (1 + item.apr / 100)) / weightedTotal;
+        recommended = baseFloor + (payoffPool * weightedShare);
+      } else if (item.creditLimit > 0 && item.balance > item.targetBalance) {
+        recommended = baseFloor + (item.balance - item.targetBalance) / 36;
+      } else {
+        recommended = Math.max(baseFloor, item.balance / 36);
+      }
+    }
+    recommendations.set(item.id, normalizeMoney(recommended));
+  });
+
+  return recommendations;
 }
 
 function normalizeLifeAdminNote(note) {
@@ -2528,12 +3145,22 @@ function stopSharedStateSync() {
 function applyRemoteSharedState(remoteState, updatedAt = "") {
   const originalStateJson = JSON.stringify(remoteState);
   const normalizedState = structuredClone(remoteState);
+  const preferredBillMonth = forceCurrentBillMonthOnNextRemoteApply
+    ? defaultBillMonth()
+    : (state.billMonth || "");
+  if (forceCurrentBillMonthOnNextRemoteApply) {
+    normalizedState.billMonth = defaultBillMonth();
+  }
   applyDataMigrations(normalizedState);
   const normalizedStateJson = JSON.stringify(normalizedState);
   const selectedUserEmail = state.currentUser;
   applyingRemoteState = true;
   state = initializeState(normalizedState);
+  forceCurrentBillMonthOnNextRemoteApply = false;
   if (selectedUserEmail) state.currentUser = selectedUserEmail;
+  if (preferredBillMonth) {
+    loadBudgetMonth(preferredBillMonth, { syncSnapshot: false });
+  }
   cacheRemoteUpdatedAt(updatedAt || state.lastSavedAt || "");
   if (getStorageKey()) {
     localStorage.setItem(getStorageKey(), JSON.stringify(state));
@@ -2721,9 +3348,9 @@ function updateClientChrome() {
   if (topClientSwitchBtn) topClientSwitchBtn.hidden = true;
   if (topClientSelect) topClientSelect.value = client?.id || "";
   if (topClientPin) {
-    const needsTheoPin = !!(topClientSelect && topClientSelect.value === "theodore" && !theodoreClientValidatedForSession);
-    if (topClientPinWrapInline) topClientPinWrapInline.hidden = !needsTheoPin;
-    topClientPin.hidden = !needsTheoPin;
+    const needsPin = !!(topClientSelect && clientNeedsAccessPin(topClientSelect.value) && !isClientAccessValidated(topClientSelect.value));
+    if (topClientPinWrapInline) topClientPinWrapInline.hidden = !needsPin;
+    topClientPin.hidden = !needsPin;
     if (topClientPin.hidden) topClientPin.value = "";
   }
   if (userSelect) {
@@ -3235,38 +3862,80 @@ function setPanelCollapsed(panel, content, button, hidden, label) {
 }
 
 function renderBills() {
+  if (!["full", "early", "mid", "late"].includes(state.billGroupView)) {
+    state.billGroupView = defaultBillGroupView(state.billMonth);
+  }
   billMonthInput.value = state.billMonth || defaultBillMonth();
   if (billMBFInput) billMBFInput.value = normalizeMoney(state.monthlyBudgetFund);
   billList.innerHTML = "";
+  if (hiddenBillList) hiddenBillList.innerHTML = "";
 
-  state.bills.forEach(bill => {
+  const visibleBills = state.bills.filter(bill => !bill.hidden);
+  const hiddenBills = state.bills.filter(bill => bill.hidden);
+  const recommendedPayments = calculateRecommendedBillPayments(visibleBills);
+  const billGroups = {
+    early: visibleBills.filter(bill => getBillDueGroup(bill) === "early"),
+    mid: visibleBills.filter(bill => getBillDueGroup(bill) === "mid"),
+    late: visibleBills.filter(bill => getBillDueGroup(bill) === "late")
+  };
+
+  const renderBillRow = (bill, targetList, hiddenMode = false) => {
+    const creditRemainingPercent = calculateCreditRemainingPercent(bill);
+    const creditRemainingClass = creditRemainingPercent === null
+      ? ""
+      : (creditRemainingPercent < 50 ? " is-low-credit" : " is-healthy-credit");
+    const recommendedPayment = recommendedPayments.get(bill.id) ?? normalizeMoney(bill.amount);
     const row = document.createElement("article");
-    row.className = `budget-bill-item${isBillPastDue(bill) ? " is-past-due" : ""}${bill.status === "Paid" ? " is-paid" : ""}`;
+    row.className = `budget-bill-item${isBillPastDue(bill) ? " is-past-due" : ""}${bill.status === "Paid" ? " is-paid" : ""}${bill.hidden ? " is-hidden" : ""}`;
     row.dataset.billId = bill.id;
     row.innerHTML = `
-      <div class="budget-bill-name-box">
-        <label class="budget-bill-field">
-          <span>Bill</span>
+      <label class="budget-bill-field budget-bill-name-box">
+        <span>Bill / APR</span>
+        <div class="budget-bill-name-inline">
           <input class="bill-name" value="${escapeAttribute(bill.name)}" aria-label="Bill name">
-        </label>
-      </div>
-      <div class="budget-bill-amount-due">
-        <label class="budget-bill-field">
-          <span>Amount</span>
-          <input class="bill-amount" type="number" min="0" step="0.01" value="${normalizeMoney(bill.amount)}" aria-label="Bill amount">
-        </label>
-        <label class="budget-bill-field">
-          <span>Due date</span>
-          <input class="bill-due" type="date" value="${escapeAttribute(bill.due)}" aria-label="Bill due date">
-        </label>
-      </div>
+          ${bill.apr ? `<span class="budget-bill-apr">APR ${escapeHtml(formatApr(bill.apr))}</span>` : ""}
+        </div>
+      </label>
+      <label class="budget-bill-field">
+        <span>Current balance</span>
+        <input class="bill-current-balance" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.currentBalance))}" aria-label="Current balance">
+      </label>
+      <label class="budget-bill-field">
+        <span>Credit line</span>
+        <input class="bill-credit-limit" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.creditLimit))}" aria-label="Credit line">
+      </label>
+      <label class="budget-bill-field">
+        <span>Amount</span>
+        <input class="bill-amount" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.amount))}" aria-label="Bill amount">
+      </label>
+      <label class="budget-bill-field">
+        <span>Paid amt</span>
+        <input class="bill-paid-amount" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.paidAmount))}" aria-label="Bill amount paid">
+      </label>
+      <label class="budget-bill-field">
+        <span>Recommended</span>
+        <input class="bill-recommended-payment" type="text" value="${escapeAttribute(formatCurrency(recommendedPayment))}" aria-label="Recommended payment" readonly>
+      </label>
+      <label class="budget-bill-field">
+        <span>Tran #</span>
+        <input class="bill-transaction-number" value="${escapeAttribute(bill.transactionNumber || "")}" aria-label="Transaction number">
+      </label>
+      <label class="budget-bill-field">
+        <span>Due date</span>
+        <input class="bill-due" type="date" value="${escapeAttribute(bill.due)}" aria-label="Bill due date">
+      </label>
+      <label class="budget-bill-field">
+        <span>Date paid</span>
+        <input class="bill-paid-date" type="date" value="${escapeAttribute(bill.paidDate || "")}" aria-label="Bill date paid">
+      </label>
       <div class="budget-bill-status-box">
         <label class="budget-bill-field">
           <span>Status</span>
-          <select class="bill-status" aria-label="Bill status">
+          <select class="bill-status" aria-label="Bill status"${bill.statusTracksPaidDate ? " disabled" : ""}>
             ${billStatusOptions.map(status => `<option${status === bill.status ? " selected" : ""}>${escapeHtml(status)}</option>`).join("")}
           </select>
         </label>
+        <span class="budget-bill-status-note${creditRemainingClass}">${creditRemainingPercent === null ? "Credit remaining N/A" : `Credit remaining ${escapeHtml(formatPercentLabel(creditRemainingPercent))}`}</span>
       </div>
       <div class="budget-bill-notes-box">
         <label class="budget-bill-field">
@@ -3275,32 +3944,102 @@ function renderBills() {
         </label>
       </div>
       <div class="budget-bill-actions">
-        <button type="button" class="delete-bill" aria-label="Delete bill">Delete</button>
+        <button type="button" class="toggle-bill-hidden" aria-label="${bill.hidden ? "Unhide" : "Hide"} bill">${bill.hidden ? "Unhide" : "Hide"}</button>
       </div>
     `;
 
     row.querySelector(".bill-name").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false }));
+    row.querySelector(".bill-current-balance").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false }));
+    row.querySelector(".bill-credit-limit").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false }));
     row.querySelector(".bill-amount").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false }));
+    row.querySelector(".bill-paid-amount").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false }));
+    row.querySelector(".bill-transaction-number").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false }));
     row.querySelector(".bill-notes").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false }));
     row.querySelector(".bill-name").addEventListener("change", () => updateBillFromRow(row));
+    row.querySelector(".bill-current-balance").addEventListener("change", () => updateBillFromRow(row));
+    row.querySelector(".bill-credit-limit").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-amount").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-due").addEventListener("change", () => updateBillFromRow(row));
+    row.querySelector(".bill-paid-amount").addEventListener("change", () => updateBillFromRow(row));
+    row.querySelector(".bill-transaction-number").addEventListener("change", () => updateBillFromRow(row));
+    row.querySelector(".bill-paid-date").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-status").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-notes").addEventListener("change", () => updateBillFromRow(row));
-    row.querySelector(".delete-bill").addEventListener("click", () => deleteBill(bill.id));
-    billList.appendChild(row);
+    row.querySelector(".toggle-bill-hidden").addEventListener("click", () => toggleBillHidden(bill.id));
+    if (hiddenMode) {
+      row.querySelectorAll("input, textarea, select").forEach(control => {
+        control.disabled = true;
+      });
+    }
+    targetList.appendChild(row);
+  };
+
+  ["early", "mid", "late"].forEach(groupKey => {
+    const meta = getBillGroupMeta(groupKey);
+    const section = document.createElement("section");
+    section.className = "budget-bill-subgroup";
+    section.hidden = state.billGroupView !== "full" && state.billGroupView !== groupKey;
+
+    const header = document.createElement("div");
+    header.className = "budget-bill-subgroup-header";
+    header.innerHTML = `<strong>${escapeHtml(meta.label)}</strong><span>${billGroups[groupKey].length} bill${billGroups[groupKey].length === 1 ? "" : "s"} • ${escapeHtml(meta.range)}</span>`;
+
+    const list = document.createElement("div");
+    list.className = "budget-bill-list";
+
+    if (!billGroups[groupKey].length) {
+      const empty = document.createElement("p");
+      empty.className = "empty-notes";
+      empty.textContent = `No ${meta.label.toLowerCase()} in this month.`;
+      list.appendChild(empty);
+    } else {
+      billGroups[groupKey].forEach(bill => renderBillRow(bill, list, false));
+    }
+
+    section.append(header, list);
+    billList.appendChild(section);
+  });
+  hiddenBills.forEach(bill => renderBillRow(bill, hiddenBillList, true));
+
+  [
+    ["full", billGroupFullBtn],
+    ["early", billGroupEarlyBtn],
+    ["mid", billGroupMidBtn],
+    ["late", billGroupLateBtn]
+  ].forEach(([groupKey, button]) => {
+    if (!button) return;
+    const isActive = state.billGroupView === groupKey;
+    button.className = isActive ? "" : "ghost";
+    button.setAttribute("aria-pressed", String(isActive));
   });
 
+  if (toggleHiddenBillsBtn) {
+    const hiddenCount = hiddenBills.length;
+    toggleHiddenBillsBtn.hidden = hiddenCount === 0;
+    toggleHiddenBillsBtn.textContent = state.hiddenBillsExpanded
+      ? `Hide Hidden Bills (${hiddenCount})`
+      : `Show Hidden Bills (${hiddenCount})`;
+  }
+  if (hiddenBillsContent) {
+    hiddenBillsContent.hidden = !state.hiddenBillsExpanded || hiddenBills.length === 0;
+  }
+
   updateBillTotals();
+  renderUpcomingBillsBanner();
   renderBudgetSnapshots();
 }
 
 function buildBillChangeSummary(before, after) {
   const changes = [];
   if ((before.name || "") !== (after.name || "")) changes.push(`Name changed from ${before.name || "Untitled"} to ${after.name || "Untitled"}`);
+  if (normalizeMoney(before.currentBalance) !== normalizeMoney(after.currentBalance)) changes.push(`Current balance changed from ${formatCurrency(before.currentBalance)} to ${formatCurrency(after.currentBalance)}`);
+  if (normalizeMoney(before.creditLimit) !== normalizeMoney(after.creditLimit)) changes.push(`Credit line changed from ${formatCurrency(before.creditLimit)} to ${formatCurrency(after.creditLimit)}`);
   if (normalizeMoney(before.amount) !== normalizeMoney(after.amount)) changes.push(`Amount changed from ${formatCurrency(before.amount)} to ${formatCurrency(after.amount)}`);
+  if ((before.transactionNumber || "") !== (after.transactionNumber || "")) changes.push(`Transaction number changed from ${before.transactionNumber || "None"} to ${after.transactionNumber || "None"}`);
   if ((before.due || "") !== (after.due || "")) changes.push(`Due date changed from ${before.due || "No due date"} to ${after.due || "No due date"}`);
   if ((before.status || "") !== (after.status || "")) changes.push(`Status changed from ${before.status || "N/A"} to ${after.status || "N/A"}`);
+  if (normalizeMoney(before.paidAmount) !== normalizeMoney(after.paidAmount)) changes.push(`Amount paid changed from ${formatCurrency(before.paidAmount)} to ${formatCurrency(after.paidAmount)}`);
+  if ((before.paidDate || "") !== (after.paidDate || "")) changes.push(`Date paid changed from ${before.paidDate || "No paid date"} to ${after.paidDate || "No paid date"}`);
   if ((before.notes || "") !== (after.notes || "")) changes.push("Notes updated");
   return summarizeLines(changes, "Monthly bill updated");
 }
@@ -3312,9 +4051,16 @@ function updateBillFromRow(row, options = {}) {
   const recordHistory = options.recordHistory !== false;
   const before = { ...bill };
   bill.name = row.querySelector(".bill-name").value.trim();
-  bill.amount = normalizeMoney(row.querySelector(".bill-amount").value);
+  bill.currentBalance = normalizeCurrencyCell(row.querySelector(".bill-current-balance").value);
+  bill.creditLimit = normalizeCurrencyCell(row.querySelector(".bill-credit-limit").value);
+  bill.amount = normalizeCurrencyCell(row.querySelector(".bill-amount").value);
+  bill.transactionNumber = row.querySelector(".bill-transaction-number").value.trim();
   bill.due = row.querySelector(".bill-due").value;
-  bill.status = row.querySelector(".bill-status").value;
+  bill.paidAmount = normalizeCurrencyCell(row.querySelector(".bill-paid-amount").value);
+  bill.paidDate = row.querySelector(".bill-paid-date").value;
+  bill.status = bill.statusTracksPaidDate
+    ? (bill.paidDate ? "Paid" : "Unpaid")
+    : row.querySelector(".bill-status").value;
   bill.notes = row.querySelector(".bill-notes").value.trim();
   const summary = buildBillChangeSummary(before, bill);
   if (recordHistory && (summary !== "Monthly bill updated" || JSON.stringify(before) !== JSON.stringify(bill))) {
@@ -3330,6 +4076,13 @@ function updateBillFromRow(row, options = {}) {
   syncCurrentBudgetMonth();
   saveState();
   updateBillTotals();
+
+  if (options.recordHistory !== false) {
+    row.querySelector(".bill-current-balance").value = formatCurrencyInputValue(bill.currentBalance);
+    row.querySelector(".bill-credit-limit").value = formatCurrencyInputValue(bill.creditLimit);
+    row.querySelector(".bill-amount").value = formatCurrencyInputValue(bill.amount);
+    row.querySelector(".bill-paid-amount").value = formatCurrencyInputValue(bill.paidAmount);
+  }
 }
 
 function updateBillTotals() {
@@ -3451,19 +4204,24 @@ function isBillPastDue(bill) {
   return Boolean(bill.due && bill.status !== "Paid" && bill.status !== "Deferred" && bill.due < getTodayIsoDate());
 }
 
-function deleteBill(id) {
+function toggleBillHidden(id) {
   const bill = state.bills.find(item => item.id === id);
-  if (!ensureCurrentUser("delete a monthly bill")) return;
-  if (!bill || !confirm(`Delete "${bill.name || "this bill"}"?`)) return;
+  if (!ensureCurrentUser("update a monthly bill")) return;
+  if (!bill) return;
+  bill.hidden = !bill.hidden;
+  if (bill.hidden) {
+    state.hiddenBillsExpanded = true;
+  }
   recordHistoryEntry({
     itemType: "bill",
     itemId: bill.id,
     title: historyTitleFor("bill", bill.name || "Untitled bill"),
-    summary: `Monthly bill deleted${bill.amount ? ` for ${formatCurrency(bill.amount)}` : ""}`,
-    status: "Deleted",
+    summary: bill.hidden
+      ? `Monthly bill hidden${bill.amount ? ` for ${formatCurrency(bill.amount)}` : ""}`
+      : `Monthly bill unhidden${bill.amount ? ` for ${formatCurrency(bill.amount)}` : ""}`,
+    status: bill.hidden ? "Hidden" : "Visible",
     percent: 0
   });
-  state.bills = state.bills.filter(item => item.id !== id);
   syncCurrentBudgetMonth();
   saveState();
   renderBills();
@@ -3483,6 +4241,82 @@ function saveBudgetSnapshot() {
   });
   saveState();
   renderBills();
+}
+
+function copyBillsToNextMonth() {
+  if (!ensureCurrentUser("copy monthly bill values to the next month")) return;
+  const currentMonth = state.billMonth || defaultBillMonth();
+  const nextMonth = shiftMonthString(currentMonth, 1);
+  const copiedBills = state.bills.map(currentBill => ({
+    ...normalizeBill(currentBill),
+    currentBalance: normalizeMoney(currentBill.currentBalance),
+    creditLimit: normalizeMoney(currentBill.creditLimit),
+    amount: normalizeMoney(currentBill.amount),
+    due: currentBill.due ? moveDateToTargetMonth(currentBill.due, nextMonth) : "",
+    status: "Unpaid",
+    paidAmount: 0,
+    paidDate: "",
+    transactionNumber: "",
+    hidden: Boolean(currentBill.hidden)
+  }));
+
+  state.monthlyBudgets[nextMonth] = normalizeMonthlyBudgetEntry({
+    month: nextMonth,
+    monthlyBudgetFund: state.monthlyBudgetFund,
+    copiedForwardFrom: currentMonth,
+    bills: copiedBills
+  }, nextMonth);
+  syncBudgetSnapshotForMonth(nextMonth);
+  loadBudgetMonth(nextMonth, { syncSnapshot: false });
+  state.billGroupView = "full";
+  saveState();
+  renderBills();
+  if (copyBillsToNextMonthBtn) {
+    copyBillsToNextMonthBtn.textContent = `Copied to ${formatBudgetMonthLabel(nextMonth)}`;
+    window.setTimeout(() => {
+      if (copyBillsToNextMonthBtn.textContent === `Copied to ${formatBudgetMonthLabel(nextMonth)}`) {
+        copyBillsToNextMonthBtn.textContent = "Copy To Next Month";
+      }
+    }, 2000);
+  }
+}
+
+function undoCopyBillsToNextMonth() {
+  if (!ensureCurrentUser("clear copied monthly bill values from the next month")) return;
+  const currentMonth = state.billMonth || defaultBillMonth();
+  const nextMonth = shiftMonthString(currentMonth, 1);
+  const nextMonthlyBudget = ensureMonthlyBudgetState(nextMonth);
+
+  nextMonthlyBudget.bills.forEach(targetBill => {
+    targetBill.currentBalance = 0;
+    targetBill.creditLimit = 0;
+    targetBill.amount = 0;
+    targetBill.due = "";
+    targetBill.status = "Unpaid";
+    targetBill.paidAmount = 0;
+    targetBill.paidDate = "";
+    targetBill.transactionNumber = "";
+  });
+
+  state.monthlyBudgets[nextMonth] = normalizeMonthlyBudgetEntry({
+    month: nextMonth,
+    monthlyBudgetFund: nextMonthlyBudget.monthlyBudgetFund,
+    copiedForwardFrom: "",
+    bills: nextMonthlyBudget.bills
+  }, nextMonth);
+  syncBudgetSnapshotForMonth(nextMonth);
+  loadBudgetMonth(nextMonth, { syncSnapshot: false });
+  state.billGroupView = "full";
+  saveState();
+  renderBills();
+  if (undoCopyBillsToNextMonthBtn) {
+    undoCopyBillsToNextMonthBtn.textContent = `Cleared ${formatBudgetMonthLabel(nextMonth)}`;
+    window.setTimeout(() => {
+      if (undoCopyBillsToNextMonthBtn.textContent === `Cleared ${formatBudgetMonthLabel(nextMonth)}`) {
+        undoCopyBillsToNextMonthBtn.textContent = "Undo Next Month Copy";
+      }
+    }, 2000);
+  }
 }
 
 function renderLifeAdminNotes() {
@@ -4958,14 +5792,14 @@ function accountSelectionMessage(actionText = "make updates") {
 }
 
 function updateClientGatePinVisibility() {
-  const needsPin = clientGateSelect.value === "theodore";
+  const needsPin = clientNeedsAccessPin(clientGateSelect.value) && !isClientAccessValidated(clientGateSelect.value);
   clientGatePinWrap.hidden = !needsPin;
   if (!needsPin) clientGatePin.value = "";
 }
 
 function updateTopClientPinVisibility() {
   if (!topClientPin) return;
-  const needsPin = topClientSelect?.value === "theodore" && !theodoreClientValidatedForSession;
+  const needsPin = clientNeedsAccessPin(topClientSelect?.value) && !isClientAccessValidated(topClientSelect?.value);
   if (topClientPinWrapInline) topClientPinWrapInline.hidden = !needsPin;
   topClientPin.hidden = !needsPin;
   if (!needsPin) topClientPin.value = "";
@@ -5142,9 +5976,13 @@ async function switchClient(clientId, pin = "") {
   }
 
   if (nextClient.requiresAccessPin && pin !== CLIENT_ACCESS_PIN) {
-    clientGateError.textContent = "The access code for Derick's dashboard is incorrect.";
+    clientGateError.textContent = `The access code for ${clientAccessLabel(nextClient.id)} is incorrect.`;
     clientGateError.hidden = false;
     return false;
+  }
+
+  if (nextClient.requiresAccessPin) {
+    validatedProtectedClientIds.add(nextClient.id);
   }
 
   if (supabaseEnabled && !applyingRemoteState) {
@@ -5157,13 +5995,14 @@ async function switchClient(clientId, pin = "") {
   activeClientId = nextClient.id;
   remoteUpdatedAt = readCachedRemoteUpdatedAt();
   state = loadState();
+  loadBudgetMonth(defaultBillMonth(), { syncSnapshot: false });
   patrickWatchState = loadPatrickWatchState();
   taskViewMode = loadTaskViewMode();
-  theodoreClientValidatedForSession = nextClient.id === "theodore";
   updateTopClientPinVisibility();
 
   closeClientGateDialog();
   if (supabaseEnabled) {
+    forceCurrentBillMonthOnNextRemoteApply = true;
     supabaseStatus = `Connecting to Firebase Firestore shared storage for ${nextClient.shortName}`;
     updateDataStoreStatus();
     render();
@@ -5179,7 +6018,7 @@ function handleTopClientSelection() {
   const selectedClientId = topClientSelect.value;
   updateTopClientPinVisibility();
   if (!selectedClientId) return;
-  if (selectedClientId === "theodore" && !theodoreClientValidatedForSession) {
+  if (clientNeedsAccessPin(selectedClientId) && !isClientAccessValidated(selectedClientId)) {
     if (topClientPin) topClientPin.focus();
     return;
   }
@@ -5188,28 +6027,28 @@ function handleTopClientSelection() {
 
 function maybeSubmitTopClientPin() {
   if (!topClientSelect || !topClientPin) return;
-  if (topClientSelect.value !== "theodore") return;
+  if (!clientNeedsAccessPin(topClientSelect.value)) return;
   const pin = topClientPin.value.trim();
   if (pin.length < CLIENT_ACCESS_PIN.length) return;
-  switchClient("theodore", pin);
+  switchClient(topClientSelect.value, pin);
 }
 
 function handleTopClientPinKeyboardSubmit(event) {
   if (!topClientSelect || !topClientPin) return;
-  if (topClientSelect.value !== "theodore") return;
+  if (!clientNeedsAccessPin(topClientSelect.value)) return;
   if (event.key !== "Enter" && event.key !== "Go" && event.key !== "Done") return;
   event.preventDefault();
   const pin = topClientPin.value.trim();
   if (!pin) return;
-  switchClient("theodore", pin);
+  switchClient(topClientSelect.value, pin);
 }
 
 function handleTopClientPinCommit() {
   if (!topClientSelect || !topClientPin) return;
-  if (topClientSelect.value !== "theodore") return;
+  if (!clientNeedsAccessPin(topClientSelect.value)) return;
   const pin = topClientPin.value.trim();
   if (!pin || pin.length < CLIENT_ACCESS_PIN.length) return;
-  switchClient("theodore", pin);
+  switchClient(topClientSelect.value, pin);
 }
 
 function handleClientGateSelection() {
@@ -5219,7 +6058,7 @@ function handleClientGateSelection() {
   updateClientGatePinVisibility();
 
   if (!selectedClientId) return;
-  if (selectedClientId === "theodore") {
+  if (clientNeedsAccessPin(selectedClientId) && !isClientAccessValidated(selectedClientId)) {
     clientGatePin.focus();
     return;
   }
@@ -5228,25 +6067,26 @@ function handleClientGateSelection() {
 }
 
 function maybeSubmitTheodoreClientPin() {
-  if (clientGateSelect.value !== "theodore") return;
+  if (!clientNeedsAccessPin(clientGateSelect.value)) return;
   const pin = clientGatePin.value.trim();
   if (pin.length < CLIENT_ACCESS_PIN.length) return;
-  switchClient("theodore", pin);
+  switchClient(clientGateSelect.value, pin);
 }
 
 function handleTheodoreClientPinKeyboardSubmit(event) {
+  if (!clientNeedsAccessPin(clientGateSelect.value)) return;
   if (event.key !== "Enter" && event.key !== "Go" && event.key !== "Done") return;
   event.preventDefault();
   const pin = clientGatePin.value.trim();
   if (!pin) return;
-  switchClient("theodore", pin);
+  switchClient(clientGateSelect.value, pin);
 }
 
 function handleTheodoreClientPinCommit() {
-  if (clientGateSelect.value !== "theodore") return;
+  if (!clientNeedsAccessPin(clientGateSelect.value)) return;
   const pin = clientGatePin.value.trim();
   if (!pin || pin.length < CLIENT_ACCESS_PIN.length) return;
-  switchClient("theodore", pin);
+  switchClient(clientGateSelect.value, pin);
 }
 
 function updateTaskLabelControls() {
@@ -6411,9 +7251,40 @@ toggleOverviewBtn.addEventListener("click", () => {
 billMonthInput.addEventListener("change", () => {
   syncCurrentBudgetMonth();
   loadBudgetMonth(billMonthInput.value || defaultBillMonth());
+  state.billGroupView = defaultBillGroupView(state.billMonth);
   saveState();
   renderBills();
 });
+if (billPrevMonthBtn) {
+  billPrevMonthBtn.addEventListener("click", () => {
+    syncCurrentBudgetMonth();
+    loadBudgetMonth(shiftMonthString(state.billMonth || defaultBillMonth(), -1));
+    state.billGroupView = defaultBillGroupView(state.billMonth);
+    saveState();
+    renderBills();
+  });
+}
+if (billNextMonthBtn) {
+  billNextMonthBtn.addEventListener("click", () => {
+    syncCurrentBudgetMonth();
+    loadBudgetMonth(shiftMonthString(state.billMonth || defaultBillMonth(), 1));
+    state.billGroupView = defaultBillGroupView(state.billMonth);
+    saveState();
+    renderBills();
+  });
+}
+if (billGroupEarlyBtn) {
+  billGroupEarlyBtn.addEventListener("click", () => setBillGroupView("early"));
+}
+if (billGroupFullBtn) {
+  billGroupFullBtn.addEventListener("click", () => setBillGroupView("full"));
+}
+if (billGroupMidBtn) {
+  billGroupMidBtn.addEventListener("click", () => setBillGroupView("mid"));
+}
+if (billGroupLateBtn) {
+  billGroupLateBtn.addEventListener("click", () => setBillGroupView("late"));
+}
 if (billMBFInput) {
   billMBFInput.addEventListener("input", () => {
     state.monthlyBudgetFund = normalizeMoney(billMBFInput.value);
@@ -6431,6 +7302,31 @@ if (billMBFInput) {
 const saveBudgetSnapshotBtn = document.querySelector("#saveBudgetSnapshotBtn");
 if (saveBudgetSnapshotBtn) {
   saveBudgetSnapshotBtn.addEventListener("click", saveBudgetSnapshot);
+}
+if (copyBillsToNextMonthBtn) {
+  copyBillsToNextMonthBtn.addEventListener("click", copyBillsToNextMonth);
+}
+if (undoCopyBillsToNextMonthBtn) {
+  undoCopyBillsToNextMonthBtn.addEventListener("click", undoCopyBillsToNextMonth);
+}
+if (upcomingBillsBanner) {
+  upcomingBillsBanner.addEventListener("click", openUpcomingBillsDialog);
+  upcomingBillsBanner.addEventListener("keydown", event => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openUpcomingBillsDialog();
+    }
+  });
+}
+if (closeUpcomingBillsDialogBtn && upcomingBillsDialog) {
+  closeUpcomingBillsDialogBtn.addEventListener("click", () => upcomingBillsDialog.close());
+}
+if (toggleHiddenBillsBtn) {
+  toggleHiddenBillsBtn.addEventListener("click", () => {
+    state.hiddenBillsExpanded = !state.hiddenBillsExpanded;
+    saveState();
+    renderBills();
+  });
 }
 document.querySelector("#addBillBtn").addEventListener("click", () => {
   if (!ensureCurrentUser("add a bill")) return;
@@ -6465,6 +7361,15 @@ hideBillsBtn.addEventListener("click", () => {
   saveState();
   renderPanelVisibility();
 });
+if (toggleBillsPopoutBtn) {
+  toggleBillsPopoutBtn.addEventListener("click", () => {
+    budgetPanel.classList.toggle("budget-panel-popout");
+    const isPoppedOut = budgetPanel.classList.contains("budget-panel-popout");
+    toggleBillsPopoutBtn.textContent = isPoppedOut ? "Dock" : "Pop Out";
+    toggleBillsPopoutBtn.setAttribute("aria-pressed", String(isPoppedOut));
+    document.body.classList.toggle("budget-panel-open", isPoppedOut);
+  });
+}
 if (toggleBudgetSnapshotsBtn) {
   toggleBudgetSnapshotsBtn.addEventListener("click", () => {
     state.hiddenPanels.budgetSnapshots = !state.hiddenPanels.budgetSnapshots;
@@ -6523,7 +7428,7 @@ function openClientSwitcher() {
     }
     return;
   }
-  showClientGate("Choose which client dashboard to open. Derick's dashboard requires an access code.");
+  showClientGate("Choose which client dashboard to open. Protected client dashboards require an access code.");
 }
 
 window.openClientSwitcher = openClientSwitcher;
