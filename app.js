@@ -28,7 +28,8 @@ const ADMIN_REMOTE_UPDATED_AT_KEY = "admin-glanville-remote-updated-at-v1";
 const URGENCY_REPORT_HELPER_URL = "http://127.0.0.1:8767";
 const DERIC_EMAIL = "dglanville@gmail.com";
 const DERIC_PIN = "3141";
-const CLIENT_ACCESS_PIN = "3141";
+const THEODORE_CLIENT_ACCESS_PIN = "3141";
+const ADMIN_CLIENT_ACCESS_PIN = "314123";
 const PATRICK_EMAIL = "patrick.glanville@gmail.com";
 const THEODORE_EMAIL = "theodore.glanville@gmail.com";
 const ADMIN_EMAIL = DERIC_EMAIL;
@@ -121,6 +122,7 @@ let remoteUpdatedAt = "";
 let applyingRemoteState = false;
 let sharedStateUnsubscribe = null;
 let sharedStateListenerId = "";
+let pendingLocalSharedSaveAt = "";
 const allowedUsers = [
   { name: "Deric Glanville", email: DERIC_EMAIL },
   { name: "Patrick Glanville", email: PATRICK_EMAIL },
@@ -1222,6 +1224,12 @@ function getSeedData() {
 
 function clientNeedsAccessPin(clientId) {
   return Boolean(clientId && clientConfigs[clientId]?.requiresAccessPin);
+}
+
+function clientAccessPin(clientId) {
+  if (clientId === "admin") return ADMIN_CLIENT_ACCESS_PIN;
+  if (clientId === "theodore") return THEODORE_CLIENT_ACCESS_PIN;
+  return "";
 }
 
 function isClientAccessValidated(clientId) {
@@ -3040,6 +3048,11 @@ function cacheRemoteUpdatedAt(value) {
   else localStorage.removeItem(getRemoteUpdatedAtKey());
 }
 
+function toTimestampMs(value) {
+  const timestamp = Date.parse(String(value || "").trim());
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
 function readCachedRemoteUpdatedAt() {
   return localStorage.getItem(getRemoteUpdatedAtKey()) || "";
 }
@@ -3231,6 +3244,13 @@ async function subscribeToSharedState() {
           const data = snapshot.data() || {};
           const remoteState = data.state;
           const updatedAt = data.updated_at || "";
+          const remoteUpdatedAtMs = toTimestampMs(updatedAt);
+          const pendingLocalSaveMs = toTimestampMs(pendingLocalSharedSaveAt);
+
+          if (pendingLocalSaveMs && (!remoteUpdatedAtMs || remoteUpdatedAtMs < pendingLocalSaveMs)) {
+            settleResolve();
+            return;
+          }
 
           if (!remoteState || !Array.isArray(remoteState.tasks)) {
             settleResolve();
@@ -3260,6 +3280,7 @@ async function subscribeToSharedState() {
 
 function queueSharedStateSave() {
   if (!supabaseEnabled || applyingRemoteState || !activeClientId || !getSupabaseStateId()) return;
+  pendingLocalSharedSaveAt = state.lastSavedAt || new Date().toISOString();
   window.clearTimeout(supabaseSaveTimer);
   supabaseSaveTimer = window.setTimeout(() => {
     saveSharedStateNow().catch(error => {
@@ -3283,6 +3304,7 @@ async function saveSharedStateNow() {
     await supabaseClient.setDoc(docRef, payload, { merge: true });
 
     cacheRemoteUpdatedAt(payload.updated_at);
+    pendingLocalSharedSaveAt = "";
     supabaseStatus = `Firebase Firestore shared storage; live sync active for ${currentClientConfig()?.shortName || "client"}; saved ${formatDateTime(remoteUpdatedAt)}`;
     updateDataStoreStatus();
   } catch (error) {
@@ -6146,7 +6168,8 @@ async function switchClient(clientId, pin = "") {
     return false;
   }
 
-  if (nextClient.requiresAccessPin && pin !== CLIENT_ACCESS_PIN) {
+  const requiredPin = clientAccessPin(nextClient.id);
+  if (nextClient.requiresAccessPin && pin !== requiredPin) {
     clientGateError.textContent = `The access code for ${clientAccessLabel(nextClient.id)} is incorrect.`;
     clientGateError.hidden = false;
     return false;
@@ -6200,7 +6223,7 @@ function maybeSubmitTopClientPin() {
   if (!topClientSelect || !topClientPin) return;
   if (!clientNeedsAccessPin(topClientSelect.value)) return;
   const pin = topClientPin.value.trim();
-  if (pin.length < CLIENT_ACCESS_PIN.length) return;
+  if (pin.length < clientAccessPin(topClientSelect.value).length) return;
   switchClient(topClientSelect.value, pin);
 }
 
@@ -6218,7 +6241,7 @@ function handleTopClientPinCommit() {
   if (!topClientSelect || !topClientPin) return;
   if (!clientNeedsAccessPin(topClientSelect.value)) return;
   const pin = topClientPin.value.trim();
-  if (!pin || pin.length < CLIENT_ACCESS_PIN.length) return;
+  if (!pin || pin.length < clientAccessPin(topClientSelect.value).length) return;
   switchClient(topClientSelect.value, pin);
 }
 
@@ -6240,7 +6263,7 @@ function handleClientGateSelection() {
 function maybeSubmitTheodoreClientPin() {
   if (!clientNeedsAccessPin(clientGateSelect.value)) return;
   const pin = clientGatePin.value.trim();
-  if (pin.length < CLIENT_ACCESS_PIN.length) return;
+  if (pin.length < clientAccessPin(clientGateSelect.value).length) return;
   switchClient(clientGateSelect.value, pin);
 }
 
@@ -6256,7 +6279,7 @@ function handleTheodoreClientPinKeyboardSubmit(event) {
 function handleTheodoreClientPinCommit() {
   if (!clientNeedsAccessPin(clientGateSelect.value)) return;
   const pin = clientGatePin.value.trim();
-  if (!pin || pin.length < CLIENT_ACCESS_PIN.length) return;
+  if (!pin || pin.length < clientAccessPin(clientGateSelect.value).length) return;
   switchClient(clientGateSelect.value, pin);
 }
 
