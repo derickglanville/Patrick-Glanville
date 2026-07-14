@@ -856,9 +856,28 @@ textarea {
   min-width: 0;
 }
 
+.budget-bill-item-simple .budget-bill-notes-box textarea {
+  min-height: 42px;
+  height: 42px;
+  resize: vertical;
+}
+
 .budget-bill-item.is-past-due {
-  border-color: #e6a23b;
-  background: #fff4dd;
+  border-color: #dc2626;
+  background: #feeaea;
+}
+
+.budget-bill-item.is-past-due:nth-child(even) {
+  background: #fde2e2;
+}
+
+.budget-bill-item.is-due-soon {
+  border-color: #f1b70a;
+  background: #fff8d6;
+}
+
+.budget-bill-item.is-due-soon:nth-child(even) {
+  background: #fff3bf;
 }
 
 .budget-bill-item.is-paid {

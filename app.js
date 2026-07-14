@@ -3958,8 +3958,10 @@ function renderBills() {
       ? ""
       : (creditRemainingPercent < 50 ? " is-low-credit" : " is-healthy-credit");
     const recommendedPayment = recommendedPayments.get(bill.id) ?? normalizeMoney(bill.amount);
+    const pastDue = isBillPastDue(bill);
+    const dueSoon = !pastDue && isBillDueSoon(bill, 7);
     const row = document.createElement("article");
-    row.className = `budget-bill-item${isBillPastDue(bill) ? " is-past-due" : ""}${bill.status === "Paid" ? " is-paid" : ""}${bill.hidden ? " is-hidden" : ""}`;
+    row.className = `budget-bill-item${pastDue ? " is-past-due" : ""}${dueSoon ? " is-due-soon" : ""}${bill.status === "Paid" ? " is-paid" : ""}${bill.hidden ? " is-hidden" : ""}`;
     row.dataset.billId = bill.id;
     row.innerHTML = `
       <label class="budget-bill-field budget-bill-name-box">
@@ -4024,13 +4026,13 @@ function renderBills() {
       </div>
     `;
 
-    row.querySelector(".bill-name").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false }));
-    row.querySelector(".bill-current-balance").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false }));
-    row.querySelector(".bill-credit-limit").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false }));
-    row.querySelector(".bill-amount").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false }));
-    row.querySelector(".bill-paid-amount").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false }));
-    row.querySelector(".bill-transaction-number").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false }));
-    row.querySelector(".bill-notes").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false }));
+    row.querySelector(".bill-name").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
+    row.querySelector(".bill-current-balance").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
+    row.querySelector(".bill-credit-limit").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
+    row.querySelector(".bill-amount").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
+    row.querySelector(".bill-paid-amount").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
+    row.querySelector(".bill-transaction-number").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
+    row.querySelector(".bill-notes").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-name").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-current-balance").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-credit-limit").addEventListener("change", () => updateBillFromRow(row));
@@ -4342,6 +4344,17 @@ function renderBudgetSnapshots() {
 
 function isBillPastDue(bill) {
   return Boolean(bill.due && bill.status !== "Paid" && bill.status !== "Deferred" && bill.due < getTodayIsoDate());
+}
+
+function isBillDueSoon(bill, days = 7) {
+  if (!bill?.due || bill.status === "Paid" || bill.status === "Deferred") return false;
+  const today = new Date(`${getTodayIsoDate()}T00:00:00`);
+  const dueDate = new Date(`${bill.due}T00:00:00`);
+  if (Number.isNaN(today.getTime()) || Number.isNaN(dueDate.getTime())) return false;
+  if (dueDate < today) return false;
+  const end = new Date(today);
+  end.setDate(end.getDate() + days);
+  return dueDate <= end;
 }
 
 function toggleBillHidden(id) {
