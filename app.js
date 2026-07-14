@@ -1722,6 +1722,7 @@ function normalizeBill(bill) {
   const explicitStatus = billStatusOptions.includes(bill.status) ? bill.status : "Unpaid";
   return {
     id: bill.id || crypto.randomUUID(),
+    templateKey: typeof bill.templateKey === "string" ? bill.templateKey : "",
     name: bill.name || "",
     amount: normalizeMoney(bill.amount),
     due,
@@ -1740,6 +1741,74 @@ function normalizeBill(bill) {
     statusTracksPaidDate,
     hidden: Boolean(bill.hidden)
   };
+}
+
+function buildBudgetBillTemplateKey(name = "") {
+  const normalizedName = String(name || "").trim().toLowerCase();
+  return normalizedName ? `seed:${normalizedName}` : "";
+}
+
+function pickBillStringValue(...values) {
+  for (const value of values) {
+    const stringValue = String(value || "").trim();
+    if (stringValue) return stringValue;
+  }
+  return "";
+}
+
+function mergeDuplicateBudgetBills(primaryBill, duplicateBill) {
+  const primary = normalizeBill(primaryBill);
+  const duplicate = normalizeBill(duplicateBill);
+
+  const merged = {
+    ...primary,
+    id: primary.id || duplicate.id || crypto.randomUUID(),
+    templateKey: primary.templateKey || duplicate.templateKey || "",
+    name: pickBillStringValue(primary.name, duplicate.name),
+    apr: pickBillStringValue(primary.apr, duplicate.apr),
+    currentBalance: normalizeMoney(primary.currentBalance) || normalizeMoney(duplicate.currentBalance),
+    creditLimit: normalizeMoney(primary.creditLimit) || normalizeMoney(duplicate.creditLimit),
+    amount: normalizeMoney(primary.amount) || normalizeMoney(duplicate.amount),
+    paidAmount: normalizeMoney(primary.paidAmount) || normalizeMoney(duplicate.paidAmount),
+    transactionNumber: pickBillStringValue(primary.transactionNumber, duplicate.transactionNumber),
+    due: pickBillStringValue(primary.due, duplicate.due),
+    paidDate: pickBillStringValue(primary.paidDate, duplicate.paidDate),
+    status: primary.status === "Paid" || duplicate.status === "Paid"
+      ? "Paid"
+      : (primary.status || duplicate.status || "Unpaid"),
+    notes: pickBillStringValue(primary.notes, duplicate.notes),
+    hidden: Boolean(primary.hidden && duplicate.hidden),
+    statusTracksPaidDate: Boolean(primary.statusTracksPaidDate || duplicate.statusTracksPaidDate)
+  };
+
+  if (merged.statusTracksPaidDate) {
+    merged.status = merged.paidDate ? "Paid" : "Unpaid";
+  }
+
+  return merged;
+}
+
+function dedupeBudgetBills(bills = []) {
+  const uniqueBills = [];
+  const billIndexByIdentity = new Map();
+
+  bills.forEach(rawBill => {
+    const normalizedBill = normalizeBill(rawBill);
+    const identityKey = normalizedBill.templateKey || (normalizedBill.name || "").trim().toLowerCase();
+    if (!identityKey) {
+      uniqueBills.push(normalizedBill);
+      return;
+    }
+    const existingIndex = billIndexByIdentity.get(identityKey);
+    if (existingIndex === undefined) {
+      billIndexByIdentity.set(identityKey, uniqueBills.length);
+      uniqueBills.push(normalizedBill);
+      return;
+    }
+    uniqueBills[existingIndex] = mergeDuplicateBudgetBills(uniqueBills[existingIndex], normalizedBill);
+  });
+
+  return uniqueBills;
 }
 
 function normalizeBudgetSnapshot(snapshot) {
@@ -1815,8 +1884,9 @@ function getFutureBudgetBillOverride(name = "", month = "") {
 }
 
 function buildBudgetBillTemplate(sourceBill = {}, options = {}) {
-  const { zeroAmounts = false, futureDefaults = false, month = "" } = options;
+  const { zeroAmounts = false, futureDefaults = false, month = "", assignSeedKey = false } = options;
   const normalized = normalizeBill(sourceBill);
+  const templateKey = normalized.templateKey || (assignSeedKey ? buildBudgetBillTemplateKey(normalized.name) : "");
   const scheduledOverride = futureDefaults ? getFutureBudgetBillOverride(normalized.name, month) : null;
   const defaultAmount = futureDefaults
     ? normalizeMoney(scheduledOverride?.amount ?? FUTURE_BILL_DEFAULT_AMOUNTS[normalized.name] ?? 0)
@@ -1827,6 +1897,7 @@ function buildBudgetBillTemplate(sourceBill = {}, options = {}) {
   return {
     ...normalized,
     id: normalized.id || crypto.randomUUID(),
+    templateKey,
     amount: zeroAmounts ? 0 : defaultAmount,
     due: zeroAmounts ? "" : defaultDue,
     status: zeroAmounts ? "Unpaid" : normalized.status,
@@ -1843,7 +1914,7 @@ function buildDefaultMonthlyBudget(month, seed = getSeedData()) {
   return {
     month,
     monthlyBudgetFund: zeroAmounts ? 0 : normalizeMoney(seed.monthlyBudgetFund ?? 0),
-    bills: (seed.bills || []).map(bill => buildBudgetBillTemplate(bill, { zeroAmounts, futureDefaults, month }))
+    bills: (seed.bills || []).map(bill => buildBudgetBillTemplate(bill, { zeroAmounts, futureDefaults, month, assignSeedKey: true }))
   };
 }
 
@@ -1884,33 +1955,56 @@ function normalizeMonthlyBudgetEntry(entry, fallbackMonth = "", seed = getSeedDa
   if (!month) return null;
   const zeroAmounts = isBeforeBudgetTrackingStart(month);
   const fallback = buildDefaultMonthlyBudget(month, seed);
+  const deletedBillKeys = Array.isArray(entry?.deletedBillKeys)
+    ? entry.deletedBillKeys
+        .map(key => String(key || "").trim())
+        .filter(Boolean)
+    : [];
   const deletedBillNames = Array.isArray(entry?.deletedBillNames)
     ? entry.deletedBillNames
         .map(name => String(name || "").trim().toLowerCase())
         .filter(Boolean)
     : [];
+  const deletedBillKeySet = new Set(deletedBillKeys);
   const deletedBillSet = new Set(deletedBillNames);
   const incomingBills = Array.isArray(entry?.bills) && entry.bills.length
     ? entry.bills
     : fallback.bills;
-  const normalizedBills = incomingBills.map(bill => buildBudgetBillTemplate(bill, { zeroAmounts, month }));
-  const billsByName = new Map(normalizedBills.map(bill => [(bill.name || "").trim().toLowerCase(), bill]));
+  const normalizedBills = dedupeBudgetBills(
+    incomingBills.map(bill => buildBudgetBillTemplate(bill, { zeroAmounts, month }))
+  );
+  const billsByIdentity = new Map(
+    normalizedBills.map(bill => [
+      bill.templateKey || (bill.name || "").trim().toLowerCase(),
+      bill
+    ]).filter(([key]) => Boolean(key))
+  );
   fallback.bills.forEach(seedBill => {
     const normalizedName = (seedBill.name || "").trim().toLowerCase();
-    if (!normalizedName || billsByName.has(normalizedName) || deletedBillSet.has(normalizedName)) return;
+    const identityKey = seedBill.templateKey || buildBudgetBillTemplateKey(seedBill.name) || normalizedName;
+    if (
+      !identityKey ||
+      billsByIdentity.has(identityKey) ||
+      deletedBillKeySet.has(identityKey) ||
+      deletedBillSet.has(normalizedName)
+    ) {
+      return;
+    }
     const mergedBill = buildBudgetBillTemplate(seedBill, {
       zeroAmounts,
       futureDefaults: isFutureBudgetMonth(month),
-      month
+      month,
+      assignSeedKey: true
     });
     normalizedBills.push(mergedBill);
-    billsByName.set(normalizedName, mergedBill);
+    billsByIdentity.set(identityKey, mergedBill);
   });
   const normalizedEntry = {
     month,
     monthlyBudgetFund: zeroAmounts ? 0 : normalizeMoney(entry?.monthlyBudgetFund ?? fallback.monthlyBudgetFund),
     bills: normalizedBills,
     copiedForwardFrom: entry?.copiedForwardFrom || "",
+    deletedBillKeys,
     deletedBillNames
   };
   return sanitizeFutureMonthlyBudgetEntry(normalizedEntry, seed);
@@ -1998,6 +2092,7 @@ function syncCurrentBudgetMonth(saveSnapshot = true) {
     month,
     monthlyBudgetFund: state.monthlyBudgetFund,
     bills: state.bills,
+    deletedBillKeys: state.monthlyBudgets[month]?.deletedBillKeys || [],
     deletedBillNames: state.monthlyBudgets[month]?.deletedBillNames || []
   }, month);
   if (saveSnapshot) syncBudgetSnapshotForMonth(month);
@@ -2008,7 +2103,8 @@ function loadBudgetMonth(month, options = {}) {
   state.billMonth = targetMonth;
   const monthlyBudget = ensureMonthlyBudgetState(targetMonth);
   state.monthlyBudgetFund = monthlyBudget.monthlyBudgetFund;
-  state.bills = monthlyBudget.bills.map(normalizeBill);
+  state.bills = dedupeBudgetBills(monthlyBudget.bills.map(normalizeBill));
+  state.monthlyBudgets[targetMonth].bills = state.bills.map(bill => ({ ...bill }));
   if (options.syncSnapshot !== false) syncBudgetSnapshotForMonth(targetMonth);
 }
 
@@ -2063,6 +2159,19 @@ function getBillsDueWithinDays(bills, daysAhead = 7) {
     .filter(Boolean)
     .filter(({ dueDate }) => dueDate >= today && dueDate <= end)
     .sort((a, b) => a.dueDate - b.dueDate);
+}
+
+function compareBillsByDueDate(a, b) {
+  const dueA = normalizeBillDateLike(a?.due || "");
+  const dueB = normalizeBillDateLike(b?.due || "");
+  const hasDueA = /^\d{4}-\d{2}-\d{2}$/.test(dueA);
+  const hasDueB = /^\d{4}-\d{2}-\d{2}$/.test(dueB);
+
+  if (hasDueA && hasDueB && dueA !== dueB) return dueA.localeCompare(dueB);
+  if (hasDueA && !hasDueB) return -1;
+  if (!hasDueA && hasDueB) return 1;
+
+  return String(a?.name || "").localeCompare(String(b?.name || ""));
 }
 
 function renderUpcomingBillsBanner() {
@@ -3922,7 +4031,7 @@ function renderBills() {
 
   const visibleBills = usesSimpleBills
     ? [...state.bills]
-    : state.bills.filter(bill => !bill.hidden);
+    : state.bills.filter(bill => !bill.hidden).sort(compareBillsByDueDate);
   const hiddenBills = usesSimpleBills
     ? []
     : state.bills.filter(bill => bill.hidden);
@@ -4045,6 +4154,7 @@ function renderBills() {
       </div>
       <div class="budget-bill-actions">
         <button type="button" class="toggle-bill-hidden" aria-label="${bill.hidden ? "Unhide" : "Hide"} bill">${bill.hidden ? "Unhide" : "Hide"}</button>
+        <button type="button" class="delete-bill-button" aria-label="Delete bill">Delete</button>
       </div>
     `;
 
@@ -4066,6 +4176,7 @@ function renderBills() {
     row.querySelector(".bill-status").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-notes").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".toggle-bill-hidden").addEventListener("click", () => toggleBillHidden(bill.id));
+    row.querySelector(".delete-bill-button").addEventListener("click", () => deleteBill(bill.id));
     if (hiddenMode) {
       row.querySelectorAll("input, textarea, select").forEach(control => {
         control.disabled = true;
@@ -4161,6 +4272,12 @@ function deleteBill(id) {
   if (!ensureCurrentUser("delete a monthly bill")) return;
   const month = state.billMonth || defaultBillMonth();
   ensureMonthlyBudgetState(month);
+  const deletedKey = String(bill.templateKey || "").trim();
+  if (deletedKey) {
+    const deletedBillKeys = new Set(state.monthlyBudgets[month]?.deletedBillKeys || []);
+    deletedBillKeys.add(deletedKey);
+    state.monthlyBudgets[month].deletedBillKeys = Array.from(deletedBillKeys);
+  }
   const deletedName = String(bill.name || "").trim().toLowerCase();
   if (deletedName) {
     const deletedBillNames = new Set(state.monthlyBudgets[month]?.deletedBillNames || []);
