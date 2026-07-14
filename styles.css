@@ -629,21 +629,17 @@ textarea {
 }
 
 .budget-group-toolbar-label {
-  color: var(--muted);
-  font-size: .8rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: .04em;
+  display: none;
 }
 
 .budget-bill-groups {
   display: grid;
-  gap: 10px;
+  gap: 2px;
 }
 
 .budget-bill-subgroup {
   display: grid;
-  gap: 8px;
+  gap: 2px;
 }
 
 .budget-bill-subgroup[hidden] {
@@ -651,11 +647,7 @@ textarea {
 }
 
 .budget-bill-subgroup-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 0 4px;
+  display: none;
 }
 
 .budget-bill-subgroup-header strong {
@@ -691,25 +683,42 @@ textarea {
 .budget-bill-list-header {
   display: grid;
   grid-template-columns:
-    minmax(200px, 1.2fr)
-    minmax(120px, .75fr)
-    minmax(120px, .75fr)
-    minmax(110px, .7fr)
-    minmax(110px, .7fr)
-    minmax(130px, .8fr)
-    minmax(110px, .7fr)
-    minmax(125px, .75fr)
-    minmax(125px, .75fr)
+    minmax(150px, 1fr)
+    minmax(86px, .54fr)
+    minmax(86px, .54fr)
+    minmax(76px, .5fr)
+    minmax(76px, .5fr)
+    minmax(94px, .58fr)
+    minmax(82px, .52fr)
+    minmax(92px, .56fr)
+    minmax(92px, .56fr)
+    minmax(74px, .44fr)
+    minmax(82px, .48fr)
+    minmax(152px, .8fr)
+    64px;
+  gap: 2px;
+  padding: 0 2px;
+  color: #51627d;
+  font-size: .74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  background: linear-gradient(180deg, #f8fbff 0%, #eef4fb 100%);
+  border: 1px solid #d6e0ee;
+  border-radius: 8px 8px 0 0;
+  border-bottom: 0;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.budget-bill-list-header.is-simple {
+  grid-template-columns:
+    minmax(220px, 1.1fr)
+    minmax(120px, .7fr)
+    minmax(140px, .8fr)
     minmax(120px, .7fr)
     minmax(260px, 1.3fr)
     88px;
-  gap: 8px;
-  padding: 0 10px;
-  color: var(--muted);
-  font-size: .76rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .04em;
 }
 
 .budget-bill-list {
@@ -718,62 +727,194 @@ textarea {
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
   display: grid;
-  gap: 6px;
-  padding: 6px;
-  padding-right: 8px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: #f5f8fd;
+  gap: 2px;
+  padding: 2px;
+  padding-right: 6px;
+  border: 1px solid #d6e0ee;
+  border-radius: 0 0 8px 8px;
+  background: linear-gradient(180deg, #f7faff 0%, #f3f7fd 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .8);
+}
+
+.budget-bill-list-admin {
+  max-height: calc(100vh - 260px);
+}
+
+.budget-panel-compact-view .budget-bill-list-header {
+  grid-template-columns:
+    minmax(128px, .92fr)
+    minmax(76px, .5fr)
+    minmax(76px, .5fr)
+    minmax(68px, .46fr)
+    minmax(68px, .46fr)
+    minmax(84px, .54fr)
+    minmax(74px, .46fr)
+    minmax(82px, .5fr)
+    minmax(82px, .5fr)
+    minmax(66px, .38fr)
+    minmax(76px, .44fr)
+    minmax(132px, .7fr)
+    58px;
+  font-size: .68rem;
+}
+
+.budget-panel-compact-view .budget-bill-item {
+  grid-template-columns:
+    minmax(128px, .92fr)
+    minmax(76px, .5fr)
+    minmax(76px, .5fr)
+    minmax(68px, .46fr)
+    minmax(68px, .46fr)
+    minmax(84px, .54fr)
+    minmax(74px, .46fr)
+    minmax(82px, .5fr)
+    minmax(82px, .5fr)
+    minmax(66px, .38fr)
+    minmax(76px, .44fr)
+    minmax(132px, .7fr)
+    58px;
+  min-width: 1080px;
+  padding: 1px 3px;
+}
+
+.budget-panel-compact-view .budget-bill-list-admin {
+  max-height: calc(100vh - 220px);
+}
+
+.budget-panel-compact-view .budget-bill-item:not(.budget-bill-item-simple) input,
+.budget-panel-compact-view .budget-bill-item:not(.budget-bill-item-simple) select,
+.budget-panel-compact-view .budget-bill-item:not(.budget-bill-item-simple) textarea {
+  min-height: 23px;
+  padding: 1px 4px;
+  font-size: .8rem;
+}
+
+.budget-panel-compact-view .budget-bill-item:not(.budget-bill-item-simple) .bill-name,
+.budget-panel-compact-view .budget-bill-item:not(.budget-bill-item-simple) .bill-status,
+.budget-panel-compact-view .budget-bill-item:not(.budget-bill-item-simple) .bill-notes,
+.budget-panel-compact-view .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-credit-box .budget-bill-status-note {
+  font-size: .8rem;
+}
+
+.budget-panel-compact-view .budget-bill-notes-box textarea {
+  min-height: 23px;
+  height: 23px;
+}
+
+.budget-panel-compact-view .budget-bill-actions button {
+  padding: 3px 5px;
+  font-size: .72rem;
 }
 
 .budget-bill-item {
   display: grid;
   grid-template-columns:
-    minmax(200px, 1.2fr)
-    minmax(120px, .75fr)
-    minmax(120px, .75fr)
-    minmax(110px, .7fr)
-    minmax(110px, .7fr)
-    minmax(130px, .8fr)
-    minmax(110px, .7fr)
-    minmax(125px, .75fr)
-    minmax(125px, .75fr)
+    minmax(150px, 1fr)
+    minmax(86px, .54fr)
+    minmax(86px, .54fr)
+    minmax(76px, .5fr)
+    minmax(76px, .5fr)
+    minmax(94px, .58fr)
+    minmax(82px, .52fr)
+    minmax(92px, .56fr)
+    minmax(92px, .56fr)
+    minmax(74px, .44fr)
+    minmax(82px, .48fr)
+    minmax(152px, .8fr)
+    64px;
+  gap: 2px;
+  align-items: start;
+  padding: 2px 4px;
+  border: 1px solid #d9e3f0;
+  border-radius: 3px;
+  background: #ffffff;
+  min-width: 1200px;
+  box-shadow: 0 1px 0 rgba(16, 24, 40, .03);
+}
+
+.budget-bill-item:nth-child(even) {
+  background: #edf2fa;
+}
+
+.budget-bill-item:hover {
+  border-color: #9fb2cb;
+  background: #e3ebf7;
+}
+
+.budget-bill-list-simple {
+  max-height: 520px;
+}
+
+.budget-bill-item-simple {
+  grid-template-columns:
+    minmax(220px, 1.1fr)
+    minmax(120px, .7fr)
+    minmax(140px, .8fr)
     minmax(120px, .7fr)
     minmax(260px, 1.3fr)
     88px;
-  gap: 8px;
-  align-items: start;
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: white;
-  min-width: 1700px;
+  min-width: 0;
 }
 
 .budget-bill-item.is-past-due {
-  border-color: #d97706;
-  background: #fff8eb;
+  border-color: #e6a23b;
+  background: #fff4dd;
 }
 
 .budget-bill-item.is-paid {
-  background: #f4fbf7;
+  background: #eef8f1;
+}
+
+.budget-bill-item.is-paid:nth-child(even) {
+  background: #e4f2e9;
 }
 
 .budget-bill-item.is-hidden {
   opacity: .9;
-  background: #f4f6fa;
+  background: #e7ecf4;
   border-style: dashed;
+}
+
+.budget-bill-total-row {
+  background: linear-gradient(180deg, #e8eef8 0%, #dde7f4 100%);
+  border-color: #c7d4e6;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.budget-bill-total-row:hover {
+  background: linear-gradient(180deg, #e8eef8 0%, #dde7f4 100%);
+  border-color: #c7d4e6;
+}
+
+.budget-bill-total-cell {
+  display: flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 2px 5px;
+  font-size: .89rem;
+  font-weight: 700;
+  color: #183153;
+  white-space: nowrap;
+}
+
+.budget-bill-total-label {
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .04em;
 }
 
 .budget-bill-field {
   display: grid;
-  gap: 4px;
+  gap: 1px;
+  min-width: 0;
 }
 
 .budget-bill-name-inline {
   display: flex;
   flex-wrap: nowrap;
-  gap: 6px;
+  gap: 3px;
   align-items: center;
 }
 
@@ -785,16 +926,20 @@ textarea {
 .budget-bill-apr {
   flex: 0 0 auto;
   white-space: nowrap;
-  color: var(--blue);
-  font-size: .74rem;
+  color: #225bb2;
+  font-size: .69rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: .03em;
+  background: #edf4ff;
+  border: 1px solid #d9e7fb;
+  border-radius: 999px;
+  padding: 1px 5px;
 }
 
 .budget-bill-field > span {
   color: var(--muted);
-  font-size: .72rem;
+  font-size: .73rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .04em;
@@ -806,32 +951,40 @@ textarea {
 
 .budget-bill-status-note {
   display: inline-block;
-  margin-top: 6px;
+  margin-top: 0;
   color: var(--muted);
-  font-size: .72rem;
+  font-size: .89rem;
   font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  padding: 1px 4px;
+  border-radius: 999px;
+  background: #f3f6fb;
 }
 
 .budget-bill-status-note.is-low-credit {
   color: var(--red);
   font-weight: 800;
+  background: #fff1f1;
 }
 
 .budget-bill-status-note.is-healthy-credit {
   color: var(--green);
   font-weight: 800;
+  background: #edf9f1;
 }
 
 .bill-recommended-payment {
   font-weight: 700;
-  color: var(--ink);
-  background: #f3f7fd;
+  color: #183153;
+  background: linear-gradient(180deg, #f6f9fe 0%, #eef4fb 100%);
+  border-color: #d3deed;
 }
 
 .budget-bill-notes-box textarea {
-  min-height: 58px;
-  height: 58px;
-  resize: vertical;
+  min-height: 26px;
+  height: 26px;
+  resize: none;
 }
 
 .budget-bill-actions {
@@ -842,8 +995,100 @@ textarea {
 }
 
 .budget-bill-actions button {
-  padding: 8px 10px;
-  font-size: .82rem;
+  padding: 4px 6px;
+  font-size: .79rem;
+  font-weight: 700;
+  border-radius: 8px;
+}
+
+.budget-bill-item:not(.budget-bill-item-simple) input,
+.budget-bill-item:not(.budget-bill-item-simple) select,
+.budget-bill-item:not(.budget-bill-item-simple) textarea {
+  padding: 2px 5px;
+  min-height: 26px;
+  font-size: .89rem;
+  border-color: #d4dfec;
+  background: #fff;
+  box-shadow: inset 0 1px 1px rgba(15, 23, 42, .02);
+}
+
+.budget-bill-item:not(.budget-bill-item-simple) textarea {
+  line-height: 1.05;
+}
+
+.budget-bill-item:not(.budget-bill-item-simple) .bill-current-balance,
+.budget-bill-item:not(.budget-bill-item-simple) .bill-credit-limit,
+.budget-bill-item:not(.budget-bill-item-simple) .bill-amount,
+.budget-bill-item:not(.budget-bill-item-simple) .bill-paid-amount,
+.budget-bill-item:not(.budget-bill-item-simple) .bill-recommended-payment,
+.budget-bill-item:not(.budget-bill-item-simple) .bill-transaction-number,
+.budget-bill-item:not(.budget-bill-item-simple) .bill-due,
+.budget-bill-item:not(.budget-bill-item-simple) .bill-paid-date {
+  font-weight: 700;
+}
+
+.budget-bill-item:not(.budget-bill-item-simple) .bill-name,
+.budget-bill-item:not(.budget-bill-item-simple) .bill-status,
+.budget-bill-item:not(.budget-bill-item-simple) .bill-notes {
+  font-size: .88rem;
+}
+
+.budget-bill-item:not(.budget-bill-item-simple) .bill-name {
+  font-weight: 700;
+}
+
+.budget-bill-item:not(.budget-bill-item-simple) .budget-bill-name-inline {
+  gap: 2px;
+}
+
+.budget-bill-item:not(.budget-bill-item-simple) .budget-bill-apr {
+  font-size: .67rem;
+}
+
+.budget-bill-item:not(.budget-bill-item-simple) .budget-bill-status-box {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  min-width: 0;
+}
+
+.budget-bill-item:not(.budget-bill-item-simple) .budget-bill-status-box .budget-bill-field {
+  flex: 0 0 82px;
+}
+
+.budget-bill-item:not(.budget-bill-item-simple) .budget-bill-status-box .bill-status {
+  min-width: 0;
+}
+
+.budget-bill-item:not(.budget-bill-item-simple) .budget-bill-credit-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.budget-bill-item:not(.budget-bill-item-simple) .budget-bill-credit-box .budget-bill-status-note {
+  font-size: .88rem;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: center;
+}
+
+.budget-bill-list-header > span:nth-child(10) {
+  text-align: center;
+}
+
+.budget-bill-item:not(.budget-bill-item-simple) .budget-bill-notes-box {
+  min-width: 0;
+}
+
+.budget-bill-item:not(.budget-bill-item-simple) input:focus,
+.budget-bill-item:not(.budget-bill-item-simple) select:focus,
+.budget-bill-item:not(.budget-bill-item-simple) textarea:focus {
+  border-color: #7aa7e6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, .12);
+  position: relative;
+  z-index: 1;
 }
 
 .hidden-bills-panel {
@@ -1482,6 +1727,27 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fbfcfe;
+}
+
+.top-todo-section-popout {
+  position: fixed;
+  inset: 18px;
+  z-index: 1200;
+  margin: 0;
+  overflow: auto;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, .24);
+}
+
+.top-todo-section-popout::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 19, 30, .5);
+  z-index: -1;
+}
+
+.top-todo-section-popout .top-todo-list {
+  max-height: calc(100vh - 260px);
 }
 
 .top-todo-toolbar {

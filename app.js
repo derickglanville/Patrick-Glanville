@@ -1264,6 +1264,10 @@ function isAdminClient() {
   return currentClientConfig()?.id === "admin";
 }
 
+function clientUsesBillGrouping(clientId = activeClientId) {
+  return clientId !== "patrick";
+}
+
 let state = buildUnselectedClientState();
 let patrickWatchState = {
   lastReviewedAt: "",
@@ -1364,6 +1368,7 @@ const toggleBillsBtn = document.querySelector("#toggleBillsBtn");
 const toggleLifeAdminBtn = document.querySelector("#toggleLifeAdminBtn");
 const toggleBudgetSnapshotsBtn = document.querySelector("#toggleBudgetSnapshotsBtn");
 const hideBillsBtn = document.querySelector("#hideBillsBtn");
+const toggleBillsCompactBtn = document.querySelector("#toggleBillsCompactBtn");
 const toggleBillsPopoutBtn = document.querySelector("#toggleBillsPopoutBtn");
 const hideLifeAdminBtn = document.querySelector("#hideLifeAdminBtn");
 const pdfUploadInput = document.querySelector("#pdfUploadInput");
@@ -1521,6 +1526,7 @@ function initializeState(loaded) {
   loaded.billGroupView = ["full", "early", "mid", "late"].includes(loaded.billGroupView)
     ? loaded.billGroupView
     : defaultBillGroupView(loaded.billMonth);
+  loaded.billsCompactView = Boolean(loaded.billsCompactView);
   loaded.monthlyBudgetFund = normalizeMoney(loaded.monthlyBudgetFund ?? seedData.monthlyBudgetFund ?? 0);
   loaded.monthlyBudgets = normalizeMonthlyBudgetsMap(loaded.monthlyBudgets, seedData);
   const hasStoredMonthlyBudgets = Object.keys(loaded.monthlyBudgets).length > 0;
@@ -1569,6 +1575,7 @@ function defaultBillMonth() {
 }
 
 function defaultBillGroupView(month = defaultBillMonth()) {
+  if (!clientUsesBillGrouping()) return "full";
   if (month !== defaultBillMonth()) return "full";
   const day = new Date().getDate();
   if (day <= 10) return "early";
@@ -1869,6 +1876,12 @@ function normalizeMonthlyBudgetEntry(entry, fallbackMonth = "", seed = getSeedDa
   if (!month) return null;
   const zeroAmounts = isBeforeBudgetTrackingStart(month);
   const fallback = buildDefaultMonthlyBudget(month, seed);
+  const deletedBillNames = Array.isArray(entry?.deletedBillNames)
+    ? entry.deletedBillNames
+        .map(name => String(name || "").trim().toLowerCase())
+        .filter(Boolean)
+    : [];
+  const deletedBillSet = new Set(deletedBillNames);
   const incomingBills = Array.isArray(entry?.bills) && entry.bills.length
     ? entry.bills
     : fallback.bills;
@@ -1876,7 +1889,7 @@ function normalizeMonthlyBudgetEntry(entry, fallbackMonth = "", seed = getSeedDa
   const billsByName = new Map(normalizedBills.map(bill => [(bill.name || "").trim().toLowerCase(), bill]));
   fallback.bills.forEach(seedBill => {
     const normalizedName = (seedBill.name || "").trim().toLowerCase();
-    if (!normalizedName || billsByName.has(normalizedName)) return;
+    if (!normalizedName || billsByName.has(normalizedName) || deletedBillSet.has(normalizedName)) return;
     const mergedBill = buildBudgetBillTemplate(seedBill, {
       zeroAmounts,
       futureDefaults: isFutureBudgetMonth(month),
@@ -1889,7 +1902,8 @@ function normalizeMonthlyBudgetEntry(entry, fallbackMonth = "", seed = getSeedDa
     month,
     monthlyBudgetFund: zeroAmounts ? 0 : normalizeMoney(entry?.monthlyBudgetFund ?? fallback.monthlyBudgetFund),
     bills: normalizedBills,
-    copiedForwardFrom: entry?.copiedForwardFrom || ""
+    copiedForwardFrom: entry?.copiedForwardFrom || "",
+    deletedBillNames
   };
   return sanitizeFutureMonthlyBudgetEntry(normalizedEntry, seed);
 }
@@ -1975,7 +1989,8 @@ function syncCurrentBudgetMonth(saveSnapshot = true) {
   state.monthlyBudgets[month] = normalizeMonthlyBudgetEntry({
     month,
     monthlyBudgetFund: state.monthlyBudgetFund,
-    bills: state.bills
+    bills: state.bills,
+    deletedBillNames: state.monthlyBudgets[month]?.deletedBillNames || []
   }, month);
   if (saveSnapshot) syncBudgetSnapshotForMonth(month);
 }
@@ -3421,6 +3436,7 @@ function render() {
   renderPatrickWatch();
   renderPanelVisibility();
   renderRunningNotes();
+  syncTopTodoPopoutState();
   userSelect.value = state.currentUser || "";
   updateTaskLabelControls();
 }
@@ -3862,21 +3878,78 @@ function setPanelCollapsed(panel, content, button, hidden, label) {
 }
 
 function renderBills() {
+  const usesSimpleBills = !clientUsesBillGrouping();
   if (!["full", "early", "mid", "late"].includes(state.billGroupView)) {
     state.billGroupView = defaultBillGroupView(state.billMonth);
   }
+  if (usesSimpleBills) {
+    state.billGroupView = "full";
+  }
   billMonthInput.value = state.billMonth || defaultBillMonth();
   if (billMBFInput) billMBFInput.value = normalizeMoney(state.monthlyBudgetFund);
+  if (budgetPanel) {
+    budgetPanel.classList.toggle("budget-panel-compact-view", Boolean(state.billsCompactView));
+  }
+  if (toggleBillsCompactBtn) {
+    toggleBillsCompactBtn.textContent = state.billsCompactView ? "Standard View" : "Compact View";
+    toggleBillsCompactBtn.className = state.billsCompactView ? "" : "ghost";
+    toggleBillsCompactBtn.setAttribute("aria-pressed", String(Boolean(state.billsCompactView)));
+  }
   billList.innerHTML = "";
   if (hiddenBillList) hiddenBillList.innerHTML = "";
 
-  const visibleBills = state.bills.filter(bill => !bill.hidden);
-  const hiddenBills = state.bills.filter(bill => bill.hidden);
+  const visibleBills = usesSimpleBills
+    ? [...state.bills]
+    : state.bills.filter(bill => !bill.hidden);
+  const hiddenBills = usesSimpleBills
+    ? []
+    : state.bills.filter(bill => bill.hidden);
   const recommendedPayments = calculateRecommendedBillPayments(visibleBills);
   const billGroups = {
     early: visibleBills.filter(bill => getBillDueGroup(bill) === "early"),
     mid: visibleBills.filter(bill => getBillDueGroup(bill) === "mid"),
     late: visibleBills.filter(bill => getBillDueGroup(bill) === "late")
+  };
+
+  const buildBillTotalsRow = billsForTotals => {
+    const totals = billsForTotals.reduce((acc, bill) => {
+      acc.currentBalance += normalizeMoney(bill.currentBalance);
+      acc.creditLimit += normalizeMoney(bill.creditLimit);
+      acc.amount += normalizeMoney(bill.amount);
+      acc.paidAmount += normalizeMoney(bill.paidAmount);
+      acc.recommended += normalizeMoney(recommendedPayments.get(bill.id) ?? bill.amount);
+      return acc;
+    }, {
+      currentBalance: 0,
+      creditLimit: 0,
+      amount: 0,
+      paidAmount: 0,
+      recommended: 0
+    });
+    const overallCreditPercent = totals.creditLimit > 0
+      ? Math.max(0, ((totals.creditLimit - totals.currentBalance) / totals.creditLimit) * 100)
+      : null;
+    const creditClass = overallCreditPercent === null
+      ? ""
+      : (overallCreditPercent < 50 ? " is-low-credit" : " is-healthy-credit");
+    const row = document.createElement("article");
+    row.className = "budget-bill-item budget-bill-total-row";
+    row.innerHTML = `
+      <div class="budget-bill-total-cell budget-bill-total-label">Totals</div>
+      <div class="budget-bill-total-cell">${escapeHtml(formatCurrency(totals.currentBalance))}</div>
+      <div class="budget-bill-total-cell">${escapeHtml(formatCurrency(totals.creditLimit))}</div>
+      <div class="budget-bill-total-cell">${escapeHtml(formatCurrency(totals.amount))}</div>
+      <div class="budget-bill-total-cell">${escapeHtml(formatCurrency(totals.paidAmount))}</div>
+      <div class="budget-bill-total-cell">${escapeHtml(formatCurrency(totals.recommended))}</div>
+      <div class="budget-bill-total-cell">-</div>
+      <div class="budget-bill-total-cell">-</div>
+      <div class="budget-bill-total-cell">-</div>
+      <div class="budget-bill-total-cell budget-bill-status-note${creditClass}">${overallCreditPercent === null ? "N/A" : escapeHtml(formatPercentLabel(overallCreditPercent))}</div>
+      <div class="budget-bill-total-cell">-</div>
+      <div class="budget-bill-total-cell">-</div>
+      <div class="budget-bill-total-cell">-</div>
+    `;
+    return row;
   };
 
   const renderBillRow = (bill, targetList, hiddenMode = false) => {
@@ -3905,12 +3978,12 @@ function renderBills() {
         <input class="bill-credit-limit" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.creditLimit))}" aria-label="Credit line">
       </label>
       <label class="budget-bill-field">
-        <span>Amount</span>
-        <input class="bill-amount" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.amount))}" aria-label="Bill amount">
+        <span>Due amt</span>
+        <input class="bill-amount" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.amount))}" aria-label="Bill amount due">
       </label>
       <label class="budget-bill-field">
         <span>Paid amt</span>
-        <input class="bill-paid-amount" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.paidAmount))}" aria-label="Bill amount paid">
+        <input class="bill-paid-amount" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.paidAmount))}" aria-label="Actual amount paid">
       </label>
       <label class="budget-bill-field">
         <span>Recommended</span>
@@ -3928,6 +4001,10 @@ function renderBills() {
         <span>Date paid</span>
         <input class="bill-paid-date" type="date" value="${escapeAttribute(bill.paidDate || "")}" aria-label="Bill date paid">
       </label>
+      <div class="budget-bill-field budget-bill-credit-box">
+        <span>% Credit</span>
+        <div class="budget-bill-status-note${creditRemainingClass}">${creditRemainingPercent === null ? "N/A" : escapeHtml(formatPercentLabel(creditRemainingPercent))}</div>
+      </div>
       <div class="budget-bill-status-box">
         <label class="budget-bill-field">
           <span>Status</span>
@@ -3935,7 +4012,6 @@ function renderBills() {
             ${billStatusOptions.map(status => `<option${status === bill.status ? " selected" : ""}>${escapeHtml(status)}</option>`).join("")}
           </select>
         </label>
-        <span class="budget-bill-status-note${creditRemainingClass}">${creditRemainingPercent === null ? "Credit remaining N/A" : `Credit remaining ${escapeHtml(formatPercentLabel(creditRemainingPercent))}`}</span>
       </div>
       <div class="budget-bill-notes-box">
         <label class="budget-bill-field">
@@ -3974,32 +4050,38 @@ function renderBills() {
     targetList.appendChild(row);
   };
 
-  ["early", "mid", "late"].forEach(groupKey => {
-    const meta = getBillGroupMeta(groupKey);
-    const section = document.createElement("section");
-    section.className = "budget-bill-subgroup";
-    section.hidden = state.billGroupView !== "full" && state.billGroupView !== groupKey;
-
-    const header = document.createElement("div");
-    header.className = "budget-bill-subgroup-header";
-    header.innerHTML = `<strong>${escapeHtml(meta.label)}</strong><span>${billGroups[groupKey].length} bill${billGroups[groupKey].length === 1 ? "" : "s"} • ${escapeHtml(meta.range)}</span>`;
-
+  if (usesSimpleBills) {
     const list = document.createElement("div");
-    list.className = "budget-bill-list";
-
-    if (!billGroups[groupKey].length) {
+    list.className = "budget-bill-list budget-bill-list-simple";
+    if (!visibleBills.length) {
       const empty = document.createElement("p");
       empty.className = "empty-notes";
-      empty.textContent = `No ${meta.label.toLowerCase()} in this month.`;
+      empty.textContent = "No monthly bills in this month.";
       list.appendChild(empty);
     } else {
-      billGroups[groupKey].forEach(bill => renderBillRow(bill, list, false));
+      visibleBills.forEach(bill => renderSimpleBillRow(bill, list));
     }
-
-    section.append(header, list);
-    billList.appendChild(section);
-  });
-  hiddenBills.forEach(bill => renderBillRow(bill, hiddenBillList, true));
+    billList.appendChild(list);
+  } else {
+    const list = document.createElement("div");
+    list.className = "budget-bill-list budget-bill-list-admin";
+    const filteredBills = state.billGroupView === "full"
+      ? visibleBills
+      : billGroups[state.billGroupView] || [];
+    list.appendChild(buildBillTotalsRow(filteredBills));
+    if (!filteredBills.length) {
+      const empty = document.createElement("p");
+      empty.className = "empty-notes";
+      empty.textContent = "No bills in this view for this month.";
+      list.appendChild(empty);
+    } else {
+      filteredBills.forEach(bill => renderBillRow(bill, list, false));
+    }
+    billList.appendChild(list);
+  }
+  if (!usesSimpleBills) {
+    hiddenBills.forEach(bill => renderBillRow(bill, hiddenBillList, true));
+  }
 
   [
     ["full", billGroupFullBtn],
@@ -4012,6 +4094,26 @@ function renderBills() {
     button.className = isActive ? "" : "ghost";
     button.setAttribute("aria-pressed", String(isActive));
   });
+
+  const billGroupToolbar = document.querySelector(".budget-group-toolbar");
+  if (billGroupToolbar) {
+    billGroupToolbar.hidden = usesSimpleBills;
+  }
+  const billListHeader = document.querySelector(".budget-bill-list-header");
+  if (billListHeader) {
+    billListHeader.classList.toggle("is-simple", usesSimpleBills);
+    billListHeader.innerHTML = usesSimpleBills
+      ? "<span>Bill</span><span>Amount</span><span>Due</span><span>Status</span><span>Notes</span><span>Actions</span>"
+      : "<span>Bill / APR</span><span>Current Bal</span><span>Credit Line</span><span>Due Amt</span><span>Paid Amt</span><span>Recommended</span><span>Tran #</span><span>Due</span><span>Date Paid</span><span>% Credit</span><span>Status</span><span>Notes</span><span>Actions</span>";
+  }
+
+  const hiddenBillsPanel = document.querySelector(".hidden-bills-panel");
+  if (hiddenBillsPanel) {
+    hiddenBillsPanel.hidden = usesSimpleBills;
+  }
+  if (copyBillsToNextMonthBtn) copyBillsToNextMonthBtn.hidden = usesSimpleBills;
+  if (undoCopyBillsToNextMonthBtn) undoCopyBillsToNextMonthBtn.hidden = usesSimpleBills;
+  if (toggleBillsPopoutBtn) toggleBillsPopoutBtn.hidden = usesSimpleBills;
 
   if (toggleHiddenBillsBtn) {
     const hiddenCount = hiddenBills.length;
@@ -4027,6 +4129,32 @@ function renderBills() {
   updateBillTotals();
   renderUpcomingBillsBanner();
   renderBudgetSnapshots();
+}
+
+function deleteBill(id) {
+  const bill = state.bills.find(item => item.id === id);
+  if (!bill) return;
+  if (!ensureCurrentUser("delete a monthly bill")) return;
+  const month = state.billMonth || defaultBillMonth();
+  ensureMonthlyBudgetState(month);
+  const deletedName = String(bill.name || "").trim().toLowerCase();
+  if (deletedName) {
+    const deletedBillNames = new Set(state.monthlyBudgets[month]?.deletedBillNames || []);
+    deletedBillNames.add(deletedName);
+    state.monthlyBudgets[month].deletedBillNames = Array.from(deletedBillNames);
+  }
+  recordHistoryEntry({
+    itemType: "bill",
+    itemId: bill.id,
+    title: historyTitleFor("bill", bill.name || "Untitled bill"),
+    summary: `Monthly bill deleted${bill.amount ? ` for ${formatCurrency(bill.amount)}` : ""}`,
+    status: bill.status || "N/A",
+    percent: percentFromBillStatus(bill.status)
+  });
+  state.bills = state.bills.filter(item => item.id !== id);
+  syncCurrentBudgetMonth();
+  saveState();
+  renderBills();
 }
 
 function buildBillChangeSummary(before, after) {
@@ -4049,19 +4177,29 @@ function updateBillFromRow(row, options = {}) {
   if (!bill) return;
   if (!ensureCurrentUser("update a monthly bill")) return;
   const recordHistory = options.recordHistory !== false;
+  const persist = options.persist !== false;
   const before = { ...bill };
-  bill.name = row.querySelector(".bill-name").value.trim();
-  bill.currentBalance = normalizeCurrencyCell(row.querySelector(".bill-current-balance").value);
-  bill.creditLimit = normalizeCurrencyCell(row.querySelector(".bill-credit-limit").value);
-  bill.amount = normalizeCurrencyCell(row.querySelector(".bill-amount").value);
-  bill.transactionNumber = row.querySelector(".bill-transaction-number").value.trim();
-  bill.due = row.querySelector(".bill-due").value;
-  bill.paidAmount = normalizeCurrencyCell(row.querySelector(".bill-paid-amount").value);
-  bill.paidDate = row.querySelector(".bill-paid-date").value;
+  const getField = selector => row.querySelector(selector);
+  bill.name = getField(".bill-name")?.value.trim() ?? bill.name;
+  bill.currentBalance = getField(".bill-current-balance")
+    ? normalizeCurrencyCell(getField(".bill-current-balance").value)
+    : bill.currentBalance;
+  bill.creditLimit = getField(".bill-credit-limit")
+    ? normalizeCurrencyCell(getField(".bill-credit-limit").value)
+    : bill.creditLimit;
+  bill.amount = getField(".bill-amount")
+    ? normalizeCurrencyCell(getField(".bill-amount").value)
+    : bill.amount;
+  bill.transactionNumber = getField(".bill-transaction-number")?.value.trim() ?? bill.transactionNumber;
+  bill.due = getField(".bill-due")?.value ?? bill.due;
+  bill.paidAmount = getField(".bill-paid-amount")
+    ? normalizeCurrencyCell(getField(".bill-paid-amount").value)
+    : bill.paidAmount;
+  bill.paidDate = getField(".bill-paid-date")?.value ?? bill.paidDate;
   bill.status = bill.statusTracksPaidDate
     ? (bill.paidDate ? "Paid" : "Unpaid")
-    : row.querySelector(".bill-status").value;
-  bill.notes = row.querySelector(".bill-notes").value.trim();
+    : (getField(".bill-status")?.value ?? bill.status);
+  bill.notes = getField(".bill-notes")?.value.trim() ?? bill.notes;
   const summary = buildBillChangeSummary(before, bill);
   if (recordHistory && (summary !== "Monthly bill updated" || JSON.stringify(before) !== JSON.stringify(bill))) {
     recordHistoryEntry({
@@ -4073,15 +4211,17 @@ function updateBillFromRow(row, options = {}) {
       percent: percentFromBillStatus(bill.status)
     });
   }
-  syncCurrentBudgetMonth();
-  saveState();
+  if (persist) {
+    syncCurrentBudgetMonth(false);
+    saveState();
+  }
   updateBillTotals();
 
   if (options.recordHistory !== false) {
-    row.querySelector(".bill-current-balance").value = formatCurrencyInputValue(bill.currentBalance);
-    row.querySelector(".bill-credit-limit").value = formatCurrencyInputValue(bill.creditLimit);
-    row.querySelector(".bill-amount").value = formatCurrencyInputValue(bill.amount);
-    row.querySelector(".bill-paid-amount").value = formatCurrencyInputValue(bill.paidAmount);
+    if (getField(".bill-current-balance")) getField(".bill-current-balance").value = formatCurrencyInputValue(bill.currentBalance);
+    if (getField(".bill-credit-limit")) getField(".bill-credit-limit").value = formatCurrencyInputValue(bill.creditLimit);
+    if (getField(".bill-amount")) getField(".bill-amount").value = formatCurrencyInputValue(bill.amount);
+    if (getField(".bill-paid-amount")) getField(".bill-paid-amount").value = formatCurrencyInputValue(bill.paidAmount);
   }
 }
 
@@ -4705,6 +4845,7 @@ function createTopTodoListSection(task) {
 
   const section = document.createElement("section");
   section.className = "top-todo-section";
+  if (task.todoPoppedOut) section.classList.add("top-todo-section-popout");
 
   const openItems = task.todoItems.filter(item => !isClosedTaskStatus(item.status));
   const closedItems = task.todoItems.filter(item => isClosedTaskStatus(item.status));
@@ -4737,7 +4878,13 @@ function createTopTodoListSection(task) {
   reportButton.textContent = "Generate Report";
   reportButton.hidden = !currentClientConfig()?.supportsReports;
   reportButton.addEventListener("click", downloadOpenTodoReportHtml);
-  viewSwitch.append(activeButton, closedButton, reportButton);
+  const popoutButton = document.createElement("button");
+  popoutButton.type = "button";
+  popoutButton.className = "ghost";
+  popoutButton.textContent = task.todoPoppedOut ? "Dock" : "Pop Out";
+  popoutButton.setAttribute("aria-pressed", String(Boolean(task.todoPoppedOut)));
+  popoutButton.addEventListener("click", () => toggleTopTodoPopout(task));
+  viewSwitch.append(activeButton, closedButton, reportButton, popoutButton);
   toolbar.appendChild(viewSwitch);
 
   const addBox = document.createElement("div");
@@ -4862,6 +5009,17 @@ function setTopTodoView(task, view) {
   task.todoView = view === "closed" ? "closed" : "active";
   saveState();
   render();
+}
+
+function toggleTopTodoPopout(task) {
+  task.todoPoppedOut = !task.todoPoppedOut;
+  saveState();
+  render();
+}
+
+function syncTopTodoPopoutState() {
+  const hasPoppedOutTopTodo = state.tasks.some(task => isTopTodoListTask(task) && task.todoPoppedOut);
+  document.body.classList.toggle("top-todo-panel-open", hasPoppedOutTopTodo);
 }
 
 function addTopTodoItem(task, title, status = "Not started", notes = "") {
@@ -7330,6 +7488,8 @@ if (toggleHiddenBillsBtn) {
 }
 document.querySelector("#addBillBtn").addEventListener("click", () => {
   if (!ensureCurrentUser("add a bill")) return;
+  const month = state.billMonth || defaultBillMonth();
+  ensureMonthlyBudgetState(month);
   const newBill = {
     id: crypto.randomUUID(),
     name: "",
@@ -7338,6 +7498,9 @@ document.querySelector("#addBillBtn").addEventListener("click", () => {
     status: "Unpaid",
     notes: ""
   };
+  const deletedBillNames = new Set(state.monthlyBudgets[month]?.deletedBillNames || []);
+  deletedBillNames.delete("");
+  state.monthlyBudgets[month].deletedBillNames = Array.from(deletedBillNames);
   state.bills.push(newBill);
   syncCurrentBudgetMonth();
   recordHistoryEntry({
@@ -7368,6 +7531,13 @@ if (toggleBillsPopoutBtn) {
     toggleBillsPopoutBtn.textContent = isPoppedOut ? "Dock" : "Pop Out";
     toggleBillsPopoutBtn.setAttribute("aria-pressed", String(isPoppedOut));
     document.body.classList.toggle("budget-panel-open", isPoppedOut);
+  });
+}
+if (toggleBillsCompactBtn) {
+  toggleBillsCompactBtn.addEventListener("click", () => {
+    state.billsCompactView = !state.billsCompactView;
+    saveState();
+    renderBills();
   });
 }
 if (toggleBudgetSnapshotsBtn) {
@@ -7707,3 +7877,46 @@ try {
   window.__appBootStage = "boot-failed";
   updateDataStoreStatus();
 }
+  const renderSimpleBillRow = (bill, targetList) => {
+    const row = document.createElement("article");
+    row.className = `budget-bill-item budget-bill-item-simple${isBillPastDue(bill) ? " is-past-due" : ""}${bill.status === "Paid" ? " is-paid" : ""}`;
+    row.dataset.billId = bill.id;
+    row.innerHTML = `
+      <label class="budget-bill-field">
+        <span>Bill</span>
+        <input class="bill-name" value="${escapeAttribute(bill.name)}" aria-label="Bill name">
+      </label>
+      <label class="budget-bill-field">
+        <span>Amount</span>
+        <input class="bill-amount" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.amount))}" aria-label="Bill amount">
+      </label>
+      <label class="budget-bill-field">
+        <span>Due date</span>
+        <input class="bill-due" type="date" value="${escapeAttribute(bill.due)}" aria-label="Bill due date">
+      </label>
+      <label class="budget-bill-field">
+        <span>Status</span>
+        <select class="bill-status" aria-label="Bill status">
+          ${billStatusOptions.map(status => `<option${status === bill.status ? " selected" : ""}>${escapeHtml(status)}</option>`).join("")}
+        </select>
+      </label>
+      <label class="budget-bill-field budget-bill-notes-box">
+        <span>Notes</span>
+        <textarea class="bill-notes" rows="2" aria-label="Bill notes" placeholder="Optional notes">${escapeHtml(bill.notes || "")}</textarea>
+      </label>
+      <div class="budget-bill-actions">
+        <button type="button" class="delete-bill-button" aria-label="Delete bill">Delete</button>
+      </div>
+    `;
+
+    row.querySelector(".bill-name").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
+    row.querySelector(".bill-amount").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
+    row.querySelector(".bill-notes").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
+    row.querySelector(".bill-name").addEventListener("change", () => updateBillFromRow(row));
+    row.querySelector(".bill-amount").addEventListener("change", () => updateBillFromRow(row));
+    row.querySelector(".bill-due").addEventListener("change", () => updateBillFromRow(row));
+    row.querySelector(".bill-status").addEventListener("change", () => updateBillFromRow(row));
+    row.querySelector(".bill-notes").addEventListener("change", () => updateBillFromRow(row));
+    row.querySelector(".delete-bill-button").addEventListener("click", () => deleteBill(bill.id));
+    targetList.appendChild(row);
+  };
