@@ -18,6 +18,7 @@ const BUILD_INFO = {
 };
 const GITHUB_COMMIT_API = "https://api.github.com/repos/derickglanville/Patrick-Glanville/commits/main";
 const SUPABASE_TABLE = "tracker_state";
+const FIREBASE_REFRESH_SIGNAL_TABLE = "tracker_refresh_signals";
 const PATRICK_SUPABASE_STATE_ID = "patrick-glanville";
 const THEODORE_SUPABASE_STATE_ID = "theodore-glanville";
 const ADMIN_SUPABASE_STATE_ID = "admin-glanville";
@@ -123,6 +124,10 @@ let applyingRemoteState = false;
 let sharedStateUnsubscribe = null;
 let sharedStateListenerId = "";
 let pendingLocalSharedSaveAt = "";
+let refreshSignalUnsubscribe = null;
+let refreshSignalListenerId = "";
+let lastSeenRefreshSignalAt = "";
+const DEVICE_SESSION_ID = `session-${Math.random().toString(36).slice(2)}-${Date.now()}`;
 const allowedUsers = [
   { name: "Deric Glanville", email: DERIC_EMAIL },
   { name: "Patrick Glanville", email: PATRICK_EMAIL },
@@ -1305,6 +1310,7 @@ const toggleCurrentUserBtn = document.querySelector("#toggleCurrentUserBtn");
 const clientSwitchBtn = document.querySelector("#clientSwitchBtn");
 const topClientSwitchBtn = document.querySelector("#topClientSwitchBtn");
 const topClientSelect = document.querySelector("#topClientSelect");
+const pullLatestDevicesBtn = document.querySelector("#pullLatestDevicesBtn");
 const topClientPinWrapInline = document.querySelector("#topClientPinWrapInline");
 const topClientPin = document.querySelector("#topClientPin");
 const overviewPanel = document.querySelector("#overviewPanel");
@@ -3277,6 +3283,12 @@ function stopSharedStateSync() {
   }
   sharedStateUnsubscribe = null;
   sharedStateListenerId = "";
+  if (typeof refreshSignalUnsubscribe === "function") {
+    refreshSignalUnsubscribe();
+  }
+  refreshSignalUnsubscribe = null;
+  refreshSignalListenerId = "";
+  lastSeenRefreshSignalAt = "";
 }
 
 function applyRemoteSharedState(remoteState, updatedAt = "") {
@@ -3385,6 +3397,76 @@ async function subscribeToSharedState() {
       }
     );
   });
+
+  const refreshDocRef = supabaseClient.doc(supabaseClient.db, FIREBASE_REFRESH_SIGNAL_TABLE, stateId);
+  refreshSignalListenerId = `${clientId}:${stateId}`;
+  refreshSignalUnsubscribe = supabaseClient.onSnapshot(
+    refreshDocRef,
+    snapshot => {
+      if (refreshSignalListenerId !== `${clientId}:${stateId}` || activeClientId !== clientId || !snapshot.exists()) {
+        return;
+      }
+      const data = snapshot.data() || {};
+      const requestedAt = String(data.requested_at || "");
+      const requestedBySession = String(data.session_id || "");
+      if (!requestedAt) return;
+      if (!lastSeenRefreshSignalAt) {
+        lastSeenRefreshSignalAt = requestedAt;
+        return;
+      }
+      if (requestedAt === lastSeenRefreshSignalAt) return;
+      lastSeenRefreshSignalAt = requestedAt;
+      if (requestedBySession === DEVICE_SESSION_ID) return;
+      supabaseStatus = `Firebase Firestore shared storage; remote refresh requested for ${currentClientConfig()?.shortName || "client"}; reloading`;
+      updateDataStoreStatus();
+      window.setTimeout(() => {
+        const url = new URL(window.location.href);
+        url.searchParams.set("refresh", Date.now().toString());
+        window.location.href = url.toString();
+      }, 150);
+    },
+    error => {
+      supabaseStatus = `Firebase Firestore refresh signal failed: ${error.message}`;
+      updateDataStoreStatus();
+    }
+  );
+}
+
+async function requestRemoteClientRefresh() {
+  if (!supabaseEnabled || !activeClientId || !getSupabaseStateId()) {
+    alert("Choose a client with Firebase sync active first.");
+    return;
+  }
+  try {
+    const requestedAt = new Date().toISOString();
+    const refreshDocRef = supabaseClient.doc(
+      supabaseClient.db,
+      FIREBASE_REFRESH_SIGNAL_TABLE,
+      getSupabaseStateId()
+    );
+    await supabaseClient.setDoc(
+      refreshDocRef,
+      {
+        id: getSupabaseStateId(),
+        client_id: activeClientId,
+        requested_at: requestedAt,
+        requested_by: state.currentUser || "",
+        requested_by_name: getAllowedUserByEmail(state.currentUser || "")?.name || "",
+        session_id: DEVICE_SESSION_ID
+      },
+      { merge: true }
+    );
+    lastSeenRefreshSignalAt = requestedAt;
+    supabaseStatus = `Firebase Firestore shared storage; latest pull requested for ${currentClientConfig()?.shortName || "client"}`;
+    updateDataStoreStatus();
+    const url = new URL(window.location.href);
+    url.searchParams.set("refresh", Date.now().toString());
+    window.location.href = url.toString();
+  } catch (error) {
+    supabaseStatus = `Firebase Firestore refresh request failed: ${error.message}`;
+    updateDataStoreStatus();
+    alert(`Could not request the latest pull on other devices: ${error.message}`);
+  }
 }
 
 function queueSharedStateSave() {
@@ -3504,6 +3586,12 @@ function updateClientChrome() {
     if (userSelect.options.length) {
       userSelect.options[0].textContent = client ? "Select account..." : "Choose client first...";
     }
+  }
+  if (pullLatestDevicesBtn) {
+    pullLatestDevicesBtn.disabled = !client || !supabaseEnabled;
+    pullLatestDevicesBtn.title = client && supabaseEnabled
+      ? `Tell other open ${client.shortName} dashboards to reload the latest shared data`
+      : "Choose a client with Firebase sync active first";
   }
   if (currentUserContent && toggleCurrentUserBtn) {
     currentUserContent.hidden = currentUserCollapsed;
@@ -7949,6 +8037,11 @@ document.querySelector("#refreshAppBtn").addEventListener("click", () => {
   url.searchParams.set("refresh", Date.now().toString());
   window.location.href = url.toString();
 });
+if (pullLatestDevicesBtn) {
+  pullLatestDevicesBtn.addEventListener("click", () => {
+    requestRemoteClientRefresh();
+  });
+}
 
 markPatrickReviewedBtn.addEventListener("click", () => {
   const openPatrickEntries = state.history
