@@ -204,7 +204,6 @@
           <h2>Monthly Bills</h2>
         </div>
         <div class="panel-actions">
-          <div id="upcomingBillsBanner" class="budget-upcoming-banner" hidden></div>
           <label for="billMBF">Monthly Budget Fund (MBF)
             <input id="billMBF" type="number" min="0" step="0.01">
           </label>
@@ -221,11 +220,13 @@
           <button id="undoCopyBillsToNextMonthBtn" type="button" class="ghost">Undo Next Month Copy</button>
           <button id="toggleBillsCompactBtn" type="button" class="ghost" aria-pressed="false">Compact View</button>
           <button id="toggleBillsPopoutBtn" type="button" class="ghost">Pop Out</button>
+          <button id="monthlyBillsReportBtn" type="button" class="ghost">Monthly Report</button>
           <button id="saveBudgetSnapshotBtn" type="button">Save Month</button>
           <button id="hideBillsBtn" type="button" class="ghost">Hide</button>
         </div>
       </header>
       <div class="collapsible-content" id="budgetPanelContent">
+        <div id="upcomingBillsBanner" class="budget-upcoming-banner" hidden></div>
         <div class="budget-metrics">
           <article><strong id="billMBFDisplay">$0.00</strong><span>MBF</span></article>
           <article><strong id="billTotal">$0.00</strong><span>Total bills</span></article>

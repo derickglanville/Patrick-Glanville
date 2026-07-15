@@ -128,6 +128,7 @@ let refreshSignalUnsubscribe = null;
 let refreshSignalListenerId = "";
 let lastSeenRefreshSignalAt = "";
 let autoCalculateBillsOnLoadPending = true;
+let selectedBillIds = new Set();
 const DEVICE_SESSION_ID = `session-${Math.random().toString(36).slice(2)}-${Date.now()}`;
 const allowedUsers = [
   { name: "Deric Glanville", email: DERIC_EMAIL },
@@ -1226,6 +1227,19 @@ function currentClientConfig() {
   return clientConfigs[activeClientId] || null;
 }
 
+function isBillSelected(billId) {
+  return Boolean(billId && selectedBillIds.has(billId));
+}
+
+function setBillSelected(billId, selected) {
+  if (!billId) return;
+  if (selected) {
+    selectedBillIds.add(billId);
+  } else {
+    selectedBillIds.delete(billId);
+  }
+}
+
 function getSeedData() {
   return seedDataByClient[activeClientId] || buildUnselectedClientState();
 }
@@ -1350,6 +1364,7 @@ const copyBillsToNextMonthBtn = document.querySelector("#copyBillsToNextMonthBtn
 const calculateBillsBtn = document.querySelector("#calculateBillsBtn");
 const assignDueDatesBtn = document.querySelector("#assignDueDatesBtn");
 const undoCopyBillsToNextMonthBtn = document.querySelector("#undoCopyBillsToNextMonthBtn");
+const monthlyBillsReportBtn = document.querySelector("#monthlyBillsReportBtn");
 const billMBFDisplay = document.querySelector("#billMBFDisplay");
 const billList = document.querySelector("#billList");
 const billTotal = document.querySelector("#billTotal");
@@ -4237,6 +4252,7 @@ function renderBills() {
     const row = document.createElement("article");
     row.className = "budget-bill-item budget-bill-total-row";
     row.innerHTML = `
+      <div class="budget-bill-total-cell budget-bill-selector-spacer"></div>
       <div class="budget-bill-total-cell budget-bill-total-label">Totals</div>
       <div class="budget-bill-total-cell">-</div>
       <div class="budget-bill-total-cell">${escapeHtml(formatCurrency(totals.previousBalance))}</div>
@@ -4270,6 +4286,9 @@ function renderBills() {
     row.className = `budget-bill-item${pastDue ? " is-past-due" : ""}${dueSoon ? " is-due-soon" : ""}${bill.status === "Paid" ? " is-paid" : ""}${bill.hidden ? " is-hidden" : ""}`;
     row.dataset.billId = bill.id;
     row.innerHTML = `
+      <div class="budget-bill-selector-box">
+        <button type="button" class="budget-bill-row-selector" aria-label="Select bill row" aria-pressed="${isBillSelected(bill.id) ? "true" : "false"}"></button>
+      </div>
       <label class="budget-bill-field budget-bill-name-box">
         <span>Bill</span>
         <input class="bill-name" value="${escapeAttribute(bill.name)}" aria-label="Bill name">
@@ -4361,8 +4380,17 @@ function renderBills() {
     row.querySelector(".bill-paid-date").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-status").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-notes").addEventListener("change", () => updateBillFromRow(row));
+    row.querySelector(".budget-bill-row-selector").addEventListener("click", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      const nextSelected = !isBillSelected(bill.id);
+      setBillSelected(bill.id, nextSelected);
+      row.classList.toggle("is-selected", nextSelected);
+      row.querySelector(".budget-bill-row-selector")?.setAttribute("aria-pressed", String(nextSelected));
+    });
     row.querySelector(".toggle-bill-hidden").addEventListener("click", () => toggleBillHidden(bill.id));
     row.querySelector(".delete-bill-button").addEventListener("click", () => deleteBill(bill.id));
+    row.classList.toggle("is-selected", isBillSelected(bill.id));
     if (hiddenMode) {
       row.querySelectorAll("input, textarea, select").forEach(control => {
         control.disabled = true;
@@ -4424,8 +4452,8 @@ function renderBills() {
   if (billListHeader) {
     billListHeader.classList.toggle("is-simple", usesSimpleBills);
     billListHeader.innerHTML = usesSimpleBills
-      ? "<span>Bill</span><span>Amount</span><span>Due</span><span>Status</span><span>Notes</span><span>Actions</span>"
-      : "<span>Bill</span><span>APR</span><span>Prev Bal</span><span>Current Bal</span><span>Diff</span><span>Credit Line</span><span>Due Amt</span><span>Paid Amt</span><span>Recommended</span><span>Tran #</span><span>Due</span><span>Date Paid</span><span>% Credit</span><span>Status</span><span>Notes</span><span>Actions</span>";
+      ? "<span class=\"budget-bill-selector-header\"></span><span>Bill</span><span>Amount</span><span>Due</span><span>Status</span><span>Notes</span><span>Actions</span>"
+      : "<span class=\"budget-bill-selector-header\"></span><span>Bill</span><span>APR</span><span>Prev Bal</span><span>Current Bal</span><span>Diff</span><span>Credit Line</span><span>Due Amt</span><span>Paid Amt</span><span>Recommended</span><span>Tran #</span><span>Due</span><span>Date Paid</span><span>% Credit</span><span>Status</span><span>Notes</span><span>Actions</span>";
   }
 
   const hiddenBillsPanel = document.querySelector(".hidden-bills-panel");
@@ -4464,6 +4492,7 @@ function renderBills() {
 function deleteBill(id) {
   const bill = state.bills.find(item => item.id === id);
   if (!bill) return;
+  selectedBillIds.delete(id);
   if (!ensureCurrentUser("delete a monthly bill")) return;
   const month = state.billMonth || defaultBillMonth();
   ensureMonthlyBudgetState(month);
@@ -7355,6 +7384,467 @@ function metricHtml(value, label) {
   return `<article class="metric"><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></article>`;
 }
 
+function buildMonthlyBillsReportFileName() {
+  const client = currentClientConfig();
+  const clientSlug = (client?.shortName || "client").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const month = state.billMonth || defaultBillMonth();
+  return `${clientSlug}-monthly-bills-report-${month}.html`;
+}
+
+function getMonthlyBillReportEntries() {
+  const monthlyBudgets = normalizeMonthlyBudgetsMap(state.monthlyBudgets);
+  return Object.keys(monthlyBudgets)
+    .sort()
+    .map(month => {
+      const monthlyBudget = monthlyBudgets[month] || buildDefaultMonthlyBudget(month);
+      const bills = (monthlyBudget.bills || []).map(normalizeBill);
+      const recommendedPayments = calculateRecommendedBillPayments(bills);
+      const totals = calculateBudgetTotals(monthlyBudget.monthlyBudgetFund, bills);
+      const currentDebt = bills.reduce((sum, bill) => sum + normalizeMoney(bill.currentBalance), 0);
+      const previousDebt = bills.reduce((sum, bill) => sum + normalizeMoney(bill.previousBalance ?? bill.currentBalance), 0);
+      const totalPaid = bills.reduce((sum, bill) => sum + normalizeMoney(bill.paidAmount), 0);
+      const totalReduction = bills.reduce((sum, bill) => {
+        return sum + (normalizeMoney(bill.previousBalance ?? bill.currentBalance) - normalizeMoney(bill.currentBalance));
+      }, 0);
+      const weightedAprExposure = bills.reduce((sum, bill) => {
+        const balance = normalizeMoney(bill.currentBalance);
+        const apr = parseAprNumber(bill.apr);
+        return sum + (balance * (apr / 100));
+      }, 0);
+      const weightedAprPercent = currentDebt > 0 ? (weightedAprExposure / currentDebt) * 100 : null;
+      const recommendationTotal = bills.reduce((sum, bill) => {
+        return sum + normalizeMoney(recommendedPayments.get(bill.id) ?? bill.amount);
+      }, 0);
+      const overdueCount = bills.filter(bill => bill.status === "Unpaid" && isBillPastDue(bill)).length;
+      const unpaidCount = bills.filter(bill => bill.status === "Unpaid").length;
+      const above25UtilizationCount = bills.filter(bill => {
+        const limit = normalizeMoney(bill.creditLimit);
+        if (limit <= 0) return false;
+        return (normalizeMoney(bill.currentBalance) / limit) > 0.25;
+      }).length;
+
+      return {
+        month,
+        label: formatBudgetMonthLabel(month),
+        monthlyBudgetFund: normalizeMoney(monthlyBudget.monthlyBudgetFund),
+        bills,
+        totals,
+        recommendedPayments,
+        currentDebt: normalizeMoney(currentDebt),
+        previousDebt: normalizeMoney(previousDebt),
+        totalPaid: normalizeMoney(totalPaid),
+        totalReduction: normalizeMoney(totalReduction),
+        weightedAprExposure: normalizeMoney(weightedAprExposure),
+        weightedAprPercent,
+        recommendationTotal: normalizeMoney(recommendationTotal),
+        overdueCount,
+        unpaidCount,
+        above25UtilizationCount
+      };
+    });
+}
+
+function buildMonthlyBillsReportHtml() {
+  const client = currentClientConfig();
+  const monthEntries = getMonthlyBillReportEntries();
+  const selectedMonth = state.billMonth || defaultBillMonth();
+  const selectedEntry = monthEntries.find(entry => entry.month === selectedMonth) || monthEntries[monthEntries.length - 1] || null;
+  const bills = selectedEntry?.bills || [];
+  const recommendedPayments = selectedEntry?.recommendedPayments || new Map();
+
+  const aggregateByBill = new Map();
+  monthEntries.forEach(entry => {
+    entry.bills.forEach(bill => {
+      const key = (bill.name || "Untitled bill").trim() || "Untitled bill";
+      const current = aggregateByBill.get(key) || {
+        name: key,
+        unpaid: 0,
+        overdue: 0,
+        monthsSeen: 0
+      };
+      current.monthsSeen += 1;
+      if (bill.status === "Unpaid") current.unpaid += 1;
+      if (bill.status === "Unpaid" && isBillPastDue(bill)) current.overdue += 1;
+      aggregateByBill.set(key, current);
+    });
+  });
+
+  const currentMonthTopApr = [...bills]
+    .filter(bill => normalizeMoney(bill.currentBalance) > 0 || parseAprNumber(bill.apr) > 0)
+    .sort((left, right) => {
+      const aprDiff = parseAprNumber(right.apr) - parseAprNumber(left.apr);
+      if (aprDiff !== 0) return aprDiff;
+      return normalizeMoney(right.currentBalance) - normalizeMoney(left.currentBalance);
+    })
+    .slice(0, 10);
+
+  const currentMonthAbove25 = [...bills]
+    .filter(bill => {
+      const creditRemaining = calculateCreditRemainingPercent(bill);
+      return creditRemaining !== null && creditRemaining < 75;
+    })
+    .sort((left, right) => normalizeMoney(right.currentBalance) - normalizeMoney(left.currentBalance));
+
+  const currentMonthOverdue = [...bills]
+    .filter(bill => bill.status === "Unpaid" && isBillPastDue(bill))
+    .sort(compareBillsByDueDate);
+
+  const mostOftenUnpaid = [...aggregateByBill.values()]
+    .sort((left, right) => {
+      if (right.unpaid !== left.unpaid) return right.unpaid - left.unpaid;
+      return right.overdue - left.overdue;
+    })
+    .slice(0, 10);
+
+  const mostOftenOverdue = [...aggregateByBill.values()]
+    .sort((left, right) => {
+      if (right.overdue !== left.overdue) return right.overdue - left.overdue;
+      return right.unpaid - left.unpaid;
+    })
+    .slice(0, 10);
+
+  const monthlyTrendRows = monthEntries.length
+    ? monthEntries.map(entry => `
+      <tr>
+        <td class="selector-cell"><button type="button" class="row-selector" aria-pressed="false" aria-label="Select row"></button></td>
+        <td>${escapeHtml(entry.label)}</td>
+        <td>${escapeHtml(formatCurrency(entry.currentDebt))}</td>
+        <td>${escapeHtml(formatCurrency(entry.totalPaid))}</td>
+        <td>${escapeHtml(formatSignedCurrency(entry.totalReduction))}</td>
+        <td>${escapeHtml(entry.weightedAprPercent === null ? "N/A" : formatPercentLabel(entry.weightedAprPercent))}</td>
+        <td>${escapeHtml(formatCurrency(entry.weightedAprExposure))}</td>
+        <td>${escapeHtml(formatCurrency(entry.totals.fundingGap))}</td>
+        <td>${escapeHtml(String(entry.unpaidCount))}</td>
+        <td>${escapeHtml(String(entry.overdueCount))}</td>
+        <td>${escapeHtml(String(entry.above25UtilizationCount))}</td>
+      </tr>
+    `).join("")
+    : '<tr><td colspan="11">No monthly bill snapshots are available yet.</td></tr>';
+
+  const topAprRows = currentMonthTopApr.length
+    ? currentMonthTopApr.map(bill => `
+      <tr>
+        <td class="selector-cell"><button type="button" class="row-selector" aria-pressed="false" aria-label="Select row"></button></td>
+        <td>${escapeHtml(bill.name || "Untitled bill")}</td>
+        <td>${escapeHtml(formatApr(bill.apr || 0))}</td>
+        <td>${escapeHtml(formatCurrency(bill.currentBalance))}</td>
+        <td>${escapeHtml(formatCurrency(bill.creditLimit))}</td>
+        <td>${escapeHtml(calculateCreditRemainingPercent(bill) === null ? "N/A" : formatPercentLabel(calculateCreditRemainingPercent(bill)))}</td>
+        <td>${escapeHtml(formatCurrency(recommendedPayments.get(bill.id) ?? bill.amount))}</td>
+        <td>${escapeHtml(formatCurrency(bill.paidAmount))}</td>
+      </tr>
+    `).join("")
+    : '<tr><td colspan="8">No APR-bearing balances are available for this month.</td></tr>';
+
+  const payoffProgressRows = bills.length
+    ? bills.map(bill => {
+      const recommended = normalizeMoney(recommendedPayments.get(bill.id) ?? bill.amount);
+      const paid = normalizeMoney(bill.paidAmount);
+      const progress = recommended > 0 ? Math.min(999, (paid / recommended) * 100) : 0;
+      return `
+        <tr>
+          <td class="selector-cell"><button type="button" class="row-selector" aria-pressed="false" aria-label="Select row"></button></td>
+          <td>${escapeHtml(bill.name || "Untitled bill")}</td>
+          <td>${escapeHtml(formatCurrency(bill.previousBalance ?? bill.currentBalance))}</td>
+          <td>${escapeHtml(formatCurrency(bill.currentBalance))}</td>
+          <td>${escapeHtml(formatSignedCurrency(normalizeMoney(bill.currentBalance) - normalizeMoney(bill.previousBalance ?? bill.currentBalance)))}</td>
+          <td>${escapeHtml(formatCurrency(recommended))}</td>
+          <td>${escapeHtml(formatCurrency(paid))}</td>
+          <td>${escapeHtml(`${Math.round(progress)}%`)}</td>
+        </tr>
+      `;
+    }).join("")
+    : '<tr><td colspan="8">No bills are available for the selected month.</td></tr>';
+
+  const frequencyRows = (items, type) => items.length
+    ? items.map(item => `
+      <tr>
+        <td class="selector-cell"><button type="button" class="row-selector" aria-pressed="false" aria-label="Select row"></button></td>
+        <td>${escapeHtml(item.name)}</td>
+        <td>${escapeHtml(String(item[type]))}</td>
+        <td>${escapeHtml(String(item.unpaid))}</td>
+        <td>${escapeHtml(String(item.overdue))}</td>
+        <td>${escapeHtml(String(item.monthsSeen))}</td>
+      </tr>
+    `).join("")
+    : '<tr><td colspan="6">No historical bill activity is available yet.</td></tr>';
+
+  const above25Rows = currentMonthAbove25.length
+    ? currentMonthAbove25.map(bill => `
+      <tr>
+        <td class="selector-cell"><button type="button" class="row-selector" aria-pressed="false" aria-label="Select row"></button></td>
+        <td>${escapeHtml(bill.name || "Untitled bill")}</td>
+        <td>${escapeHtml(formatCurrency(bill.currentBalance))}</td>
+        <td>${escapeHtml(formatCurrency(bill.creditLimit))}</td>
+        <td>${escapeHtml(formatPercentLabel(calculateCreditRemainingPercent(bill) ?? 0))}</td>
+        <td>${escapeHtml(formatApr(bill.apr || 0))}</td>
+      </tr>
+    `).join("")
+    : '<tr><td colspan="6">No bills are above 25% utilization in this month.</td></tr>';
+
+  const overdueRows = currentMonthOverdue.length
+    ? currentMonthOverdue.map(bill => `
+      <tr>
+        <td class="selector-cell"><button type="button" class="row-selector" aria-pressed="false" aria-label="Select row"></button></td>
+        <td>${escapeHtml(bill.name || "Untitled bill")}</td>
+        <td>${escapeHtml(formatDateTime(`${bill.due}T00:00:00`))}</td>
+        <td>${escapeHtml(formatCurrency(bill.amount))}</td>
+        <td>${escapeHtml(formatCurrency(bill.currentBalance))}</td>
+        <td>${escapeHtml(bill.status)}</td>
+      </tr>
+    `).join("")
+    : '<tr><td colspan="6">No unpaid overdue bills in the selected month.</td></tr>';
+
+  const selectedDebt = selectedEntry?.currentDebt ?? 0;
+  const selectedReduction = selectedEntry?.totalReduction ?? 0;
+  const selectedGap = selectedEntry?.totals?.fundingGap ?? 0;
+  const selectedWeightedApr = selectedEntry?.weightedAprPercent;
+  const selectedOverdueCount = selectedEntry?.overdueCount ?? 0;
+  const selectedUnpaidCount = selectedEntry?.unpaidCount ?? 0;
+  const selectedRecommended = selectedEntry?.recommendationTotal ?? 0;
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHtml(client?.fullName || "Client")} Monthly Bills Report</title>
+  <style>
+    body { margin:0; background:#edf2f8; color:#1c2430; font-family:Arial, Helvetica, sans-serif; }
+    .wrap { max-width:1220px; margin:0 auto; background:#fff; box-shadow:0 18px 40px rgba(16,24,40,0.08); }
+    .header { padding:30px 36px; background:linear-gradient(135deg, #17334d 0%, #275b8d 100%); color:#fff; }
+    .eyebrow { margin:0 0 8px; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:#d4e3f2; font-weight:700; }
+    .header h1 { margin:0 0 8px; font-size:32px; }
+    .header p { margin:0; color:#e5eef8; }
+    .content { padding:28px 36px 40px; }
+    .notice { margin:0 0 20px; padding:14px 16px; background:#f3f7fc; border:1px solid #d0ddec; border-radius:10px; line-height:1.55; }
+    .metrics { display:grid; grid-template-columns:repeat(6, 1fr); gap:12px; margin-bottom:24px; }
+    .metric { border:1px solid #d9e0e8; border-radius:10px; padding:14px; background:#fbfdff; min-height:82px; }
+    .metric strong { display:block; font-size:23px; color:#1f5a90; }
+    .metric span { color:#5a6675; font-size:13px; }
+    .section { margin-top:24px; }
+    .section h2 { margin:0 0 12px; font-size:22px; color:#17334d; }
+    .section p.section-note { margin:0 0 12px; color:#5a6675; }
+    table { width:100%; border-collapse:collapse; table-layout:fixed; background:#fff; border:1px solid #d9e0e8; border-radius:12px; overflow:hidden; }
+    thead th { background:#edf3fb; color:#234a72; font-size:12px; text-transform:uppercase; letter-spacing:0.05em; text-align:left; padding:12px 10px; border-bottom:1px solid #d9e0e8; }
+    tbody td { padding:11px 10px; border-top:1px solid #e5eaf0; vertical-align:top; }
+    tbody tr:nth-child(even) { background:#fbfdff; }
+    tbody tr { transition:background-color 0.15s ease, box-shadow 0.15s ease; }
+    tbody tr:hover { background:#eef6ff; }
+    tbody tr.is-selected { background:#fff3cd !important; box-shadow: inset 0 0 0 1px #f0b429; }
+    tbody tr.is-selected td { background:transparent; }
+    .selector-header { width:34px; padding-left:8px; padding-right:8px; }
+    .selector-cell { width:34px; padding-left:8px; padding-right:8px; text-align:center; }
+    .row-selector {
+      width:16px;
+      height:16px;
+      border-radius:4px;
+      border:1px solid #8ea3bd;
+      background:#fff;
+      cursor:pointer;
+      display:inline-block;
+      vertical-align:middle;
+      padding:0;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+    }
+    .row-selector:hover { border-color:#486c96; background:#f5f9ff; }
+    .row-selector[aria-pressed="true"] {
+      background:linear-gradient(180deg, #3d78b8 0%, #28598f 100%);
+      border-color:#244f80;
+      box-shadow: inset 0 0 0 2px #ffffff;
+    }
+    .pill { display:inline-block; padding:4px 8px; border-radius:999px; background:#eef3fb; border:1px solid #c9d8eb; color:#2c5b87; font-weight:700; font-size:12px; }
+    .danger { color:#b42318; font-weight:700; }
+    .success { color:#0b7a43; font-weight:700; }
+    .footer { padding:18px 36px; color:#5a6675; font-size:12px; border-top:1px solid #d9e0e8; background:#fbfdff; }
+    .helper { margin:10px 0 0; color:#5a6675; font-size:13px; }
+    @media (max-width: 1100px) {
+      .metrics { grid-template-columns:repeat(3, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header class="header">
+      <p class="eyebrow">Dashboard Monthly Bills Analysis</p>
+      <h1>${escapeHtml(client?.fullName || "Client")} Monthly Bills Report</h1>
+      <p>Generated ${escapeHtml(formatDateTime(new Date().toISOString()))} from live Firebase Firestore monthly bill data. Selected month: ${escapeHtml(selectedEntry?.label || formatBudgetMonthLabel(selectedMonth))}.</p>
+    </header>
+    <section class="content">
+      <p class="notice"><strong>Scope:</strong> This limited dashboard report summarizes the same monthly bill data currently available in the app, without BigQuery. It focuses on debt by month, payoff pressure, utilization, unpaid or overdue exposure, and Monthly Budget Fund coverage.</p>
+
+      <div class="metrics">
+        ${metricHtml(formatCurrency(selectedDebt), "selected month total debt")}
+        ${metricHtml(formatSignedCurrency(selectedReduction), "balance reduction vs previous balances")}
+        ${metricHtml(formatCurrency(selectedRecommended), "total avalanche recommendation")}
+        ${metricHtml(selectedWeightedApr === null ? "N/A" : formatPercentLabel(selectedWeightedApr), "weighted APR exposure")}
+        ${metricHtml(formatCurrency(selectedGap), "coverage gap")}
+        ${metricHtml(String(selectedOverdueCount + selectedUnpaidCount), "unpaid + overdue count")}
+      </div>
+
+      <section class="section">
+        <h2>Total Debt Trend By Month</h2>
+        <p class="section-note">Monthly totals come from the saved monthly bill snapshots or copied monthly budgets already stored in Firebase.</p>
+        <p class="helper">Use the small selector box on the left to highlight one or more rows for review.</p>
+        <table>
+          <thead>
+            <tr>
+              <th class="selector-header"></th>
+              <th>Month</th>
+              <th>Total debt</th>
+              <th>Total paid</th>
+              <th>Balance reduction</th>
+              <th>Weighted APR</th>
+              <th>APR exposure</th>
+              <th>Coverage gap</th>
+              <th>Unpaid</th>
+              <th>Overdue</th>
+              <th>Above 25%</th>
+            </tr>
+          </thead>
+          <tbody>${monthlyTrendRows}</tbody>
+        </table>
+      </section>
+
+      <section class="section">
+        <h2>Top 10 Highest APR Balances</h2>
+        <table>
+          <thead>
+            <tr>
+              <th class="selector-header"></th>
+              <th>Bill</th>
+              <th>APR</th>
+              <th>Current balance</th>
+              <th>Credit line</th>
+              <th>% Credit</th>
+              <th>Recommended</th>
+              <th>Paid</th>
+            </tr>
+          </thead>
+          <tbody>${topAprRows}</tbody>
+        </table>
+      </section>
+
+      <section class="section">
+        <h2>APR-Weighted Payoff Tracking</h2>
+        <p class="section-note">This section compares previous balance, current balance, actual payment, and avalanche-style recommended payment for the selected month.</p>
+        <table>
+          <thead>
+            <tr>
+              <th class="selector-header"></th>
+              <th>Bill</th>
+              <th>Prev balance</th>
+              <th>Current balance</th>
+              <th>Diff</th>
+              <th>Recommended</th>
+              <th>Paid</th>
+              <th>Paid vs recommended</th>
+            </tr>
+          </thead>
+          <tbody>${payoffProgressRows}</tbody>
+        </table>
+      </section>
+
+      <section class="section">
+        <h2>Bills Most Frequently Unpaid</h2>
+        <table>
+          <thead>
+            <tr>
+              <th class="selector-header"></th>
+              <th>Bill</th>
+              <th>Unpaid months</th>
+              <th>Unpaid total</th>
+              <th>Overdue total</th>
+              <th>Months seen</th>
+            </tr>
+          </thead>
+          <tbody>${frequencyRows(mostOftenUnpaid, "unpaid")}</tbody>
+        </table>
+      </section>
+
+      <section class="section">
+        <h2>Bills Most Frequently Overdue</h2>
+        <table>
+          <thead>
+            <tr>
+              <th class="selector-header"></th>
+              <th>Bill</th>
+              <th>Overdue months</th>
+              <th>Unpaid total</th>
+              <th>Overdue total</th>
+              <th>Months seen</th>
+            </tr>
+          </thead>
+          <tbody>${frequencyRows(mostOftenOverdue, "overdue")}</tbody>
+        </table>
+      </section>
+
+      <section class="section">
+        <h2>Debts Above 25% Utilization</h2>
+        <table>
+          <thead>
+            <tr>
+              <th class="selector-header"></th>
+              <th>Bill</th>
+              <th>Current balance</th>
+              <th>Credit line</th>
+              <th>% Credit</th>
+              <th>APR</th>
+            </tr>
+          </thead>
+          <tbody>${above25Rows}</tbody>
+        </table>
+      </section>
+
+      <section class="section">
+        <h2>Current Overdue Bills</h2>
+        <table>
+          <thead>
+            <tr>
+              <th class="selector-header"></th>
+              <th>Bill</th>
+              <th>Due date</th>
+              <th>Due amount</th>
+              <th>Current balance</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>${overdueRows}</tbody>
+        </table>
+      </section>
+    </section>
+    <footer class="footer">Prepared from 3G Tracking and Notifications using Firebase Firestore as the shared source of truth.</footer>
+  </main>
+  <script>
+    document.querySelectorAll(".row-selector").forEach(button => {
+      button.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        const row = button.closest("tr");
+        if (!row) return;
+        const selected = !row.classList.contains("is-selected");
+        row.classList.toggle("is-selected", selected);
+        button.setAttribute("aria-pressed", String(selected));
+      });
+    });
+  </script>
+</body>
+</html>`;
+}
+
+function downloadMonthlyBillsReportHtml() {
+  if (!currentClientConfig()) {
+    alert("Choose a client before generating the monthly bills report.");
+    return;
+  }
+  const blob = new Blob([buildMonthlyBillsReportHtml()], { type: "text/html" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = buildMonthlyBillsReportFileName();
+  link.click();
+  URL.revokeObjectURL(link.href);
+  alert("The monthly bills report HTML was generated from the live Firebase data for the selected client and month.");
+}
+
 function reportSectionHtml(title, tasks, isJobSection) {
   const empty = isJobSection ? "No urgent job tasks currently listed." : "No other urgent tasks currently listed.";
   const taskHtml = tasks.length ? tasks.map(taskReportHtml).join("") : `<p class="empty">${escapeHtml(empty)}</p>`;
@@ -7912,6 +8402,9 @@ if (copyBillsToNextMonthBtn) {
 if (calculateBillsBtn) {
   calculateBillsBtn.addEventListener("click", calculateAllBillBalances);
 }
+if (monthlyBillsReportBtn) {
+  monthlyBillsReportBtn.addEventListener("click", downloadMonthlyBillsReportHtml);
+}
 if (assignDueDatesBtn) {
   assignDueDatesBtn.addEventListener("click", assignDueDatesFromPreviousMonth);
 }
@@ -8338,6 +8831,9 @@ try {
     row.className = `budget-bill-item budget-bill-item-simple${isBillPastDue(bill) ? " is-past-due" : ""}${bill.status === "Paid" ? " is-paid" : ""}`;
     row.dataset.billId = bill.id;
     row.innerHTML = `
+      <div class="budget-bill-selector-box">
+        <button type="button" class="budget-bill-row-selector" aria-label="Select bill row" aria-pressed="${isBillSelected(bill.id) ? "true" : "false"}"></button>
+      </div>
       <label class="budget-bill-field">
         <span>Bill</span>
         <input class="bill-name" value="${escapeAttribute(bill.name)}" aria-label="Bill name">
@@ -8373,6 +8869,15 @@ try {
     row.querySelector(".bill-due").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-status").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-notes").addEventListener("change", () => updateBillFromRow(row));
+    row.querySelector(".budget-bill-row-selector").addEventListener("click", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      const nextSelected = !isBillSelected(bill.id);
+      setBillSelected(bill.id, nextSelected);
+      row.classList.toggle("is-selected", nextSelected);
+      row.querySelector(".budget-bill-row-selector")?.setAttribute("aria-pressed", String(nextSelected));
+    });
     row.querySelector(".delete-bill-button").addEventListener("click", () => deleteBill(bill.id));
+    row.classList.toggle("is-selected", isBillSelected(bill.id));
     targetList.appendChild(row);
   };
