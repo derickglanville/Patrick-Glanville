@@ -202,7 +202,6 @@
       <header>
         <div>
           <h2>Monthly Bills</h2>
-          <p>Track every bill for the month, compare it against the Monthly Budget Fund, and save each month for later review.</p>
         </div>
         <div class="panel-actions">
           <div id="upcomingBillsBanner" class="budget-upcoming-banner" hidden></div>
@@ -217,6 +216,7 @@
             <button id="billNextMonthBtn" type="button" class="ghost" aria-label="Next month">Next</button>
           </div>
           <button id="copyBillsToNextMonthBtn" type="button" class="ghost">Copy To Next Month</button>
+          <button id="calculateBillsBtn" type="button" class="ghost">Calculate</button>
           <button id="assignDueDatesBtn" type="button" class="ghost">Assign Due Dates</button>
           <button id="undoCopyBillsToNextMonthBtn" type="button" class="ghost">Undo Next Month Copy</button>
           <button id="toggleBillsCompactBtn" type="button" class="ghost" aria-pressed="false">Compact View</button>
@@ -249,7 +249,9 @@
           <div class="budget-bill-list-header" aria-hidden="true">
             <span>Bill</span>
             <span>APR</span>
+            <span>Prev Bal</span>
             <span>Current Bal</span>
+            <span>Diff</span>
             <span>Credit Line</span>
             <span>Amount</span>
             <span>Paid Amt</span>
@@ -532,6 +534,7 @@
       <h2>Upcoming Bills In 7 Days</h2>
       <button type="button" id="closeUpcomingBillsDialog" class="icon-button" aria-label="Close">x</button>
     </div>
+    <div id="upcomingBillsDialogSummary" class="upcoming-bills-dialog-summary"></div>
     <div id="upcomingBillsDialogList" class="upcoming-bills-dialog-list"></div>
   </dialog>
 

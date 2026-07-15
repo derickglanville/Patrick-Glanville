@@ -127,6 +127,7 @@ let pendingLocalSharedSaveAt = "";
 let refreshSignalUnsubscribe = null;
 let refreshSignalListenerId = "";
 let lastSeenRefreshSignalAt = "";
+let autoCalculateBillsOnLoadPending = true;
 const DEVICE_SESSION_ID = `session-${Math.random().toString(36).slice(2)}-${Date.now()}`;
 const allowedUsers = [
   { name: "Deric Glanville", email: DERIC_EMAIL },
@@ -383,6 +384,7 @@ function normalizeSpreadsheetDate(value) {
 }
 
 function buildAdminBillFromTable(row) {
+  const currentBalance = normalizeCurrencyCell(row.currentBalance);
   const due = normalizeSpreadsheetDate(row.due);
   const paidDate = normalizeSpreadsheetDate(row.paidDate);
   const amount = normalizeCurrencyCell(row.paidAmount);
@@ -395,7 +397,8 @@ function buildAdminBillFromTable(row) {
     status: paidDate ? "Paid" : "Unpaid",
     notes: "",
     apr: row.apr && row.apr !== "N/A" ? String(row.apr) : "",
-    currentBalance: normalizeCurrencyCell(row.currentBalance),
+    previousBalance: currentBalance,
+    currentBalance,
     creditLimit: normalizeCurrencyCell(row.creditLimit),
     paidAmount: normalizeCurrencyCell(row.paidAmount),
     transactionNumber: row.transactionNumber && row.transactionNumber !== "N/A" ? String(row.transactionNumber) : "",
@@ -1344,6 +1347,7 @@ const billMBFInput = document.querySelector("#billMBF");
 const billPrevMonthBtn = document.querySelector("#billPrevMonthBtn");
 const billNextMonthBtn = document.querySelector("#billNextMonthBtn");
 const copyBillsToNextMonthBtn = document.querySelector("#copyBillsToNextMonthBtn");
+const calculateBillsBtn = document.querySelector("#calculateBillsBtn");
 const assignDueDatesBtn = document.querySelector("#assignDueDatesBtn");
 const undoCopyBillsToNextMonthBtn = document.querySelector("#undoCopyBillsToNextMonthBtn");
 const billMBFDisplay = document.querySelector("#billMBFDisplay");
@@ -1361,6 +1365,7 @@ const billGroupEarlyBtn = document.querySelector("#billGroupEarlyBtn");
 const billGroupMidBtn = document.querySelector("#billGroupMidBtn");
 const billGroupLateBtn = document.querySelector("#billGroupLateBtn");
 const upcomingBillsDialog = document.querySelector("#upcomingBillsDialog");
+const upcomingBillsDialogSummary = document.querySelector("#upcomingBillsDialogSummary");
 const upcomingBillsDialogList = document.querySelector("#upcomingBillsDialogList");
 const closeUpcomingBillsDialogBtn = document.querySelector("#closeUpcomingBillsDialog");
 const hiddenBillList = document.querySelector("#hiddenBillList");
@@ -1740,6 +1745,11 @@ function normalizeBill(bill) {
     status: statusTracksPaidDate ? (paidDate ? "Paid" : "Unpaid") : explicitStatus,
     notes: legacyMetadata.notes || "",
     apr,
+    previousBalance: normalizeMoney(
+      bill.previousBalance !== undefined && bill.previousBalance !== null
+        ? bill.previousBalance
+        : (legacyMetadata.currentBalance !== null ? legacyMetadata.currentBalance : bill.currentBalance)
+    ),
     currentBalance: legacyMetadata.currentBalance !== null
       ? normalizeMoney(legacyMetadata.currentBalance)
       : normalizeMoney(bill.currentBalance),
@@ -1777,6 +1787,7 @@ function mergeDuplicateBudgetBills(primaryBill, duplicateBill) {
     templateKey: primary.templateKey || duplicate.templateKey || "",
     name: pickBillStringValue(primary.name, duplicate.name),
     apr: pickBillStringValue(primary.apr, duplicate.apr),
+    previousBalance: normalizeMoney(primary.previousBalance) || normalizeMoney(duplicate.previousBalance),
     currentBalance: normalizeMoney(primary.currentBalance) || normalizeMoney(duplicate.currentBalance),
     creditLimit: normalizeMoney(primary.creditLimit) || normalizeMoney(duplicate.creditLimit),
     amount: normalizeMoney(primary.amount) || normalizeMoney(duplicate.amount),
@@ -2233,14 +2244,20 @@ function renderUpcomingBillsBanner() {
     upcomingBillsBanner.textContent = "";
     upcomingBillsBanner.removeAttribute("role");
     upcomingBillsBanner.removeAttribute("tabindex");
+    if (upcomingBillsDialogSummary) upcomingBillsDialogSummary.textContent = "";
     if (upcomingBillsDialogList) upcomingBillsDialogList.innerHTML = "";
     return;
   }
 
-  upcomingBillsBanner.textContent = `${dueSoon.length} bill${dueSoon.length === 1 ? "" : "s"} due within 7 days. Click to review.`;
+  const totalDue = dueSoon.reduce((sum, entry) => sum + normalizeMoney(entry.bill.amount), 0);
+  upcomingBillsBanner.textContent = `${dueSoon.length} bill${dueSoon.length === 1 ? "" : "s"} due within 7 days • Total due ${formatCurrency(totalDue)}. Click to review.`;
   upcomingBillsBanner.setAttribute("role", "button");
   upcomingBillsBanner.setAttribute("tabindex", "0");
   upcomingBillsBanner.hidden = false;
+
+  if (upcomingBillsDialogSummary) {
+    upcomingBillsDialogSummary.textContent = `Total amount due in the next 7 days: ${formatCurrency(totalDue)}`;
+  }
 
   if (upcomingBillsDialogList) {
     upcomingBillsDialogList.innerHTML = "";
@@ -2329,6 +2346,23 @@ function parseAprNumber(value) {
   const text = String(value || "").replace(/[^0-9.]+/g, "").trim();
   const number = Number(text);
   return Number.isFinite(number) ? Math.max(0, number) : 0;
+}
+
+function calculateMonthlyInterestPortion(balance, apr) {
+  const normalizedBalance = normalizeMoney(balance);
+  const aprNumber = parseAprNumber(apr);
+  if (!normalizedBalance || !aprNumber) return 0;
+  return normalizedBalance * (aprNumber / 100 / 12);
+}
+
+function calculateCurrentBalanceFromPayment(previousBalance, paidAmount, apr) {
+  const normalizedPreviousBalance = normalizeMoney(previousBalance);
+  const normalizedPaidAmount = normalizeMoney(paidAmount);
+  if (!normalizedPreviousBalance) return 0;
+  if (!normalizedPaidAmount) return normalizedPreviousBalance;
+  const interestPortion = calculateMonthlyInterestPortion(normalizedPreviousBalance, apr);
+  const principalReduction = Math.max(0, normalizedPaidAmount - interestPortion);
+  return Math.max(0, normalizedPreviousBalance - principalReduction);
 }
 
 function calculateRecommendedBillPayments(bills) {
@@ -4177,14 +4211,18 @@ function renderBills() {
 
   const buildBillTotalsRow = billsForTotals => {
     const totals = billsForTotals.reduce((acc, bill) => {
+      acc.previousBalance += normalizeMoney(bill.previousBalance ?? bill.currentBalance);
       acc.currentBalance += normalizeMoney(bill.currentBalance);
+      acc.balanceDiff += normalizeMoney(bill.currentBalance) - normalizeMoney(bill.previousBalance ?? bill.currentBalance);
       acc.creditLimit += normalizeMoney(bill.creditLimit);
       acc.amount += normalizeMoney(bill.amount);
       acc.paidAmount += normalizeMoney(bill.paidAmount);
       acc.recommended += normalizeMoney(recommendedPayments.get(bill.id) ?? bill.amount);
       return acc;
     }, {
+      previousBalance: 0,
       currentBalance: 0,
+      balanceDiff: 0,
       creditLimit: 0,
       amount: 0,
       paidAmount: 0,
@@ -4201,7 +4239,9 @@ function renderBills() {
     row.innerHTML = `
       <div class="budget-bill-total-cell budget-bill-total-label">Totals</div>
       <div class="budget-bill-total-cell">-</div>
+      <div class="budget-bill-total-cell">${escapeHtml(formatCurrency(totals.previousBalance))}</div>
       <div class="budget-bill-total-cell">${escapeHtml(formatCurrency(totals.currentBalance))}</div>
+      <div class="budget-bill-total-cell">${escapeHtml(formatSignedCurrency(totals.balanceDiff))}</div>
       <div class="budget-bill-total-cell">${escapeHtml(formatCurrency(totals.creditLimit))}</div>
       <div class="budget-bill-total-cell">${escapeHtml(formatCurrency(totals.amount))}</div>
       <div class="budget-bill-total-cell">${escapeHtml(formatCurrency(totals.paidAmount))}</div>
@@ -4225,6 +4265,7 @@ function renderBills() {
     const recommendedPayment = recommendedPayments.get(bill.id) ?? normalizeMoney(bill.amount);
     const pastDue = isBillPastDue(bill);
     const dueSoon = !pastDue && isBillDueSoon(bill, 7);
+    const balanceDiff = normalizeMoney(bill.currentBalance) - normalizeMoney(bill.previousBalance ?? bill.currentBalance);
     const row = document.createElement("article");
     row.className = `budget-bill-item${pastDue ? " is-past-due" : ""}${dueSoon ? " is-due-soon" : ""}${bill.status === "Paid" ? " is-paid" : ""}${bill.hidden ? " is-hidden" : ""}`;
     row.dataset.billId = bill.id;
@@ -4238,8 +4279,16 @@ function renderBills() {
         <div class="budget-bill-apr">${bill.apr ? escapeHtml(formatApr(bill.apr)) : "-"}</div>
       </div>
       <label class="budget-bill-field">
+        <span>Previous balance</span>
+        <input class="bill-previous-balance" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.previousBalance ?? bill.currentBalance))}" aria-label="Previous balance">
+      </label>
+      <label class="budget-bill-field">
         <span>Current balance</span>
         <input class="bill-current-balance" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.currentBalance))}" aria-label="Current balance">
+      </label>
+      <label class="budget-bill-field">
+        <span>Difference</span>
+        <input class="bill-balance-diff" type="text" value="${escapeAttribute(formatSignedCurrency(balanceDiff))}" aria-label="Balance difference" readonly>
       </label>
       <label class="budget-bill-field">
         <span>Credit line</span>
@@ -4294,6 +4343,7 @@ function renderBills() {
     `;
 
     row.querySelector(".bill-name").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
+    row.querySelector(".bill-previous-balance").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-current-balance").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-credit-limit").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-amount").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
@@ -4301,6 +4351,7 @@ function renderBills() {
     row.querySelector(".bill-transaction-number").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-notes").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-name").addEventListener("change", () => updateBillFromRow(row));
+    row.querySelector(".bill-previous-balance").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-current-balance").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-credit-limit").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-amount").addEventListener("change", () => updateBillFromRow(row));
@@ -4374,7 +4425,7 @@ function renderBills() {
     billListHeader.classList.toggle("is-simple", usesSimpleBills);
     billListHeader.innerHTML = usesSimpleBills
       ? "<span>Bill</span><span>Amount</span><span>Due</span><span>Status</span><span>Notes</span><span>Actions</span>"
-      : "<span>Bill</span><span>APR</span><span>Current Bal</span><span>Credit Line</span><span>Due Amt</span><span>Paid Amt</span><span>Recommended</span><span>Tran #</span><span>Due</span><span>Date Paid</span><span>% Credit</span><span>Status</span><span>Notes</span><span>Actions</span>";
+      : "<span>Bill</span><span>APR</span><span>Prev Bal</span><span>Current Bal</span><span>Diff</span><span>Credit Line</span><span>Due Amt</span><span>Paid Amt</span><span>Recommended</span><span>Tran #</span><span>Due</span><span>Date Paid</span><span>% Credit</span><span>Status</span><span>Notes</span><span>Actions</span>";
   }
 
   const hiddenBillsPanel = document.querySelector(".hidden-bills-panel");
@@ -4382,6 +4433,7 @@ function renderBills() {
     hiddenBillsPanel.hidden = usesSimpleBills;
   }
   if (copyBillsToNextMonthBtn) copyBillsToNextMonthBtn.hidden = usesSimpleBills;
+  if (calculateBillsBtn) calculateBillsBtn.hidden = usesSimpleBills;
   if (assignDueDatesBtn) assignDueDatesBtn.hidden = usesSimpleBills;
   if (undoCopyBillsToNextMonthBtn) undoCopyBillsToNextMonthBtn.hidden = usesSimpleBills;
   if (toggleBillsPopoutBtn) toggleBillsPopoutBtn.hidden = usesSimpleBills;
@@ -4400,6 +4452,13 @@ function renderBills() {
   updateBillTotals();
   renderUpcomingBillsBanner();
   renderBudgetSnapshots();
+
+  if (autoCalculateBillsOnLoadPending && !usesSimpleBills) {
+    autoCalculateBillsOnLoadPending = false;
+    setTimeout(() => {
+      calculateAllBillBalances({ skipUserCheck: true, skipHistory: true });
+    }, 0);
+  }
 }
 
 function deleteBill(id) {
@@ -4437,6 +4496,7 @@ function deleteBill(id) {
 function buildBillChangeSummary(before, after) {
   const changes = [];
   if ((before.name || "") !== (after.name || "")) changes.push(`Name changed from ${before.name || "Untitled"} to ${after.name || "Untitled"}`);
+  if (normalizeMoney(before.previousBalance ?? before.currentBalance) !== normalizeMoney(after.previousBalance ?? after.currentBalance)) changes.push(`Previous balance changed from ${formatCurrency(before.previousBalance ?? before.currentBalance)} to ${formatCurrency(after.previousBalance ?? after.currentBalance)}`);
   if (normalizeMoney(before.currentBalance) !== normalizeMoney(after.currentBalance)) changes.push(`Current balance changed from ${formatCurrency(before.currentBalance)} to ${formatCurrency(after.currentBalance)}`);
   if (normalizeMoney(before.creditLimit) !== normalizeMoney(after.creditLimit)) changes.push(`Credit line changed from ${formatCurrency(before.creditLimit)} to ${formatCurrency(after.creditLimit)}`);
   if (normalizeMoney(before.amount) !== normalizeMoney(after.amount)) changes.push(`Amount changed from ${formatCurrency(before.amount)} to ${formatCurrency(after.amount)}`);
@@ -4452,12 +4512,15 @@ function buildBillChangeSummary(before, after) {
 function updateBillFromRow(row, options = {}) {
   const bill = state.bills.find(item => item.id === row.dataset.billId);
   if (!bill) return;
-  if (!ensureCurrentUser("update a monthly bill")) return;
+  if (!options.skipUserCheck && !ensureCurrentUser("update a monthly bill")) return;
   const recordHistory = options.recordHistory !== false;
   const persist = options.persist !== false;
   const before = { ...bill };
   const getField = selector => row.querySelector(selector);
   bill.name = getField(".bill-name")?.value.trim() ?? bill.name;
+  bill.previousBalance = getField(".bill-previous-balance")
+    ? normalizeCurrencyCell(getField(".bill-previous-balance").value)
+    : (bill.previousBalance ?? bill.currentBalance);
   bill.currentBalance = getField(".bill-current-balance")
     ? normalizeCurrencyCell(getField(".bill-current-balance").value)
     : bill.currentBalance;
@@ -4477,6 +4540,9 @@ function updateBillFromRow(row, options = {}) {
     ? (bill.paidDate ? "Paid" : "Unpaid")
     : (getField(".bill-status")?.value ?? bill.status);
   bill.notes = getField(".bill-notes")?.value.trim() ?? bill.notes;
+  if (options.recalculateBalance) {
+    bill.currentBalance = calculateCurrentBalanceFromPayment(bill.previousBalance, bill.paidAmount, bill.apr);
+  }
   const summary = buildBillChangeSummary(before, bill);
   if (recordHistory && (summary !== "Monthly bill updated" || JSON.stringify(before) !== JSON.stringify(bill))) {
     recordHistoryEntry({
@@ -4495,11 +4561,30 @@ function updateBillFromRow(row, options = {}) {
   updateBillTotals();
 
   if (options.recordHistory !== false) {
+    if (getField(".bill-previous-balance")) getField(".bill-previous-balance").value = formatCurrencyInputValue(bill.previousBalance);
     if (getField(".bill-current-balance")) getField(".bill-current-balance").value = formatCurrencyInputValue(bill.currentBalance);
     if (getField(".bill-credit-limit")) getField(".bill-credit-limit").value = formatCurrencyInputValue(bill.creditLimit);
     if (getField(".bill-amount")) getField(".bill-amount").value = formatCurrencyInputValue(bill.amount);
     if (getField(".bill-paid-amount")) getField(".bill-paid-amount").value = formatCurrencyInputValue(bill.paidAmount);
   }
+}
+
+function calculateAllBillBalances(options = {}) {
+  if (clientUsesBillGrouping() === false) return;
+  if (!options.skipUserCheck && !ensureCurrentUser("calculate monthly bill balances")) return;
+  const rows = [...document.querySelectorAll(".budget-bill-item[data-bill-id]")];
+  if (!rows.length) return;
+  rows.forEach(row => {
+    updateBillFromRow(row, {
+      recalculateBalance: true,
+      recordHistory: options.skipHistory ? false : false,
+      persist: false,
+      skipUserCheck: true
+    });
+  });
+  syncCurrentBudgetMonth(false);
+  saveState();
+  renderBills();
 }
 
 function updateBillTotals() {
@@ -4679,6 +4764,7 @@ function copyBillsToNextMonth() {
   const sourceBills = dedupeBudgetBills((currentMonthBudget?.bills || state.bills).map(normalizeBill));
   const copiedBills = sourceBills.map(currentBill => ({
     ...normalizeBill(currentBill),
+    previousBalance: normalizeMoney(currentBill.currentBalance),
     currentBalance: normalizeMoney(currentBill.currentBalance),
     creditLimit: normalizeMoney(currentBill.creditLimit),
     amount: normalizeMoney(currentBill.amount),
@@ -4784,6 +4870,7 @@ function undoCopyBillsToNextMonth() {
   const nextMonthlyBudget = ensureMonthlyBudgetState(nextMonth);
 
   nextMonthlyBudget.bills.forEach(targetBill => {
+    targetBill.previousBalance = 0;
     targetBill.currentBalance = 0;
     targetBill.creditLimit = 0;
     targetBill.amount = 0;
@@ -6510,6 +6597,7 @@ async function switchClient(clientId, pin = "") {
   activeClientId = nextClient.id;
   remoteUpdatedAt = readCachedRemoteUpdatedAt();
   state = loadState();
+  autoCalculateBillsOnLoadPending = true;
   loadBudgetMonth(defaultBillMonth(), { syncSnapshot: false });
   patrickWatchState = loadPatrickWatchState();
   taskViewMode = loadTaskViewMode();
@@ -7820,6 +7908,9 @@ if (saveBudgetSnapshotBtn) {
 }
 if (copyBillsToNextMonthBtn) {
   copyBillsToNextMonthBtn.addEventListener("click", copyBillsToNextMonth);
+}
+if (calculateBillsBtn) {
+  calculateBillsBtn.addEventListener("click", calculateAllBillBalances);
 }
 if (assignDueDatesBtn) {
   assignDueDatesBtn.addEventListener("click", assignDueDatesFromPreviousMonth);
