@@ -43,9 +43,9 @@ const clientConfigs = {
     id: "patrick",
     shortName: "Patrick",
     fullName: "Patrick Glanville",
-    title: "Patrick Glanville Issue Tracker",
-    browserTitle: "Patrick Glanville Support Tracker",
-    lede: "A practical dashboard for tracking transportation, income, benefits, family communication, and home-safety tasks.",
+    title: "3G Tracking and Notifications",
+    browserTitle: "3G Tracking and Notifications",
+    lede: "Tracking dashboard for transportation, income, benefits, family communication, and home-safety tasks.",
     storageKey: PATRICK_STORAGE_KEY,
     watchKey: PATRICK_WATCH_STORAGE_KEY,
     taskViewKey: PATRICK_TASK_VIEW_KEY,
@@ -65,9 +65,9 @@ const clientConfigs = {
     id: "theodore",
     shortName: "Derick",
     fullName: "Derick Glanville",
-    title: "Derick Glanville Issue Tracker",
-    browserTitle: "Derick Glanville Support Tracker",
-    lede: "A focused dashboard for tracking Theodore's work, expenses, and daily follow-through.",
+    title: "3G Tracking and Notifications",
+    browserTitle: "3G Tracking and Notifications",
+    lede: "A focused dashboard for tracking work, expenses, and daily follow-through.",
     storageKey: THEODORE_STORAGE_KEY,
     watchKey: THEODORE_WATCH_STORAGE_KEY,
     taskViewKey: THEODORE_TASK_VIEW_KEY,
@@ -87,8 +87,8 @@ const clientConfigs = {
     id: "admin",
     shortName: "Admin",
     fullName: "Admin",
-    title: "Admin Issue Tracker",
-    browserTitle: "Admin Support Tracker",
+    title: "3G Tracking and Notifications",
+    browserTitle: "3G Tracking and Notifications",
     lede: "An administrative dashboard for managing monthly bills, follow-through, and shared household financial actions.",
     storageKey: ADMIN_STORAGE_KEY,
     watchKey: ADMIN_WATCH_STORAGE_KEY,
@@ -3644,12 +3644,12 @@ function updateClientChrome() {
     toggleCurrentUserBtn.setAttribute("aria-expanded", String(!currentUserCollapsed));
     toggleCurrentUserBtn.setAttribute("aria-label", `${currentUserCollapsed ? "Show" : "Hide"} Current user`);
   }
-  if (appTitle) appTitle.textContent = client ? client.title : "Family Support Dashboard";
+  if (appTitle) appTitle.textContent = client ? client.title : "3G Tracking and Notifications";
   if (appLede) appLede.textContent = client
     ? client.lede
     : "Choose a client to load their separate dashboard, notes, reports, and saved history.";
-  if (appEyebrow) appEyebrow.textContent = client ? `${client.fullName} support plan` : "Multi-client support plan";
-  document.title = client ? client.browserTitle : "Family Support Dashboard";
+  if (appEyebrow) appEyebrow.textContent = client ? `Client workspace: ${client.fullName}` : "Multi-client tracking workspace";
+  document.title = client ? client.browserTitle : "3G Tracking and Notifications";
   renderOverviewCards();
 
   if (processGuideBtn) processGuideBtn.hidden = !client?.supportsReports;
@@ -3733,7 +3733,7 @@ function renderPatrickWatch() {
     patrickWatchContent,
     togglePatrickWatchBtn,
     state.hiddenPanels.patrickWatch,
-    "Patrick Change Watch"
+    "Client Change Watch"
   );
 
   const patrickEntries = state.history
@@ -3759,16 +3759,16 @@ function renderPatrickWatch() {
 
   patrickWatchList.innerHTML = "";
   if (!patrickEntries.length) {
-    patrickWatchList.textContent = "No Patrick updates have been recorded yet.";
+    patrickWatchList.textContent = "No client updates have been recorded yet.";
     return;
   }
 
   if (!visibleEntries.length) {
     patrickWatchList.textContent = currentView === "closed"
-      ? "No closed Patrick changes yet."
+      ? "No closed client changes yet."
       : currentView === "all"
-        ? "No Patrick changes are available."
-        : "No open Patrick changes right now.";
+        ? "No client changes are available."
+        : "No open client changes right now.";
     return;
   }
 
@@ -4115,7 +4115,7 @@ function renderPanelVisibility() {
       lifeAdminPanelContent,
       toggleLifeAdminBtn,
       state.hiddenPanels.lifeAdmin,
-      "Patrick To-Do Notes"
+      "Client To-Do Notes"
     );
   } else {
     lifeAdminPanel.hidden = true;
@@ -4200,6 +4200,7 @@ function renderBills() {
     row.className = "budget-bill-item budget-bill-total-row";
     row.innerHTML = `
       <div class="budget-bill-total-cell budget-bill-total-label">Totals</div>
+      <div class="budget-bill-total-cell">-</div>
       <div class="budget-bill-total-cell">${escapeHtml(formatCurrency(totals.currentBalance))}</div>
       <div class="budget-bill-total-cell">${escapeHtml(formatCurrency(totals.creditLimit))}</div>
       <div class="budget-bill-total-cell">${escapeHtml(formatCurrency(totals.amount))}</div>
@@ -4229,12 +4230,13 @@ function renderBills() {
     row.dataset.billId = bill.id;
     row.innerHTML = `
       <label class="budget-bill-field budget-bill-name-box">
-        <span>Bill / APR</span>
-        <div class="budget-bill-name-inline">
-          <input class="bill-name" value="${escapeAttribute(bill.name)}" aria-label="Bill name">
-          ${bill.apr ? `<span class="budget-bill-apr">APR ${escapeHtml(formatApr(bill.apr))}</span>` : ""}
-        </div>
+        <span>Bill</span>
+        <input class="bill-name" value="${escapeAttribute(bill.name)}" aria-label="Bill name">
       </label>
+      <div class="budget-bill-field budget-bill-apr-box">
+        <span>APR</span>
+        <div class="budget-bill-apr">${bill.apr ? escapeHtml(formatApr(bill.apr)) : "-"}</div>
+      </div>
       <label class="budget-bill-field">
         <span>Current balance</span>
         <input class="bill-current-balance" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.currentBalance))}" aria-label="Current balance">
@@ -4372,7 +4374,7 @@ function renderBills() {
     billListHeader.classList.toggle("is-simple", usesSimpleBills);
     billListHeader.innerHTML = usesSimpleBills
       ? "<span>Bill</span><span>Amount</span><span>Due</span><span>Status</span><span>Notes</span><span>Actions</span>"
-      : "<span>Bill / APR</span><span>Current Bal</span><span>Credit Line</span><span>Due Amt</span><span>Paid Amt</span><span>Recommended</span><span>Tran #</span><span>Due</span><span>Date Paid</span><span>% Credit</span><span>Status</span><span>Notes</span><span>Actions</span>";
+      : "<span>Bill</span><span>APR</span><span>Current Bal</span><span>Credit Line</span><span>Due Amt</span><span>Paid Amt</span><span>Recommended</span><span>Tran #</span><span>Due</span><span>Date Paid</span><span>% Credit</span><span>Status</span><span>Notes</span><span>Actions</span>";
   }
 
   const hiddenBillsPanel = document.querySelector(".hidden-bills-panel");
@@ -7038,7 +7040,7 @@ function buildUrgencyReportEmail() {
     : 0;
 
   const lines = [
-    "Patrick Glanville Support Tracker - Urgency Report",
+    "3G Tracking and Notifications - Urgency Report",
     `Generated: ${formatDateTime(new Date().toISOString())}`,
     "Scheduled daily send time: 8:30 AM",
     "",
@@ -7159,7 +7161,7 @@ function buildUrgencyReportHtml() {
       ${reportSectionHtml("Job Search and Income Opportunities", jobTasks, true)}
       ${reportSectionHtml("Other Urgent Tasks", otherTasks, false)}
     </section>
-    <footer class="footer">Prepared from the Patrick Glanville Support Tracker. Save this file in the local Email folder and use Send-RichUrgencyReport.ps1 to create a rich Outlook email.</footer>
+    <footer class="footer">Prepared from 3G Tracking and Notifications. Save this file in the local Email folder and use Send-RichUrgencyReport.ps1 to create a rich Outlook email.</footer>
   </main>
 </body>
 </html>`;
@@ -7205,7 +7207,7 @@ function buildPatrickChangeReportHtml() {
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Patrick Change Report</title>
+  <title>Client Change Report</title>
   <style>
     body { margin: 0; background: #f4f6f9; color: #18202a; font-family: Arial, Helvetica, sans-serif; }
     .wrap { max-width: 980px; margin: 0 auto; background: #ffffff; }
@@ -7234,7 +7236,7 @@ function buildPatrickChangeReportHtml() {
 <body>
   <main class="wrap">
     <header class="header">
-      <h1>Patrick Change Report</h1>
+      <h1>Client Change Report</h1>
       <p>Generated ${escapeHtml(generated)} | Report date ${escapeHtml(getTodayIsoDate())}</p>
     </header>
     <section class="content">
@@ -7255,7 +7257,7 @@ function buildPatrickChangeReportHtml() {
         ${closedHtml}
       </section>
     </section>
-    <footer class="footer">Prepared from the Patrick Glanville Support Tracker and intended for the local Email folder archive workflow.</footer>
+    <footer class="footer">Prepared from 3G Tracking and Notifications and intended for the local Email folder archive workflow.</footer>
   </main>
 </body>
 </html>`;
@@ -7447,7 +7449,7 @@ function buildOpenTodoReportHtml() {
       </div>
       ${itemHtml}
     </section>
-    <footer class="footer">Prepared from the Patrick Glanville Support Tracker stored in Firebase Firestore.</footer>
+    <footer class="footer">Prepared from 3G Tracking and Notifications stored in Firebase Firestore.</footer>
   </main>
 </body>
 </html>`;

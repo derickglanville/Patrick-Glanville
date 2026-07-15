@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Patrick Glanville Support Tracker</title>
+  <title>3G Tracking and Notifications</title>
   <link rel="stylesheet" href="styles.css?v=2026-07-08-005">
 </head>
 <body>
@@ -66,15 +66,15 @@
 
   <header class="app-header">
     <div>
-      <p class="eyebrow" id="appEyebrow">Frisco, Texas support plan</p>
-      <h1 id="appTitle">Patrick Glanville Issue Tracker</h1>
-      <p class="lede" id="appLede">A practical dashboard for tracking transportation, income, benefits, family communication, and home-safety tasks.</p>
+      <p class="eyebrow" id="appEyebrow">Multi-client tracking workspace</p>
+      <h1 id="appTitle">3G Tracking and Notifications</h1>
+      <p class="lede" id="appLede">A shared workspace for client tracking, follow-up, notifications, and reporting.</p>
     </div>
     <div class="header-actions" aria-label="Data actions">
       <button id="clientSwitchBtn" type="button" class="ghost" title="Switch between client dashboards">Client: Patrick</button>
       <button id="processGuideBtn" type="button" title="Open the full process guide PDF for this project">Process Guide PDF</button>
       <button id="urgencyReportBtn" type="button" title="Run the local urgency report process if the helper is running, otherwise save directly into the Email folder">Urgency Report</button>
-      <button id="patrickChangeReportBtn" type="button" title="Review Patrick's change report and save it to the local Email folder">Patrick Change Report</button>
+      <button id="patrickChangeReportBtn" type="button" title="Review the active client's change report and save it to the local Email folder">Client Change Report</button>
       <button id="htmlEmailDashboardReportBtn" type="button" title="Create a rich HTML email report file for the Email folder">Create HTML Email</button>
       <button id="historyBtn" type="button" title="Review all task updates">History</button>
       <button id="exportBtn" type="button" title="Download current tracker data">Export</button>
@@ -163,11 +163,11 @@
       </div>
     </section>
 
-    <section class="patrick-watch-panel" id="patrickWatchPanel" aria-label="Patrick change watch" hidden>
+    <section class="patrick-watch-panel" id="patrickWatchPanel" aria-label="Client change watch" hidden>
       <header>
         <div>
-          <h2>Patrick Change Watch</h2>
-          <p>Visible only for Deric. Review Patrick's recent tracker updates here if email notifications are unavailable.</p>
+          <h2>Client Change Watch</h2>
+          <p>Visible only for Deric. Review recent client updates here if email notifications are unavailable.</p>
         </div>
         <div class="panel-actions">
           <button id="togglePatrickWatchBtn" type="button" class="ghost">Show</button>
@@ -177,11 +177,11 @@
       </header>
       <div class="collapsible-content" id="patrickWatchContent">
         <div class="patrick-watch-summary">
-          <article><strong id="patrickTodayCount">0</strong><span>today's Patrick changes</span></article>
-          <article><strong id="patrickPendingCount">0</strong><span>open Patrick changes</span></article>
-          <article><strong id="patrickClosedCount">0</strong><span>closed Patrick changes</span></article>
+          <article><strong id="patrickTodayCount">0</strong><span>today's client changes</span></article>
+          <article><strong id="patrickPendingCount">0</strong><span>open client changes</span></article>
+          <article><strong id="patrickClosedCount">0</strong><span>closed client changes</span></article>
         </div>
-        <div class="patrick-watch-toolbar" aria-label="Patrick change watch filters">
+        <div class="patrick-watch-toolbar" aria-label="Client change watch filters">
           <div class="segmented-toggle">
             <button id="patrickViewOpenBtn" type="button" class="ghost">Open</button>
             <button id="patrickViewClosedBtn" type="button" class="ghost">Closed</button>
@@ -195,7 +195,7 @@
     <section class="optional-section-controls" aria-label="Optional dashboard sections">
       <span>Optional sections</span>
       <button id="toggleBillsBtn" type="button" class="ghost">Show Monthly Bills</button>
-      <button id="toggleLifeAdminBtn" type="button" class="ghost">Show Patrick To-Do Notes</button>
+      <button id="toggleLifeAdminBtn" type="button" class="ghost">Show Client To-Do Notes</button>
     </section>
 
     <section class="budget-panel" id="budgetPanel" aria-label="Monthly bill tracker" hidden>
@@ -247,7 +247,8 @@
         </div>
         <div class="budget-bill-group" aria-label="Monthly bills list">
           <div class="budget-bill-list-header" aria-hidden="true">
-            <span>Bill / APR</span>
+            <span>Bill</span>
+            <span>APR</span>
             <span>Current Bal</span>
             <span>Credit Line</span>
             <span>Amount</span>
@@ -290,11 +291,11 @@
       </div>
     </section>
 
-    <section class="life-admin-panel" id="lifeAdminPanel" aria-label="Patrick to-do notes" hidden>
+    <section class="life-admin-panel" id="lifeAdminPanel" aria-label="Client to-do notes" hidden>
       <header>
         <div>
-          <h2>Patrick To-Do Notes</h2>
-          <p>Keep track of personal admin items Patrick needs to handle, such as subscriptions, taxes, paperwork, and follow-ups.</p>
+          <h2>Client To-Do Notes</h2>
+          <p>Keep track of client-specific personal admin items such as subscriptions, taxes, paperwork, and follow-ups.</p>
         </div>
         <div class="panel-actions">
           <button id="addLifeAdminNoteBtn" type="button">Add note</button>
@@ -467,13 +468,13 @@
   <dialog id="patrickChangeReportDialog">
     <div class="report-dialog">
       <div class="dialog-head">
-        <h2>Patrick Change Report</h2>
+        <h2>Client Change Report</h2>
         <button type="button" id="closePatrickChangeReportDialog" class="icon-button" aria-label="Close">x</button>
       </div>
       <div class="report-actions">
         <button id="savePatrickChangeReportBtn" type="button">Save To Email Folder</button>
       </div>
-      <p class="report-save-note">This report summarizes Patrick's captured changes and closings for today. Saving uses the local Email folder at <strong>C:\Software Developement\ChatGPT Codex\Patrick Glanville\Email</strong> when the helper is running or when the browser can write to that folder.</p>
+      <p class="report-save-note">This report summarizes captured client changes and closings for today. Saving uses the local Email folder at <strong>C:\Software Developement\ChatGPT Codex\Patrick Glanville\Email</strong> when the helper is running or when the browser can write to that folder.</p>
       <div id="patrickChangeReport" class="report-body"></div>
     </div>
   </dialog>

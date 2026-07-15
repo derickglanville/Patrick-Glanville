@@ -693,20 +693,21 @@ textarea {
 .budget-bill-list-header {
   display: grid;
   grid-template-columns:
-    minmax(150px, 1fr)
-    minmax(86px, .54fr)
-    minmax(86px, .54fr)
-    minmax(76px, .5fr)
-    minmax(76px, .5fr)
-    minmax(94px, .58fr)
-    minmax(82px, .52fr)
+    minmax(148px, 1fr)
+    52px
+    minmax(84px, .52fr)
+    minmax(84px, .52fr)
+    minmax(74px, .48fr)
+    minmax(74px, .48fr)
     minmax(92px, .56fr)
-    minmax(92px, .56fr)
-    minmax(74px, .44fr)
-    minmax(82px, .48fr)
-    minmax(152px, .8fr)
+    minmax(80px, .5fr)
+    minmax(88px, .54fr)
+    minmax(88px, .54fr)
+    68px
+    76px
+    minmax(138px, .74fr)
     64px;
-  gap: 2px;
+  gap: 1px;
   padding: 0 2px;
   color: #51627d;
   font-size: .74rem;
@@ -717,8 +718,8 @@ textarea {
   border: 1px solid #d6e0ee;
   border-radius: 8px 8px 0 0;
   border-bottom: 0;
-  padding-top: 4px;
-  padding-bottom: 4px;
+  padding-top: 3px;
+  padding-bottom: 3px;
 }
 
 .budget-bill-list-header.is-simple {
@@ -748,13 +749,13 @@ textarea {
 
 .budget-bill-list-admin {
   max-height: calc(100vh - 260px);
-  gap: 1px;
-  padding: 1px 4px 1px 1px;
+  gap: 0;
+  padding: 0 3px 0 0;
 }
 
 .budget-bill-list-admin .budget-bill-item {
-  gap: 1px;
-  padding: 1px 2px;
+  gap: 0;
+  padding: 0;
 }
 
 .budget-bill-list-admin .budget-bill-item .budget-bill-field > span {
@@ -777,17 +778,18 @@ textarea {
 .budget-panel-compact-view .budget-bill-list-header {
   grid-template-columns:
     minmax(128px, .92fr)
-    minmax(76px, .5fr)
-    minmax(76px, .5fr)
-    minmax(68px, .46fr)
-    minmax(68px, .46fr)
-    minmax(84px, .54fr)
-    minmax(74px, .46fr)
-    minmax(82px, .5fr)
-    minmax(82px, .5fr)
-    minmax(66px, .38fr)
-    minmax(76px, .44fr)
-    minmax(132px, .7fr)
+    48px
+    minmax(72px, .48fr)
+    minmax(72px, .48fr)
+    minmax(64px, .44fr)
+    minmax(64px, .44fr)
+    minmax(80px, .52fr)
+    minmax(70px, .44fr)
+    minmax(78px, .48fr)
+    minmax(78px, .48fr)
+    62px
+    72px
+    minmax(122px, .66fr)
     58px;
   font-size: .68rem;
 }
@@ -795,19 +797,20 @@ textarea {
 .budget-panel-compact-view .budget-bill-item {
   grid-template-columns:
     minmax(128px, .92fr)
-    minmax(76px, .5fr)
-    minmax(76px, .5fr)
-    minmax(68px, .46fr)
-    minmax(68px, .46fr)
-    minmax(84px, .54fr)
-    minmax(74px, .46fr)
-    minmax(82px, .5fr)
-    minmax(82px, .5fr)
-    minmax(66px, .38fr)
-    minmax(76px, .44fr)
-    minmax(132px, .7fr)
+    48px
+    minmax(72px, .48fr)
+    minmax(72px, .48fr)
+    minmax(64px, .44fr)
+    minmax(64px, .44fr)
+    minmax(80px, .52fr)
+    minmax(70px, .44fr)
+    minmax(78px, .48fr)
+    minmax(78px, .48fr)
+    62px
+    72px
+    minmax(122px, .66fr)
     58px;
-  min-width: 1080px;
+  min-width: 1120px;
   padding: 1px 3px;
 }
 
@@ -843,26 +846,27 @@ textarea {
 .budget-bill-item {
   display: grid;
   grid-template-columns:
-    minmax(150px, 1fr)
-    minmax(86px, .54fr)
-    minmax(86px, .54fr)
-    minmax(76px, .5fr)
-    minmax(76px, .5fr)
-    minmax(94px, .58fr)
-    minmax(82px, .52fr)
+    minmax(148px, 1fr)
+    52px
+    minmax(84px, .52fr)
+    minmax(84px, .52fr)
+    minmax(74px, .48fr)
+    minmax(74px, .48fr)
     minmax(92px, .56fr)
-    minmax(92px, .56fr)
-    minmax(74px, .44fr)
-    minmax(82px, .48fr)
-    minmax(152px, .8fr)
+    minmax(80px, .5fr)
+    minmax(88px, .54fr)
+    minmax(88px, .54fr)
+    68px
+    76px
+    minmax(138px, .74fr)
     64px;
-  gap: 2px;
+  gap: 1px;
   align-items: start;
-  padding: 2px 4px;
+  padding: 0;
   border: 1px solid #d9e3f0;
   border-radius: 3px;
   background: #ffffff;
-  min-width: 1200px;
+  min-width: 1260px;
   box-shadow: 0 1px 0 rgba(16, 24, 40, .03);
 }
 
@@ -944,8 +948,8 @@ textarea {
 .budget-bill-total-cell {
   display: flex;
   align-items: center;
-  min-height: 26px;
-  padding: 2px 5px;
+  min-height: 24px;
+  padding: 1px 4px;
   font-size: .89rem;
   font-weight: 700;
   color: #183153;
@@ -964,30 +968,24 @@ textarea {
   min-width: 0;
 }
 
-.budget-bill-name-inline {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 3px;
-  align-items: center;
-}
-
 .budget-bill-name-box .bill-name {
   flex: 1 1 auto;
   min-width: 0;
 }
 
 .budget-bill-apr {
-  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
   white-space: nowrap;
   color: #225bb2;
-  font-size: .69rem;
+  font-size: .78rem;
   font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: .03em;
   background: #edf4ff;
   border: 1px solid #d9e7fb;
-  border-radius: 999px;
-  padding: 1px 5px;
+  border-radius: 6px;
+  padding: 0 3px;
 }
 
 .budget-bill-field > span {
@@ -1006,7 +1004,7 @@ textarea {
   display: inline-block;
   margin-top: 0;
   color: var(--muted);
-  font-size: .89rem;
+  font-size: .84rem;
   font-weight: 700;
   line-height: 1;
   white-space: nowrap;
@@ -1035,8 +1033,8 @@ textarea {
 }
 
 .budget-bill-notes-box textarea {
-  min-height: 26px;
-  height: 26px;
+  min-height: 24px;
+  height: 24px;
   resize: none;
 }
 
@@ -1049,8 +1047,8 @@ textarea {
 }
 
 .budget-bill-actions button {
-  padding: 4px 6px;
-  font-size: .79rem;
+  padding: 2px 5px;
+  font-size: .76rem;
   font-weight: 700;
   border-radius: 8px;
 }
@@ -1058,9 +1056,9 @@ textarea {
 .budget-bill-item:not(.budget-bill-item-simple) input,
 .budget-bill-item:not(.budget-bill-item-simple) select,
 .budget-bill-item:not(.budget-bill-item-simple) textarea {
-  padding: 2px 5px;
-  min-height: 26px;
-  font-size: .89rem;
+  padding: 1px 4px;
+  min-height: 24px;
+  font-size: .87rem;
   border-color: #d4dfec;
   background: #fff;
   box-shadow: inset 0 1px 1px rgba(15, 23, 42, .02);
@@ -1091,14 +1089,6 @@ textarea {
   font-weight: 700;
 }
 
-.budget-bill-item:not(.budget-bill-item-simple) .budget-bill-name-inline {
-  gap: 2px;
-}
-
-.budget-bill-item:not(.budget-bill-item-simple) .budget-bill-apr {
-  font-size: .67rem;
-}
-
 .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-status-box {
   display: flex;
   align-items: center;
@@ -1120,6 +1110,12 @@ textarea {
   justify-content: center;
 }
 
+.budget-bill-item:not(.budget-bill-item-simple) .budget-bill-apr-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-credit-box .budget-bill-status-note {
   font-size: .88rem;
   padding: 0;
@@ -1128,7 +1124,7 @@ textarea {
   text-align: center;
 }
 
-.budget-bill-list-header > span:nth-child(10) {
+.budget-bill-list-header > span:nth-child(11) {
   text-align: center;
 }
 
