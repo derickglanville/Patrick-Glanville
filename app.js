@@ -1344,6 +1344,7 @@ const billMBFInput = document.querySelector("#billMBF");
 const billPrevMonthBtn = document.querySelector("#billPrevMonthBtn");
 const billNextMonthBtn = document.querySelector("#billNextMonthBtn");
 const copyBillsToNextMonthBtn = document.querySelector("#copyBillsToNextMonthBtn");
+const assignDueDatesBtn = document.querySelector("#assignDueDatesBtn");
 const undoCopyBillsToNextMonthBtn = document.querySelector("#undoCopyBillsToNextMonthBtn");
 const billMBFDisplay = document.querySelector("#billMBFDisplay");
 const billList = document.querySelector("#billList");
@@ -1726,10 +1727,14 @@ function normalizeBill(bill) {
   const paidDate = normalizeBillDateLike(legacyMetadata.paidDate || bill.paidDate || "");
   const statusTracksPaidDate = isAdminClient() ? true : Boolean(bill.statusTracksPaidDate);
   const explicitStatus = billStatusOptions.includes(bill.status) ? bill.status : "Unpaid";
+  const normalizedName = String(bill.name || "").trim();
+  const normalizedTemplateKey = typeof bill.templateKey === "string" && bill.templateKey.trim()
+    ? bill.templateKey.trim()
+    : buildBudgetBillTemplateKey(normalizedName);
   return {
     id: bill.id || crypto.randomUUID(),
-    templateKey: typeof bill.templateKey === "string" ? bill.templateKey : "",
-    name: bill.name || "",
+    templateKey: normalizedTemplateKey,
+    name: normalizedName,
     amount: normalizeMoney(bill.amount),
     due,
     status: statusTracksPaidDate ? (paidDate ? "Paid" : "Unpaid") : explicitStatus,
@@ -1868,6 +1873,15 @@ const ADMIN_FUTURE_BILL_SCHEDULE = {
     }
   }
 };
+const ADMIN_SCHEDULED_BILL_MONTHS = {
+  "Yorktown Taxes and Insurance": new Set([
+    "2026-07",
+    "2026-09",
+    "2026-12",
+    "2027-01",
+    "2027-04"
+  ])
+};
 
 function isBeforeBudgetTrackingStart(month) {
   return String(month || "").trim() && String(month) < BUDGET_TRACKING_START_MONTH;
@@ -1887,6 +1901,15 @@ function getFutureBudgetBillOverride(name = "", month = "") {
   const monthSchedule = ADMIN_FUTURE_BILL_SCHEDULE[String(month || "").trim()];
   if (!monthSchedule) return null;
   return monthSchedule[String(name || "").trim()] || null;
+}
+
+function shouldIncludeAdminBillInMonth(name = "", month = "") {
+  if (!isAdminClient()) return true;
+  const normalizedName = String(name || "").trim();
+  const normalizedMonth = String(month || "").trim();
+  const scheduledMonths = ADMIN_SCHEDULED_BILL_MONTHS[normalizedName];
+  if (!scheduledMonths) return true;
+  return scheduledMonths.has(normalizedMonth);
 }
 
 function buildBudgetBillTemplate(sourceBill = {}, options = {}) {
@@ -1920,7 +1943,9 @@ function buildDefaultMonthlyBudget(month, seed = getSeedData()) {
   return {
     month,
     monthlyBudgetFund: zeroAmounts ? 0 : normalizeMoney(seed.monthlyBudgetFund ?? 0),
-    bills: (seed.bills || []).map(bill => buildBudgetBillTemplate(bill, { zeroAmounts, futureDefaults, month, assignSeedKey: true }))
+    bills: (seed.bills || [])
+      .filter(bill => shouldIncludeAdminBillInMonth(bill?.name, month))
+      .map(bill => buildBudgetBillTemplate(bill, { zeroAmounts, futureDefaults, month, assignSeedKey: true }))
   };
 }
 
@@ -1942,15 +1967,21 @@ function sanitizeFutureMonthlyBudgetEntry(entry, seed = getSeedData()) {
       const normalized = normalizeBill(bill);
       const fallback = templateByName.get(normalized.name) || buildBudgetBillTemplate(normalized, { zeroAmounts: false, futureDefaults: true, month: entry.month });
       const scheduledOverride = getFutureBudgetBillOverride(normalized.name, entry.month);
+      const preservedAmount = normalizeMoney(normalized.amount);
+      const preservedPaidAmount = normalizeMoney(normalized.paidAmount);
       return {
         ...normalized,
-        amount: scheduledOverride ? fallback.amount : (isFutureBudgetBillLockedToDefault(normalized.name) ? fallback.amount : 0),
-        due: scheduledOverride?.due || "",
-        status: "Unpaid",
-        notes: "",
-        paidAmount: 0,
-        paidDate: "",
-        transactionNumber: ""
+        amount: scheduledOverride
+          ? fallback.amount
+          : (isFutureBudgetBillLockedToDefault(normalized.name)
+            ? (preservedAmount || fallback.amount)
+            : preservedAmount),
+        due: scheduledOverride?.due || normalized.due || "",
+        status: normalized.status || "Unpaid",
+        notes: normalized.notes || "",
+        paidAmount: preservedPaidAmount,
+        paidDate: normalized.paidDate || "",
+        transactionNumber: normalized.transactionNumber || ""
       };
     })
   };
@@ -2008,7 +2039,7 @@ function normalizeMonthlyBudgetEntry(entry, fallbackMonth = "", seed = getSeedDa
   const normalizedEntry = {
     month,
     monthlyBudgetFund: zeroAmounts ? 0 : normalizeMoney(entry?.monthlyBudgetFund ?? fallback.monthlyBudgetFund),
-    bills: normalizedBills,
+    bills: normalizedBills.filter(bill => shouldIncludeAdminBillInMonth(bill?.name, month)),
     copiedForwardFrom: entry?.copiedForwardFrom || "",
     deletedBillKeys,
     deletedBillNames
@@ -2025,6 +2056,17 @@ function normalizeMonthlyBudgetsMap(monthlyBudgets, seed = getSeedData()) {
     });
   }
   return normalized;
+}
+
+function dedupeAllMonthlyBudgetBills() {
+  state.monthlyBudgets = normalizeMonthlyBudgetsMap(state.monthlyBudgets);
+  Object.keys(state.monthlyBudgets).forEach(month => {
+    const entry = state.monthlyBudgets[month];
+    state.monthlyBudgets[month] = normalizeMonthlyBudgetEntry({
+      ...entry,
+      bills: dedupeBudgetBills((entry?.bills || []).map(normalizeBill))
+    }, month);
+  });
 }
 
 function calculateBudgetTotals(monthlyBudgetFund, bills) {
@@ -2093,13 +2135,16 @@ function syncBudgetSnapshotForMonth(month) {
 
 function syncCurrentBudgetMonth(saveSnapshot = true) {
   const month = state.billMonth || defaultBillMonth();
-  state.monthlyBudgets = normalizeMonthlyBudgetsMap(state.monthlyBudgets);
+  state.bills = dedupeBudgetBills(state.bills.map(normalizeBill));
+  dedupeAllMonthlyBudgetBills();
+  const existingMonthEntry = state.monthlyBudgets[month] || {};
   state.monthlyBudgets[month] = normalizeMonthlyBudgetEntry({
     month,
     monthlyBudgetFund: state.monthlyBudgetFund,
     bills: state.bills,
-    deletedBillKeys: state.monthlyBudgets[month]?.deletedBillKeys || [],
-    deletedBillNames: state.monthlyBudgets[month]?.deletedBillNames || []
+    copiedForwardFrom: existingMonthEntry.copiedForwardFrom || "",
+    deletedBillKeys: existingMonthEntry.deletedBillKeys || [],
+    deletedBillNames: existingMonthEntry.deletedBillNames || []
   }, month);
   if (saveSnapshot) syncBudgetSnapshotForMonth(month);
 }
@@ -4335,6 +4380,7 @@ function renderBills() {
     hiddenBillsPanel.hidden = usesSimpleBills;
   }
   if (copyBillsToNextMonthBtn) copyBillsToNextMonthBtn.hidden = usesSimpleBills;
+  if (assignDueDatesBtn) assignDueDatesBtn.hidden = usesSimpleBills;
   if (undoCopyBillsToNextMonthBtn) undoCopyBillsToNextMonthBtn.hidden = usesSimpleBills;
   if (toggleBillsPopoutBtn) toggleBillsPopoutBtn.hidden = usesSimpleBills;
 
@@ -4627,12 +4673,16 @@ function copyBillsToNextMonth() {
   if (!ensureCurrentUser("copy monthly bill values to the next month")) return;
   const currentMonth = state.billMonth || defaultBillMonth();
   const nextMonth = shiftMonthString(currentMonth, 1);
-  const copiedBills = state.bills.map(currentBill => ({
+  const currentMonthBudget = ensureMonthlyBudgetState(currentMonth);
+  const sourceBills = dedupeBudgetBills((currentMonthBudget?.bills || state.bills).map(normalizeBill));
+  const copiedBills = sourceBills.map(currentBill => ({
     ...normalizeBill(currentBill),
     currentBalance: normalizeMoney(currentBill.currentBalance),
     creditLimit: normalizeMoney(currentBill.creditLimit),
     amount: normalizeMoney(currentBill.amount),
-    due: currentBill.due ? moveDateToTargetMonth(currentBill.due, nextMonth) : "",
+    due: normalizeBillDateLike(currentBill.due)
+      ? moveDateToTargetMonth(normalizeBillDateLike(currentBill.due), nextMonth)
+      : "",
     status: "Unpaid",
     paidAmount: 0,
     paidDate: "",
@@ -4640,12 +4690,23 @@ function copyBillsToNextMonth() {
     hidden: Boolean(currentBill.hidden)
   }));
 
-  state.monthlyBudgets[nextMonth] = normalizeMonthlyBudgetEntry({
+  const normalizedNextMonthBudget = normalizeMonthlyBudgetEntry({
     month: nextMonth,
     monthlyBudgetFund: state.monthlyBudgetFund,
     copiedForwardFrom: currentMonth,
-    bills: copiedBills
+    bills: copiedBills,
+    deletedBillKeys: [],
+    deletedBillNames: []
   }, nextMonth);
+  normalizedNextMonthBudget.bills = normalizedNextMonthBudget.bills.map(bill => {
+    const sourceBill = copiedBills.find(candidate => (candidate.templateKey || candidate.name) === (bill.templateKey || bill.name));
+    if (!sourceBill) return bill;
+    return {
+      ...bill,
+      due: normalizeBillDateLike(sourceBill.due) || bill.due || ""
+    };
+  });
+  state.monthlyBudgets[nextMonth] = normalizedNextMonthBudget;
   syncBudgetSnapshotForMonth(nextMonth);
   loadBudgetMonth(nextMonth, { syncSnapshot: false });
   state.billGroupView = "full";
@@ -4656,6 +4717,59 @@ function copyBillsToNextMonth() {
     window.setTimeout(() => {
       if (copyBillsToNextMonthBtn.textContent === `Copied to ${formatBudgetMonthLabel(nextMonth)}`) {
         copyBillsToNextMonthBtn.textContent = "Copy To Next Month";
+      }
+    }, 2000);
+  }
+}
+
+function assignDueDatesFromPreviousMonth() {
+  if (!ensureCurrentUser("assign due dates from the previous month")) return;
+  const targetMonth = state.billMonth || defaultBillMonth();
+  const previousMonth = shiftMonthString(targetMonth, -1);
+  const previousMonthBudget = ensureMonthlyBudgetState(previousMonth);
+  const targetMonthBudget = ensureMonthlyBudgetState(targetMonth);
+  const previousBills = dedupeBudgetBills((previousMonthBudget?.bills || []).map(normalizeBill));
+  const previousByKey = new Map(
+    previousBills.map(bill => [
+      (bill.templateKey || bill.name || "").trim().toLowerCase(),
+      bill
+    ]).filter(([key]) => Boolean(key))
+  );
+
+  let updatedCount = 0;
+  const updatedBills = dedupeBudgetBills((targetMonthBudget?.bills || []).map(normalizeBill)).map(bill => {
+    const key = (bill.templateKey || bill.name || "").trim().toLowerCase();
+    const sourceBill = previousByKey.get(key);
+    if (!sourceBill) return bill;
+    const sourceDue = normalizeBillDateLike(sourceBill.due);
+    if (!sourceDue) return bill;
+    const shiftedDue = moveDateToTargetMonth(sourceDue, targetMonth);
+    if (!shiftedDue || shiftedDue === bill.due) return bill;
+    updatedCount += 1;
+    return {
+      ...bill,
+      due: shiftedDue
+    };
+  });
+
+  state.monthlyBudgets[targetMonth] = normalizeMonthlyBudgetEntry({
+    ...targetMonthBudget,
+    month: targetMonth,
+    bills: updatedBills,
+    copiedForwardFrom: targetMonthBudget.copiedForwardFrom || previousMonth
+  }, targetMonth);
+  loadBudgetMonth(targetMonth, { syncSnapshot: false });
+  saveState();
+  renderBills();
+
+  if (assignDueDatesBtn) {
+    const nextLabel = updatedCount > 0
+      ? `Assigned ${updatedCount} due date${updatedCount === 1 ? "" : "s"}`
+      : "No due dates found";
+    assignDueDatesBtn.textContent = nextLabel;
+    window.setTimeout(() => {
+      if (assignDueDatesBtn.textContent === nextLabel) {
+        assignDueDatesBtn.textContent = "Assign Due Dates";
       }
     }, 2000);
   }
@@ -7704,6 +7818,9 @@ if (saveBudgetSnapshotBtn) {
 }
 if (copyBillsToNextMonthBtn) {
   copyBillsToNextMonthBtn.addEventListener("click", copyBillsToNextMonth);
+}
+if (assignDueDatesBtn) {
+  assignDueDatesBtn.addEventListener("click", assignDueDatesFromPreviousMonth);
 }
 if (undoCopyBillsToNextMonthBtn) {
   undoCopyBillsToNextMonthBtn.addEventListener("click", undoCopyBillsToNextMonth);
