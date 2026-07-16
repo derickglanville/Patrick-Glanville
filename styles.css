@@ -867,6 +867,51 @@ textarea {
   font-size: .72rem;
 }
 
+.budget-panel-admin-mini .budget-bill-list-header,
+.budget-panel-admin-mini .budget-bill-item,
+.budget-panel-admin-mini .budget-bill-total-row {
+  grid-template-columns:
+    22px
+    minmax(170px, 1.24fr)
+    minmax(92px, .7fr)
+    minmax(92px, .68fr)
+    minmax(86px, .66fr)
+    minmax(90px, .7fr)
+    minmax(90px, .72fr)
+    minmax(92px, .72fr)
+    68px
+    82px
+    62px;
+  min-width: 960px;
+}
+
+.budget-panel-admin-mini .bill-col-apr,
+.budget-panel-admin-mini .bill-col-prev-bal,
+.budget-panel-admin-mini .bill-col-credit-line,
+.budget-panel-admin-mini .bill-col-due-amt,
+.budget-panel-admin-mini .bill-col-recommended,
+.budget-panel-admin-mini .bill-col-notes {
+  display: none !important;
+}
+
+.budget-panel-admin-mini .budget-bill-list-admin {
+  max-height: calc(100vh - 210px);
+}
+
+.budget-panel-admin-mini .budget-bill-item:not(.budget-bill-item-simple) input,
+.budget-panel-admin-mini .budget-bill-item:not(.budget-bill-item-simple) select,
+.budget-panel-admin-mini .budget-bill-item:not(.budget-bill-item-simple) textarea {
+  min-height: 23px;
+  padding: 1px 4px;
+  font-size: .84rem;
+}
+
+.budget-panel-admin-mini .budget-bill-item:not(.budget-bill-item-simple) .bill-name,
+.budget-panel-admin-mini .budget-bill-item:not(.budget-bill-item-simple) .bill-status,
+.budget-panel-admin-mini .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-credit-box .budget-bill-status-note {
+  font-size: .84rem;
+}
+
 .budget-bill-item {
   display: grid;
   grid-template-columns:

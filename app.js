@@ -1298,6 +1298,10 @@ function clientUsesBillGrouping(clientId = activeClientId) {
   return clientId !== "patrick";
 }
 
+function isAdminClientId(clientId) {
+  return clientId === "admin";
+}
+
 let state = buildUnselectedClientState();
 let patrickWatchState = {
   lastReviewedAt: "",
@@ -1561,7 +1565,11 @@ function initializeState(loaded) {
   loaded.billGroupView = ["full", "early", "mid", "late"].includes(loaded.billGroupView)
     ? loaded.billGroupView
     : defaultBillGroupView(loaded.billMonth);
-  loaded.billsCompactView = Boolean(loaded.billsCompactView);
+  if (typeof loaded.billsCompactView === "boolean") {
+    loaded.billsCompactView = loaded.billsCompactView;
+  } else {
+    loaded.billsCompactView = isAdminClientId(activeClientId);
+  }
   loaded.monthlyBudgetFund = normalizeMoney(loaded.monthlyBudgetFund ?? seedData.monthlyBudgetFund ?? 0);
   loaded.monthlyBudgets = normalizeMonthlyBudgetsMap(loaded.monthlyBudgets, seedData);
   const hasStoredMonthlyBudgets = Object.keys(loaded.monthlyBudgets).length > 0;
@@ -4202,9 +4210,12 @@ function renderBills() {
   if (billMBFInput) billMBFInput.value = normalizeMoney(state.monthlyBudgetFund);
   if (budgetPanel) {
     budgetPanel.classList.toggle("budget-panel-compact-view", Boolean(state.billsCompactView));
+    budgetPanel.classList.toggle("budget-panel-admin-mini", !usesSimpleBills && isAdminClient() && Boolean(state.billsCompactView));
   }
   if (toggleBillsCompactBtn) {
-    toggleBillsCompactBtn.textContent = state.billsCompactView ? "Standard View" : "Compact View";
+    toggleBillsCompactBtn.textContent = !usesSimpleBills && isAdminClient()
+      ? (state.billsCompactView ? "Full View" : "Mini View")
+      : (state.billsCompactView ? "Standard View" : "Compact View");
     toggleBillsCompactBtn.className = state.billsCompactView ? "" : "ghost";
     toggleBillsCompactBtn.setAttribute("aria-pressed", String(Boolean(state.billsCompactView)));
   }
@@ -4252,23 +4263,23 @@ function renderBills() {
     const row = document.createElement("article");
     row.className = "budget-bill-item budget-bill-total-row";
     row.innerHTML = `
-      <div class="budget-bill-total-cell budget-bill-selector-spacer"></div>
-      <div class="budget-bill-total-cell budget-bill-total-label">Totals</div>
-      <div class="budget-bill-total-cell">-</div>
-      <div class="budget-bill-total-cell">${escapeHtml(formatCurrency(totals.previousBalance))}</div>
-      <div class="budget-bill-total-cell">${escapeHtml(formatCurrency(totals.currentBalance))}</div>
-      <div class="budget-bill-total-cell">${escapeHtml(formatSignedCurrency(totals.balanceDiff))}</div>
-      <div class="budget-bill-total-cell">${escapeHtml(formatCurrency(totals.creditLimit))}</div>
-      <div class="budget-bill-total-cell">${escapeHtml(formatCurrency(totals.amount))}</div>
-      <div class="budget-bill-total-cell">${escapeHtml(formatCurrency(totals.paidAmount))}</div>
-      <div class="budget-bill-total-cell">${escapeHtml(formatCurrency(totals.recommended))}</div>
-      <div class="budget-bill-total-cell">-</div>
-      <div class="budget-bill-total-cell">-</div>
-      <div class="budget-bill-total-cell">-</div>
-      <div class="budget-bill-total-cell budget-bill-status-note${creditClass}">${overallCreditPercent === null ? "N/A" : escapeHtml(formatPercentLabel(overallCreditPercent))}</div>
-      <div class="budget-bill-total-cell">-</div>
-      <div class="budget-bill-total-cell">-</div>
-      <div class="budget-bill-total-cell">-</div>
+      <div class="budget-bill-total-cell budget-bill-selector-spacer bill-col-selector"></div>
+      <div class="budget-bill-total-cell budget-bill-total-label bill-col-name">Totals</div>
+      <div class="budget-bill-total-cell bill-col-apr">-</div>
+      <div class="budget-bill-total-cell bill-col-prev-bal">${escapeHtml(formatCurrency(totals.previousBalance))}</div>
+      <div class="budget-bill-total-cell bill-col-current-bal">${escapeHtml(formatCurrency(totals.currentBalance))}</div>
+      <div class="budget-bill-total-cell bill-col-diff">${escapeHtml(formatSignedCurrency(totals.balanceDiff))}</div>
+      <div class="budget-bill-total-cell bill-col-credit-line">${escapeHtml(formatCurrency(totals.creditLimit))}</div>
+      <div class="budget-bill-total-cell bill-col-due-amt">${escapeHtml(formatCurrency(totals.amount))}</div>
+      <div class="budget-bill-total-cell bill-col-paid-amt">${escapeHtml(formatCurrency(totals.paidAmount))}</div>
+      <div class="budget-bill-total-cell bill-col-recommended">${escapeHtml(formatCurrency(totals.recommended))}</div>
+      <div class="budget-bill-total-cell bill-col-tran">-</div>
+      <div class="budget-bill-total-cell bill-col-due-date">-</div>
+      <div class="budget-bill-total-cell bill-col-date-paid">-</div>
+      <div class="budget-bill-total-cell budget-bill-status-note bill-col-credit-percent${creditClass}">${overallCreditPercent === null ? "N/A" : escapeHtml(formatPercentLabel(overallCreditPercent))}</div>
+      <div class="budget-bill-total-cell bill-col-status">-</div>
+      <div class="budget-bill-total-cell bill-col-notes">-</div>
+      <div class="budget-bill-total-cell bill-col-actions">-</div>
     `;
     return row;
   };
@@ -4289,59 +4300,59 @@ function renderBills() {
       <div class="budget-bill-selector-box">
         <button type="button" class="budget-bill-row-selector" aria-label="Select bill row" aria-pressed="${isBillSelected(bill.id) ? "true" : "false"}"></button>
       </div>
-      <label class="budget-bill-field budget-bill-name-box">
+      <label class="budget-bill-field budget-bill-name-box bill-col-name">
         <span>Bill</span>
         <input class="bill-name" value="${escapeAttribute(bill.name)}" aria-label="Bill name">
       </label>
-      <div class="budget-bill-field budget-bill-apr-box">
+      <div class="budget-bill-field budget-bill-apr-box bill-col-apr">
         <span>APR</span>
         <div class="budget-bill-apr">${bill.apr ? escapeHtml(formatApr(bill.apr)) : "-"}</div>
       </div>
-      <label class="budget-bill-field">
+      <label class="budget-bill-field bill-col-prev-bal">
         <span>Previous balance</span>
         <input class="bill-previous-balance" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.previousBalance ?? bill.currentBalance))}" aria-label="Previous balance">
       </label>
-      <label class="budget-bill-field">
+      <label class="budget-bill-field bill-col-current-bal">
         <span>Current balance</span>
         <input class="bill-current-balance" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.currentBalance))}" aria-label="Current balance">
       </label>
-      <label class="budget-bill-field">
+      <label class="budget-bill-field bill-col-diff">
         <span>Difference</span>
         <input class="bill-balance-diff" type="text" value="${escapeAttribute(formatSignedCurrency(balanceDiff))}" aria-label="Balance difference" readonly>
       </label>
-      <label class="budget-bill-field">
+      <label class="budget-bill-field bill-col-credit-line">
         <span>Credit line</span>
         <input class="bill-credit-limit" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.creditLimit))}" aria-label="Credit line">
       </label>
-      <label class="budget-bill-field">
+      <label class="budget-bill-field bill-col-due-amt">
         <span>Due amt</span>
         <input class="bill-amount" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.amount))}" aria-label="Bill amount due">
       </label>
-      <label class="budget-bill-field">
+      <label class="budget-bill-field bill-col-paid-amt">
         <span>Paid amt</span>
         <input class="bill-paid-amount" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.paidAmount))}" aria-label="Actual amount paid">
       </label>
-      <label class="budget-bill-field">
+      <label class="budget-bill-field bill-col-recommended">
         <span>Recommended</span>
         <input class="bill-recommended-payment" type="text" value="${escapeAttribute(formatCurrency(recommendedPayment))}" aria-label="Recommended payment" readonly>
       </label>
-      <label class="budget-bill-field">
+      <label class="budget-bill-field bill-col-tran">
         <span>Tran #</span>
         <input class="bill-transaction-number" value="${escapeAttribute(bill.transactionNumber || "")}" aria-label="Transaction number">
       </label>
-      <label class="budget-bill-field">
+      <label class="budget-bill-field bill-col-due-date">
         <span>Due date</span>
         <input class="bill-due" type="date" value="${escapeAttribute(bill.due)}" aria-label="Bill due date">
       </label>
-      <label class="budget-bill-field">
+      <label class="budget-bill-field bill-col-date-paid">
         <span>Date paid</span>
         <input class="bill-paid-date" type="date" value="${escapeAttribute(bill.paidDate || "")}" aria-label="Bill date paid">
       </label>
-      <div class="budget-bill-field budget-bill-credit-box">
+      <div class="budget-bill-field budget-bill-credit-box bill-col-credit-percent">
         <span>% Credit</span>
         <div class="budget-bill-status-note${creditRemainingClass}">${creditRemainingPercent === null ? "N/A" : escapeHtml(formatPercentLabel(creditRemainingPercent))}</div>
       </div>
-      <div class="budget-bill-status-box">
+      <div class="budget-bill-status-box bill-col-status">
         <label class="budget-bill-field">
           <span>Status</span>
           <select class="bill-status" aria-label="Bill status"${bill.statusTracksPaidDate ? " disabled" : ""}>
@@ -4349,13 +4360,13 @@ function renderBills() {
           </select>
         </label>
       </div>
-      <div class="budget-bill-notes-box">
+      <div class="budget-bill-notes-box bill-col-notes">
         <label class="budget-bill-field">
           <span>Notes</span>
           <textarea class="bill-notes" rows="2" aria-label="Bill notes" placeholder="Optional notes">${escapeHtml(bill.notes || "")}</textarea>
         </label>
       </div>
-      <div class="budget-bill-actions">
+      <div class="budget-bill-actions bill-col-actions">
         <button type="button" class="toggle-bill-hidden" aria-label="${bill.hidden ? "Unhide" : "Hide"} bill">${bill.hidden ? "Unhide" : "Hide"}</button>
         <button type="button" class="delete-bill-button" aria-label="Delete bill">Delete</button>
       </div>
@@ -4453,7 +4464,7 @@ function renderBills() {
     billListHeader.classList.toggle("is-simple", usesSimpleBills);
     billListHeader.innerHTML = usesSimpleBills
       ? "<span class=\"budget-bill-selector-header\"></span><span>Bill</span><span>Amount</span><span>Due</span><span>Status</span><span>Notes</span><span>Actions</span>"
-      : "<span class=\"budget-bill-selector-header\"></span><span>Bill</span><span>APR</span><span>Prev Bal</span><span>Current Bal</span><span>Diff</span><span>Credit Line</span><span>Due Amt</span><span>Paid Amt</span><span>Recommended</span><span>Tran #</span><span>Due</span><span>Date Paid</span><span>% Credit</span><span>Status</span><span>Notes</span><span>Actions</span>";
+      : "<span class=\"budget-bill-selector-header bill-col-selector\"></span><span class=\"bill-col bill-col-name\">Bill</span><span class=\"bill-col bill-col-apr\">APR</span><span class=\"bill-col bill-col-prev-bal\">Prev Bal</span><span class=\"bill-col bill-col-current-bal\">Current Bal</span><span class=\"bill-col bill-col-diff\">Diff</span><span class=\"bill-col bill-col-credit-line\">Credit Line</span><span class=\"bill-col bill-col-due-amt\">Due Amt</span><span class=\"bill-col bill-col-paid-amt\">Paid Amt</span><span class=\"bill-col bill-col-recommended\">Recommended</span><span class=\"bill-col bill-col-tran\">Tran #</span><span class=\"bill-col bill-col-due-date\">Due</span><span class=\"bill-col bill-col-date-paid\">Date Paid</span><span class=\"bill-col bill-col-credit-percent\">% Credit</span><span class=\"bill-col bill-col-status\">Status</span><span class=\"bill-col bill-col-notes\">Notes</span><span class=\"bill-col bill-col-actions\">Actions</span>";
   }
 
   const hiddenBillsPanel = document.querySelector(".hidden-bills-panel");
