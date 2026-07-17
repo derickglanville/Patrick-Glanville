@@ -23,6 +23,9 @@ const PATRICK_SUPABASE_STATE_ID = "patrick-glanville";
 const THEODORE_SUPABASE_STATE_ID = "theodore-glanville";
 const ADMIN_SUPABASE_STATE_ID = "admin-glanville";
 const SUPABASE_SAVE_DELAY_MS = 700;
+const JSON_BACKUP_SAVE_DELAY_MS = 900;
+const JSON_BACKUP_DB_NAME = "tracker-json-backup-handles-v1";
+const JSON_BACKUP_STORE_NAME = "handles";
 const PATRICK_REMOTE_UPDATED_AT_KEY = "patrick-glanville-remote-updated-at-v1";
 const THEODORE_REMOTE_UPDATED_AT_KEY = "theodore-glanville-remote-updated-at-v1";
 const ADMIN_REMOTE_UPDATED_AT_KEY = "admin-glanville-remote-updated-at-v1";
@@ -130,6 +133,11 @@ let lastSeenRefreshSignalAt = "";
 let autoCalculateBillsOnLoadPending = true;
 let selectedBillIds = new Set();
 const DEVICE_SESSION_ID = `session-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+let jsonBackupHandle = null;
+let jsonBackupSaveTimer = null;
+let jsonBackupMeta = null;
+let jsonBackupDbPromise = null;
+let jsonBackupLoadedClientId = "";
 const allowedUsers = [
   { name: "Deric Glanville", email: DERIC_EMAIL },
   { name: "Patrick Glanville", email: PATRICK_EMAIL },
@@ -455,6 +463,8 @@ const seedData = {
   billMonth: "",
   monthlyBudgetFund: 1500,
   budgetSnapshots: [],
+  billAuditLog: [],
+  billSnapshots: [],
   bills: [
     { id: crypto.randomUUID(), name: "Housing / rent", amount: 0, due: "", status: "Unpaid", notes: "" },
     { id: crypto.randomUUID(), name: "Car loan", amount: 0, due: "", status: "Unpaid", notes: "Ask lender about hardship suspension or deferment." },
@@ -1110,6 +1120,8 @@ function buildTheoSeedData() {
     billMonth: "",
     monthlyBudgetFund: 0,
     budgetSnapshots: [],
+    billAuditLog: [],
+    billSnapshots: [],
     bills: [],
     lifeAdminNotes: [],
     tasks: [
@@ -1157,6 +1169,8 @@ function buildAdminSeedData() {
     billMonth: "",
     monthlyBudgetFund: 5000,
     budgetSnapshots: [],
+    billAuditLog: [],
+    billSnapshots: [],
     bills: buildAdminSeedBills(),
     lifeAdminNotes: [],
     tasks: [
@@ -1215,6 +1229,8 @@ function buildUnselectedClientState() {
     billMonth: "",
     monthlyBudgetFund: 0,
     budgetSnapshots: [],
+    billAuditLog: [],
+    billSnapshots: [],
     bills: [],
     lifeAdminNotes: [],
     tasks: []
@@ -1238,6 +1254,31 @@ function setBillSelected(billId, selected) {
   } else {
     selectedBillIds.delete(billId);
   }
+}
+
+function showBillColumnSumDialog({ label, total, count, scope }) {
+  if (!billColumnSumDialog || !billColumnSumBody) return;
+  if (billColumnSumTitle) {
+    billColumnSumTitle.textContent = `${label} Total`;
+  }
+  billColumnSumBody.innerHTML = `
+    <div class="bill-column-sum-grid">
+      <div class="bill-column-sum-card">
+        <strong>Column</strong>
+        <span>${escapeHtml(label)}</span>
+      </div>
+      <div class="bill-column-sum-card">
+        <strong>Rows Included</strong>
+        <span>${escapeHtml(String(count))}</span>
+      </div>
+      <div class="bill-column-sum-card">
+        <strong>Total</strong>
+        <span>${escapeHtml(formatCurrency(total))}</span>
+      </div>
+    </div>
+    <p class="bill-column-sum-note">${escapeHtml(scope)}</p>
+  `;
+  billColumnSumDialog.showModal();
 }
 
 function getSeedData() {
@@ -1387,6 +1428,20 @@ const upcomingBillsDialog = document.querySelector("#upcomingBillsDialog");
 const upcomingBillsDialogSummary = document.querySelector("#upcomingBillsDialogSummary");
 const upcomingBillsDialogList = document.querySelector("#upcomingBillsDialogList");
 const closeUpcomingBillsDialogBtn = document.querySelector("#closeUpcomingBillsDialog");
+const billColumnSumDialog = document.querySelector("#billColumnSumDialog");
+const billColumnSumTitle = document.querySelector("#billColumnSumTitle");
+const billColumnSumBody = document.querySelector("#billColumnSumBody");
+const closeBillColumnSumDialogBtn = document.querySelector("#closeBillColumnSumDialog");
+const chooseJsonBackupBtn = document.querySelector("#chooseJsonBackupBtn");
+const validateJsonBackupBtn = document.querySelector("#validateJsonBackupBtn");
+const viewBillAuditBtn = document.querySelector("#viewBillAuditBtn");
+const restoreBillSnapshotBtn = document.querySelector("#restoreBillSnapshotBtn");
+const billAuditDialog = document.querySelector("#billAuditDialog");
+const billAuditBody = document.querySelector("#billAuditBody");
+const closeBillAuditDialogBtn = document.querySelector("#closeBillAuditDialog");
+const billSnapshotDialog = document.querySelector("#billSnapshotDialog");
+const billSnapshotBody = document.querySelector("#billSnapshotBody");
+const closeBillSnapshotDialogBtn = document.querySelector("#closeBillSnapshotDialog");
 const hiddenBillList = document.querySelector("#hiddenBillList");
 const hiddenBillsContent = document.querySelector("#hiddenBillsContent");
 const toggleHiddenBillsBtn = document.querySelector("#toggleHiddenBillsBtn");
@@ -1431,6 +1486,52 @@ const validatedProtectedClientIds = new Set();
 let taskViewMode = loadTaskViewMode();
 let activeMedicationTaskId = "";
 let forceCurrentBillMonthOnNextRemoteApply = false;
+const BILL_AUDIT_LIMIT = 400;
+const BILL_SNAPSHOT_LIMIT = 40;
+const BILL_AUDIT_FIELDS = [
+  "name",
+  "previousBalance",
+  "currentBalance",
+  "creditLimit",
+  "amount",
+  "transactionNumber",
+  "due",
+  "paidAmount",
+  "paidDate",
+  "status",
+  "notes"
+];
+
+const BILL_COLUMN_SUM_CONFIG = {
+  "bill-col-prev-bal": {
+    label: "Previous balance",
+    getValue: bill => normalizeMoney(bill.previousBalance ?? bill.currentBalance)
+  },
+  "bill-col-current-bal": {
+    label: "Current balance",
+    getValue: bill => normalizeMoney(bill.currentBalance)
+  },
+  "bill-col-diff": {
+    label: "Difference",
+    getValue: bill => normalizeMoney(bill.currentBalance) - normalizeMoney(bill.previousBalance ?? bill.currentBalance)
+  },
+  "bill-col-credit-line": {
+    label: "Credit line",
+    getValue: bill => normalizeMoney(bill.creditLimit)
+  },
+  "bill-col-due-amt": {
+    label: "Due amount",
+    getValue: bill => normalizeMoney(bill.amount)
+  },
+  "bill-col-paid-amt": {
+    label: "Paid amount",
+    getValue: bill => normalizeMoney(bill.paidAmount)
+  },
+  "bill-col-recommended": {
+    label: "Recommended payment",
+    getValue: (bill, recommendedPayments) => normalizeMoney(recommendedPayments.get(bill.id) ?? bill.amount)
+  }
+};
 
 const fields = {
   id: document.querySelector("#taskId"),
@@ -1475,6 +1576,8 @@ function loadState() {
       monthlyBudgetFund: normalizeMoney(parsed.monthlyBudgetFund ?? seedData.monthlyBudgetFund ?? 0),
       monthlyBudgets: parsed.monthlyBudgets || {},
       budgetSnapshots: Array.isArray(parsed.budgetSnapshots) ? parsed.budgetSnapshots : structuredClone(seedData.budgetSnapshots || []),
+      billAuditLog: Array.isArray(parsed.billAuditLog) ? parsed.billAuditLog : structuredClone(seedData.billAuditLog || []),
+      billSnapshots: Array.isArray(parsed.billSnapshots) ? parsed.billSnapshots : structuredClone(seedData.billSnapshots || []),
       bills: Array.isArray(parsed.bills) ? parsed.bills : structuredClone(seedData.bills),
       lifeAdminNotes: Array.isArray(parsed.lifeAdminNotes) ? parsed.lifeAdminNotes : structuredClone(seedData.lifeAdminNotes),
       tasks: Array.isArray(parsed.tasks) ? parsed.tasks : structuredClone(seedData.tasks)
@@ -1485,6 +1588,302 @@ function loadState() {
     return initialized;
   } catch {
     return initializeState(structuredClone(seedData));
+  }
+}
+
+function supportsJsonBackupFileAccess() {
+  return typeof window.showSaveFilePicker === "function" && typeof window.indexedDB !== "undefined";
+}
+
+function getJsonBackupMetaKey(clientId = activeClientId || "") {
+  return `tracker-json-backup-meta-v1-${clientId || "none"}`;
+}
+
+function readJsonBackupMeta(clientId = activeClientId || "") {
+  const raw = localStorage.getItem(getJsonBackupMetaKey(clientId));
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function writeJsonBackupMeta(meta, clientId = activeClientId || "") {
+  if (!clientId) return;
+  const key = getJsonBackupMetaKey(clientId);
+  if (!meta) {
+    localStorage.removeItem(key);
+    return;
+  }
+  localStorage.setItem(key, JSON.stringify(meta));
+}
+
+function openJsonBackupDb() {
+  if (!supportsJsonBackupFileAccess()) return Promise.resolve(null);
+  if (jsonBackupDbPromise) return jsonBackupDbPromise;
+  jsonBackupDbPromise = new Promise((resolve, reject) => {
+    const request = indexedDB.open(JSON_BACKUP_DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(JSON_BACKUP_STORE_NAME)) {
+        db.createObjectStore(JSON_BACKUP_STORE_NAME);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error("Could not open JSON backup database"));
+  }).catch(error => {
+    jsonBackupDbPromise = null;
+    throw error;
+  });
+  return jsonBackupDbPromise;
+}
+
+async function getJsonBackupHandleFromDb(clientId) {
+  if (!clientId || !supportsJsonBackupFileAccess()) return null;
+  const db = await openJsonBackupDb();
+  if (!db) return null;
+  return await new Promise((resolve, reject) => {
+    const transaction = db.transaction(JSON_BACKUP_STORE_NAME, "readonly");
+    const request = transaction.objectStore(JSON_BACKUP_STORE_NAME).get(clientId);
+    request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () => reject(request.error || new Error("Could not read JSON backup handle"));
+  });
+}
+
+async function saveJsonBackupHandleToDb(clientId, handle) {
+  if (!clientId || !supportsJsonBackupFileAccess()) return;
+  const db = await openJsonBackupDb();
+  if (!db) return;
+  await new Promise((resolve, reject) => {
+    const transaction = db.transaction(JSON_BACKUP_STORE_NAME, "readwrite");
+    const request = transaction.objectStore(JSON_BACKUP_STORE_NAME).put(handle, clientId);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error || new Error("Could not save JSON backup handle"));
+  });
+}
+
+async function ensureJsonBackupPermission(handle, mode = "readwrite") {
+  if (!handle) return false;
+  if (typeof handle.queryPermission === "function") {
+    const existing = await handle.queryPermission({ mode });
+    if (existing === "granted") return true;
+  }
+  if (typeof handle.requestPermission === "function") {
+    const granted = await handle.requestPermission({ mode });
+    return granted === "granted";
+  }
+  return true;
+}
+
+function getJsonBackupSuggestedFileName(client = currentClientConfig()) {
+  const slug = (client?.fullName || client?.shortName || "client")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return `${slug || "client"}-firebase-backup.json`;
+}
+
+function buildJsonBackupPayload() {
+  return {
+    app: "3G Tracking and Notifications",
+    clientId: activeClientId || "",
+    clientName: currentClientConfig()?.fullName || "",
+    savedAt: new Date().toISOString(),
+    localSavedAt: state.lastSavedAt || "",
+    firebaseUpdatedAt: remoteUpdatedAt || "",
+    sourceOfTruth: "Firebase Firestore",
+    state: structuredClone(state)
+  };
+}
+
+function normalizeStateForValidation(value) {
+  return JSON.stringify(value ?? {});
+}
+
+function getJsonBackupStatusText() {
+  if (!activeClientId) return "";
+  if (!supportsJsonBackupFileAccess()) return "JSON backup unavailable in this browser";
+  if (!jsonBackupHandle) return "JSON backup not configured";
+  const fileName = jsonBackupMeta?.fileName || "configured";
+  const savedAtText = jsonBackupMeta?.lastSavedAt
+    ? `saved ${formatDateTime(jsonBackupMeta.lastSavedAt)}`
+    : "awaiting first save";
+  const validationText = jsonBackupMeta?.lastValidationResult
+    ? `validation ${jsonBackupMeta.lastValidationResult}`
+    : "not yet validated";
+  return `JSON backup ${fileName}; ${savedAtText}; ${validationText}`;
+}
+
+async function loadConfiguredJsonBackupForActiveClient() {
+  jsonBackupHandle = null;
+  jsonBackupMeta = null;
+  jsonBackupLoadedClientId = activeClientId || "";
+  if (!activeClientId) {
+    updateDataStoreStatus();
+    updateClientChrome();
+    return;
+  }
+
+  jsonBackupMeta = readJsonBackupMeta(activeClientId);
+  if (!supportsJsonBackupFileAccess()) {
+    updateDataStoreStatus();
+    updateClientChrome();
+    return;
+  }
+
+  try {
+    jsonBackupHandle = await getJsonBackupHandleFromDb(activeClientId);
+  } catch (error) {
+    jsonBackupMeta = {
+      ...(jsonBackupMeta || {}),
+      fileName: jsonBackupMeta?.fileName || "",
+      lastValidationResult: `unavailable (${error.message})`
+    };
+    writeJsonBackupMeta(jsonBackupMeta, activeClientId);
+  }
+  updateDataStoreStatus();
+  updateClientChrome();
+}
+
+async function readJsonBackupPayload() {
+  if (!jsonBackupHandle) throw new Error("No JSON backup file is configured for this client.");
+  const hasPermission = await ensureJsonBackupPermission(jsonBackupHandle, "readwrite");
+  if (!hasPermission) throw new Error("Permission to read the JSON backup file was not granted.");
+  const file = await jsonBackupHandle.getFile();
+  const text = await file.text();
+  if (!text.trim()) throw new Error("The JSON backup file is empty.");
+  return JSON.parse(text);
+}
+
+async function saveJsonBackupNow(reason = "auto") {
+  if (!activeClientId || !jsonBackupHandle) return false;
+  const hasPermission = await ensureJsonBackupPermission(jsonBackupHandle, "readwrite");
+  if (!hasPermission) {
+    throw new Error("Permission to write the JSON backup file was not granted.");
+  }
+
+  const payload = buildJsonBackupPayload();
+  const writable = await jsonBackupHandle.createWritable();
+  await writable.write(JSON.stringify(payload, null, 2));
+  await writable.close();
+
+  jsonBackupMeta = {
+    fileName: jsonBackupHandle.name || jsonBackupMeta?.fileName || getJsonBackupSuggestedFileName(),
+    lastSavedAt: payload.savedAt,
+    lastSavedReason: reason,
+    lastValidationAt: jsonBackupMeta?.lastValidationAt || "",
+    lastValidationResult: jsonBackupMeta?.lastValidationResult || ""
+  };
+  writeJsonBackupMeta(jsonBackupMeta, activeClientId);
+  updateDataStoreStatus();
+  return true;
+}
+
+function queueJsonBackupSave(reason = "auto") {
+  if (!activeClientId || !jsonBackupHandle) {
+    updateDataStoreStatus();
+    return;
+  }
+  window.clearTimeout(jsonBackupSaveTimer);
+  jsonBackupSaveTimer = window.setTimeout(() => {
+    saveJsonBackupNow(reason).catch(error => {
+      jsonBackupMeta = {
+        ...(jsonBackupMeta || {}),
+        fileName: jsonBackupMeta?.fileName || jsonBackupHandle?.name || "",
+        lastSavedAt: jsonBackupMeta?.lastSavedAt || "",
+        lastSavedReason: jsonBackupMeta?.lastSavedReason || "",
+        lastValidationAt: jsonBackupMeta?.lastValidationAt || "",
+        lastValidationResult: `save failed (${error.message})`
+      };
+      writeJsonBackupMeta(jsonBackupMeta, activeClientId);
+      updateDataStoreStatus();
+    });
+  }, JSON_BACKUP_SAVE_DELAY_MS);
+}
+
+async function chooseJsonBackupFile() {
+  if (!activeClientId) {
+    alert("Choose a client first, then choose the JSON backup file for that client.");
+    return;
+  }
+  if (!supportsJsonBackupFileAccess()) {
+    alert("This browser does not support direct JSON backup files. Use Export as a fallback on this device.");
+    return;
+  }
+
+  try {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: getJsonBackupSuggestedFileName(),
+      types: [{
+        description: "JSON backup",
+        accept: { "application/json": [".json"] }
+      }]
+    });
+    await saveJsonBackupHandleToDb(activeClientId, handle);
+    jsonBackupHandle = handle;
+    jsonBackupMeta = {
+      fileName: handle.name || getJsonBackupSuggestedFileName(),
+      lastSavedAt: "",
+      lastSavedReason: "",
+      lastValidationAt: "",
+      lastValidationResult: ""
+    };
+    writeJsonBackupMeta(jsonBackupMeta, activeClientId);
+    await saveJsonBackupNow("manual setup");
+    updateClientChrome();
+    alert(`JSON backup configured for ${currentClientConfig()?.shortName || "this client"}.\n\nFile: ${jsonBackupMeta.fileName}`);
+  } catch (error) {
+    if (error?.name === "AbortError") return;
+    alert(`Could not configure the JSON backup file: ${error.message}`);
+  }
+}
+
+async function validateFirebaseAgainstJsonBackup() {
+  if (!activeClientId) {
+    alert("Choose a client first.");
+    return;
+  }
+  if (!jsonBackupHandle) {
+    alert("No JSON backup file is configured for this client yet.");
+    return;
+  }
+
+  try {
+    const payload = await readJsonBackupPayload();
+    const clientMatches = String(payload.clientId || "") === String(activeClientId || "");
+    const contentMatches = normalizeStateForValidation(payload.state) === normalizeStateForValidation(state);
+    const result = clientMatches && contentMatches ? "matched" : clientMatches ? "different content" : "wrong client file";
+    jsonBackupMeta = {
+      ...(jsonBackupMeta || {}),
+      fileName: jsonBackupMeta?.fileName || jsonBackupHandle?.name || "",
+      lastSavedAt: jsonBackupMeta?.lastSavedAt || payload.savedAt || "",
+      lastSavedReason: jsonBackupMeta?.lastSavedReason || "",
+      lastValidationAt: new Date().toISOString(),
+      lastValidationResult: result
+    };
+    writeJsonBackupMeta(jsonBackupMeta, activeClientId);
+    updateDataStoreStatus();
+    updateClientChrome();
+    alert([
+      `Client: ${currentClientConfig()?.fullName || activeClientId || "Unknown"}`,
+      `Firebase source-of-truth: ${remoteUpdatedAt ? formatDateTime(remoteUpdatedAt) : "Unknown"}`,
+      `JSON backup saved: ${payload?.savedAt ? formatDateTime(payload.savedAt) : "Unknown"}`,
+      `Backup file: ${jsonBackupMeta.fileName || "Configured file"}`,
+      `Validation result: ${result}`
+    ].join("\n"));
+  } catch (error) {
+    jsonBackupMeta = {
+      ...(jsonBackupMeta || {}),
+      fileName: jsonBackupMeta?.fileName || jsonBackupHandle?.name || "",
+      lastSavedAt: jsonBackupMeta?.lastSavedAt || "",
+      lastSavedReason: jsonBackupMeta?.lastSavedReason || "",
+      lastValidationAt: new Date().toISOString(),
+      lastValidationResult: `failed (${error.message})`
+    };
+    writeJsonBackupMeta(jsonBackupMeta, activeClientId);
+    updateDataStoreStatus();
+    alert(`Could not validate Firebase against the JSON backup.\n\n${error.message}`);
   }
 }
 
@@ -1588,6 +1987,12 @@ function initializeState(loaded) {
   loaded.budgetSnapshots = Array.isArray(loaded.budgetSnapshots)
     ? loaded.budgetSnapshots.map(normalizeBudgetSnapshot).filter(Boolean)
     : structuredClone(seedData.budgetSnapshots || []).map(normalizeBudgetSnapshot).filter(Boolean);
+  loaded.billAuditLog = Array.isArray(loaded.billAuditLog)
+    ? loaded.billAuditLog.map(normalizeBillAuditEntry).filter(Boolean).slice(-BILL_AUDIT_LIMIT)
+    : [];
+  loaded.billSnapshots = Array.isArray(loaded.billSnapshots)
+    ? loaded.billSnapshots.map(normalizeBillSnapshot).filter(Boolean).slice(-BILL_SNAPSHOT_LIMIT)
+    : [];
   loaded.bills = activeMonthlyBudget.bills.map(normalizeBill);
   stateAdjusted = JSON.stringify({
     bills: loaded.bills,
@@ -1683,6 +2088,122 @@ function normalizeBillDateLike(value) {
   if (!text || text.toUpperCase() === "N/A") return "";
   if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
   return normalizeSpreadsheetDate(text);
+}
+
+function normalizeBillAuditEntry(entry) {
+  if (!entry || typeof entry !== "object") return null;
+  const month = String(entry.month || "").trim();
+  const billId = String(entry.billId || "").trim();
+  const field = String(entry.field || "").trim();
+  if (!month || !billId || !field) return null;
+  return {
+    id: entry.id || crypto.randomUUID(),
+    clientId: String(entry.clientId || activeClientId || "").trim(),
+    month,
+    billId,
+    billName: String(entry.billName || "").trim(),
+    field,
+    before: entry.before ?? "",
+    after: entry.after ?? "",
+    changedAt: entry.changedAt || new Date().toISOString(),
+    changedByName: String(entry.changedByName || "").trim(),
+    changedByEmail: String(entry.changedByEmail || "").trim(),
+    source: String(entry.source || "manual-edit").trim()
+  };
+}
+
+function normalizeBillSnapshot(entry) {
+  if (!entry || typeof entry !== "object") return null;
+  const month = String(entry.month || "").trim();
+  if (!month) return null;
+  return {
+    id: entry.id || crypto.randomUUID(),
+    clientId: String(entry.clientId || activeClientId || "").trim(),
+    month,
+    reason: String(entry.reason || "Bill snapshot").trim(),
+    createdAt: entry.createdAt || new Date().toISOString(),
+    createdByName: String(entry.createdByName || "").trim(),
+    createdByEmail: String(entry.createdByEmail || "").trim(),
+    bills: Array.isArray(entry.bills) ? entry.bills.map(normalizeBill) : []
+  };
+}
+
+function ensureBillAuditCollections() {
+  if (!Array.isArray(state.billAuditLog)) state.billAuditLog = [];
+  if (!Array.isArray(state.billSnapshots)) state.billSnapshots = [];
+}
+
+function getSensitiveBillValueForAudit(bill, field) {
+  switch (field) {
+    case "previousBalance":
+    case "currentBalance":
+    case "creditLimit":
+    case "amount":
+    case "paidAmount":
+      return normalizeMoney(bill?.[field]);
+    default:
+      return String(bill?.[field] ?? "").trim();
+  }
+}
+
+function formatBillAuditValue(field, value) {
+  if (["previousBalance", "currentBalance", "creditLimit", "amount", "paidAmount"].includes(field)) {
+    return formatCurrency(normalizeMoney(value));
+  }
+  return String(value || "").trim() || "None";
+}
+
+function captureBillSnapshot(reason, month = state.billMonth || defaultBillMonth(), billsOverride = null) {
+  ensureBillAuditCollections();
+  const user = currentUser();
+  const snapshot = normalizeBillSnapshot({
+    clientId: activeClientId,
+    month,
+    reason,
+    createdAt: new Date().toISOString(),
+    createdByName: user.name,
+    createdByEmail: user.email,
+    bills: Array.isArray(billsOverride)
+      ? billsOverride.map(bill => normalizeBill(bill))
+      : state.bills.map(bill => normalizeBill(bill))
+  });
+  if (!snapshot) return null;
+  state.billSnapshots.push(snapshot);
+  if (state.billSnapshots.length > BILL_SNAPSHOT_LIMIT) {
+    state.billSnapshots.splice(0, state.billSnapshots.length - BILL_SNAPSHOT_LIMIT);
+  }
+  return snapshot;
+}
+
+function recordBillFieldAuditEntries(before, after, source = "manual-edit", month = state.billMonth || defaultBillMonth()) {
+  ensureBillAuditCollections();
+  const user = currentUser();
+  const entries = BILL_AUDIT_FIELDS
+    .map(field => {
+      const beforeValue = getSensitiveBillValueForAudit(before, field);
+      const afterValue = getSensitiveBillValueForAudit(after, field);
+      if (beforeValue === afterValue) return null;
+      return normalizeBillAuditEntry({
+        clientId: activeClientId,
+        month,
+        billId: after.id || before.id,
+        billName: after.name || before.name || "Untitled bill",
+        field,
+        before: beforeValue,
+        after: afterValue,
+        changedAt: new Date().toISOString(),
+        changedByName: user.name,
+        changedByEmail: user.email,
+        source
+      });
+    })
+    .filter(Boolean);
+  if (!entries.length) return [];
+  state.billAuditLog.push(...entries);
+  if (state.billAuditLog.length > BILL_AUDIT_LIMIT) {
+    state.billAuditLog.splice(0, state.billAuditLog.length - BILL_AUDIT_LIMIT);
+  }
+  return entries;
 }
 
 function extractLegacyBillMetadata(notes = "") {
@@ -2236,7 +2757,11 @@ function getBillsDueWithinDays(bills, daysAhead = 7) {
   const end = new Date(today);
   end.setDate(end.getDate() + daysAhead);
   return bills
-    .filter(bill => String(bill.due || "").trim())
+    .filter(bill =>
+      String(bill.due || "").trim() &&
+      bill?.status !== "Paid" &&
+      bill?.status !== "Deferred"
+    )
     .map(bill => {
       const dueDate = new Date(`${bill.due}T00:00:00`);
       return Number.isNaN(dueDate.getTime()) ? null : { bill, dueDate };
@@ -3256,6 +3781,7 @@ function saveState() {
     localStorage.setItem(storageKey, JSON.stringify(state));
   }
   updateDataStoreStatus();
+  queueJsonBackupSave("local save");
   queueSharedStateSave();
 }
 
@@ -3417,6 +3943,7 @@ function applyRemoteSharedState(remoteState, updatedAt = "") {
     localStorage.setItem(getStorageKey(), JSON.stringify(state));
   }
   supabaseStatus = `Firebase Firestore shared storage; live sync active for ${currentClientConfig()?.shortName || "client"}${updatedAt ? `; synced ${formatDateTime(updatedAt)}` : ""}`;
+  queueJsonBackupSave("remote sync");
   render();
   updateDataStoreStatus();
   applyingRemoteState = false;
@@ -3632,6 +4159,7 @@ function updateDataStoreStatus() {
   const fallbackLabel = window.location.protocol === "file:"
     ? "local file browser storage"
     : `${window.location.hostname} browser storage`;
+  const jsonBackupStatus = getJsonBackupStatusText();
   if (
     !supabaseEnabled &&
     supabaseStatus === "Checking Firebase Firestore availability" &&
@@ -3654,7 +4182,8 @@ function updateDataStoreStatus() {
   const debugSuffix = !supabaseEnabled && supabaseStatus === "Checking Firebase Firestore availability"
     ? `; ${getFirebaseDebugStatus()}`
     : "";
-  dataStoreStatus.textContent = `${locationLabel}${debugSuffix}; local backup ${formatDateTime(state.lastSavedAt)}`;
+  const backupSuffix = jsonBackupStatus ? `; ${jsonBackupStatus}` : "";
+  dataStoreStatus.textContent = `${locationLabel}${debugSuffix}; local backup ${formatDateTime(state.lastSavedAt)}${backupSuffix}`;
 }
 
 function renderOverviewCards() {
@@ -3694,6 +4223,32 @@ function updateClientChrome() {
     pullLatestDevicesBtn.title = client && supabaseEnabled
       ? `Tell other open ${client.shortName} dashboards to reload the latest shared data`
       : "Choose a client with Firebase sync active first";
+  }
+  if (chooseJsonBackupBtn) {
+    chooseJsonBackupBtn.disabled = !client;
+    chooseJsonBackupBtn.title = client
+      ? `Choose the local JSON verification backup file for ${client.shortName}`
+      : "Choose a client first";
+  }
+  if (validateJsonBackupBtn) {
+    validateJsonBackupBtn.disabled = !client || !jsonBackupHandle;
+    validateJsonBackupBtn.title = client
+      ? jsonBackupHandle
+        ? `Compare live Firebase data against the configured JSON backup for ${client.shortName}`
+        : `Choose a JSON backup file for ${client.shortName} first`
+      : "Choose a client first";
+  }
+  if (viewBillAuditBtn) {
+    viewBillAuditBtn.disabled = !client;
+    viewBillAuditBtn.title = client
+      ? `Review recent monthly bill field changes for ${client.shortName}`
+      : "Choose a client first";
+  }
+  if (restoreBillSnapshotBtn) {
+    restoreBillSnapshotBtn.disabled = !client;
+    restoreBillSnapshotBtn.title = client
+      ? `Restore a saved monthly bill snapshot for ${client.shortName}`
+      : "Choose a client first";
   }
   if (currentUserContent && toggleCurrentUserBtn) {
     currentUserContent.hidden = currentUserCollapsed;
@@ -4234,6 +4789,9 @@ function renderBills() {
     mid: visibleBills.filter(bill => getBillDueGroup(bill) === "mid"),
     late: visibleBills.filter(bill => getBillDueGroup(bill) === "late")
   };
+  const filteredBills = usesSimpleBills
+    ? []
+    : (state.billGroupView === "full" ? visibleBills : (billGroups[state.billGroupView] || []));
 
   const buildBillTotalsRow = billsForTotals => {
     const totals = billsForTotals.reduce((acc, bill) => {
@@ -4464,7 +5022,33 @@ function renderBills() {
     billListHeader.classList.toggle("is-simple", usesSimpleBills);
     billListHeader.innerHTML = usesSimpleBills
       ? "<span class=\"budget-bill-selector-header\"></span><span>Bill</span><span>Amount</span><span>Due</span><span>Status</span><span>Notes</span><span>Actions</span>"
-      : "<span class=\"budget-bill-selector-header bill-col-selector\"></span><span class=\"bill-col bill-col-name\">Bill</span><span class=\"bill-col bill-col-apr\">APR</span><span class=\"bill-col bill-col-prev-bal\">Prev Bal</span><span class=\"bill-col bill-col-current-bal\">Current Bal</span><span class=\"bill-col bill-col-diff\">Diff</span><span class=\"bill-col bill-col-credit-line\">Credit Line</span><span class=\"bill-col bill-col-due-amt\">Due Amt</span><span class=\"bill-col bill-col-paid-amt\">Paid Amt</span><span class=\"bill-col bill-col-recommended\">Recommended</span><span class=\"bill-col bill-col-tran\">Tran #</span><span class=\"bill-col bill-col-due-date\">Due</span><span class=\"bill-col bill-col-date-paid\">Date Paid</span><span class=\"bill-col bill-col-credit-percent\">% Credit</span><span class=\"bill-col bill-col-status\">Status</span><span class=\"bill-col bill-col-notes\">Notes</span><span class=\"bill-col bill-col-actions\">Actions</span>";
+      : "<span class=\"budget-bill-selector-header bill-col-selector\"></span><span class=\"bill-col bill-col-name\">Bill</span><span class=\"bill-col bill-col-apr\">APR</span><span class=\"bill-col bill-col-prev-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum previous balance column\">Prev Bal</span><span class=\"bill-col bill-col-current-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum current balance column\">Current Bal</span><span class=\"bill-col bill-col-diff is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum difference column\">Diff</span><span class=\"bill-col bill-col-credit-line is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum credit line column\">Credit Line</span><span class=\"bill-col bill-col-due-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum due amount column\">Due Amt</span><span class=\"bill-col bill-col-paid-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum paid amount column\">Paid Amt</span><span class=\"bill-col bill-col-recommended is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum recommended payment column\">Recommended</span><span class=\"bill-col bill-col-tran\">Tran #</span><span class=\"bill-col bill-col-due-date\">Due</span><span class=\"bill-col bill-col-date-paid\">Date Paid</span><span class=\"bill-col bill-col-credit-percent\">% Credit</span><span class=\"bill-col bill-col-status\">Status</span><span class=\"bill-col bill-col-notes\">Notes</span><span class=\"bill-col bill-col-actions\">Actions</span>";
+    if (!usesSimpleBills) {
+      Object.entries(BILL_COLUMN_SUM_CONFIG).forEach(([columnClass, config]) => {
+        const headerCell = billListHeader.querySelector(`.${columnClass}`);
+        if (!headerCell) return;
+        const openColumnSum = () => {
+          const selectedVisibleBills = filteredBills.filter(bill => isBillSelected(bill.id));
+          const billsForSum = selectedVisibleBills.length ? selectedVisibleBills : filteredBills;
+          const total = billsForSum.reduce((sum, bill) => sum + config.getValue(bill, recommendedPayments), 0);
+          const scope = selectedVisibleBills.length
+            ? `Summed across ${selectedVisibleBills.length} selected visible bill row${selectedVisibleBills.length === 1 ? "" : "s"}.`
+            : `Summed across all ${filteredBills.length} visible bill row${filteredBills.length === 1 ? "" : "s"} in the current view.`;
+          showBillColumnSumDialog({
+            label: config.label,
+            total,
+            count: billsForSum.length,
+            scope
+          });
+        };
+        headerCell.addEventListener("click", openColumnSum);
+        headerCell.addEventListener("keydown", event => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          openColumnSum();
+        });
+      });
+    }
   }
 
   const hiddenBillsPanel = document.querySelector(".hidden-bills-panel");
@@ -4507,6 +5091,7 @@ function deleteBill(id) {
   if (!ensureCurrentUser("delete a monthly bill")) return;
   const month = state.billMonth || defaultBillMonth();
   ensureMonthlyBudgetState(month);
+  captureBillSnapshot(`Before deleting bill ${bill.name || "Untitled bill"}`, month);
   const deletedKey = String(bill.templateKey || "").trim();
   if (deletedKey) {
     const deletedBillKeys = new Set(state.monthlyBudgets[month]?.deletedBillKeys || []);
@@ -4527,6 +5112,12 @@ function deleteBill(id) {
     status: bill.status || "N/A",
     percent: percentFromBillStatus(bill.status)
   });
+  recordBillFieldAuditEntries(
+    bill,
+    { ...bill, name: `${bill.name || "Untitled bill"} (deleted)` },
+    "delete-bill",
+    month
+  );
   state.bills = state.bills.filter(item => item.id !== id);
   syncCurrentBudgetMonth();
   saveState();
@@ -4555,6 +5146,7 @@ function updateBillFromRow(row, options = {}) {
   if (!options.skipUserCheck && !ensureCurrentUser("update a monthly bill")) return;
   const recordHistory = options.recordHistory !== false;
   const persist = options.persist !== false;
+  const shouldCaptureSnapshot = options.suppressSnapshot !== true;
   const before = { ...bill };
   const getField = selector => row.querySelector(selector);
   bill.name = getField(".bill-name")?.value.trim() ?? bill.name;
@@ -4583,8 +5175,20 @@ function updateBillFromRow(row, options = {}) {
   if (options.recalculateBalance) {
     bill.currentBalance = calculateCurrentBalanceFromPayment(bill.previousBalance, bill.paidAmount, bill.apr);
   }
+  const hasChanges = JSON.stringify(before) !== JSON.stringify(bill);
+  if (recordHistory && hasChanges) {
+    if (shouldCaptureSnapshot) {
+      const snapshotBills = state.bills.map(item => (item.id === before.id ? normalizeBill(before) : normalizeBill(item)));
+      captureBillSnapshot(
+        `Before updating bill ${before.name || bill.name || "Untitled bill"}`,
+        state.billMonth || defaultBillMonth(),
+        snapshotBills
+      );
+    }
+    recordBillFieldAuditEntries(before, bill, options.auditSource || (options.recalculateBalance ? "calculate-balances" : "manual-edit"));
+  }
   const summary = buildBillChangeSummary(before, bill);
-  if (recordHistory && (summary !== "Monthly bill updated" || JSON.stringify(before) !== JSON.stringify(bill))) {
+  if (recordHistory && (summary !== "Monthly bill updated" || hasChanges)) {
     recordHistoryEntry({
       itemType: "bill",
       itemId: bill.id,
@@ -4614,12 +5218,15 @@ function calculateAllBillBalances(options = {}) {
   if (!options.skipUserCheck && !ensureCurrentUser("calculate monthly bill balances")) return;
   const rows = [...document.querySelectorAll(".budget-bill-item[data-bill-id]")];
   if (!rows.length) return;
+  captureBillSnapshot("Before calculating monthly bill balances", state.billMonth || defaultBillMonth());
   rows.forEach(row => {
     updateBillFromRow(row, {
       recalculateBalance: true,
-      recordHistory: options.skipHistory ? false : false,
+      recordHistory: options.skipHistory ? false : true,
       persist: false,
-      skipUserCheck: true
+      skipUserCheck: true,
+      auditSource: "calculate-balances",
+      suppressSnapshot: true
     });
   });
   syncCurrentBudgetMonth(false);
@@ -4742,6 +5349,107 @@ function renderBudgetSnapshots() {
   });
 }
 
+function renderBillAuditDialog() {
+  if (!billAuditBody) return;
+  const month = state.billMonth || defaultBillMonth();
+  const entries = (state.billAuditLog || [])
+    .filter(entry => !activeClientId || entry.clientId === activeClientId)
+    .filter(entry => entry.month === month)
+    .sort((a, b) => (b.changedAt || "").localeCompare(a.changedAt || ""));
+  if (!entries.length) {
+    billAuditBody.innerHTML = '<p class="empty-report">No audited bill field changes have been captured for this month yet.</p>';
+    return;
+  }
+  const groups = new Map();
+  entries.forEach(entry => {
+    const key = `${entry.changedAt}|${entry.billId}|${entry.source}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(entry);
+  });
+  billAuditBody.innerHTML = `<div class="bill-audit-list">${[...groups.values()].map(group => {
+    const first = group[0];
+    return `
+      <article class="bill-audit-card">
+        <header>
+          <div>
+            <h3>${escapeHtml(first.billName)}</h3>
+            <div class="bill-audit-meta">
+              <span>${escapeHtml(formatDateTime(first.changedAt))}</span>
+              <span>${escapeHtml(first.changedByName || first.changedByEmail || "Unknown user")}</span>
+              <span>${escapeHtml(first.source)}</span>
+              <span>${escapeHtml(first.month)}</span>
+            </div>
+          </div>
+        </header>
+        <ul>
+          ${group.map(entry => `<li><strong>${escapeHtml(entry.field)}</strong>: ${escapeHtml(formatBillAuditValue(entry.field, entry.before))} -> ${escapeHtml(formatBillAuditValue(entry.field, entry.after))}</li>`).join("")}
+        </ul>
+      </article>
+    `;
+  }).join("")}</div>`;
+}
+
+function renderBillSnapshotDialog() {
+  if (!billSnapshotBody) return;
+  const month = state.billMonth || defaultBillMonth();
+  const snapshots = (state.billSnapshots || [])
+    .filter(entry => !activeClientId || entry.clientId === activeClientId)
+    .filter(entry => entry.month === month)
+    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+  if (!snapshots.length) {
+    billSnapshotBody.innerHTML = '<p class="empty-report">No bill restore snapshots are available for this month yet.</p>';
+    return;
+  }
+  billSnapshotBody.innerHTML = `<div class="bill-snapshot-list">${snapshots.map(snapshot => `
+    <article class="bill-snapshot-card-restore">
+      <header>
+        <div>
+          <h3>${escapeHtml(snapshot.reason || "Bill snapshot")}</h3>
+          <div class="bill-snapshot-meta">
+            <span>${escapeHtml(formatDateTime(snapshot.createdAt))}</span>
+            <span>${escapeHtml(snapshot.createdByName || snapshot.createdByEmail || "Unknown user")}</span>
+            <span>${escapeHtml(snapshot.month)}</span>
+            <span>${escapeHtml(String(snapshot.bills.length))} bills</span>
+          </div>
+        </div>
+      </header>
+      <div class="bill-snapshot-actions">
+        <button type="button" class="ghost restore-bill-snapshot-btn" data-snapshot-id="${escapeHtml(snapshot.id)}">Restore this snapshot</button>
+      </div>
+    </article>
+  `).join("")}</div>`;
+}
+
+function restoreBillSnapshot(snapshotId) {
+  const snapshot = (state.billSnapshots || []).find(entry => entry.id === snapshotId);
+  if (!snapshot) return;
+  if (!ensureCurrentUser("restore a monthly bill snapshot")) return;
+  const month = snapshot.month || state.billMonth || defaultBillMonth();
+  const monthlyBudget = ensureMonthlyBudgetState(month);
+  captureBillSnapshot(`Before restore snapshot (${snapshot.reason})`, month);
+  state.monthlyBudgets[month] = normalizeMonthlyBudgetEntry({
+    ...monthlyBudget,
+    month,
+    bills: snapshot.bills.map(bill => normalizeBill(bill))
+  }, month);
+  state.billMonth = month;
+  state.bills = state.monthlyBudgets[month].bills.map(normalizeBill);
+  state.monthlyBudgetFund = state.monthlyBudgets[month].monthlyBudgetFund;
+  recordHistoryEntry({
+    itemType: "bill",
+    itemId: month,
+    title: historyTitleFor("bill", `Restored bill snapshot ${month}`),
+    summary: `Monthly bills restored from snapshot: ${snapshot.reason}`,
+    status: "Restored",
+    percent: 0
+  });
+  syncCurrentBudgetMonth(false);
+  saveState();
+  renderBills();
+  renderBillSnapshotDialog();
+  if (billSnapshotDialog?.open) billSnapshotDialog.close();
+}
+
 function isBillPastDue(bill) {
   return Boolean(bill.due && bill.status !== "Paid" && bill.status !== "Deferred" && bill.due < getTodayIsoDate());
 }
@@ -4761,6 +5469,7 @@ function toggleBillHidden(id) {
   const bill = state.bills.find(item => item.id === id);
   if (!ensureCurrentUser("update a monthly bill")) return;
   if (!bill) return;
+  captureBillSnapshot(`Before ${bill.hidden ? "unhiding" : "hiding"} bill ${bill.name || "Untitled bill"}`, state.billMonth || defaultBillMonth());
   bill.hidden = !bill.hidden;
   if (bill.hidden) {
     state.hiddenBillsExpanded = true;
@@ -4800,6 +5509,7 @@ function copyBillsToNextMonth() {
   if (!ensureCurrentUser("copy monthly bill values to the next month")) return;
   const currentMonth = state.billMonth || defaultBillMonth();
   const nextMonth = shiftMonthString(currentMonth, 1);
+  captureBillSnapshot(`Before copying bills from ${currentMonth} to ${nextMonth}`, currentMonth);
   const currentMonthBudget = ensureMonthlyBudgetState(currentMonth);
   const sourceBills = dedupeBudgetBills((currentMonthBudget?.bills || state.bills).map(normalizeBill));
   const copiedBills = sourceBills.map(currentBill => ({
@@ -4854,6 +5564,7 @@ function assignDueDatesFromPreviousMonth() {
   if (!ensureCurrentUser("assign due dates from the previous month")) return;
   const targetMonth = state.billMonth || defaultBillMonth();
   const previousMonth = shiftMonthString(targetMonth, -1);
+  captureBillSnapshot(`Before assigning due dates for ${targetMonth}`, targetMonth);
   const previousMonthBudget = ensureMonthlyBudgetState(previousMonth);
   const targetMonthBudget = ensureMonthlyBudgetState(targetMonth);
   const previousBills = dedupeBudgetBills((previousMonthBudget?.bills || []).map(normalizeBill));
@@ -6637,6 +7348,7 @@ async function switchClient(clientId, pin = "") {
   activeClientId = nextClient.id;
   remoteUpdatedAt = readCachedRemoteUpdatedAt();
   state = loadState();
+  await loadConfiguredJsonBackupForActiveClient();
   autoCalculateBillsOnLoadPending = true;
   loadBudgetMonth(defaultBillMonth(), { syncSnapshot: false });
   patrickWatchState = loadPatrickWatchState();
@@ -8434,6 +9146,34 @@ if (upcomingBillsBanner) {
 if (closeUpcomingBillsDialogBtn && upcomingBillsDialog) {
   closeUpcomingBillsDialogBtn.addEventListener("click", () => upcomingBillsDialog.close());
 }
+if (closeBillColumnSumDialogBtn && billColumnSumDialog) {
+  closeBillColumnSumDialogBtn.addEventListener("click", () => billColumnSumDialog.close());
+}
+if (viewBillAuditBtn && billAuditDialog) {
+  viewBillAuditBtn.addEventListener("click", () => {
+    renderBillAuditDialog();
+    billAuditDialog.showModal();
+  });
+}
+if (restoreBillSnapshotBtn && billSnapshotDialog) {
+  restoreBillSnapshotBtn.addEventListener("click", () => {
+    renderBillSnapshotDialog();
+    billSnapshotDialog.showModal();
+  });
+}
+if (closeBillAuditDialogBtn && billAuditDialog) {
+  closeBillAuditDialogBtn.addEventListener("click", () => billAuditDialog.close());
+}
+if (closeBillSnapshotDialogBtn && billSnapshotDialog) {
+  closeBillSnapshotDialogBtn.addEventListener("click", () => billSnapshotDialog.close());
+}
+if (billSnapshotBody) {
+  billSnapshotBody.addEventListener("click", event => {
+    const restoreButton = event.target.closest(".restore-bill-snapshot-btn");
+    if (!restoreButton) return;
+    restoreBillSnapshot(restoreButton.dataset.snapshotId || "");
+  });
+}
 if (toggleHiddenBillsBtn) {
   toggleHiddenBillsBtn.addEventListener("click", () => {
     state.hiddenBillsExpanded = !state.hiddenBillsExpanded;
@@ -8445,6 +9185,7 @@ document.querySelector("#addBillBtn").addEventListener("click", () => {
   if (!ensureCurrentUser("add a bill")) return;
   const month = state.billMonth || defaultBillMonth();
   ensureMonthlyBudgetState(month);
+  captureBillSnapshot("Before adding monthly bill", month);
   const newBill = {
     id: crypto.randomUUID(),
     name: "",
@@ -8665,10 +9406,12 @@ document.querySelector("#importInput").addEventListener("change", event => {
         hiddenPanels: imported.hiddenPanels,
         collapsedTaskGroups: imported.collapsedTaskGroups,
         billMonth: imported.billMonth,
-        monthlyBudgetFund: imported.monthlyBudgetFund,
-        monthlyBudgets: imported.monthlyBudgets,
-        budgetSnapshots: imported.budgetSnapshots,
-        bills: imported.bills,
+      monthlyBudgetFund: imported.monthlyBudgetFund,
+      monthlyBudgets: imported.monthlyBudgets,
+      budgetSnapshots: imported.budgetSnapshots,
+      billAuditLog: imported.billAuditLog,
+      billSnapshots: imported.billSnapshots,
+      bills: imported.bills,
         lifeAdminNotes: imported.lifeAdminNotes,
         documents: imported.documents,
         tasks: imported.tasks
@@ -8751,6 +9494,16 @@ document.querySelector("#refreshAppBtn").addEventListener("click", () => {
   url.searchParams.set("refresh", Date.now().toString());
   window.location.href = url.toString();
 });
+if (chooseJsonBackupBtn) {
+  chooseJsonBackupBtn.addEventListener("click", () => {
+    chooseJsonBackupFile();
+  });
+}
+if (validateJsonBackupBtn) {
+  validateJsonBackupBtn.addEventListener("click", () => {
+    validateFirebaseAgainstJsonBackup();
+  });
+}
 if (pullLatestDevicesBtn) {
   pullLatestDevicesBtn.addEventListener("click", () => {
     requestRemoteClientRefresh();

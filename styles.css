@@ -271,7 +271,7 @@ main {
 .sync-panel {
   padding: 10px clamp(18px, 4vw, 56px);
   display: grid;
-  grid-template-columns: repeat(3, minmax(220px, 1fr)) auto;
+  grid-template-columns: repeat(3, minmax(220px, 1fr)) repeat(4, auto);
   gap: 14px;
   align-items: center;
   background: #edf3fb;
@@ -622,6 +622,47 @@ textarea {
   font-size: .86rem;
 }
 
+.bill-column-sum-body {
+  display: grid;
+  gap: 12px;
+  padding: 0 18px 18px;
+  min-width: min(92vw, 520px);
+}
+
+.bill-column-sum-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.bill-column-sum-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfe;
+  padding: 12px;
+}
+
+.bill-column-sum-card strong {
+  display: block;
+  color: #183153;
+  font-size: .76rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.bill-column-sum-card span {
+  color: #0f172a;
+  font-size: 1.02rem;
+  font-weight: 700;
+}
+
+.bill-column-sum-note {
+  color: #4b5e78;
+  font-size: .9rem;
+  line-height: 1.45;
+}
+
 .budget-bill-group {
   display: grid;
   gap: 8px;
@@ -730,6 +771,19 @@ textarea {
   border-bottom: 0;
   padding-top: 3px;
   padding-bottom: 3px;
+}
+
+.budget-bill-list-header .bill-col.is-summable {
+  cursor: pointer;
+  text-decoration: underline dotted transparent;
+  transition: color .16s ease, text-decoration-color .16s ease;
+}
+
+.budget-bill-list-header .bill-col.is-summable:hover,
+.budget-bill-list-header .bill-col.is-summable:focus-visible {
+  color: #2457a6;
+  text-decoration-color: currentColor;
+  outline: none;
 }
 
 .budget-bill-list-header.is-simple {
@@ -2797,6 +2851,61 @@ dialog::backdrop {
 .report-item p,
 .empty-report {
   margin: 8px 0 0;
+}
+
+.bill-audit-list,
+.bill-snapshot-list {
+  display: grid;
+  gap: 12px;
+}
+
+.bill-audit-card,
+.bill-snapshot-card-restore {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #fbfcfe;
+}
+
+.bill-audit-card header,
+.bill-snapshot-card-restore header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.bill-audit-card h3,
+.bill-snapshot-card-restore h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.bill-audit-meta,
+.bill-snapshot-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  color: var(--muted);
+  font-size: .86rem;
+  margin-top: 8px;
+}
+
+.bill-audit-card ul {
+  margin: 10px 0 0;
+  padding-left: 18px;
+}
+
+.bill-audit-card li {
+  margin: 6px 0;
+}
+
+.bill-snapshot-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 12px;
+  flex-wrap: wrap;
 }
 
 .dialog-head,

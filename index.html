@@ -60,6 +60,10 @@
       <strong>Data Store</strong>
       <span id="dataStoreStatus"></span>
     </div>
+    <button id="chooseJsonBackupBtn" type="button" class="ghost">Choose Backup JSON</button>
+    <button id="validateJsonBackupBtn" type="button" class="ghost">Validate Firebase vs JSON</button>
+    <button id="viewBillAuditBtn" type="button" class="ghost">Bill Audit</button>
+    <button id="restoreBillSnapshotBtn" type="button" class="ghost">Restore Bill Snapshot</button>
     <button id="pullLatestDevicesBtn" type="button" class="ghost">Pull Latest On Devices</button>
     <button id="refreshAppBtn" type="button" class="ghost">Refresh Website</button>
   </section>
@@ -537,6 +541,36 @@
     </div>
     <div id="upcomingBillsDialogSummary" class="upcoming-bills-dialog-summary"></div>
     <div id="upcomingBillsDialogList" class="upcoming-bills-dialog-list"></div>
+  </dialog>
+
+  <dialog id="billColumnSumDialog">
+    <div class="report-dialog">
+      <div class="dialog-head">
+        <h2 id="billColumnSumTitle">Column Total</h2>
+        <button type="button" id="closeBillColumnSumDialog" class="icon-button" aria-label="Close">x</button>
+      </div>
+      <div id="billColumnSumBody" class="bill-column-sum-body"></div>
+    </div>
+  </dialog>
+
+  <dialog id="billAuditDialog">
+    <div class="report-dialog">
+      <div class="dialog-head">
+        <h2>Bill Audit</h2>
+        <button type="button" id="closeBillAuditDialog" class="icon-button" aria-label="Close">x</button>
+      </div>
+      <div id="billAuditBody" class="report-body"></div>
+    </div>
+  </dialog>
+
+  <dialog id="billSnapshotDialog">
+    <div class="report-dialog">
+      <div class="dialog-head">
+        <h2>Restore Bill Snapshot</h2>
+        <button type="button" id="closeBillSnapshotDialog" class="icon-button" aria-label="Close">x</button>
+      </div>
+      <div id="billSnapshotBody" class="report-body"></div>
+    </div>
   </dialog>
 
   <script>
