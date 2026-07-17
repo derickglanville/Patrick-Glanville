@@ -178,7 +178,7 @@ const baseCategories = [
 ];
 const statusOptions = ["N/A", "Not started", "In progress", "Waiting", "Blocked", "On-Hold", "Done"];
 const priorityOptions = ["Urgent", "High", "Medium", "Low"];
-const billStatusOptions = ["Unpaid", "Scheduled", "Paid", "Deferred", "Past due", "N/A"];
+const billStatusOptions = ["Unpaid", "Scheduled", "Paid", "Fully Paid", "Deferred", "Past due", "N/A"];
 const taskGroupOrder = [
   "Priority To-Do List",
   "Daily Project Manager",
@@ -1490,17 +1490,39 @@ const BILL_AUDIT_LIMIT = 400;
 const BILL_SNAPSHOT_LIMIT = 40;
 const BILL_AUDIT_FIELDS = [
   "name",
+  "apr",
   "previousBalance",
   "currentBalance",
+  "diff",
   "creditLimit",
   "amount",
   "transactionNumber",
   "due",
   "paidAmount",
+  "recommendedPayment",
   "paidDate",
+  "creditPercent",
   "status",
   "notes"
 ];
+
+const BILL_AUDIT_FIELD_LABELS = {
+  name: "Bill",
+  apr: "APR",
+  previousBalance: "Prev Bal",
+  currentBalance: "Current Bal",
+  diff: "Diff",
+  creditLimit: "Credit Line",
+  amount: "Due Amt",
+  paidAmount: "Paid Amt",
+  recommendedPayment: "Recommended",
+  transactionNumber: "Tran #",
+  due: "Due",
+  paidDate: "Date Paid",
+  creditPercent: "% Credit",
+  status: "Status",
+  notes: "Notes"
+};
 
 const BILL_COLUMN_SUM_CONFIG = {
   "bill-col-prev-bal": {
@@ -2133,23 +2155,58 @@ function ensureBillAuditCollections() {
   if (!Array.isArray(state.billSnapshots)) state.billSnapshots = [];
 }
 
-function getSensitiveBillValueForAudit(bill, field) {
+function upsertAuditBillContextBill(bills, bill) {
+  const normalizedBills = Array.isArray(bills) ? bills.map(item => normalizeBill(item)) : [];
+  const normalizedBill = normalizeBill(bill);
+  const existingIndex = normalizedBills.findIndex(item => item.id === normalizedBill.id);
+  if (existingIndex >= 0) {
+    normalizedBills[existingIndex] = normalizedBill;
+  } else {
+    normalizedBills.push(normalizedBill);
+  }
+  return normalizedBills;
+}
+
+function deriveAutoTrackedBillStatus(bill) {
+  const currentBalance = normalizeMoney(bill?.currentBalance);
+  const previousBalance = normalizeMoney(bill?.previousBalance ?? bill?.currentBalance);
+  const creditLimit = normalizeMoney(bill?.creditLimit);
+  const apr = String(bill?.apr || "").trim();
+  const hasPayoffContext = creditLimit > 0 || previousBalance > 0 || Boolean(apr);
+  if (currentBalance <= 0 && hasPayoffContext) return "Fully Paid";
+  if (String(bill?.paidDate || "").trim()) return "Paid";
+  return "Unpaid";
+}
+
+function getSensitiveBillValueForAudit(bill, field, recommendedPayments = new Map()) {
   switch (field) {
+    case "apr":
+      return String(bill?.apr || "").trim();
     case "previousBalance":
     case "currentBalance":
     case "creditLimit":
     case "amount":
     case "paidAmount":
       return normalizeMoney(bill?.[field]);
+    case "diff":
+      return normalizeMoney(bill?.currentBalance) - normalizeMoney(bill?.previousBalance ?? bill?.currentBalance);
+    case "recommendedPayment":
+      return normalizeMoney(recommendedPayments.get(bill?.id) ?? bill?.amount);
+    case "creditPercent": {
+      const percent = calculateCreditRemainingPercent(bill);
+      return percent === null ? "N/A" : Number(percent.toFixed(1));
+    }
     default:
       return String(bill?.[field] ?? "").trim();
   }
 }
 
 function formatBillAuditValue(field, value) {
-  if (["previousBalance", "currentBalance", "creditLimit", "amount", "paidAmount"].includes(field)) {
+  if (["previousBalance", "currentBalance", "creditLimit", "amount", "paidAmount", "diff", "recommendedPayment"].includes(field)) {
     return formatCurrency(normalizeMoney(value));
   }
+  if (field === "apr") return String(value || "").trim() || "N/A";
+  if (field === "creditPercent") return value === "N/A" ? "N/A" : formatPercentLabel(Number(value));
   return String(value || "").trim() || "None";
 }
 
@@ -2178,16 +2235,22 @@ function captureBillSnapshot(reason, month = state.billMonth || defaultBillMonth
 function recordBillFieldAuditEntries(before, after, source = "manual-edit", month = state.billMonth || defaultBillMonth()) {
   ensureBillAuditCollections();
   const user = currentUser();
+  const beforeBills = upsertAuditBillContextBill(state.bills, before);
+  const afterBills = upsertAuditBillContextBill(state.bills, after);
+  const beforeRecommendedPayments = calculateRecommendedBillPayments(beforeBills);
+  const afterRecommendedPayments = calculateRecommendedBillPayments(afterBills);
+  const normalizedBefore = normalizeBill(before);
+  const normalizedAfter = normalizeBill(after);
   const entries = BILL_AUDIT_FIELDS
     .map(field => {
-      const beforeValue = getSensitiveBillValueForAudit(before, field);
-      const afterValue = getSensitiveBillValueForAudit(after, field);
+      const beforeValue = getSensitiveBillValueForAudit(normalizedBefore, field, beforeRecommendedPayments);
+      const afterValue = getSensitiveBillValueForAudit(normalizedAfter, field, afterRecommendedPayments);
       if (beforeValue === afterValue) return null;
       return normalizeBillAuditEntry({
         clientId: activeClientId,
         month,
-        billId: after.id || before.id,
-        billName: after.name || before.name || "Untitled bill",
+        billId: normalizedAfter.id || normalizedBefore.id,
+        billName: normalizedAfter.name || normalizedBefore.name || "Untitled bill",
         field,
         before: beforeValue,
         after: afterValue,
@@ -2286,7 +2349,22 @@ function normalizeBill(bill) {
     name: normalizedName,
     amount: normalizeMoney(bill.amount),
     due,
-    status: statusTracksPaidDate ? (paidDate ? "Paid" : "Unpaid") : explicitStatus,
+    status: statusTracksPaidDate
+      ? deriveAutoTrackedBillStatus({
+          currentBalance: legacyMetadata.currentBalance !== null
+            ? normalizeMoney(legacyMetadata.currentBalance)
+            : normalizeMoney(bill.currentBalance),
+          previousBalance:
+            bill.previousBalance !== undefined && bill.previousBalance !== null
+              ? bill.previousBalance
+              : (legacyMetadata.currentBalance !== null ? legacyMetadata.currentBalance : bill.currentBalance),
+          creditLimit: legacyMetadata.creditLimit !== null
+            ? normalizeMoney(legacyMetadata.creditLimit)
+            : normalizeMoney(bill.creditLimit),
+          apr,
+          paidDate
+        })
+      : explicitStatus,
     notes: legacyMetadata.notes || "",
     apr,
     previousBalance: normalizeMoney(
@@ -4937,7 +5015,6 @@ function renderBills() {
     row.querySelector(".bill-amount").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-paid-amount").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-transaction-number").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
-    row.querySelector(".bill-notes").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-name").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-previous-balance").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-current-balance").addEventListener("change", () => updateBillFromRow(row));
@@ -4949,6 +5026,7 @@ function renderBills() {
     row.querySelector(".bill-paid-date").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-status").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-notes").addEventListener("change", () => updateBillFromRow(row));
+    row.querySelector(".bill-notes").addEventListener("blur", () => updateBillFromRow(row));
     row.querySelector(".budget-bill-row-selector").addEventListener("click", event => {
       event.preventDefault();
       event.stopPropagation();
@@ -5126,17 +5204,23 @@ function deleteBill(id) {
 
 function buildBillChangeSummary(before, after) {
   const changes = [];
-  if ((before.name || "") !== (after.name || "")) changes.push(`Name changed from ${before.name || "Untitled"} to ${after.name || "Untitled"}`);
-  if (normalizeMoney(before.previousBalance ?? before.currentBalance) !== normalizeMoney(after.previousBalance ?? after.currentBalance)) changes.push(`Previous balance changed from ${formatCurrency(before.previousBalance ?? before.currentBalance)} to ${formatCurrency(after.previousBalance ?? after.currentBalance)}`);
-  if (normalizeMoney(before.currentBalance) !== normalizeMoney(after.currentBalance)) changes.push(`Current balance changed from ${formatCurrency(before.currentBalance)} to ${formatCurrency(after.currentBalance)}`);
-  if (normalizeMoney(before.creditLimit) !== normalizeMoney(after.creditLimit)) changes.push(`Credit line changed from ${formatCurrency(before.creditLimit)} to ${formatCurrency(after.creditLimit)}`);
-  if (normalizeMoney(before.amount) !== normalizeMoney(after.amount)) changes.push(`Amount changed from ${formatCurrency(before.amount)} to ${formatCurrency(after.amount)}`);
-  if ((before.transactionNumber || "") !== (after.transactionNumber || "")) changes.push(`Transaction number changed from ${before.transactionNumber || "None"} to ${after.transactionNumber || "None"}`);
-  if ((before.due || "") !== (after.due || "")) changes.push(`Due date changed from ${before.due || "No due date"} to ${after.due || "No due date"}`);
+  const beforeRecommended = calculateRecommendedBillPayments([normalizeBill(before)]);
+  const afterRecommended = calculateRecommendedBillPayments([normalizeBill(after)]);
+  if ((before.name || "") !== (after.name || "")) changes.push(`Bill changed from ${before.name || "Untitled"} to ${after.name || "Untitled"}`);
+  if ((before.apr || "") !== (after.apr || "")) changes.push(`APR changed from ${formatBillAuditValue("apr", before.apr)} to ${formatBillAuditValue("apr", after.apr)}`);
+  if (normalizeMoney(before.previousBalance ?? before.currentBalance) !== normalizeMoney(after.previousBalance ?? after.currentBalance)) changes.push(`Prev Bal changed from ${formatCurrency(before.previousBalance ?? before.currentBalance)} to ${formatCurrency(after.previousBalance ?? after.currentBalance)}`);
+  if (normalizeMoney(before.currentBalance) !== normalizeMoney(after.currentBalance)) changes.push(`Current Bal changed from ${formatCurrency(before.currentBalance)} to ${formatCurrency(after.currentBalance)}`);
+  if ((normalizeMoney(before.currentBalance) - normalizeMoney(before.previousBalance ?? before.currentBalance)) !== (normalizeMoney(after.currentBalance) - normalizeMoney(after.previousBalance ?? after.currentBalance))) changes.push(`Diff changed from ${formatSignedCurrency(normalizeMoney(before.currentBalance) - normalizeMoney(before.previousBalance ?? before.currentBalance))} to ${formatSignedCurrency(normalizeMoney(after.currentBalance) - normalizeMoney(after.previousBalance ?? after.currentBalance))}`);
+  if (normalizeMoney(before.creditLimit) !== normalizeMoney(after.creditLimit)) changes.push(`Credit Line changed from ${formatCurrency(before.creditLimit)} to ${formatCurrency(after.creditLimit)}`);
+  if (normalizeMoney(before.amount) !== normalizeMoney(after.amount)) changes.push(`Due Amt changed from ${formatCurrency(before.amount)} to ${formatCurrency(after.amount)}`);
+  if (normalizeMoney(before.paidAmount) !== normalizeMoney(after.paidAmount)) changes.push(`Paid Amt changed from ${formatCurrency(before.paidAmount)} to ${formatCurrency(after.paidAmount)}`);
+  if (normalizeMoney(beforeRecommended.get(before.id) ?? before.amount) !== normalizeMoney(afterRecommended.get(after.id) ?? after.amount)) changes.push(`Recommended changed from ${formatCurrency(beforeRecommended.get(before.id) ?? before.amount)} to ${formatCurrency(afterRecommended.get(after.id) ?? after.amount)}`);
+  if ((before.transactionNumber || "") !== (after.transactionNumber || "")) changes.push(`Tran # changed from ${before.transactionNumber || "None"} to ${after.transactionNumber || "None"}`);
+  if ((before.due || "") !== (after.due || "")) changes.push(`Due changed from ${before.due || "No due date"} to ${after.due || "No due date"}`);
+  if ((before.paidDate || "") !== (after.paidDate || "")) changes.push(`Date Paid changed from ${before.paidDate || "No paid date"} to ${after.paidDate || "No paid date"}`);
+  if (calculateCreditRemainingPercent(before) !== calculateCreditRemainingPercent(after)) changes.push(`% Credit changed from ${formatBillAuditValue("creditPercent", calculateCreditRemainingPercent(before) === null ? "N/A" : Number(calculateCreditRemainingPercent(before).toFixed(1)))} to ${formatBillAuditValue("creditPercent", calculateCreditRemainingPercent(after) === null ? "N/A" : Number(calculateCreditRemainingPercent(after).toFixed(1)))}`);
   if ((before.status || "") !== (after.status || "")) changes.push(`Status changed from ${before.status || "N/A"} to ${after.status || "N/A"}`);
-  if (normalizeMoney(before.paidAmount) !== normalizeMoney(after.paidAmount)) changes.push(`Amount paid changed from ${formatCurrency(before.paidAmount)} to ${formatCurrency(after.paidAmount)}`);
-  if ((before.paidDate || "") !== (after.paidDate || "")) changes.push(`Date paid changed from ${before.paidDate || "No paid date"} to ${after.paidDate || "No paid date"}`);
-  if ((before.notes || "") !== (after.notes || "")) changes.push("Notes updated");
+  if ((before.notes || "") !== (after.notes || "")) changes.push(`Notes changed from ${before.notes || "None"} to ${after.notes || "None"}`);
   return summarizeLines(changes, "Monthly bill updated");
 }
 
@@ -5147,7 +5231,8 @@ function updateBillFromRow(row, options = {}) {
   const recordHistory = options.recordHistory !== false;
   const persist = options.persist !== false;
   const shouldCaptureSnapshot = options.suppressSnapshot !== true;
-  const before = { ...bill };
+  const originalBaseline = row.dataset.auditBaseline ? JSON.parse(row.dataset.auditBaseline) : null;
+  const before = originalBaseline || { ...bill };
   const getField = selector => row.querySelector(selector);
   bill.name = getField(".bill-name")?.value.trim() ?? bill.name;
   bill.previousBalance = getField(".bill-previous-balance")
@@ -5169,13 +5254,20 @@ function updateBillFromRow(row, options = {}) {
     : bill.paidAmount;
   bill.paidDate = getField(".bill-paid-date")?.value ?? bill.paidDate;
   bill.status = bill.statusTracksPaidDate
-    ? (bill.paidDate ? "Paid" : "Unpaid")
+    ? deriveAutoTrackedBillStatus(bill)
     : (getField(".bill-status")?.value ?? bill.status);
   bill.notes = getField(".bill-notes")?.value.trim() ?? bill.notes;
   if (options.recalculateBalance) {
     bill.currentBalance = calculateCurrentBalanceFromPayment(bill.previousBalance, bill.paidAmount, bill.apr);
   }
   const hasChanges = JSON.stringify(before) !== JSON.stringify(bill);
+  if (!recordHistory) {
+    if (hasChanges && !originalBaseline) {
+      row.dataset.auditBaseline = JSON.stringify(before);
+    }
+  } else {
+    delete row.dataset.auditBaseline;
+  }
   if (recordHistory && hasChanges) {
     if (shouldCaptureSnapshot) {
       const snapshotBills = state.bills.map(item => (item.id === before.id ? normalizeBill(before) : normalizeBill(item)));
@@ -5382,7 +5474,7 @@ function renderBillAuditDialog() {
           </div>
         </header>
         <ul>
-          ${group.map(entry => `<li><strong>${escapeHtml(entry.field)}</strong>: ${escapeHtml(formatBillAuditValue(entry.field, entry.before))} -> ${escapeHtml(formatBillAuditValue(entry.field, entry.after))}</li>`).join("")}
+          ${group.map(entry => `<li><strong>${escapeHtml(BILL_AUDIT_FIELD_LABELS[entry.field] || entry.field)}</strong>: ${escapeHtml(formatBillAuditValue(entry.field, entry.before))} -> ${escapeHtml(formatBillAuditValue(entry.field, entry.after))}</li>`).join("")}
         </ul>
       </article>
     `;
@@ -9627,12 +9719,12 @@ try {
 
     row.querySelector(".bill-name").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-amount").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
-    row.querySelector(".bill-notes").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-name").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-amount").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-due").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-status").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-notes").addEventListener("change", () => updateBillFromRow(row));
+    row.querySelector(".bill-notes").addEventListener("blur", () => updateBillFromRow(row));
     row.querySelector(".budget-bill-row-selector").addEventListener("click", event => {
       event.preventDefault();
       event.stopPropagation();
