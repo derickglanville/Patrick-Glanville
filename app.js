@@ -2232,9 +2232,19 @@ function captureBillSnapshot(reason, month = state.billMonth || defaultBillMonth
   return snapshot;
 }
 
-function recordBillFieldAuditEntries(before, after, source = "manual-edit", month = state.billMonth || defaultBillMonth()) {
+function recordBillFieldAuditEntries(
+  before,
+  after,
+  source = "manual-edit",
+  month = state.billMonth || defaultBillMonth(),
+  options = {}
+) {
   ensureBillAuditCollections();
   const user = currentUser();
+  const changedAt = options.changedAt || new Date().toISOString();
+  const changedByName = options.changedByName || user.name;
+  const changedByEmail = options.changedByEmail || user.email;
+  const clientId = options.clientId || activeClientId;
   const beforeBills = upsertAuditBillContextBill(state.bills, before);
   const afterBills = upsertAuditBillContextBill(state.bills, after);
   const beforeRecommendedPayments = calculateRecommendedBillPayments(beforeBills);
@@ -2247,16 +2257,16 @@ function recordBillFieldAuditEntries(before, after, source = "manual-edit", mont
       const afterValue = getSensitiveBillValueForAudit(normalizedAfter, field, afterRecommendedPayments);
       if (beforeValue === afterValue) return null;
       return normalizeBillAuditEntry({
-        clientId: activeClientId,
+        clientId,
         month,
         billId: normalizedAfter.id || normalizedBefore.id,
         billName: normalizedAfter.name || normalizedBefore.name || "Untitled bill",
         field,
         before: beforeValue,
         after: afterValue,
-        changedAt: new Date().toISOString(),
-        changedByName: user.name,
-        changedByEmail: user.email,
+        changedAt,
+        changedByName,
+        changedByEmail,
         source
       });
     })
@@ -2267,6 +2277,44 @@ function recordBillFieldAuditEntries(before, after, source = "manual-edit", mont
     state.billAuditLog.splice(0, state.billAuditLog.length - BILL_AUDIT_LIMIT);
   }
   return entries;
+}
+
+function recordRemoteMonthlyBillSyncAuditEntries(previousState, nextState, updatedAt = "") {
+  if (!previousState || !nextState || !activeClientId) return 0;
+  ensureBillAuditCollections();
+  const previousBudgets = previousState.monthlyBudgets || {};
+  const nextBudgets = nextState.monthlyBudgets || {};
+  const months = new Set([...Object.keys(previousBudgets), ...Object.keys(nextBudgets)]);
+  let changeCount = 0;
+
+  months.forEach(month => {
+    const beforeBills = dedupeBudgetBills((((previousBudgets[month] || {}).bills) || []).map(normalizeBill));
+    const afterBills = dedupeBudgetBills((((nextBudgets[month] || {}).bills) || []).map(normalizeBill));
+    const beforeMap = new Map(beforeBills.map(bill => [buildBillIdentityKey(bill), bill]).filter(([key]) => Boolean(key)));
+    const afterMap = new Map(afterBills.map(bill => [buildBillIdentityKey(bill), bill]).filter(([key]) => Boolean(key)));
+    const keys = new Set([...beforeMap.keys(), ...afterMap.keys()]);
+
+    keys.forEach(key => {
+      const beforeBill = beforeMap.get(key);
+      const afterBill = afterMap.get(key);
+      if (!beforeBill || !afterBill) return;
+      const entries = recordBillFieldAuditEntries(
+        beforeBill,
+        afterBill,
+        "firebase-sync",
+        month,
+        {
+          clientId: activeClientId,
+          changedAt: updatedAt || nextState.lastSavedAt || new Date().toISOString(),
+          changedByName: "Firebase sync",
+          changedByEmail: "firebase-sync@system.local"
+        }
+      );
+      changeCount += entries.length;
+    });
+  });
+
+  return changeCount;
 }
 
 function extractLegacyBillMetadata(notes = "") {
@@ -2399,6 +2447,24 @@ function pickBillStringValue(...values) {
   return "";
 }
 
+function pickLatestDateStringValue(...values) {
+  const normalizedValues = values
+    .map(value => normalizeBillDateLike(value))
+    .filter(Boolean);
+  if (!normalizedValues.length) return "";
+  return normalizedValues.sort().at(-1) || "";
+}
+
+function buildBillIdentityKey(bill) {
+  const normalizedBill = normalizeBill(bill);
+  return String(
+    normalizedBill.templateKey ||
+    normalizedBill.name ||
+    normalizedBill.id ||
+    ""
+  ).trim().toLowerCase();
+}
+
 function mergeDuplicateBudgetBills(primaryBill, duplicateBill) {
   const primary = normalizeBill(primaryBill);
   const duplicate = normalizeBill(duplicateBill);
@@ -2415,8 +2481,8 @@ function mergeDuplicateBudgetBills(primaryBill, duplicateBill) {
     amount: normalizeMoney(primary.amount) || normalizeMoney(duplicate.amount),
     paidAmount: normalizeMoney(primary.paidAmount) || normalizeMoney(duplicate.paidAmount),
     transactionNumber: pickBillStringValue(primary.transactionNumber, duplicate.transactionNumber),
-    due: pickBillStringValue(primary.due, duplicate.due),
-    paidDate: pickBillStringValue(primary.paidDate, duplicate.paidDate),
+    due: pickLatestDateStringValue(primary.due, duplicate.due),
+    paidDate: pickLatestDateStringValue(primary.paidDate, duplicate.paidDate),
     status: primary.status === "Paid" || duplicate.status === "Paid"
       ? "Paid"
       : (primary.status || duplicate.status || "Unpaid"),
@@ -3998,6 +4064,7 @@ function stopSharedStateSync() {
 }
 
 function applyRemoteSharedState(remoteState, updatedAt = "") {
+  const previousState = structuredClone(state);
   const originalStateJson = JSON.stringify(remoteState);
   const normalizedState = structuredClone(remoteState);
   const preferredBillMonth = forceCurrentBillMonthOnNextRemoteApply
@@ -4016,6 +4083,7 @@ function applyRemoteSharedState(remoteState, updatedAt = "") {
   if (preferredBillMonth) {
     loadBudgetMonth(preferredBillMonth, { syncSnapshot: false });
   }
+  recordRemoteMonthlyBillSyncAuditEntries(previousState, state, updatedAt);
   cacheRemoteUpdatedAt(updatedAt || state.lastSavedAt || "");
   if (getStorageKey()) {
     localStorage.setItem(getStorageKey(), JSON.stringify(state));
@@ -5668,6 +5736,7 @@ function assignDueDatesFromPreviousMonth() {
   );
 
   let updatedCount = 0;
+  const changedBillPairs = [];
   const updatedBills = dedupeBudgetBills((targetMonthBudget?.bills || []).map(normalizeBill)).map(bill => {
     const key = (bill.templateKey || bill.name || "").trim().toLowerCase();
     const sourceBill = previousByKey.get(key);
@@ -5677,10 +5746,12 @@ function assignDueDatesFromPreviousMonth() {
     const shiftedDue = moveDateToTargetMonth(sourceDue, targetMonth);
     if (!shiftedDue || shiftedDue === bill.due) return bill;
     updatedCount += 1;
-    return {
+    const updatedBill = {
       ...bill,
       due: shiftedDue
     };
+    changedBillPairs.push({ before: { ...bill }, after: { ...updatedBill } });
+    return updatedBill;
   });
 
   state.monthlyBudgets[targetMonth] = normalizeMonthlyBudgetEntry({
@@ -5690,6 +5761,9 @@ function assignDueDatesFromPreviousMonth() {
     copiedForwardFrom: targetMonthBudget.copiedForwardFrom || previousMonth
   }, targetMonth);
   loadBudgetMonth(targetMonth, { syncSnapshot: false });
+  changedBillPairs.forEach(({ before, after }) => {
+    recordBillFieldAuditEntries(before, after, "assign-due-dates", targetMonth);
+  });
   saveState();
   renderBills();
 
