@@ -481,11 +481,22 @@ textarea {
   gap: 14px;
 }
 
+#budgetPanel {
+  padding-top: 12px;
+  padding-bottom: 12px;
+  gap: 7px;
+}
+
 .budget-panel header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
+}
+
+#budgetPanel header {
+  gap: 4px;
+  align-items: start;
 }
 
 .budget-panel h2 {
@@ -498,6 +509,10 @@ textarea {
   align-items: center;
   justify-content: flex-end;
   flex-wrap: wrap;
+}
+
+#budgetPanel .panel-actions {
+  row-gap: 6px;
 }
 
 .panel-actions label {
@@ -519,6 +534,10 @@ textarea {
   gap: 14px;
 }
 
+#budgetPanel .collapsible-content {
+  gap: 7px;
+}
+
 .panel-collapsed {
   gap: 0;
 }
@@ -533,11 +552,20 @@ textarea {
   gap: 8px;
 }
 
+#budgetPanel .budget-metrics {
+  gap: 6px;
+}
+
 .budget-metrics article {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 5px 10px;
   min-height: 40px;
+}
+
+#budgetPanel .budget-metrics article {
+  padding: 4px 8px;
+  min-height: 34px;
 }
 
 .budget-metrics article.is-negative {
@@ -586,6 +614,11 @@ textarea {
   cursor: pointer;
   text-align: left;
   margin: 0 0 2px;
+}
+
+#budgetPanel .budget-upcoming-banner {
+  margin: 0;
+  padding: 7px 11px;
 }
 
 .upcoming-bills-dialog-list {
