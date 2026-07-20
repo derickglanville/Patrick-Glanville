@@ -288,6 +288,33 @@ main {
   font-size: .88rem;
 }
 
+.sync-alert-banner {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid #d77b7b;
+  border-radius: 10px;
+  background: #fff6f6;
+}
+
+.sync-alert-banner-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.sync-alert-banner-copy strong {
+  color: #8e1d1d;
+}
+
+.sync-alert-banner-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 #accountGateDialog,
 #clientGateDialog {
   width: min(440px, calc(100vw - 32px));
@@ -3098,6 +3125,118 @@ dialog::backdrop {
   align-items: center;
 }
 
+.json-backup-compare-panel {
+  display: grid;
+  gap: 14px;
+  margin: 16px 0 18px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fbfcfe;
+}
+
+.json-backup-compare-toolbar,
+.json-backup-compare-metrics {
+  display: grid;
+  gap: 12px;
+}
+
+.json-backup-compare-toolbar {
+  grid-template-columns: repeat(2, minmax(220px, 280px)) 1fr;
+  align-items: end;
+}
+
+.json-backup-compare-field {
+  display: grid;
+  gap: 6px;
+}
+
+.json-backup-compare-field label {
+  font-size: .82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted);
+}
+
+.json-backup-compare-field select {
+  min-height: 42px;
+}
+
+.json-backup-compare-caption {
+  align-self: center;
+  color: var(--muted);
+  font-size: .95rem;
+}
+
+.json-backup-compare-metrics {
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+.json-backup-compare-metric {
+  display: grid;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+}
+
+.json-backup-compare-metric strong {
+  font-size: 1.25rem;
+}
+
+.json-backup-compare-metric span {
+  color: var(--muted);
+  font-size: .88rem;
+}
+
+.json-backup-diff-list {
+  display: grid;
+  gap: 10px;
+  max-height: 360px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.json-backup-diff-card {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+}
+
+.json-backup-diff-card h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.json-backup-diff-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: .86rem;
+}
+
+.json-backup-diff-card ul {
+  margin: 12px 0 0;
+  padding-left: 18px;
+}
+
+.json-backup-diff-card li {
+  margin: 6px 0;
+}
+
+.json-backup-viewer-empty {
+  padding: 14px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+  background: white;
+}
+
 @media (max-width: 980px) {
   .app-header {
     align-items: flex-start;
@@ -3161,6 +3300,14 @@ dialog::backdrop {
   }
 
   .medication-summary-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .json-backup-compare-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .sync-alert-banner {
     grid-template-columns: 1fr;
   }
 }

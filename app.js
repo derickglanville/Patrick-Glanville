@@ -138,6 +138,11 @@ let jsonBackupSaveTimer = null;
 let jsonBackupMeta = null;
 let jsonBackupDbPromise = null;
 let jsonBackupLoadedClientId = "";
+let currentJsonBackupComparison = {
+  fromId: "",
+  toId: ""
+};
+let billSyncAlertState = null;
 const allowedUsers = [
   { name: "Deric Glanville", email: DERIC_EMAIL },
   { name: "Patrick Glanville", email: PATRICK_EMAIL },
@@ -1502,6 +1507,12 @@ const validateJsonBackupBtn = document.querySelector("#validateJsonBackupBtn");
 const viewJsonBackupBtn = document.querySelector("#viewJsonBackupBtn");
 const viewBillAuditBtn = document.querySelector("#viewBillAuditBtn");
 const restoreBillSnapshotBtn = document.querySelector("#restoreBillSnapshotBtn");
+const billSyncAlertBanner = document.querySelector("#billSyncAlertBanner");
+const billSyncAlertTitle = document.querySelector("#billSyncAlertTitle");
+const billSyncAlertText = document.querySelector("#billSyncAlertText");
+const reviewBillSyncAlertBtn = document.querySelector("#reviewBillSyncAlertBtn");
+const restoreBillSyncAlertBtn = document.querySelector("#restoreBillSyncAlertBtn");
+const dismissBillSyncAlertBtn = document.querySelector("#dismissBillSyncAlertBtn");
 const jsonBackupViewerDialog = document.querySelector("#jsonBackupViewerDialog");
 const jsonBackupViewerTitle = document.querySelector("#jsonBackupViewerTitle");
 const jsonBackupViewerMeta = document.querySelector("#jsonBackupViewerMeta");
@@ -1797,6 +1808,259 @@ function buildJsonBackupPayload() {
   };
 }
 
+function getDailyBackupDateKey(value = "") {
+  const date = value ? new Date(value) : new Date();
+  if (Number.isNaN(date.getTime())) return "";
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function normalizeDailyBackupEntry(entry) {
+  if (!entry || typeof entry !== "object") return null;
+  const dateKey = String(entry.dateKey || "").trim() || getDailyBackupDateKey(entry.savedAt || "");
+  if (!dateKey) return null;
+  return {
+    id: String(entry.id || `daily-${dateKey}`).trim(),
+    dateKey,
+    savedAt: entry.savedAt || "",
+    localSavedAt: entry.localSavedAt || "",
+    firebaseUpdatedAt: entry.firebaseUpdatedAt || "",
+    sourceOfTruth: entry.sourceOfTruth || "Firebase Firestore",
+    state: structuredClone(entry.state || {})
+  };
+}
+
+function buildDailyBackupEntryFromPayload(payload) {
+  return normalizeDailyBackupEntry({
+    id: `daily-${getDailyBackupDateKey(payload?.savedAt || "")}`,
+    dateKey: getDailyBackupDateKey(payload?.savedAt || ""),
+    savedAt: payload?.savedAt || "",
+    localSavedAt: payload?.localSavedAt || "",
+    firebaseUpdatedAt: payload?.firebaseUpdatedAt || "",
+    sourceOfTruth: payload?.sourceOfTruth || "Firebase Firestore",
+    state: structuredClone(payload?.state || {})
+  });
+}
+
+function mergeDailyBackups(existingPayload, currentPayload) {
+  const merged = new Map();
+  const existingDaily = Array.isArray(existingPayload?.dailySnapshots) ? existingPayload.dailySnapshots : [];
+  existingDaily
+    .map(normalizeDailyBackupEntry)
+    .filter(Boolean)
+    .forEach(entry => merged.set(entry.dateKey, entry));
+  const currentDailyEntry = buildDailyBackupEntryFromPayload(currentPayload);
+  if (currentDailyEntry) merged.set(currentDailyEntry.dateKey, currentDailyEntry);
+  return [...merged.values()].sort((left, right) => {
+    return String(left.dateKey || "").localeCompare(String(right.dateKey || ""));
+  });
+}
+
+function buildJsonBackupComparisonPointId(prefix, key) {
+  return `${prefix}:${key}`;
+}
+
+function getJsonBackupComparisonPoints(payload) {
+  const points = [];
+  const dailySnapshots = Array.isArray(payload?.dailySnapshots) ? payload.dailySnapshots : [];
+  dailySnapshots
+    .map(normalizeDailyBackupEntry)
+    .filter(Boolean)
+    .forEach(snapshot => {
+      points.push({
+        id: buildJsonBackupComparisonPointId("daily", snapshot.dateKey),
+        kind: "daily",
+        key: snapshot.dateKey,
+        label: `${snapshot.dateKey} daily archive`,
+        timestamp: snapshot.savedAt || snapshot.firebaseUpdatedAt || snapshot.localSavedAt || snapshot.dateKey,
+        payload: snapshot
+      });
+    });
+  points.push({
+    id: buildJsonBackupComparisonPointId("current", payload?.savedAt || "current"),
+    kind: "current",
+    key: payload?.savedAt || "current",
+    label: "Current backup file",
+    timestamp: payload?.savedAt || payload?.firebaseUpdatedAt || payload?.localSavedAt || "",
+    payload: {
+      savedAt: payload?.savedAt || "",
+      localSavedAt: payload?.localSavedAt || "",
+      firebaseUpdatedAt: payload?.firebaseUpdatedAt || "",
+      state: structuredClone(payload?.state || {})
+    }
+  });
+  return points.sort((left, right) => {
+    return String(left.timestamp || "").localeCompare(String(right.timestamp || ""));
+  });
+}
+
+function collectMonthlyBudgetBillsForComparison(snapshotPayload) {
+  const sourceState = snapshotPayload?.state || {};
+  const monthlyBudgets = sourceState.monthlyBudgets || {};
+  const rows = [];
+  Object.entries(monthlyBudgets).forEach(([monthKey, budget]) => {
+    const bills = Array.isArray(budget?.bills) ? budget.bills : [];
+    bills.map(normalizeBill).forEach(bill => {
+      rows.push({
+        monthKey,
+        bill
+      });
+    });
+  });
+  return rows;
+}
+
+function compareBackupBillSnapshots(leftPayload, rightPayload) {
+  const leftRows = collectMonthlyBudgetBillsForComparison(leftPayload);
+  const rightRows = collectMonthlyBudgetBillsForComparison(rightPayload);
+  const leftMap = new Map(leftRows.map(entry => [`${entry.monthKey}::${buildBillIdentityKey(entry.bill)}`, entry]));
+  const rightMap = new Map(rightRows.map(entry => [`${entry.monthKey}::${buildBillIdentityKey(entry.bill)}`, entry]));
+  const keys = new Set([...leftMap.keys(), ...rightMap.keys()]);
+  const fields = [
+    ["name", "Bill"],
+    ["apr", "APR"],
+    ["previousBalance", "Prev Bal"],
+    ["currentBalance", "Current Bal"],
+    ["creditLimit", "Credit Line"],
+    ["amount", "Due Amt"],
+    ["paidAmount", "Paid Amt"],
+    ["transactionNumber", "Tran #"],
+    ["due", "Due"],
+    ["paidDate", "Date Paid"],
+    ["status", "Status"],
+    ["notes", "Notes"]
+  ];
+  const changes = [];
+  keys.forEach(key => {
+    const leftEntry = leftMap.get(key);
+    const rightEntry = rightMap.get(key);
+    const monthKey = leftEntry?.monthKey || rightEntry?.monthKey || "";
+    const leftBill = leftEntry?.bill || null;
+    const rightBill = rightEntry?.bill || null;
+    if (!leftBill && rightBill) {
+      changes.push({
+        monthKey,
+        billName: rightBill.name || "Untitled bill",
+        type: "added",
+        lines: ["Bill added in later snapshot"]
+      });
+      return;
+    }
+    if (leftBill && !rightBill) {
+      changes.push({
+        monthKey,
+        billName: leftBill.name || "Untitled bill",
+        type: "removed",
+        lines: ["Bill missing in later snapshot"]
+      });
+      return;
+    }
+    const lines = [];
+    fields.forEach(([fieldKey, label]) => {
+      const leftValue = getSensitiveBillValueForAudit(leftBill, fieldKey, new Map());
+      const rightValue = getSensitiveBillValueForAudit(rightBill, fieldKey, new Map());
+      if (leftValue === rightValue) return;
+      lines.push(`${label}: ${formatBillAuditValue(fieldKey, leftValue)} -> ${formatBillAuditValue(fieldKey, rightValue)}`);
+    });
+    if (lines.length) {
+      changes.push({
+        monthKey,
+        billName: rightBill.name || leftBill.name || "Untitled bill",
+        type: "changed",
+        lines
+      });
+    }
+  });
+  return changes.sort((left, right) => {
+    const monthCompare = String(left.monthKey || "").localeCompare(String(right.monthKey || ""));
+    if (monthCompare !== 0) return monthCompare;
+    return String(left.billName || "").localeCompare(String(right.billName || ""));
+  });
+}
+
+function getJsonBackupComparisonSelection(payload = currentJsonBackupPayload) {
+  const points = getJsonBackupComparisonPoints(payload || {});
+  const pointMap = new Map(points.map(point => [point.id, point]));
+  const fromPoint = pointMap.get(currentJsonBackupComparison.fromId) || points[0] || null;
+  const toPoint = pointMap.get(currentJsonBackupComparison.toId) || points[points.length - 1] || null;
+  return { points, fromPoint, toPoint };
+}
+
+function isSuspiciousRemoteBillField(field) {
+  return [
+    "apr",
+    "currentBalance",
+    "creditLimit",
+    "amount",
+    "paidAmount",
+    "transactionNumber",
+    "due",
+    "paidDate",
+    "status",
+    "notes"
+  ].includes(String(field || ""));
+}
+
+function buildBillSyncAlert(entries = [], updatedAt = "") {
+  const suspiciousEntries = (entries || []).filter(entry => isSuspiciousRemoteBillField(entry.field));
+  if (!suspiciousEntries.length) return null;
+  const affectedBills = [...new Set(suspiciousEntries.map(entry => entry.billName).filter(Boolean))];
+  const fieldNames = [...new Set(suspiciousEntries.map(entry => BILL_AUDIT_FIELD_LABELS[entry.field] || entry.field))];
+  return {
+    clientId: activeClientId || "",
+    createdAt: updatedAt || new Date().toISOString(),
+    title: "Unexpected Firebase bill changes detected",
+    text: `${affectedBills.length} bill${affectedBills.length === 1 ? "" : "s"} changed during Firebase sync${fieldNames.length ? ` (${fieldNames.join(", ")})` : ""}. Review the bill audit or restore the last trusted JSON backup if needed.`,
+    entries: suspiciousEntries,
+    affectedBills
+  };
+}
+
+function renderBillSyncAlert() {
+  if (!billSyncAlertBanner || !billSyncAlertTitle || !billSyncAlertText) return;
+  const alert = billSyncAlertState;
+  if (!alert || alert.clientId !== activeClientId) {
+    billSyncAlertBanner.hidden = true;
+    return;
+  }
+  billSyncAlertTitle.textContent = alert.title || "Bill sync warning";
+  billSyncAlertText.textContent = alert.text || "";
+  billSyncAlertBanner.hidden = false;
+}
+
+async function restoreJsonBackupComparisonFromPoint(pointId = "") {
+  if (!activeClientId) {
+    alert("Choose a client first.");
+    return;
+  }
+  if (!currentJsonBackupPayload) {
+    alert("Open the backup JSON viewer first.");
+    return;
+  }
+  const { points } = getJsonBackupComparisonSelection(currentJsonBackupPayload);
+  const point = points.find(entry => entry.id === pointId);
+  if (!point?.payload?.state) {
+    alert("The selected backup snapshot could not be found.");
+    return;
+  }
+  if (!confirm(`Restore ${currentClientConfig()?.shortName || "this client"} from ${point.label}?\n\nThis will replace the current in-browser state and save it back to Firebase.`)) {
+    return;
+  }
+
+  const month = state.billMonth || defaultBillMonth();
+  captureBillSnapshot(`Before JSON restore (${point.label})`, month);
+  const restoredState = initializeState(structuredClone(point.payload.state || {}));
+  const selectedUserEmail = state.currentUser;
+  state = restoredState;
+  if (selectedUserEmail) {
+    state.currentUser = allowedUsers.some(user => user.email === selectedUserEmail) ? selectedUserEmail : state.currentUser;
+  }
+  state.lastSavedAt = new Date().toISOString();
+  billSyncAlertState = null;
+  saveState();
+  render();
+  alert(`Restored ${currentClientConfig()?.shortName || "client"} from ${point.label}.`);
+}
+
 function normalizeStateForValidation(value) {
   return JSON.stringify(value ?? {});
 }
@@ -1864,6 +2128,17 @@ async function saveJsonBackupNow(reason = "auto") {
   }
 
   const payload = buildJsonBackupPayload();
+  let existingPayload = null;
+  try {
+    const existingFile = await jsonBackupHandle.getFile();
+    const existingText = await existingFile.text();
+    if (existingText.trim()) {
+      existingPayload = JSON.parse(existingText);
+    }
+  } catch {
+    existingPayload = null;
+  }
+  payload.dailySnapshots = mergeDailyBackups(existingPayload, payload);
   const writable = await jsonBackupHandle.createWritable();
   await writable.write(JSON.stringify(payload, null, 2));
   await writable.close();
@@ -1872,6 +2147,7 @@ async function saveJsonBackupNow(reason = "auto") {
     fileName: jsonBackupHandle.name || jsonBackupMeta?.fileName || getJsonBackupSuggestedFileName(),
     lastSavedAt: payload.savedAt,
     lastSavedReason: reason,
+    lastDailyArchiveDate: getDailyBackupDateKey(payload.savedAt),
     lastValidationAt: jsonBackupMeta?.lastValidationAt || "",
     lastValidationResult: jsonBackupMeta?.lastValidationResult || ""
   };
@@ -2004,15 +2280,136 @@ function renderJsonBackupViewerMeta(payload) {
   `).join("");
 }
 
+function renderJsonBackupComparison(points, payload) {
+  const availablePoints = Array.isArray(points) ? points : [];
+  if (!availablePoints.length) {
+    return `
+      <div class="json-backup-viewer-empty">
+        No daily backup snapshots are available yet. Save the JSON backup on multiple days to compare bill changes across time.
+      </div>
+    `;
+  }
+
+  const pointMap = new Map(availablePoints.map(point => [point.id, point]));
+  let fromId = currentJsonBackupComparison.fromId;
+  let toId = currentJsonBackupComparison.toId;
+
+  if (!pointMap.has(fromId) || !pointMap.has(toId) || fromId === toId) {
+    const currentPoint = availablePoints.find(point => point.kind === "current") || availablePoints[availablePoints.length - 1];
+    const latestArchived = [...availablePoints]
+      .filter(point => point.kind !== "current")
+      .sort((left, right) => String(right.timestamp || "").localeCompare(String(left.timestamp || "")))[0];
+    const fallbackFrom = latestArchived || availablePoints[0];
+    const fallbackTo = currentPoint || availablePoints[availablePoints.length - 1];
+    fromId = fallbackFrom?.id || "";
+    toId = fallbackTo?.id || fallbackFrom?.id || "";
+    if (fromId === toId && availablePoints.length > 1) {
+      toId = availablePoints[availablePoints.length - 1].id;
+    }
+    currentJsonBackupComparison = { fromId, toId };
+  }
+
+  const fromPoint = pointMap.get(fromId) || availablePoints[0];
+  const toPoint = pointMap.get(toId) || availablePoints[availablePoints.length - 1];
+  const changes = compareBackupBillSnapshots(fromPoint?.payload || payload, toPoint?.payload || payload);
+  const addedCount = changes.filter(change => change.type === "added").length;
+  const removedCount = changes.filter(change => change.type === "removed").length;
+  const changedCount = changes.filter(change => change.type === "changed").length;
+  const totalLineCount = changes.reduce((sum, change) => sum + (Array.isArray(change.lines) ? change.lines.length : 0), 0);
+
+  return `
+    <section class="json-backup-compare-panel">
+      <div class="json-backup-compare-toolbar">
+        <div class="json-backup-compare-field">
+          <label for="jsonBackupCompareFrom">From snapshot</label>
+          <select id="jsonBackupCompareFrom">
+            ${availablePoints.map(point => `
+              <option value="${escapeHtml(point.id)}" ${point.id === fromId ? "selected" : ""}>
+                ${escapeHtml(point.label)}
+              </option>
+            `).join("")}
+          </select>
+        </div>
+        <div class="json-backup-compare-field">
+          <label for="jsonBackupCompareTo">To snapshot</label>
+          <select id="jsonBackupCompareTo">
+            ${availablePoints.map(point => `
+              <option value="${escapeHtml(point.id)}" ${point.id === toId ? "selected" : ""}>
+                ${escapeHtml(point.label)}
+              </option>
+            `).join("")}
+          </select>
+        </div>
+        <div class="json-backup-compare-caption">
+          Compare bill snapshots across a chosen backup time span.
+        </div>
+      </div>
+      <div class="json-backup-compare-actions">
+        <button type="button" class="ghost" id="restoreJsonBackupFromSnapshotBtn" data-point-id="${escapeHtml(fromPoint?.id || "")}">
+          Restore from selected "From snapshot"
+        </button>
+      </div>
+      <div class="json-backup-compare-metrics">
+        <div class="json-backup-compare-metric">
+          <strong>${changes.length}</strong>
+          <span>bills with differences</span>
+        </div>
+        <div class="json-backup-compare-metric">
+          <strong>${changedCount}</strong>
+          <span>changed</span>
+        </div>
+        <div class="json-backup-compare-metric">
+          <strong>${addedCount}</strong>
+          <span>added</span>
+        </div>
+        <div class="json-backup-compare-metric">
+          <strong>${removedCount}</strong>
+          <span>removed</span>
+        </div>
+        <div class="json-backup-compare-metric">
+          <strong>${totalLineCount}</strong>
+          <span>field deltas</span>
+        </div>
+      </div>
+      ${changes.length ? `
+        <div class="json-backup-diff-list">
+          ${changes.map(change => `
+            <article class="json-backup-diff-card">
+              <header>
+                <div>
+                  <h3>${escapeHtml(change.billName || "Untitled bill")}</h3>
+                  <div class="json-backup-diff-meta">
+                    <span>${escapeHtml(change.monthKey || "No month")}</span>
+                    <span>${escapeHtml(change.type)}</span>
+                  </div>
+                </div>
+              </header>
+              <ul>
+                ${(Array.isArray(change.lines) ? change.lines : []).map(line => `<li>${escapeHtml(line)}</li>`).join("")}
+              </ul>
+            </article>
+          `).join("")}
+        </div>
+      ` : `
+        <div class="json-backup-viewer-empty">
+          No bill differences were found between the selected snapshots.
+        </div>
+      `}
+    </section>
+  `;
+}
+
 function renderJsonBackupViewerBody(payload) {
   const stateJson = JSON.stringify(payload?.state || {}, null, 2);
   const wrapper = document.createElement("div");
+  const comparisonPoints = getJsonBackupComparisonPoints(payload);
   wrapper.className = "json-backup-viewer-content";
   wrapper.innerHTML = `
     <div class="json-backup-viewer-toolbar">
       <span class="json-backup-viewer-kicker">Read-only browse view</span>
       <span class="json-backup-viewer-stats">${escapeHtml(`${stateJson.split("\n").length} lines`)}</span>
     </div>
+    ${renderJsonBackupComparison(comparisonPoints, payload)}
     <pre class="json-backup-viewer-pre">${escapeHtml(stateJson)}</pre>
   `;
   jsonBackupViewerBody.innerHTML = "";
@@ -2045,10 +2442,12 @@ async function openJsonBackupViewer() {
   try {
     const payload = await readJsonBackupPayload();
     currentJsonBackupPayload = payload;
+    currentJsonBackupComparison = { fromId: "", toId: "" };
     jsonBackupViewerMeta.innerHTML = renderJsonBackupViewerMeta(payload);
     renderJsonBackupViewerBody(payload);
   } catch (error) {
     currentJsonBackupPayload = null;
+    currentJsonBackupComparison = { fromId: "", toId: "" };
     jsonBackupViewerMeta.innerHTML = "";
     jsonBackupViewerBody.innerHTML = `<div class="json-backup-viewer-error">Could not open the backup JSON.<br><br>${escapeHtml(error.message)}</div>`;
   }
@@ -2428,12 +2827,12 @@ function recordBillFieldAuditEntries(
 }
 
 function recordRemoteMonthlyBillSyncAuditEntries(previousState, nextState, updatedAt = "") {
-  if (!previousState || !nextState || !activeClientId) return 0;
+  if (!previousState || !nextState || !activeClientId) return [];
   ensureBillAuditCollections();
   const previousBudgets = previousState.monthlyBudgets || {};
   const nextBudgets = nextState.monthlyBudgets || {};
   const months = new Set([...Object.keys(previousBudgets), ...Object.keys(nextBudgets)]);
-  let changeCount = 0;
+  const allEntries = [];
 
   months.forEach(month => {
     const beforeBills = dedupeBudgetBills((((previousBudgets[month] || {}).bills) || []).map(normalizeBill));
@@ -2458,11 +2857,11 @@ function recordRemoteMonthlyBillSyncAuditEntries(previousState, nextState, updat
           changedByEmail: "firebase-sync@system.local"
         }
       );
-      changeCount += entries.length;
+      allEntries.push(...entries);
     });
   });
 
-  return changeCount;
+  return allEntries;
 }
 
 function extractLegacyBillMetadata(notes = "") {
@@ -4245,7 +4644,11 @@ function applyRemoteSharedState(remoteState, updatedAt = "") {
   if (preferredBillMonth) {
     loadBudgetMonth(preferredBillMonth, { syncSnapshot: false });
   }
-  recordRemoteMonthlyBillSyncAuditEntries(previousState, state, updatedAt);
+  const remoteAuditEntries = recordRemoteMonthlyBillSyncAuditEntries(previousState, state, updatedAt);
+  const syncAlert = buildBillSyncAlert(remoteAuditEntries, updatedAt);
+  if (syncAlert) {
+    billSyncAlertState = syncAlert;
+  }
   cacheRemoteUpdatedAt(updatedAt || state.lastSavedAt || "");
   if (getStorageKey()) {
     localStorage.setItem(getStorageKey(), JSON.stringify(state));
@@ -4254,6 +4657,7 @@ function applyRemoteSharedState(remoteState, updatedAt = "") {
   queueJsonBackupSave("remote sync");
   render();
   updateDataStoreStatus();
+  renderBillSyncAlert();
   applyingRemoteState = false;
   return normalizedStateJson !== originalStateJson;
 }
@@ -4421,6 +4825,27 @@ function queueSharedStateSave() {
 async function saveSharedStateNow() {
   if (!supabaseEnabled || !activeClientId || !getSupabaseStateId()) return;
   try {
+    const docRef = supabaseClient.doc(supabaseClient.db, SUPABASE_TABLE, getSupabaseStateId());
+    const currentSnapshot = await supabaseClient.getDoc(docRef);
+    const liveUpdatedAt = currentSnapshot.exists() ? String(currentSnapshot.data()?.updated_at || "") : "";
+    const liveUpdatedAtMs = toTimestampMs(liveUpdatedAt);
+    const cachedRemoteUpdatedAtMs = toTimestampMs(remoteUpdatedAt);
+    if (liveUpdatedAtMs && cachedRemoteUpdatedAtMs && liveUpdatedAtMs > cachedRemoteUpdatedAtMs) {
+      pendingLocalSharedSaveAt = "";
+      billSyncAlertState = {
+        clientId: activeClientId,
+        createdAt: new Date().toISOString(),
+        title: "Firebase save blocked to prevent overwrite",
+        text: `A newer Firebase version was detected for ${currentClientConfig()?.shortName || "this client"}. Your local save was blocked so an older device state could not overwrite newer bill changes. Pull the latest data, review Bill Audit, and restore from the JSON backup if needed.`,
+        entries: [],
+        affectedBills: []
+      };
+      supabaseStatus = `Firebase Firestore save blocked: newer shared version detected for ${currentClientConfig()?.shortName || "client"}`;
+      updateDataStoreStatus();
+      renderBillSyncAlert();
+      throw new Error("A newer Firebase version exists. Pull the latest shared data before saving again.");
+    }
+
     const payload = {
       id: getSupabaseStateId(),
       state,
@@ -4428,7 +4853,6 @@ async function saveSharedStateNow() {
       updated_at: new Date().toISOString()
     };
 
-    const docRef = supabaseClient.doc(supabaseClient.db, SUPABASE_TABLE, getSupabaseStateId());
     await supabaseClient.setDoc(docRef, payload, { merge: true });
 
     cacheRemoteUpdatedAt(payload.updated_at);
@@ -4631,6 +5055,7 @@ function render() {
   syncTopTodoPopoutState();
   userSelect.value = state.currentUser || "";
   updateTaskLabelControls();
+  renderBillSyncAlert();
 }
 
 function buildTaskSearchText(task) {
@@ -9510,10 +9935,44 @@ if (viewBillAuditBtn && billAuditDialog) {
     billAuditDialog.showModal();
   });
 }
+if (reviewBillSyncAlertBtn && billAuditDialog) {
+  reviewBillSyncAlertBtn.addEventListener("click", () => {
+    renderBillAuditDialog();
+    billAuditDialog.showModal();
+  });
+}
 if (restoreBillSnapshotBtn && billSnapshotDialog) {
   restoreBillSnapshotBtn.addEventListener("click", () => {
     renderBillSnapshotDialog();
     billSnapshotDialog.showModal();
+  });
+}
+if (restoreBillSyncAlertBtn) {
+  restoreBillSyncAlertBtn.addEventListener("click", async () => {
+    if (!activeClientId) {
+      alert("Choose a client first.");
+      return;
+    }
+    if (!jsonBackupHandle) {
+      alert("Choose a backup JSON first so a trusted snapshot is available.");
+      return;
+    }
+    if (!currentJsonBackupPayload) {
+      await openJsonBackupViewer();
+    }
+    if (!currentJsonBackupPayload) return;
+    const { fromPoint } = getJsonBackupComparisonSelection(currentJsonBackupPayload);
+    if (!fromPoint?.id) {
+      alert("No previous trusted snapshot is available yet.");
+      return;
+    }
+    restoreJsonBackupComparisonFromPoint(fromPoint.id);
+  });
+}
+if (dismissBillSyncAlertBtn) {
+  dismissBillSyncAlertBtn.addEventListener("click", () => {
+    billSyncAlertState = null;
+    renderBillSyncAlert();
   });
 }
 if (closeBillAuditDialogBtn && billAuditDialog) {
@@ -9525,6 +9984,36 @@ if (closeJsonBackupViewerDialogBtn && jsonBackupViewerDialog) {
 if (jsonBackupViewerDialog) {
   jsonBackupViewerDialog.addEventListener("close", () => {
     currentJsonBackupPayload = null;
+    currentJsonBackupComparison = { fromId: "", toId: "" };
+  });
+}
+if (jsonBackupViewerBody) {
+  jsonBackupViewerBody.addEventListener("click", event => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const restoreButton = target.closest("#restoreJsonBackupFromSnapshotBtn");
+    if (!restoreButton) return;
+    restoreJsonBackupComparisonFromPoint(restoreButton.dataset.pointId || "");
+  });
+  jsonBackupViewerBody.addEventListener("change", event => {
+    const target = event.target;
+    if (!(target instanceof HTMLSelectElement)) return;
+    if (!currentJsonBackupPayload) return;
+    if (target.id === "jsonBackupCompareFrom") {
+      currentJsonBackupComparison = {
+        ...currentJsonBackupComparison,
+        fromId: target.value
+      };
+      renderJsonBackupViewerBody(currentJsonBackupPayload);
+      return;
+    }
+    if (target.id === "jsonBackupCompareTo") {
+      currentJsonBackupComparison = {
+        ...currentJsonBackupComparison,
+        toId: target.value
+      };
+      renderJsonBackupViewerBody(currentJsonBackupPayload);
+    }
   });
 }
 if (closeBillSnapshotDialogBtn && billSnapshotDialog) {
