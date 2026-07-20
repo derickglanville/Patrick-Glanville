@@ -1238,9 +1238,41 @@ function buildUnselectedClientState() {
 }
 
 let activeClientId = "";
+let currentJsonBackupPayload = null;
 
 function currentClientConfig() {
   return clientConfigs[activeClientId] || null;
+}
+
+function escapeRegExp(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function highlightSearchMatches(text, searchTerm) {
+  const sourceText = String(text || "");
+  const needle = String(searchTerm || "").trim();
+  if (!needle) {
+    return {
+      count: 0,
+      html: escapeHtml(sourceText)
+    };
+  }
+  const pattern = new RegExp(escapeRegExp(needle), "gi");
+  let count = 0;
+  let lastIndex = 0;
+  let html = "";
+  let match;
+  while ((match = pattern.exec(sourceText)) !== null) {
+    html += escapeHtml(sourceText.slice(lastIndex, match.index));
+    html += `<mark>${escapeHtml(match[0])}</mark>`;
+    lastIndex = match.index + match[0].length;
+    count += 1;
+    if (!match[0].length) {
+      pattern.lastIndex += 1;
+    }
+  }
+  html += escapeHtml(sourceText.slice(lastIndex));
+  return { count, html };
 }
 
 function isBillSelected(billId) {
@@ -1343,6 +1375,39 @@ function isAdminClientId(clientId) {
   return clientId === "admin";
 }
 
+function getAdminBillTypeLabel(bill) {
+  const name = String(bill?.name || "").toLowerCase();
+  if (!name) return "Other";
+  if (/(insurance|tax|yorktown|property tax|school tax)/.test(name)) return "Tax / Insurance";
+  if (/(verizon|fios|youtube|cellphone|internet|utility)/.test(name)) return "Utilities / Services";
+  if (/(bank|card|amex|capital one|citibank|citi|credit|carecredit|quicksilver|amazon|best buy|raymour|lowe|green sky|barclay|third federal|key bank)/.test(name)) return "Credit / Debt";
+  return "Other";
+}
+
+function getAvailableAdminBillTypes(bills = []) {
+  return Array.from(new Set((bills || []).map(getAdminBillTypeLabel))).sort((a, b) => a.localeCompare(b));
+}
+
+function getAdminBillFilterYears() {
+  const years = new Set();
+  Object.keys(state.monthlyBudgets || {}).forEach(monthKey => {
+    const [yearText] = String(monthKey || "").split("-");
+    const year = Number(yearText);
+    if (Number.isFinite(year)) years.add(year);
+  });
+  const selectedYear = Number(String(state.billMonth || defaultBillMonth()).split("-")[0]);
+  if (Number.isFinite(selectedYear)) {
+    years.add(selectedYear - 1);
+    years.add(selectedYear);
+    years.add(selectedYear + 1);
+  }
+  return Array.from(years).sort((a, b) => a - b);
+}
+
+function populateAdminBillFilters() {
+  return;
+}
+
 let state = buildUnselectedClientState();
 let patrickWatchState = {
   lastReviewedAt: "",
@@ -1434,8 +1499,14 @@ const billColumnSumBody = document.querySelector("#billColumnSumBody");
 const closeBillColumnSumDialogBtn = document.querySelector("#closeBillColumnSumDialog");
 const chooseJsonBackupBtn = document.querySelector("#chooseJsonBackupBtn");
 const validateJsonBackupBtn = document.querySelector("#validateJsonBackupBtn");
+const viewJsonBackupBtn = document.querySelector("#viewJsonBackupBtn");
 const viewBillAuditBtn = document.querySelector("#viewBillAuditBtn");
 const restoreBillSnapshotBtn = document.querySelector("#restoreBillSnapshotBtn");
+const jsonBackupViewerDialog = document.querySelector("#jsonBackupViewerDialog");
+const jsonBackupViewerTitle = document.querySelector("#jsonBackupViewerTitle");
+const jsonBackupViewerMeta = document.querySelector("#jsonBackupViewerMeta");
+const jsonBackupViewerBody = document.querySelector("#jsonBackupViewerBody");
+const closeJsonBackupViewerDialogBtn = document.querySelector("#closeJsonBackupViewerDialog");
 const billAuditDialog = document.querySelector("#billAuditDialog");
 const billAuditBody = document.querySelector("#billAuditBody");
 const closeBillAuditDialogBtn = document.querySelector("#closeBillAuditDialog");
@@ -1525,6 +1596,13 @@ const BILL_AUDIT_FIELD_LABELS = {
 };
 
 const BILL_COLUMN_SUM_CONFIG = {
+  "bill-col-interest-paid": {
+    label: "Interest paid",
+    getValue: bill => calculateMonthlyInterestPortion(
+      normalizeMoney(bill.previousBalance ?? bill.currentBalance),
+      bill.apr
+    )
+  },
   "bill-col-prev-bal": {
     label: "Previous balance",
     getValue: bill => normalizeMoney(bill.previousBalance ?? bill.currentBalance)
@@ -1909,6 +1987,73 @@ async function validateFirebaseAgainstJsonBackup() {
   }
 }
 
+function renderJsonBackupViewerMeta(payload) {
+  const client = currentClientConfig();
+  const rows = [
+    ["Client", client?.fullName || payload?.clientId || "Unknown"],
+    ["Backup file", jsonBackupMeta?.fileName || jsonBackupHandle?.name || "Configured file"],
+    ["Saved at", payload?.savedAt ? formatDateTime(payload.savedAt) : "Unknown"],
+    ["Firebase state", remoteUpdatedAt ? formatDateTime(remoteUpdatedAt) : "Unknown"],
+    ["Validation", jsonBackupMeta?.lastValidationResult || "Not run yet"]
+  ];
+  return rows.map(([label, value]) => `
+    <div class="json-backup-viewer-meta-card">
+      <strong>${escapeHtml(label)}</strong>
+      <span>${escapeHtml(String(value || ""))}</span>
+    </div>
+  `).join("");
+}
+
+function renderJsonBackupViewerBody(payload) {
+  const stateJson = JSON.stringify(payload?.state || {}, null, 2);
+  const wrapper = document.createElement("div");
+  wrapper.className = "json-backup-viewer-content";
+  wrapper.innerHTML = `
+    <div class="json-backup-viewer-toolbar">
+      <span class="json-backup-viewer-kicker">Read-only browse view</span>
+      <span class="json-backup-viewer-stats">${escapeHtml(`${stateJson.split("\n").length} lines`)}</span>
+    </div>
+    <pre class="json-backup-viewer-pre">${escapeHtml(stateJson)}</pre>
+  `;
+  jsonBackupViewerBody.innerHTML = "";
+  jsonBackupViewerBody.appendChild(wrapper);
+}
+
+async function openJsonBackupViewer() {
+  if (!activeClientId) {
+    alert("Choose a client first.");
+    return;
+  }
+  if (!jsonBackupHandle) {
+    alert("No JSON backup file is configured for this client yet.");
+    return;
+  }
+  if (!jsonBackupViewerDialog || !jsonBackupViewerBody || !jsonBackupViewerMeta) return;
+
+  const client = currentClientConfig();
+  if (jsonBackupViewerTitle) {
+    jsonBackupViewerTitle.textContent = `${client?.shortName || "Client"} Backup JSON Viewer`;
+  }
+  jsonBackupViewerMeta.innerHTML = "";
+  jsonBackupViewerBody.innerHTML = `<div class="json-backup-viewer-loading">Loading backup JSON...</div>`;
+  if (typeof jsonBackupViewerDialog.showModal === "function" && !jsonBackupViewerDialog.open) {
+    jsonBackupViewerDialog.showModal();
+  } else if (typeof jsonBackupViewerDialog.show === "function" && !jsonBackupViewerDialog.open) {
+    jsonBackupViewerDialog.show();
+  }
+
+  try {
+    const payload = await readJsonBackupPayload();
+    currentJsonBackupPayload = payload;
+    jsonBackupViewerMeta.innerHTML = renderJsonBackupViewerMeta(payload);
+    renderJsonBackupViewerBody(payload);
+  } catch (error) {
+    currentJsonBackupPayload = null;
+    jsonBackupViewerMeta.innerHTML = "";
+    jsonBackupViewerBody.innerHTML = `<div class="json-backup-viewer-error">Could not open the backup JSON.<br><br>${escapeHtml(error.message)}</div>`;
+  }
+}
+
 function loadTaskViewMode() {
   if (!activeClientId || !getTaskViewKey()) return "active";
   try {
@@ -1986,7 +2131,9 @@ function initializeState(loaded) {
   loaded.billGroupView = ["full", "early", "mid", "late"].includes(loaded.billGroupView)
     ? loaded.billGroupView
     : defaultBillGroupView(loaded.billMonth);
-  if (typeof loaded.billsCompactView === "boolean") {
+  if (isAdminClientId(activeClientId)) {
+    loaded.billsCompactView = false;
+  } else if (typeof loaded.billsCompactView === "boolean") {
     loaded.billsCompactView = loaded.billsCompactView;
   } else {
     loaded.billsCompactView = isAdminClientId(activeClientId);
@@ -2046,6 +2193,7 @@ function defaultBillMonth() {
 
 function defaultBillGroupView(month = defaultBillMonth()) {
   if (!clientUsesBillGrouping()) return "full";
+  if (isAdminClientId(activeClientId)) return "full";
   if (month !== defaultBillMonth()) return "full";
   const day = new Date().getDate();
   if (day <= 10) return "early";
@@ -2387,6 +2535,22 @@ function normalizeBill(bill) {
   const paidDate = normalizeBillDateLike(legacyMetadata.paidDate || bill.paidDate || "");
   const statusTracksPaidDate = isAdminClient() ? true : Boolean(bill.statusTracksPaidDate);
   const explicitStatus = billStatusOptions.includes(bill.status) ? bill.status : "Unpaid";
+  const normalizedStatus = statusTracksPaidDate
+    ? deriveAutoTrackedBillStatus({
+        currentBalance: legacyMetadata.currentBalance !== null
+          ? normalizeMoney(legacyMetadata.currentBalance)
+          : normalizeMoney(bill.currentBalance),
+        previousBalance:
+          bill.previousBalance !== undefined && bill.previousBalance !== null
+            ? bill.previousBalance
+            : (legacyMetadata.currentBalance !== null ? legacyMetadata.currentBalance : bill.currentBalance),
+        creditLimit: legacyMetadata.creditLimit !== null
+          ? normalizeMoney(legacyMetadata.creditLimit)
+          : normalizeMoney(bill.creditLimit),
+        apr,
+        paidDate
+      })
+    : explicitStatus;
   const normalizedName = String(bill.name || "").trim();
   const normalizedTemplateKey = typeof bill.templateKey === "string" && bill.templateKey.trim()
     ? bill.templateKey.trim()
@@ -2397,23 +2561,8 @@ function normalizeBill(bill) {
     name: normalizedName,
     amount: normalizeMoney(bill.amount),
     due,
-    status: statusTracksPaidDate
-      ? deriveAutoTrackedBillStatus({
-          currentBalance: legacyMetadata.currentBalance !== null
-            ? normalizeMoney(legacyMetadata.currentBalance)
-            : normalizeMoney(bill.currentBalance),
-          previousBalance:
-            bill.previousBalance !== undefined && bill.previousBalance !== null
-              ? bill.previousBalance
-              : (legacyMetadata.currentBalance !== null ? legacyMetadata.currentBalance : bill.currentBalance),
-          creditLimit: legacyMetadata.creditLimit !== null
-            ? normalizeMoney(legacyMetadata.creditLimit)
-            : normalizeMoney(bill.creditLimit),
-          apr,
-          paidDate
-        })
-      : explicitStatus,
-    notes: legacyMetadata.notes || "",
+    status: normalizedStatus,
+    notes: normalizeBillNotes(legacyMetadata.notes || "", normalizedStatus),
     apr,
     previousBalance: normalizeMoney(
       bill.previousBalance !== undefined && bill.previousBalance !== null
@@ -2432,6 +2581,19 @@ function normalizeBill(bill) {
     statusTracksPaidDate,
     hidden: Boolean(bill.hidden)
   };
+}
+
+function defaultBillNoteForStatus(status) {
+  return status === "Paid" ? "This bill is paid" : "Pending";
+}
+
+function normalizeBillNotes(notes, status) {
+  const trimmedNotes = String(notes || "").trim();
+  if (!trimmedNotes) return defaultBillNoteForStatus(status);
+  if (trimmedNotes === "Pending" || trimmedNotes === "This bill is paid") {
+    return defaultBillNoteForStatus(status);
+  }
+  return trimmedNotes;
 }
 
 function buildBudgetBillTemplateKey(name = "") {
@@ -4384,6 +4546,14 @@ function updateClientChrome() {
         : `Choose a JSON backup file for ${client.shortName} first`
       : "Choose a client first";
   }
+  if (viewJsonBackupBtn) {
+    viewJsonBackupBtn.disabled = !client || !jsonBackupHandle;
+    viewJsonBackupBtn.title = client
+      ? jsonBackupHandle
+        ? `Open the configured JSON backup file for ${client.shortName}`
+        : `Choose a JSON backup file for ${client.shortName} first`
+      : "Choose a client first";
+  }
   if (viewBillAuditBtn) {
     viewBillAuditBtn.disabled = !client;
     viewBillAuditBtn.title = client
@@ -4941,6 +5111,10 @@ function renderBills() {
 
   const buildBillTotalsRow = billsForTotals => {
     const totals = billsForTotals.reduce((acc, bill) => {
+      acc.interestPaid += calculateMonthlyInterestPortion(
+        normalizeMoney(bill.previousBalance ?? bill.currentBalance),
+        bill.apr
+      );
       acc.previousBalance += normalizeMoney(bill.previousBalance ?? bill.currentBalance);
       acc.currentBalance += normalizeMoney(bill.currentBalance);
       acc.balanceDiff += normalizeMoney(bill.currentBalance) - normalizeMoney(bill.previousBalance ?? bill.currentBalance);
@@ -4950,6 +5124,7 @@ function renderBills() {
       acc.recommended += normalizeMoney(recommendedPayments.get(bill.id) ?? bill.amount);
       return acc;
     }, {
+      interestPaid: 0,
       previousBalance: 0,
       currentBalance: 0,
       balanceDiff: 0,
@@ -4970,6 +5145,7 @@ function renderBills() {
       <div class="budget-bill-total-cell budget-bill-selector-spacer bill-col-selector"></div>
       <div class="budget-bill-total-cell budget-bill-total-label bill-col-name">Totals</div>
       <div class="budget-bill-total-cell bill-col-apr">-</div>
+      <div class="budget-bill-total-cell bill-col-interest-paid">${escapeHtml(formatCurrency(totals.interestPaid))}</div>
       <div class="budget-bill-total-cell bill-col-prev-bal">${escapeHtml(formatCurrency(totals.previousBalance))}</div>
       <div class="budget-bill-total-cell bill-col-current-bal">${escapeHtml(formatCurrency(totals.currentBalance))}</div>
       <div class="budget-bill-total-cell bill-col-diff">${escapeHtml(formatSignedCurrency(totals.balanceDiff))}</div>
@@ -4996,6 +5172,10 @@ function renderBills() {
     const recommendedPayment = recommendedPayments.get(bill.id) ?? normalizeMoney(bill.amount);
     const pastDue = isBillPastDue(bill);
     const dueSoon = !pastDue && isBillDueSoon(bill, 7);
+    const interestPaid = calculateMonthlyInterestPortion(
+      normalizeMoney(bill.previousBalance ?? bill.currentBalance),
+      bill.apr
+    );
     const balanceDiff = normalizeMoney(bill.currentBalance) - normalizeMoney(bill.previousBalance ?? bill.currentBalance);
     const row = document.createElement("article");
     row.className = `budget-bill-item${pastDue ? " is-past-due" : ""}${dueSoon ? " is-due-soon" : ""}${bill.status === "Paid" ? " is-paid" : ""}${bill.hidden ? " is-hidden" : ""}`;
@@ -5008,10 +5188,14 @@ function renderBills() {
         <span>Bill</span>
         <input class="bill-name" value="${escapeAttribute(bill.name)}" aria-label="Bill name">
       </label>
-      <div class="budget-bill-field budget-bill-apr-box bill-col-apr">
+      <label class="budget-bill-field budget-bill-apr-box bill-col-apr">
         <span>APR</span>
-        <div class="budget-bill-apr">${bill.apr ? escapeHtml(formatApr(bill.apr)) : "-"}</div>
-      </div>
+        <input class="bill-apr" type="text" inputmode="decimal" value="${escapeAttribute(formatApr(bill.apr))}" aria-label="APR" placeholder="-">
+      </label>
+      <label class="budget-bill-field bill-col-interest-paid">
+        <span>Interest paid</span>
+        <input class="bill-interest-paid" type="text" value="${escapeAttribute(formatCurrency(interestPaid))}" aria-label="Interest paid" readonly>
+      </label>
       <label class="budget-bill-field bill-col-prev-bal">
         <span>Previous balance</span>
         <input class="bill-previous-balance" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.previousBalance ?? bill.currentBalance))}" aria-label="Previous balance">
@@ -5077,6 +5261,7 @@ function renderBills() {
     `;
 
     row.querySelector(".bill-name").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
+    row.querySelector(".bill-apr").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-previous-balance").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-current-balance").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-credit-limit").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
@@ -5084,6 +5269,7 @@ function renderBills() {
     row.querySelector(".bill-paid-amount").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-transaction-number").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-name").addEventListener("change", () => updateBillFromRow(row));
+    row.querySelector(".bill-apr").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-previous-balance").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-current-balance").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-credit-limit").addEventListener("change", () => updateBillFromRow(row));
@@ -5168,7 +5354,7 @@ function renderBills() {
     billListHeader.classList.toggle("is-simple", usesSimpleBills);
     billListHeader.innerHTML = usesSimpleBills
       ? "<span class=\"budget-bill-selector-header\"></span><span>Bill</span><span>Amount</span><span>Due</span><span>Status</span><span>Notes</span><span>Actions</span>"
-      : "<span class=\"budget-bill-selector-header bill-col-selector\"></span><span class=\"bill-col bill-col-name\">Bill</span><span class=\"bill-col bill-col-apr\">APR</span><span class=\"bill-col bill-col-prev-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum previous balance column\">Prev Bal</span><span class=\"bill-col bill-col-current-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum current balance column\">Current Bal</span><span class=\"bill-col bill-col-diff is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum difference column\">Diff</span><span class=\"bill-col bill-col-credit-line is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum credit line column\">Credit Line</span><span class=\"bill-col bill-col-due-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum due amount column\">Due Amt</span><span class=\"bill-col bill-col-paid-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum paid amount column\">Paid Amt</span><span class=\"bill-col bill-col-recommended is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum recommended payment column\">Recommended</span><span class=\"bill-col bill-col-tran\">Tran #</span><span class=\"bill-col bill-col-due-date\">Due</span><span class=\"bill-col bill-col-date-paid\">Date Paid</span><span class=\"bill-col bill-col-credit-percent\">% Credit</span><span class=\"bill-col bill-col-status\">Status</span><span class=\"bill-col bill-col-notes\">Notes</span><span class=\"bill-col bill-col-actions\">Actions</span>";
+      : "<span class=\"budget-bill-selector-header bill-col-selector\"></span><span class=\"bill-col bill-col-name\">Bill</span><span class=\"bill-col bill-col-apr\">APR</span><span class=\"bill-col bill-col-interest-paid is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum interest paid column\">Interest Paid</span><span class=\"bill-col bill-col-prev-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum previous balance column\">Prev Bal</span><span class=\"bill-col bill-col-current-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum current balance column\">Current Bal</span><span class=\"bill-col bill-col-diff is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum difference column\">Diff</span><span class=\"bill-col bill-col-credit-line is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum credit line column\">Credit Line</span><span class=\"bill-col bill-col-due-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum due amount column\">Due Amt</span><span class=\"bill-col bill-col-paid-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum paid amount column\">Paid Amt</span><span class=\"bill-col bill-col-recommended is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum recommended payment column\">Recommended</span><span class=\"bill-col bill-col-tran\">Tran #</span><span class=\"bill-col bill-col-due-date\">Due</span><span class=\"bill-col bill-col-date-paid\">Date Paid</span><span class=\"bill-col bill-col-credit-percent\">% Credit</span><span class=\"bill-col bill-col-status\">Status</span><span class=\"bill-col bill-col-notes\">Notes</span><span class=\"bill-col bill-col-actions\">Actions</span>";
     if (!usesSimpleBills) {
       Object.entries(BILL_COLUMN_SUM_CONFIG).forEach(([columnClass, config]) => {
         const headerCell = billListHeader.querySelector(`.${columnClass}`);
@@ -5303,6 +5489,9 @@ function updateBillFromRow(row, options = {}) {
   const before = originalBaseline || { ...bill };
   const getField = selector => row.querySelector(selector);
   bill.name = getField(".bill-name")?.value.trim() ?? bill.name;
+  bill.apr = getField(".bill-apr")
+    ? String(getField(".bill-apr").value || "").replace(/%/g, "").trim()
+    : bill.apr;
   bill.previousBalance = getField(".bill-previous-balance")
     ? normalizeCurrencyCell(getField(".bill-previous-balance").value)
     : (bill.previousBalance ?? bill.currentBalance);
@@ -5324,7 +5513,7 @@ function updateBillFromRow(row, options = {}) {
   bill.status = bill.statusTracksPaidDate
     ? deriveAutoTrackedBillStatus(bill)
     : (getField(".bill-status")?.value ?? bill.status);
-  bill.notes = getField(".bill-notes")?.value.trim() ?? bill.notes;
+  bill.notes = normalizeBillNotes(getField(".bill-notes")?.value.trim() ?? bill.notes, bill.status);
   if (options.recalculateBalance) {
     bill.currentBalance = calculateCurrentBalanceFromPayment(bill.previousBalance, bill.paidAmount, bill.apr);
   }
@@ -9330,6 +9519,14 @@ if (restoreBillSnapshotBtn && billSnapshotDialog) {
 if (closeBillAuditDialogBtn && billAuditDialog) {
   closeBillAuditDialogBtn.addEventListener("click", () => billAuditDialog.close());
 }
+if (closeJsonBackupViewerDialogBtn && jsonBackupViewerDialog) {
+  closeJsonBackupViewerDialogBtn.addEventListener("click", () => jsonBackupViewerDialog.close());
+}
+if (jsonBackupViewerDialog) {
+  jsonBackupViewerDialog.addEventListener("close", () => {
+    currentJsonBackupPayload = null;
+  });
+}
 if (closeBillSnapshotDialogBtn && billSnapshotDialog) {
   closeBillSnapshotDialogBtn.addEventListener("click", () => billSnapshotDialog.close());
 }
@@ -9358,7 +9555,7 @@ document.querySelector("#addBillBtn").addEventListener("click", () => {
     amount: 0,
     due: "",
     status: "Unpaid",
-    notes: ""
+    notes: "Pending"
   };
   const deletedBillNames = new Set(state.monthlyBudgets[month]?.deletedBillNames || []);
   deletedBillNames.delete("");
@@ -9668,6 +9865,11 @@ if (chooseJsonBackupBtn) {
 if (validateJsonBackupBtn) {
   validateJsonBackupBtn.addEventListener("click", () => {
     validateFirebaseAgainstJsonBackup();
+  });
+}
+if (viewJsonBackupBtn) {
+  viewJsonBackupBtn.addEventListener("click", () => {
+    openJsonBackupViewer();
   });
 }
 if (pullLatestDevicesBtn) {

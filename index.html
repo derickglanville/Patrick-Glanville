@@ -62,6 +62,7 @@
     </div>
     <button id="chooseJsonBackupBtn" type="button" class="ghost">Choose Backup JSON</button>
     <button id="validateJsonBackupBtn" type="button" class="ghost">Validate Firebase vs JSON</button>
+    <button id="viewJsonBackupBtn" type="button" class="ghost">View Backup JSON</button>
     <button id="viewBillAuditBtn" type="button" class="ghost">Bill Audit</button>
     <button id="restoreBillSnapshotBtn" type="button" class="ghost">Restore Bill Snapshot</button>
     <button id="pullLatestDevicesBtn" type="button" class="ghost">Pull Latest On Devices</button>
@@ -570,6 +571,17 @@
         <button type="button" id="closeBillSnapshotDialog" class="icon-button" aria-label="Close">x</button>
       </div>
       <div id="billSnapshotBody" class="report-body"></div>
+    </div>
+  </dialog>
+
+  <dialog id="jsonBackupViewerDialog">
+    <div class="report-dialog json-backup-viewer-dialog">
+      <div class="dialog-head">
+        <h2 id="jsonBackupViewerTitle">Backup JSON Viewer</h2>
+        <button type="button" id="closeJsonBackupViewerDialog" class="icon-button" aria-label="Close">x</button>
+      </div>
+      <div id="jsonBackupViewerMeta" class="json-backup-viewer-meta"></div>
+      <div id="jsonBackupViewerBody" class="json-backup-viewer-body"></div>
     </div>
   </dialog>
 

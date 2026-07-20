@@ -776,20 +776,21 @@ textarea {
   grid-template-columns:
     24px
     minmax(148px, 1fr)
-    52px
-    minmax(84px, .52fr)
-    minmax(84px, .52fr)
-    minmax(74px, .46fr)
-    minmax(84px, .52fr)
-    minmax(74px, .48fr)
-    minmax(74px, .48fr)
-    minmax(92px, .56fr)
-    minmax(80px, .5fr)
-    minmax(88px, .54fr)
-    minmax(88px, .54fr)
-    68px
-    76px
-    minmax(138px, .74fr)
+    48px
+    minmax(70px, .4fr)
+    minmax(72px, .42fr)
+    minmax(70px, .4fr)
+    minmax(72px, .42fr)
+    minmax(66px, .38fr)
+    minmax(64px, .36fr)
+    minmax(68px, .4fr)
+    minmax(78px, .44fr)
+    minmax(68px, .38fr)
+    minmax(108px, .68fr)
+    minmax(108px, .68fr)
+    56px
+    64px
+    minmax(156px, .9fr)
     64px;
   gap: 1px;
   padding: 0 2px;
@@ -884,20 +885,21 @@ textarea {
   grid-template-columns:
     22px
     minmax(128px, .92fr)
-    48px
-    minmax(72px, .48fr)
-    minmax(72px, .48fr)
-    minmax(62px, .42fr)
-    minmax(72px, .48fr)
-    minmax(64px, .44fr)
-    minmax(64px, .44fr)
-    minmax(80px, .52fr)
-    minmax(70px, .44fr)
-    minmax(78px, .48fr)
-    minmax(78px, .48fr)
-    62px
-    72px
-    minmax(122px, .66fr)
+    44px
+    minmax(58px, .36fr)
+    minmax(60px, .38fr)
+    minmax(58px, .36fr)
+    minmax(54px, .34fr)
+    minmax(60px, .38fr)
+    minmax(56px, .36fr)
+    minmax(60px, .38fr)
+    minmax(68px, .42fr)
+    minmax(62px, .38fr)
+    minmax(98px, .62fr)
+    minmax(98px, .62fr)
+    50px
+    58px
+    minmax(128px, .78fr)
     58px;
   font-size: .68rem;
 }
@@ -906,22 +908,23 @@ textarea {
   grid-template-columns:
     22px
     minmax(128px, .92fr)
-    48px
-    minmax(72px, .48fr)
-    minmax(72px, .48fr)
-    minmax(62px, .42fr)
-    minmax(72px, .48fr)
-    minmax(64px, .44fr)
-    minmax(64px, .44fr)
-    minmax(80px, .52fr)
-    minmax(70px, .44fr)
-    minmax(78px, .48fr)
-    minmax(78px, .48fr)
-    62px
-    72px
-    minmax(122px, .66fr)
+    44px
+    minmax(58px, .36fr)
+    minmax(60px, .38fr)
+    minmax(58px, .36fr)
+    minmax(54px, .34fr)
+    minmax(60px, .38fr)
+    minmax(56px, .36fr)
+    minmax(60px, .38fr)
+    minmax(68px, .42fr)
+    minmax(62px, .38fr)
+    minmax(98px, .62fr)
+    minmax(98px, .62fr)
+    50px
+    58px
+    minmax(128px, .78fr)
     58px;
-  min-width: 1180px;
+  min-width: 1140px;
   padding: 0 2px;
 }
 
@@ -960,6 +963,7 @@ textarea {
   grid-template-columns:
     22px
     minmax(170px, 1.24fr)
+    54px
     minmax(92px, .7fr)
     minmax(92px, .68fr)
     minmax(86px, .66fr)
@@ -973,6 +977,7 @@ textarea {
 }
 
 .budget-panel-admin-mini .bill-col-apr,
+.budget-panel-admin-mini .bill-col-interest-paid,
 .budget-panel-admin-mini .bill-col-prev-bal,
 .budget-panel-admin-mini .bill-col-credit-line,
 .budget-panel-admin-mini .bill-col-due-amt,
@@ -1004,20 +1009,21 @@ textarea {
   grid-template-columns:
     24px
     minmax(148px, 1fr)
-    52px
-    minmax(84px, .52fr)
-    minmax(84px, .52fr)
-    minmax(74px, .46fr)
-    minmax(84px, .52fr)
-    minmax(74px, .48fr)
-    minmax(74px, .48fr)
-    minmax(92px, .56fr)
-    minmax(80px, .5fr)
-    minmax(88px, .54fr)
-    minmax(88px, .54fr)
-    68px
-    76px
-    minmax(138px, .74fr)
+    48px
+    minmax(70px, .4fr)
+    minmax(72px, .42fr)
+    minmax(70px, .4fr)
+    minmax(72px, .42fr)
+    minmax(66px, .38fr)
+    minmax(64px, .36fr)
+    minmax(68px, .4fr)
+    minmax(78px, .44fr)
+    minmax(68px, .38fr)
+    minmax(108px, .68fr)
+    minmax(108px, .68fr)
+    56px
+    64px
+    minmax(156px, .9fr)
     64px;
   gap: 0;
   align-items: center;
@@ -1025,8 +1031,9 @@ textarea {
   border: 1px solid #d9e3f0;
   border-radius: 2px;
   background: #ffffff;
-  min-width: 1325px;
+  min-width: 1230px;
   box-shadow: none;
+  overflow: visible;
 }
 
 .budget-bill-item:nth-child(even) {
@@ -1274,6 +1281,19 @@ textarea {
   box-shadow: inset 0 1px 1px rgba(15, 23, 42, .02);
 }
 
+.budget-bill-item:not(.budget-bill-item-simple) .bill-due,
+.budget-bill-item:not(.budget-bill-item-simple) .bill-paid-date {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  padding-right: 22px;
+}
+
+.budget-bill-item:not(.budget-bill-item-simple) .bill-due::-webkit-calendar-picker-indicator,
+.budget-bill-item:not(.budget-bill-item-simple) .bill-paid-date::-webkit-calendar-picker-indicator {
+  margin-left: 2px;
+}
+
 .budget-bill-item:not(.budget-bill-item-simple) textarea {
   line-height: 1.05;
 }
@@ -1284,11 +1304,26 @@ textarea {
 .budget-bill-item:not(.budget-bill-item-simple) .bill-credit-limit,
 .budget-bill-item:not(.budget-bill-item-simple) .bill-amount,
 .budget-bill-item:not(.budget-bill-item-simple) .bill-paid-amount,
+.budget-bill-item:not(.budget-bill-item-simple) .bill-interest-paid,
 .budget-bill-item:not(.budget-bill-item-simple) .bill-recommended-payment,
 .budget-bill-item:not(.budget-bill-item-simple) .bill-transaction-number,
 .budget-bill-item:not(.budget-bill-item-simple) .bill-due,
 .budget-bill-item:not(.budget-bill-item-simple) .bill-paid-date {
   font-weight: 700;
+}
+
+.budget-bill-item:not(.budget-bill-item-simple) .bill-apr,
+.budget-bill-item:not(.budget-bill-item-simple) .bill-interest-paid {
+  color: #b45309;
+  background: #fff4ef;
+  border-color: #f1c7b8;
+}
+
+.budget-bill-item:not(.budget-bill-item-simple) .bill-paid-amount,
+.budget-bill-item:not(.budget-bill-item-simple) .bill-paid-date {
+  color: #166534;
+  background: #edf9f1;
+  border-color: #b8dec4;
 }
 
 .budget-bill-item:not(.budget-bill-item-simple) .bill-name,
@@ -1306,10 +1341,11 @@ textarea {
   align-items: center;
   gap: 0;
   min-width: 0;
+  overflow: hidden;
 }
 
 .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-status-box .budget-bill-field {
-  flex: 0 0 82px;
+  flex: 0 0 76px;
 }
 
 .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-status-box .bill-status {
@@ -1320,6 +1356,7 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: visible;
 }
 
 .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-apr-box {
@@ -1336,12 +1373,21 @@ textarea {
   text-align: center;
 }
 
-.budget-bill-list-header > span:nth-child(14) {
+.budget-bill-list-header > span:nth-child(15) {
   text-align: center;
 }
 
 .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-notes-box {
   min-width: 0;
+  padding-left: 4px;
+}
+
+.budget-bill-item:not(.budget-bill-item-simple) .budget-bill-notes-box .budget-bill-field {
+  width: 100%;
+}
+
+.bill-col-credit-percent {
+  overflow: visible;
 }
 
 .budget-bill-item:not(.budget-bill-item-simple) input:focus,
@@ -2718,6 +2764,92 @@ dialog::backdrop {
   max-height: 72vh;
   overflow: auto;
   margin-top: 14px;
+}
+
+.json-backup-viewer-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.json-backup-viewer-meta-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfe;
+  padding: 10px 12px;
+}
+
+.json-backup-viewer-meta-card strong {
+  display: block;
+  color: #183153;
+  font-size: .76rem;
+  letter-spacing: .06em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.json-backup-viewer-meta-card span {
+  color: #0f172a;
+  font-size: .96rem;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.json-backup-viewer-body {
+  max-height: 68vh;
+  overflow: auto;
+  margin-top: 14px;
+}
+
+.json-backup-viewer-content {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fcfdff;
+}
+
+.json-backup-viewer-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  background: #f4f7fb;
+}
+
+.json-backup-viewer-kicker,
+.json-backup-viewer-stats {
+  color: var(--muted);
+  font-size: .88rem;
+}
+
+.json-backup-viewer-pre {
+  margin: 0;
+  padding: 16px;
+  max-height: 60vh;
+  overflow: auto;
+  background: #f8fafc;
+  color: #0f172a;
+  font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  font-size: .84rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.json-backup-viewer-loading,
+.json-backup-viewer-error {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fbfcfe;
+  color: #183153;
+  padding: 18px;
+}
+
+.json-backup-viewer-error {
+  color: #9f1239;
 }
 
 .report-actions {
