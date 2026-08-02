@@ -7,7 +7,7 @@ const ADMIN_WATCH_STORAGE_KEY = "admin-glanville-client-watch-v1";
 const PATRICK_TASK_VIEW_KEY = "patrick-glanville-task-view-v1";
 const THEODORE_TASK_VIEW_KEY = "theodore-glanville-task-view-v1";
 const ADMIN_TASK_VIEW_KEY = "admin-glanville-task-view-v1";
-const DATA_VERSION = 2026071301;
+const DATA_VERSION = 2026080201;
 const PANEL_VISIBILITY_VERSION = 2026071302;
 const TASK_GROUP_COLLAPSE_VERSION = 2026070101;
 const BUILD_INFO = {
@@ -1238,8 +1238,87 @@ function buildUnselectedClientState() {
     billSnapshots: [],
     bills: [],
     lifeAdminNotes: [],
+    workSchedules: [],
     tasks: []
   };
+}
+
+function buildPatrickWorkScheduleSeed() {
+  const weekStart = "2026-07-26";
+  return [{
+    id: "patrick-work-schedule-2026-07-26",
+    weekStart,
+    receivedOn: "2026-07-30",
+    createdAt: "2026-07-30T12:00:00.000Z",
+    updatedAt: "2026-07-30T12:00:00.000Z",
+    entries: [
+      { day: "Sunday", date: "2026-07-26", shift: "10:00 AM - 4:00 PM", hours: 6 },
+      { day: "Monday", date: "2026-07-27", shift: "Off (xx)", hours: 0 },
+      { day: "Tuesday", date: "2026-07-28", shift: "7:00 AM - 2:30 PM", hours: 8 },
+      { day: "Wednesday", date: "2026-07-29", shift: "Off (xx)", hours: 0 },
+      { day: "Thursday", date: "2026-07-30", shift: "1:00 PM - 8:00 PM", hours: 7 },
+      { day: "Friday", date: "2026-07-31", shift: "Off (xx)", hours: 0 },
+      { day: "Saturday", date: "2026-08-01", shift: "10:00 AM - 4:00 PM", hours: 6 }
+    ]
+  }];
+}
+
+function normalizeWorkSchedules(value) {
+  const schedules = Array.isArray(value) ? value : [];
+  const normalized = schedules.map(schedule => ({
+    id: schedule.id || crypto.randomUUID(),
+    weekStart: schedule.weekStart || "",
+    receivedOn: schedule.receivedOn || "",
+    createdAt: schedule.createdAt || new Date().toISOString(),
+    updatedAt: schedule.updatedAt || schedule.createdAt || new Date().toISOString(),
+    entries: Array.isArray(schedule.entries) ? schedule.entries.slice(0, 7).map((entry, index) => ({
+      day: entry.day || ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][index],
+      date: entry.date || "",
+      shift: entry.shift || "Off",
+      hours: Math.max(0, Number(entry.hours) || 0)
+    })) : []
+  })).filter(schedule => schedule.weekStart);
+  return normalized.sort((a, b) => b.weekStart.localeCompare(a.weekStart));
+}
+
+function currentWorkWeekStart(date = new Date()) {
+  const local = new Date(date);
+  local.setHours(12, 0, 0, 0);
+  local.setDate(local.getDate() - local.getDay());
+  const year = local.getFullYear();
+  const month = String(local.getMonth() + 1).padStart(2, "0");
+  const day = String(local.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function buildWorkScheduleFromPrevious(weekStart, previousSchedule) {
+  const now = new Date().toISOString();
+  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  return {
+    id: crypto.randomUUID(),
+    weekStart,
+    receivedOn: scheduleDateForOffset(weekStart, 4),
+    createdAt: now,
+    updatedAt: now,
+    entries: days.map((day, index) => {
+      const previous = previousSchedule?.entries?.[index] || {};
+      return {
+        day,
+        date: scheduleDateForOffset(weekStart, index),
+        shift: previous.shift || "Off",
+        hours: Math.max(0, Number(previous.hours) || 0)
+      };
+    })
+  };
+}
+
+function ensureCurrentPatrickWorkSchedule(loaded) {
+  const schedules = normalizeWorkSchedules(loaded.workSchedules);
+  const currentWeek = currentWorkWeekStart();
+  if (schedules.some(schedule => schedule.weekStart === currentWeek)) return false;
+  const previous = schedules.find(schedule => schedule.weekStart < currentWeek) || schedules[0];
+  loaded.workSchedules = normalizeWorkSchedules([...schedules, buildWorkScheduleFromPrevious(currentWeek, previous)]);
+  return true;
 }
 
 let activeClientId = "";
@@ -1440,15 +1519,12 @@ const userSelect = document.querySelector("#userSelect");
 const currentUserContent = document.querySelector("#currentUserContent");
 const toggleCurrentUserBtn = document.querySelector("#toggleCurrentUserBtn");
 const clientSwitchBtn = document.querySelector("#clientSwitchBtn");
+const deviceLayoutIndicator = document.querySelector("#deviceLayoutIndicator");
 const topClientSwitchBtn = document.querySelector("#topClientSwitchBtn");
 const topClientSelect = document.querySelector("#topClientSelect");
 const pullLatestDevicesBtn = document.querySelector("#pullLatestDevicesBtn");
 const topClientPinWrapInline = document.querySelector("#topClientPinWrapInline");
 const topClientPin = document.querySelector("#topClientPin");
-const overviewPanel = document.querySelector("#overviewPanel");
-const overviewContent = document.querySelector("#overviewContent");
-const overviewCards = document.querySelector("#overviewCards");
-const toggleOverviewBtn = document.querySelector("#toggleOverviewBtn");
 const accountGateDialog = document.querySelector("#accountGateDialog");
 const accountGateForm = document.querySelector("#accountGateForm");
 const accountGateSelect = document.querySelector("#accountGateSelect");
@@ -1542,6 +1618,22 @@ const patrickChangeReportBtn = document.querySelector("#patrickChangeReportBtn")
 const htmlEmailDashboardReportBtn = document.querySelector("#htmlEmailDashboardReportBtn");
 const toggleBillsBtn = document.querySelector("#toggleBillsBtn");
 const toggleLifeAdminBtn = document.querySelector("#toggleLifeAdminBtn");
+const workScheduleEntryBtn = document.querySelector("#workScheduleEntryBtn");
+const workSchedulePanel = document.querySelector("#workSchedulePanel");
+const workScheduleContent = document.querySelector("#workScheduleContent");
+const toggleWorkScheduleBtn = document.querySelector("#toggleWorkScheduleBtn");
+const workScheduleSelect = document.querySelector("#workScheduleSelect");
+const workSchedulePrevBtn = document.querySelector("#workSchedulePrevBtn");
+const workScheduleNextBtn = document.querySelector("#workScheduleNextBtn");
+const newWorkScheduleBtn = document.querySelector("#newWorkScheduleBtn");
+const workScheduleRows = document.querySelector("#workScheduleRows");
+const workScheduleTotal = document.querySelector("#workScheduleTotal");
+const workScheduleSummary = document.querySelector("#workScheduleSummary");
+const workScheduleDialog = document.querySelector("#workScheduleDialog");
+const workScheduleForm = document.querySelector("#workScheduleForm");
+const workScheduleWeekStart = document.querySelector("#workScheduleWeekStart");
+const workScheduleReceivedOn = document.querySelector("#workScheduleReceivedOn");
+const workScheduleEntryRows = document.querySelector("#workScheduleEntryRows");
 const toggleBudgetSnapshotsBtn = document.querySelector("#toggleBudgetSnapshotsBtn");
 const hideBillsBtn = document.querySelector("#hideBillsBtn");
 const toggleBillsCompactBtn = document.querySelector("#toggleBillsCompactBtn");
@@ -1691,6 +1783,7 @@ function loadState() {
       billSnapshots: Array.isArray(parsed.billSnapshots) ? parsed.billSnapshots : structuredClone(seedData.billSnapshots || []),
       bills: Array.isArray(parsed.bills) ? parsed.bills : structuredClone(seedData.bills),
       lifeAdminNotes: Array.isArray(parsed.lifeAdminNotes) ? parsed.lifeAdminNotes : structuredClone(seedData.lifeAdminNotes),
+      workSchedules: Array.isArray(parsed.workSchedules) ? parsed.workSchedules : [],
       tasks: Array.isArray(parsed.tasks) ? parsed.tasks : structuredClone(seedData.tasks)
     };
     const migrated = applyDataMigrations(loaded);
@@ -2501,18 +2594,32 @@ function initializeState(loaded) {
   });
   loaded.runningNotes = normalizeRunningNotes(loaded.runningNotes, loaded.notes);
   loaded.documents = normalizeDocuments(loaded.documents);
+  loaded.workSchedules = normalizeWorkSchedules(loaded.workSchedules);
+  if (activeClientId === "patrick" && !loaded.workSchedules.length) {
+    loaded.workSchedules = buildPatrickWorkScheduleSeed();
+    stateAdjusted = true;
+  }
+  if (activeClientId === "patrick" && ensureCurrentPatrickWorkSchedule(loaded)) {
+    stateAdjusted = true;
+  }
   if (loaded.panelVisibilityVersion !== PANEL_VISIBILITY_VERSION) {
-    loaded.hiddenPanels = { overview: true, patrickWatch: true, bills: true, budgetSnapshots: true, lifeAdmin: true };
+    loaded.hiddenPanels = { patrickWatch: true, bills: false, budgetSnapshots: true, lifeAdmin: true, workSchedule: false };
     loaded.panelVisibilityVersion = PANEL_VISIBILITY_VERSION;
     panelVisibilityReset = true;
   } else {
     loaded.hiddenPanels = {
-      overview: loaded.hiddenPanels?.overview ?? true,
       patrickWatch: loaded.hiddenPanels?.patrickWatch ?? true,
-      bills: loaded.hiddenPanels?.bills ?? true,
+      bills: loaded.hiddenPanels?.bills ?? false,
       budgetSnapshots: loaded.hiddenPanels?.budgetSnapshots ?? true,
-      lifeAdmin: Boolean(loaded.hiddenPanels?.lifeAdmin)
+      lifeAdmin: Boolean(loaded.hiddenPanels?.lifeAdmin),
+      workSchedule: Boolean(loaded.hiddenPanels?.workSchedule)
     };
+  }
+  if (activeClientId === "patrick" && Number(loaded.workScheduleSetupVersion) !== 2) {
+    loaded.hiddenPanels.workSchedule = false;
+    loaded.hiddenPanels.bills = false;
+    loaded.workScheduleSetupVersion = 2;
+    stateAdjusted = true;
   }
   const shouldResetCollapsedTaskGroups = Number(loaded.collapsedTaskGroupsVersion) !== TASK_GROUP_COLLAPSE_VERSION;
   loaded.collapsedTaskGroups = loaded.collapsedTaskGroups && typeof loaded.collapsedTaskGroups === "object"
@@ -3318,6 +3425,56 @@ function normalizeMonthlyBudgetsMap(monthlyBudgets, seed = getSeedData()) {
   return normalized;
 }
 
+function copyBudgetDueAmountsFromPreviousMonth(targetEntry, previousEntry) {
+  if (!targetEntry || !previousEntry || !Array.isArray(previousEntry.bills)) return false;
+
+  const previousByKey = new Map(
+    previousEntry.bills.map(bill => {
+      const normalized = normalizeBill(bill);
+      return [(normalized.templateKey || normalized.name || "").trim().toLowerCase(), normalized];
+    }).filter(([key]) => Boolean(key))
+  );
+  let changed = false;
+  targetEntry.bills = (targetEntry.bills || []).map(bill => {
+    const normalized = normalizeBill(bill);
+    const key = (normalized.templateKey || normalized.name || "").trim().toLowerCase();
+    const previousBill = previousByKey.get(key);
+    if (!previousBill) return normalized;
+
+    const previousAmount = normalizeMoney(previousBill.amount);
+    if (normalizeMoney(normalized.amount) === previousAmount) return normalized;
+    changed = true;
+    return { ...normalized, amount: previousAmount };
+  });
+  return changed;
+}
+
+function applyAdminDueAmountRollover(loaded) {
+  if (!isAdminClient() || !loaded || typeof loaded !== "object") return false;
+
+  loaded.monthlyBudgets = loaded.monthlyBudgets && typeof loaded.monthlyBudgets === "object"
+    ? loaded.monthlyBudgets
+    : {};
+  let changed = false;
+  const currentMonth = defaultBillMonth();
+  const months = Object.keys(loaded.monthlyBudgets)
+    .filter(month => month >= currentMonth)
+    .sort();
+
+  months.forEach(month => {
+    const previousMonth = shiftMonthString(month, -1);
+    const previousEntry = loaded.monthlyBudgets[previousMonth];
+    const targetEntry = loaded.monthlyBudgets[month];
+    if (!previousEntry || !targetEntry) return;
+
+    if (copyBudgetDueAmountsFromPreviousMonth(targetEntry, previousEntry)) {
+      targetEntry.copiedForwardFrom = targetEntry.copiedForwardFrom || previousMonth;
+      changed = true;
+    }
+  });
+  return changed;
+}
+
 function dedupeAllMonthlyBudgetBills() {
   state.monthlyBudgets = normalizeMonthlyBudgetsMap(state.monthlyBudgets);
   Object.keys(state.monthlyBudgets).forEach(month => {
@@ -3354,7 +3511,18 @@ function ensureMonthlyBudgetState(month) {
   const targetMonth = month || state.billMonth || defaultBillMonth();
   state.monthlyBudgets = normalizeMonthlyBudgetsMap(state.monthlyBudgets);
   if (!state.monthlyBudgets[targetMonth]) {
-    state.monthlyBudgets[targetMonth] = buildDefaultMonthlyBudget(targetMonth);
+    const targetEntry = buildDefaultMonthlyBudget(targetMonth);
+    if (isAdminClient() && targetMonth >= defaultBillMonth()) {
+      const earlierMonths = Object.keys(state.monthlyBudgets)
+        .filter(existingMonth => existingMonth < targetMonth)
+        .sort();
+      const sourceMonth = earlierMonths[earlierMonths.length - 1];
+      const sourceEntry = sourceMonth ? state.monthlyBudgets[sourceMonth] : null;
+      if (sourceEntry && copyBudgetDueAmountsFromPreviousMonth(targetEntry, sourceEntry)) {
+        targetEntry.copiedForwardFrom = sourceMonth;
+      }
+    }
+    state.monthlyBudgets[targetMonth] = targetEntry;
   }
   return state.monthlyBudgets[targetMonth];
 }
@@ -4155,6 +4323,10 @@ function applyDataMigrations(loaded) {
   if ((Number(loaded.dataVersion) || 0) >= DATA_VERSION) return false;
 
   applyOngoingStateRepairs(loaded);
+  applyAdminDueAmountRollover(loaded);
+  if (activeClientId === "patrick" && (!Array.isArray(loaded.workSchedules) || !loaded.workSchedules.length)) {
+    loaded.workSchedules = buildPatrickWorkScheduleSeed();
+  }
 
   loaded.dataVersion = DATA_VERSION;
   loaded.lastSavedAt = new Date().toISOString();
@@ -4918,21 +5090,6 @@ function updateDataStoreStatus() {
   dataStoreStatus.textContent = `${locationLabel}${debugSuffix}; local backup ${formatDateTime(state.lastSavedAt)}${backupSuffix}`;
 }
 
-function renderOverviewCards() {
-  if (!overviewCards) return;
-  const cards = currentClientConfig()?.overviewCards || [];
-  overviewCards.innerHTML = "";
-  cards.forEach(card => {
-    const article = document.createElement("article");
-    article.innerHTML = `
-      <span class="metric-label">${escapeHtml(card.label)}</span>
-      <strong>${escapeHtml(card.value)}</strong>
-      <span>${escapeHtml(card.detail)}</span>
-    `;
-    overviewCards.appendChild(article);
-  });
-}
-
 function updateClientChrome() {
   const client = currentClientConfig();
   if (clientSwitchBtn) clientSwitchBtn.textContent = client ? `Client: ${client.shortName}` : "Choose Client";
@@ -4963,19 +5120,19 @@ function updateClientChrome() {
       : "Choose a client first";
   }
   if (validateJsonBackupBtn) {
-    validateJsonBackupBtn.disabled = !client || !jsonBackupHandle;
+    validateJsonBackupBtn.disabled = !client;
     validateJsonBackupBtn.title = client
       ? jsonBackupHandle
         ? `Compare live Firebase data against the configured JSON backup for ${client.shortName}`
-        : `Choose a JSON backup file for ${client.shortName} first`
+        : `Choose a JSON backup file for ${client.shortName} on this device/site first`
       : "Choose a client first";
   }
   if (viewJsonBackupBtn) {
-    viewJsonBackupBtn.disabled = !client || !jsonBackupHandle;
+    viewJsonBackupBtn.disabled = !client;
     viewJsonBackupBtn.title = client
       ? jsonBackupHandle
         ? `Open the configured JSON backup file for ${client.shortName}`
-        : `Choose a JSON backup file for ${client.shortName} first`
+        : `Choose a JSON backup file for ${client.shortName} on this device/site first`
       : "Choose a client first";
   }
   if (viewBillAuditBtn) {
@@ -5002,8 +5159,6 @@ function updateClientChrome() {
     : "Choose a client to load their separate dashboard, notes, reports, and saved history.";
   if (appEyebrow) appEyebrow.textContent = client ? `Client workspace: ${client.fullName}` : "Multi-client tracking workspace";
   document.title = client ? client.browserTitle : "3G Tracking and Notifications";
-  renderOverviewCards();
-
   if (processGuideBtn) processGuideBtn.hidden = !client?.supportsReports;
   if (urgencyReportBtn) urgencyReportBtn.hidden = !client?.supportsReports;
   if (patrickChangeReportBtn) patrickChangeReportBtn.hidden = !client?.supportsReports;
@@ -5049,6 +5204,7 @@ function render() {
   renderTaskViewControls();
   renderBills();
   renderLifeAdminNotes();
+  renderWorkSchedule();
   renderPatrickWatch();
   renderPanelVisibility();
   renderRunningNotes();
@@ -5056,6 +5212,125 @@ function render() {
   userSelect.value = state.currentUser || "";
   updateTaskLabelControls();
   renderBillSyncAlert();
+}
+
+function formatScheduleDate(value) {
+  if (!value) return "Not set";
+  const date = new Date(`${value}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+function renderWorkSchedule() {
+  if (!workSchedulePanel) return;
+  const canShow = activeClientId === "patrick";
+  workSchedulePanel.hidden = !canShow;
+  if (!canShow) return;
+
+  setPanelCollapsed(
+    workSchedulePanel,
+    workScheduleContent,
+    toggleWorkScheduleBtn,
+    Boolean(state.hiddenPanels.workSchedule),
+    "Weekly Work Schedule"
+  );
+
+  const schedules = normalizeWorkSchedules(state.workSchedules);
+  state.workSchedules = schedules;
+  workScheduleSelect.innerHTML = "";
+  schedules.forEach(schedule => {
+    const option = document.createElement("option");
+    option.value = schedule.id;
+    option.textContent = `Week of ${formatScheduleDate(schedule.weekStart)}`;
+    workScheduleSelect.appendChild(option);
+  });
+  if (!schedules.length) {
+    workScheduleRows.innerHTML = '<tr><td colspan="4">No work schedule has been entered.</td></tr>';
+    workScheduleTotal.textContent = "0";
+    workScheduleSummary.textContent = "Select New Week to add the current work schedule.";
+    if (workSchedulePrevBtn) workSchedulePrevBtn.disabled = true;
+    if (workScheduleNextBtn) workScheduleNextBtn.disabled = true;
+    return;
+  }
+
+  const selectedId = workScheduleSelect.dataset.selectedId;
+  const currentWeek = currentWorkWeekStart();
+  const schedule = schedules.find(item => item.id === selectedId)
+    || schedules.find(item => item.weekStart === currentWeek)
+    || schedules[0];
+  const scheduleIndex = schedules.findIndex(item => item.id === schedule.id);
+  workScheduleSelect.value = schedule.id;
+  workScheduleSelect.dataset.selectedId = schedule.id;
+  if (workSchedulePrevBtn) workSchedulePrevBtn.disabled = scheduleIndex >= schedules.length - 1;
+  if (workScheduleNextBtn) workScheduleNextBtn.disabled = false;
+  workScheduleRows.innerHTML = schedule.entries.map(entry => `
+    <tr><th scope="row">${escapeHtml(entry.day)}</th><td>${escapeHtml(formatScheduleDate(entry.date))}</td><td>${escapeHtml(entry.shift || "Off")}</td><td>${Number(entry.hours) || 0}</td></tr>
+  `).join("");
+  const total = schedule.entries.reduce((sum, entry) => sum + (Number(entry.hours) || 0), 0);
+  workScheduleTotal.textContent = String(total);
+  workScheduleSummary.textContent = `Received ${formatScheduleDate(schedule.receivedOn)} · ${total} scheduled hours`;
+}
+
+function getSelectedWorkSchedule() {
+  const schedules = normalizeWorkSchedules(state.workSchedules);
+  const selectedId = workScheduleSelect?.dataset.selectedId;
+  return schedules.find(schedule => schedule.id === selectedId) || schedules[0] || null;
+}
+
+function selectAdjacentWorkSchedule(offset) {
+  const schedules = normalizeWorkSchedules(state.workSchedules);
+  const selected = getSelectedWorkSchedule();
+  const index = schedules.findIndex(schedule => schedule.id === selected?.id);
+  const target = schedules[index + offset];
+  if (!target && offset < 0 && selected) {
+    const nextWeekStart = scheduleDateForOffset(selected.weekStart, 7);
+    const nextSchedule = buildWorkScheduleFromPrevious(nextWeekStart, selected);
+    state.workSchedules = normalizeWorkSchedules([...schedules, nextSchedule]);
+    workScheduleSelect.dataset.selectedId = nextSchedule.id;
+    recordHistoryEntry({ itemType: "workSchedule", itemId: nextSchedule.id, title: "Weekly Work Schedule", summary: `New work week created for ${nextWeekStart}`, status: "Updated", percent: 0 });
+    saveState();
+    renderWorkSchedule();
+    return;
+  }
+  if (!target || !workScheduleSelect) return;
+  workScheduleSelect.dataset.selectedId = target.id;
+  renderWorkSchedule();
+}
+
+function scheduleDateForOffset(weekStart, offset) {
+  const date = new Date(`${weekStart}T12:00:00`);
+  date.setDate(date.getDate() + offset);
+  return date.toISOString().slice(0, 10);
+}
+
+function renderWorkScheduleEntryRows(weekStart, entries = []) {
+  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  workScheduleEntryRows.innerHTML = days.map((day, index) => {
+    const entry = entries[index] || {};
+    return `<div class="work-schedule-entry-row">
+      <label>${day}<input class="work-schedule-date" type="date" value="${escapeAttribute(entry.date || scheduleDateForOffset(weekStart, index))}" readonly></label>
+      <label>Shift<input class="work-schedule-shift" value="${escapeAttribute(entry.shift || "Off")}" placeholder="Off or 10:00 AM - 4:00 PM"></label>
+      <label>Hours<input class="work-schedule-hours" type="number" min="0" step="0.25" value="${Number(entry.hours) || 0}"></label>
+    </div>`;
+  }).join("");
+}
+
+function openWorkScheduleDialog({ createNext = false } = {}) {
+  if (activeClientId !== "patrick") return;
+  const current = getSelectedWorkSchedule();
+  const sunday = createNext && current?.weekStart
+    ? scheduleDateForOffset(current.weekStart, 7)
+    : current?.weekStart || new Date().toISOString().slice(0, 10);
+  const entryTemplate = createNext
+    ? (current?.entries || []).map(entry => ({ ...entry, date: "" }))
+    : current?.entries || [];
+  workScheduleWeekStart.value = sunday;
+  workScheduleReceivedOn.value = createNext ? scheduleDateForOffset(sunday, 4) : current?.receivedOn || scheduleDateForOffset(sunday, 4);
+  renderWorkScheduleEntryRows(sunday, entryTemplate);
+  if (typeof workScheduleDialog.showModal === "function") workScheduleDialog.showModal();
+}
+
+function closeWorkScheduleDialog() {
+  if (workScheduleDialog?.open) workScheduleDialog.close();
 }
 
 function buildTaskSearchText(task) {
@@ -5438,13 +5713,6 @@ function taskGroupName(category = "N/A") {
 }
 
 function renderPanelVisibility() {
-  setPanelCollapsed(
-    overviewPanel,
-    overviewContent,
-    toggleOverviewBtn,
-    state.hiddenPanels.overview,
-    "Situation Overview"
-  );
   setPanelCollapsed(
     budgetPanel,
     budgetPanelContent,
@@ -9839,11 +10107,6 @@ togglePatrickWatchBtn.addEventListener("click", () => {
   saveState();
   renderPatrickWatch();
 });
-toggleOverviewBtn.addEventListener("click", () => {
-  state.hiddenPanels.overview = !state.hiddenPanels.overview;
-  saveState();
-  renderPanelVisibility();
-});
 billMonthInput.addEventListener("change", () => {
   syncCurrentBudgetMonth();
   loadBudgetMonth(billMonthInput.value || defaultBillMonth());
@@ -10126,6 +10389,77 @@ hideLifeAdminBtn.addEventListener("click", () => {
   saveState();
   renderPanelVisibility();
 });
+if (workScheduleEntryBtn) {
+  workScheduleEntryBtn.addEventListener("click", () => openWorkScheduleDialog());
+}
+if (toggleWorkScheduleBtn) {
+  toggleWorkScheduleBtn.addEventListener("click", () => {
+    state.hiddenPanels.workSchedule = !state.hiddenPanels.workSchedule;
+    saveState();
+    renderWorkSchedule();
+  });
+}
+if (workSchedulePrevBtn) {
+  workSchedulePrevBtn.addEventListener("click", () => selectAdjacentWorkSchedule(1));
+}
+if (workScheduleNextBtn) {
+  workScheduleNextBtn.addEventListener("click", () => selectAdjacentWorkSchedule(-1));
+}
+if (newWorkScheduleBtn) {
+  newWorkScheduleBtn.addEventListener("click", () => openWorkScheduleDialog({ createNext: true }));
+}
+if (workScheduleSelect) {
+  workScheduleSelect.addEventListener("change", () => {
+    workScheduleSelect.dataset.selectedId = workScheduleSelect.value;
+    renderWorkSchedule();
+  });
+}
+if (workScheduleWeekStart) {
+  workScheduleWeekStart.addEventListener("change", () => {
+    const existingEntries = Array.from(workScheduleEntryRows.querySelectorAll(".work-schedule-entry-row")).map((row, index) => ({
+      day: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][index],
+      shift: row.querySelector(".work-schedule-shift")?.value || "Off",
+      hours: row.querySelector(".work-schedule-hours")?.value || 0
+    }));
+    renderWorkScheduleEntryRows(workScheduleWeekStart.value, existingEntries);
+    if (!workScheduleReceivedOn.value) workScheduleReceivedOn.value = scheduleDateForOffset(workScheduleWeekStart.value, 4);
+  });
+}
+if (workScheduleForm) {
+  workScheduleForm.addEventListener("submit", event => {
+    event.preventDefault();
+    if (activeClientId !== "patrick") return;
+    const weekStart = workScheduleWeekStart.value;
+    if (!weekStart) return;
+    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const entries = Array.from(workScheduleEntryRows.querySelectorAll(".work-schedule-entry-row")).map((row, index) => ({
+      day: days[index],
+      date: row.querySelector(".work-schedule-date")?.value || scheduleDateForOffset(weekStart, index),
+      shift: row.querySelector(".work-schedule-shift")?.value.trim() || "Off",
+      hours: Math.max(0, Number(row.querySelector(".work-schedule-hours")?.value) || 0)
+    }));
+    const schedules = normalizeWorkSchedules(state.workSchedules);
+    const existingIndex = schedules.findIndex(schedule => schedule.weekStart === weekStart);
+    const updated = {
+      id: existingIndex >= 0 ? schedules[existingIndex].id : crypto.randomUUID(),
+      weekStart,
+      receivedOn: workScheduleReceivedOn.value || scheduleDateForOffset(weekStart, 4),
+      createdAt: existingIndex >= 0 ? schedules[existingIndex].createdAt : new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      entries
+    };
+    if (existingIndex >= 0) schedules[existingIndex] = updated;
+    else schedules.push(updated);
+    state.workSchedules = normalizeWorkSchedules(schedules);
+    workScheduleSelect.dataset.selectedId = updated.id;
+    recordHistoryEntry({ itemType: "workSchedule", itemId: updated.id, title: "Weekly Work Schedule", summary: `Work schedule saved for week of ${weekStart}`, status: "Updated", percent: 0 });
+    saveState();
+    closeWorkScheduleDialog();
+    render();
+  });
+}
+document.querySelector("#closeWorkScheduleDialog")?.addEventListener("click", closeWorkScheduleDialog);
+document.querySelector("#cancelWorkScheduleDialog")?.addEventListener("click", closeWorkScheduleDialog);
 userSelect.addEventListener("change", () => {
   requestUserSwitch(userSelect.value);
 });
@@ -10154,6 +10488,28 @@ window.openClientSwitcher = openClientSwitcher;
 if (clientSwitchBtn) {
   clientSwitchBtn.addEventListener("click", openClientSwitcher);
 }
+
+function detectDeviceLayout() {
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+  if (viewportWidth <= 680) return "phone";
+  if (viewportWidth <= 1100 || window.matchMedia("(pointer: coarse)").matches) return "tablet";
+  return "desktop";
+}
+
+function applyDeviceLayout() {
+  const layout = detectDeviceLayout();
+  document.body.dataset.deviceLayout = layout;
+  // Remove the retired manual layout override so each device uses its own responsive layout.
+  document.body.classList.remove("iphone-display-mode");
+  localStorage.removeItem("threeGTrackingIphoneView");
+  if (deviceLayoutIndicator) {
+    deviceLayoutIndicator.textContent = `${layout.charAt(0).toUpperCase()}${layout.slice(1)} layout`;
+  }
+}
+
+applyDeviceLayout();
+window.addEventListener("resize", applyDeviceLayout);
+window.addEventListener("orientationchange", applyDeviceLayout);
 
 if (topClientSwitchBtn) {
   topClientSwitchBtn.addEventListener("click", () => {
@@ -10421,6 +10777,10 @@ taskViewAllBtn.addEventListener("click", () => {
 });
 
 try {
+  // Open Patrick by default; the client selector remains available for switching dashboards.
+  activeClientId = "patrick";
+  state = loadState();
+  loadBudgetMonth(defaultBillMonth(), { syncSnapshot: false });
   window.__appBootStage = "populate-users";
   populateUsers();
   window.__appBootStage = "populate-clients";
@@ -10447,7 +10807,7 @@ try {
   window.__appBootStage = "boot-failed";
   updateDataStoreStatus();
 }
-  const renderSimpleBillRow = (bill, targetList) => {
+function renderSimpleBillRow(bill, targetList) {
     const row = document.createElement("article");
     row.className = `budget-bill-item budget-bill-item-simple${isBillPastDue(bill) ? " is-past-due" : ""}${bill.status === "Paid" ? " is-paid" : ""}`;
     row.dataset.billId = bill.id;
@@ -10501,4 +10861,4 @@ try {
     row.querySelector(".delete-bill-button").addEventListener("click", () => deleteBill(bill.id));
     row.classList.toggle("is-selected", isBillSelected(bill.id));
     targetList.appendChild(row);
-  };
+}

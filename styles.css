@@ -114,6 +114,19 @@ button:hover,
   justify-content: flex-end;
 }
 
+.device-layout-indicator {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, .48);
+  border-radius: 999px;
+  color: white;
+  font-size: .82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .import-label input {
   display: none;
 }
@@ -1535,6 +1548,41 @@ textarea {
   box-shadow: var(--shadow);
   display: grid;
   gap: 14px;
+}
+
+.work-schedule-panel {
+  margin: 0 0 18px;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.work-schedule-panel header {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.work-schedule-panel h2 { margin: 0 0 6px; }
+.work-schedule-panel p { margin: 0; color: var(--muted); }
+.work-schedule-summary { margin: 12px 0; color: var(--muted); font-size: .9rem; }
+.work-schedule-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+.work-schedule-table { width: 100%; border-collapse: collapse; min-width: 520px; }
+.work-schedule-table th, .work-schedule-table td { padding: 9px 12px; border-bottom: 1px solid var(--line); text-align: left; }
+.work-schedule-table thead, .work-schedule-table tfoot { background: #8f0000; color: #fff; }
+.work-schedule-table tbody tr:nth-child(even) { background: #fbe9e9; }
+.work-schedule-table tbody tr:nth-child(odd) { background: #fff; }
+.work-schedule-table td:last-child, .work-schedule-table th:last-child { text-align: center; width: 90px; }
+.work-schedule-entry-rows { display: grid; gap: 8px; margin: 14px 0; }
+.work-schedule-entry-row { display: grid; grid-template-columns: 145px minmax(180px, 1fr) 100px; gap: 10px; align-items: end; }
+.work-schedule-entry-row label { margin: 0; }
+
+@media (max-width: 720px) {
+  .work-schedule-entry-row { grid-template-columns: 1fr 1fr; }
 }
 
 .patrick-watch-panel {
@@ -3277,8 +3325,7 @@ dialog::backdrop {
     flex-direction: column;
   }
 
-  .bill-month-nav,
-  .budget-bill-item {
+  .bill-month-nav {
     grid-template-columns: 1fr;
   }
 
@@ -3332,6 +3379,183 @@ dialog::backdrop {
   .medication-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Device-aware layouts: phone views favor touch targets and horizontal data grids;
+   tablets keep compact multi-column panels without forcing data into one long column. */
+body[data-device-layout="tablet"] .collaboration-panel {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 14px 22px;
+}
+
+body[data-device-layout="tablet"] .sync-panel {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) repeat(2, auto);
+  padding: 12px 22px;
+}
+
+body[data-device-layout="tablet"] .header-actions {
+  justify-content: flex-start;
+}
+
+body[data-device-layout="tablet"] .work-schedule-panel header {
+  align-items: stretch;
+}
+
+body[data-device-layout="phone"] {
+  min-width: 0;
+}
+
+body[data-device-layout="phone"] main {
+  padding: 12px 10px 32px;
+}
+
+body[data-device-layout="phone"] .collaboration-panel,
+body[data-device-layout="phone"] .sync-panel {
+  grid-template-columns: 1fr;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+body[data-device-layout="phone"] .collaboration-client-switch,
+body[data-device-layout="phone"] .current-user-panel,
+body[data-device-layout="phone"] .access-note {
+  width: 100%;
+}
+
+body[data-device-layout="phone"] .collaboration-client-switch {
+  justify-content: stretch;
+}
+
+body[data-device-layout="phone"] .collaboration-client-switch label,
+body[data-device-layout="phone"] #topClientSelect,
+body[data-device-layout="phone"] .current-user-panel {
+  width: 100%;
+}
+
+body[data-device-layout="phone"] .app-header {
+  min-height: 190px;
+  padding: 24px 18px 18px;
+  gap: 18px;
+}
+
+body[data-device-layout="phone"] .app-header h1 {
+  font-size: clamp(2.15rem, 12vw, 3.1rem);
+}
+
+body[data-device-layout="phone"] .lede {
+  font-size: .95rem;
+}
+
+body[data-device-layout="phone"] .header-actions {
+  width: 100%;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  justify-content: flex-start;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+
+body[data-device-layout="phone"] .header-actions > * {
+  flex: 0 0 auto;
+}
+
+body[data-device-layout="phone"] .device-layout-indicator {
+  display: none;
+}
+
+body[data-device-layout="phone"] .work-schedule-panel,
+body[data-device-layout="phone"] .controls,
+body[data-device-layout="phone"] .budget-panel {
+  padding: 12px;
+}
+
+body[data-device-layout="phone"] .work-schedule-panel header,
+body[data-device-layout="phone"] .budget-panel header {
+  grid-template-columns: 1fr;
+  align-items: stretch;
+}
+
+body[data-device-layout="phone"] .work-schedule-panel header {
+  display: grid;
+}
+
+body[data-device-layout="phone"] .work-schedule-panel p {
+  font-size: .84rem;
+}
+
+body[data-device-layout="phone"] .panel-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+}
+
+body[data-device-layout="phone"] .panel-actions label,
+body[data-device-layout="phone"] .panel-actions > :first-child {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+body[data-device-layout="phone"] .work-schedule-table {
+  min-width: 460px;
+}
+
+body[data-device-layout="phone"] .work-schedule-table th,
+body[data-device-layout="phone"] .work-schedule-table td {
+  padding: 8px 10px;
+  font-size: .88rem;
+}
+
+body[data-device-layout="phone"] .controls,
+body[data-device-layout="phone"] .overview,
+body[data-device-layout="phone"] .task-grid,
+body[data-device-layout="phone"] .progress-band,
+body[data-device-layout="phone"] .optional-section-controls,
+body[data-device-layout="phone"] .budget-metrics {
+  grid-template-columns: 1fr;
+}
+
+body[data-device-layout="phone"] .progress-band {
+  gap: 8px;
+}
+
+body[data-device-layout="phone"] .budget-metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+body[data-device-layout="phone"] .budget-bill-list,
+body[data-device-layout="phone"] .budget-bill-list-admin {
+  overflow: auto;
+  max-height: min(62vh, 610px);
+}
+
+body[data-device-layout="phone"] .budget-bill-list-header,
+body[data-device-layout="phone"] .budget-bill-list-header.is-simple {
+  display: grid;
+  min-width: 900px;
+}
+
+body[data-device-layout="phone"] .budget-bill-item-simple {
+  grid-template-columns: 24px minmax(200px, 1fr) 118px 130px 108px minmax(220px, 1fr) 72px;
+  min-width: 900px;
+}
+
+body[data-device-layout="phone"] .budget-bill-item-simple .budget-bill-notes-box textarea {
+  height: 38px;
+  min-height: 38px;
+}
+
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item {
+  min-width: 1230px;
+}
+
+body[data-device-layout="phone"] .budget-panel-popout {
+  inset: 0;
+  border-radius: 0;
+}
+
+body[data-device-layout="phone"] .budget-panel-popout .budget-bill-list,
+body[data-device-layout="phone"] .budget-panel-popout .budget-bill-list-admin {
+  max-height: calc(100vh - 170px);
 }
 
 @media print {

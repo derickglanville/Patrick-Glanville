@@ -7,7 +7,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>3G Tracking and Notifications</title>
-  <link rel="stylesheet" href="styles.css?v=2026-07-08-005">
+  <link rel="stylesheet" href="styles.css?v=2026-08-02-001">
 </head>
 <body>
   <section class="collaboration-panel" aria-label="Collaboration access">
@@ -88,6 +88,7 @@
     </div>
     <div class="header-actions" aria-label="Data actions">
       <button id="clientSwitchBtn" type="button" class="ghost" title="Switch between client dashboards">Client: Patrick</button>
+      <span id="deviceLayoutIndicator" class="device-layout-indicator" role="status" aria-live="polite"></span>
       <button id="processGuideBtn" type="button" title="Open the full process guide PDF for this project">Process Guide PDF</button>
       <button id="urgencyReportBtn" type="button" title="Run the local urgency report process if the helper is running, otherwise save directly into the Email folder">Urgency Report</button>
       <button id="patrickChangeReportBtn" type="button" title="Review the active client's change report and save it to the local Email folder">Client Change Report</button>
@@ -103,18 +104,32 @@
   </header>
 
   <main>
-    <section class="budget-panel" id="overviewPanel" aria-label="Situation overview">
+    <section class="work-schedule-panel" id="workSchedulePanel" aria-label="Weekly work schedule" hidden>
       <header>
         <div>
-          <h2>Situation Overview</h2>
-          <p>Quick summary of the most important financial, transportation, and support risks.</p>
+          <h2>Weekly Work Schedule</h2>
+          <p>Sunday through Saturday. New schedules are normally received on Thursday.</p>
         </div>
         <div class="panel-actions">
-          <button id="toggleOverviewBtn" type="button" class="ghost">Show Situation Overview</button>
+          <label for="workScheduleSelect">Schedule week
+            <select id="workScheduleSelect"></select>
+          </label>
+          <button id="workSchedulePrevBtn" type="button" class="ghost">Prev Week</button>
+          <button id="workScheduleNextBtn" type="button" class="ghost">Next Week</button>
+          <button id="workScheduleEntryBtn" type="button" class="ghost">Edit Schedule</button>
+          <button id="newWorkScheduleBtn" type="button">New Week</button>
+          <button id="toggleWorkScheduleBtn" type="button" class="ghost">Hide Weekly Work Schedule</button>
         </div>
       </header>
-      <div class="collapsible-content" id="overviewContent">
-        <div class="overview" id="overviewCards"></div>
+      <div class="collapsible-content" id="workScheduleContent">
+        <div id="workScheduleSummary" class="work-schedule-summary"></div>
+        <div class="work-schedule-table-wrap">
+          <table class="work-schedule-table">
+            <thead><tr><th>Day</th><th>Date</th><th>Shift</th><th>Hours</th></tr></thead>
+            <tbody id="workScheduleRows"></tbody>
+            <tfoot><tr><th>Total</th><td></td><td></td><th id="workScheduleTotal">0</th></tr></tfoot>
+          </table>
+        </div>
       </div>
     </section>
 
@@ -514,6 +529,29 @@
     </div>
   </dialog>
 
+  <dialog id="workScheduleDialog">
+    <form id="workScheduleForm" class="history-dialog work-schedule-dialog" novalidate>
+      <div class="dialog-head">
+        <h2>Enter Weekly Work Schedule</h2>
+        <button type="button" id="closeWorkScheduleDialog" class="icon-button" aria-label="Close">x</button>
+      </div>
+      <div class="form-row">
+        <label>Week starts Sunday
+          <input id="workScheduleWeekStart" type="date" required>
+        </label>
+        <label>Schedule received
+          <input id="workScheduleReceivedOn" type="date" required>
+        </label>
+      </div>
+      <p class="documents-note">Use “Off” for no shift. Dates fill automatically from the Sunday selected above.</p>
+      <div id="workScheduleEntryRows" class="work-schedule-entry-rows"></div>
+      <div class="dialog-actions">
+        <button type="button" id="cancelWorkScheduleDialog" class="ghost">Cancel</button>
+        <button type="submit">Save Schedule</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="accountGateDialog">
     <form id="accountGateForm" class="account-gate-dialog" novalidate>
       <div class="dialog-head">
@@ -613,6 +651,6 @@
     onerror="window.__firebaseConfigLoadError = 'firebase-config.js failed to load';"
   ></script>
   <script src="firebase-init.js?v=2026-07-08-003"></script>
-  <script src="app.js?v=2026-07-08-016"></script>
+  <script src="app.js?v=2026-08-02-001"></script>
   </body>
   </html>
