@@ -34,6 +34,7 @@ const DERIC_EMAIL = "dglanville@gmail.com";
 const DERIC_PIN = "3141";
 const THEODORE_CLIENT_ACCESS_PIN = "3141";
 const ADMIN_CLIENT_ACCESS_PIN = "314123";
+const ADMIN_BILL_SMS_DEFAULT_TIME = "18:30";
 const PATRICK_EMAIL = "patrick.glanville@gmail.com";
 const THEODORE_EMAIL = "theodore.glanville@gmail.com";
 const ADMIN_EMAIL = DERIC_EMAIL;
@@ -41,6 +42,14 @@ const EMAIL_REPORT_RECIPIENTS = [
   DERIC_EMAIL,
   PATRICK_EMAIL
 ];
+const adminBillSmsHelperState = {
+  attempted: false,
+  loading: false,
+  available: false,
+  enabled: false,
+  sendTime: ADMIN_BILL_SMS_DEFAULT_TIME,
+  message: "Checking local SMS helper..."
+};
 const clientConfigs = {
   patrick: {
     id: "patrick",
@@ -1556,6 +1565,10 @@ const calculateBillsBtn = document.querySelector("#calculateBillsBtn");
 const assignDueDatesBtn = document.querySelector("#assignDueDatesBtn");
 const undoCopyBillsToNextMonthBtn = document.querySelector("#undoCopyBillsToNextMonthBtn");
 const monthlyBillsReportBtn = document.querySelector("#monthlyBillsReportBtn");
+const adminBillSmsControls = document.querySelector("#adminBillSmsControls");
+const sendAdminBillSmsBtn = document.querySelector("#sendAdminBillSmsBtn");
+const adminBillSmsTime = document.querySelector("#adminBillSmsTime");
+const adminBillSmsStatus = document.querySelector("#adminBillSmsStatus");
 const billMBFDisplay = document.querySelector("#billMBFDisplay");
 const billList = document.querySelector("#billList");
 const billTotal = document.querySelector("#billTotal");
@@ -5764,6 +5777,7 @@ function setPanelCollapsed(panel, content, button, hidden, label) {
 
 function renderBills() {
   const usesSimpleBills = !clientUsesBillGrouping();
+  renderAdminBillSmsControls();
   if (!["full", "early", "mid", "late"].includes(state.billGroupView)) {
     state.billGroupView = defaultBillGroupView(state.billMonth);
   }
@@ -9955,6 +9969,123 @@ async function triggerPatrickChangeReportHelper() {
   }
 }
 
+function formatAdminBillSmsTime(value) {
+  const [hourText, minuteText] = String(value || ADMIN_BILL_SMS_DEFAULT_TIME).split(":");
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  if (!Number.isInteger(hour) || !Number.isInteger(minute)) return value;
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const displayHour = hour % 12 || 12;
+  return `${displayHour}:${String(minute).padStart(2, "0")} ${suffix}`;
+}
+
+function populateAdminBillSmsTimeOptions() {
+  if (!adminBillSmsTime || adminBillSmsTime.options.length) return;
+  for (let hour = 0; hour < 24; hour += 1) {
+    for (const minute of [0, 30]) {
+      const value = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = formatAdminBillSmsTime(value);
+      adminBillSmsTime.appendChild(option);
+    }
+  }
+}
+
+function setAdminBillSmsStatus(message) {
+  adminBillSmsHelperState.message = message;
+  if (adminBillSmsStatus) adminBillSmsStatus.textContent = message;
+}
+
+function renderAdminBillSmsControls() {
+  if (!adminBillSmsControls) return;
+  const isAdmin = isAdminClient();
+  adminBillSmsControls.hidden = !isAdmin;
+  if (!isAdmin) return;
+
+  populateAdminBillSmsTimeOptions();
+  if (adminBillSmsTime) adminBillSmsTime.value = adminBillSmsHelperState.sendTime;
+  const canUseLocalHelper = adminBillSmsHelperState.available && adminBillSmsHelperState.enabled;
+  if (sendAdminBillSmsBtn) sendAdminBillSmsBtn.disabled = !canUseLocalHelper;
+  if (adminBillSmsTime) adminBillSmsTime.disabled = !canUseLocalHelper;
+  setAdminBillSmsStatus(adminBillSmsHelperState.message);
+
+  if (!adminBillSmsHelperState.attempted && !adminBillSmsHelperState.loading) {
+    void loadAdminBillSmsSettings();
+  }
+}
+
+async function loadAdminBillSmsSettings() {
+  adminBillSmsHelperState.attempted = true;
+  adminBillSmsHelperState.loading = true;
+  setAdminBillSmsStatus("Checking local SMS helper...");
+  try {
+    const response = await fetch(`${URGENCY_REPORT_HELPER_URL}/admin-bill-sms-config`);
+    const payload = await response.json();
+    if (!response.ok || !payload?.ok) throw new Error(payload?.message || "Local SMS helper is unavailable.");
+    adminBillSmsHelperState.available = true;
+    adminBillSmsHelperState.enabled = Boolean(payload.enabled);
+    adminBillSmsHelperState.sendTime = payload.sendTime || ADMIN_BILL_SMS_DEFAULT_TIME;
+    setAdminBillSmsStatus(payload.enabled
+      ? `Scheduled daily at ${formatAdminBillSmsTime(adminBillSmsHelperState.sendTime)} (${payload.scheduleLabel || "local computer time"}).`
+      : "The local Admin bill text notifier is disabled.");
+  } catch (error) {
+    console.warn("Admin bill SMS helper is unavailable.", error);
+    adminBillSmsHelperState.available = false;
+    adminBillSmsHelperState.enabled = false;
+    setAdminBillSmsStatus("Available only on the computer running the local SMS helper.");
+  } finally {
+    adminBillSmsHelperState.loading = false;
+    if (isAdminClient()) renderAdminBillSmsControls();
+  }
+}
+
+async function sendAdminBillSmsManually() {
+  if (!isAdminClient()) return;
+  if (sendAdminBillSmsBtn) sendAdminBillSmsBtn.disabled = true;
+  setAdminBillSmsStatus("Checking today’s unpaid Admin bills...");
+  try {
+    const response = await fetch(`${URGENCY_REPORT_HELPER_URL}/run-admin-bill-sms-manual`, { method: "POST" });
+    const payload = await response.json();
+    if (!response.ok || !payload?.ok) throw new Error(payload?.error || payload?.message || "The text check failed.");
+    const output = payload.output || "Admin bill text check completed.";
+    setAdminBillSmsStatus(output.replace(/\s+/g, " "));
+    alert(output);
+  } catch (error) {
+    console.error(error);
+    setAdminBillSmsStatus("The local SMS helper could not complete the text check.");
+    alert("The Admin bill text check is only available on the computer running the local SMS helper.");
+  } finally {
+    renderAdminBillSmsControls();
+  }
+}
+
+async function updateAdminBillSmsSchedule() {
+  if (!isAdminClient() || !adminBillSmsTime) return;
+  const previousTime = adminBillSmsHelperState.sendTime;
+  const sendTime = adminBillSmsTime.value;
+  adminBillSmsTime.disabled = true;
+  setAdminBillSmsStatus("Updating the local SMS schedule...");
+  try {
+    const response = await fetch(`${URGENCY_REPORT_HELPER_URL}/set-admin-bill-sms-schedule`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sendTime })
+    });
+    const payload = await response.json();
+    if (!response.ok || !payload?.ok) throw new Error(payload?.error || payload?.message || "Schedule update failed.");
+    adminBillSmsHelperState.sendTime = payload.sendTime || sendTime;
+    setAdminBillSmsStatus(`Scheduled daily at ${formatAdminBillSmsTime(adminBillSmsHelperState.sendTime)} (local computer time).`);
+  } catch (error) {
+    console.error(error);
+    adminBillSmsHelperState.sendTime = previousTime;
+    setAdminBillSmsStatus("The SMS schedule was not updated. The local helper may not be running.");
+    alert("The SMS schedule could not be updated on this device.");
+  } finally {
+    renderAdminBillSmsControls();
+  }
+}
+
 function populateUsers() {
   userSelect.innerHTML = "";
   accountGateSelect.innerHTML = "";
@@ -10170,6 +10301,12 @@ if (calculateBillsBtn) {
 }
 if (monthlyBillsReportBtn) {
   monthlyBillsReportBtn.addEventListener("click", downloadMonthlyBillsReportHtml);
+}
+if (sendAdminBillSmsBtn) {
+  sendAdminBillSmsBtn.addEventListener("click", sendAdminBillSmsManually);
+}
+if (adminBillSmsTime) {
+  adminBillSmsTime.addEventListener("change", updateAdminBillSmsSchedule);
 }
 if (assignDueDatesBtn) {
   assignDueDatesBtn.addEventListener("click", assignDueDatesFromPreviousMonth);

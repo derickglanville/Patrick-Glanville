@@ -138,7 +138,11 @@ def should_run(policy: Dict, checkpoint: Dict) -> bool:
     return now >= scheduled_time and checkpoint.get("last_checked_date") != now.date().isoformat()
 
 
-def run_once(force: bool = False, dry_run: bool = False) -> int:
+def run_once(
+    force: bool = False,
+    dry_run: bool = False,
+    update_daily_checkpoint: bool = True,
+) -> int:
     policy = load_policy()
     checkpoint = load_checkpoint()
     if not force and not should_run(policy, checkpoint):
@@ -146,7 +150,8 @@ def run_once(force: bool = False, dry_run: bool = False) -> int:
         return 0
 
     bills = collect_due_today_bills(policy)
-    if not dry_run:
+    # A dashboard-initiated check must not consume the scheduled daily run.
+    if update_daily_checkpoint and not dry_run:
         checkpoint["last_checked_date"] = now_ny().date().isoformat()
         checkpoint["last_checked_at"] = now_ny().isoformat()
         checkpoint["last_bill_count"] = len(bills)
@@ -162,8 +167,9 @@ def run_once(force: bool = False, dry_run: bool = False) -> int:
         print("Dry run: SMS was not sent.")
         return 0
     send_sms(message_text, str(policy["recipient"]))
-    checkpoint["last_sent_at"] = now_ny().isoformat()
-    save_checkpoint(checkpoint)
+    if update_daily_checkpoint:
+        checkpoint["last_sent_at"] = now_ny().isoformat()
+        save_checkpoint(checkpoint)
     print(f"SMS sent to {policy['recipient']}.")
     return 0
 
@@ -171,11 +177,18 @@ def run_once(force: bool = False, dry_run: bool = False) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Send Admin unpaid bill due-date SMS alerts.")
     parser.add_argument("--run-if-due", action="store_true", help="Send only when 6:30 PM has passed and today has not been checked.")
-    parser.add_argument("--send-now", action="store_true", help="Run the check immediately.")
+    parser.add_argument("--send-now", action="store_true", help="Run the check immediately and record the daily checkpoint.")
+    parser.add_argument(
+        "--send-manual",
+        action="store_true",
+        help="Run the condition immediately without changing the scheduled daily checkpoint.",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Show the SMS without sending it.")
     args = parser.parse_args()
     if args.send_now:
         return run_once(force=True, dry_run=args.dry_run)
+    if args.send_manual:
+        return run_once(force=True, dry_run=args.dry_run, update_daily_checkpoint=False)
     if args.run_if_due:
         return run_once(force=False, dry_run=args.dry_run)
     parser.print_help()
