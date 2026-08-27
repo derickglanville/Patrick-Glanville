@@ -88,6 +88,14 @@
     </div>
     <div class="header-actions" aria-label="Data actions">
       <button id="clientSwitchBtn" type="button" class="ghost" title="Switch between client dashboards">Client: Patrick</button>
+      <label class="device-view-control" for="deviceLayoutMode">View
+        <select id="deviceLayoutMode" aria-label="Choose dashboard device view">
+          <option value="auto">Auto</option>
+          <option value="desktop">Desktop</option>
+          <option value="tablet">Tablet</option>
+          <option value="phone">Phone</option>
+        </select>
+      </label>
       <span id="deviceLayoutIndicator" class="device-layout-indicator" role="status" aria-live="polite"></span>
       <button id="processGuideBtn" type="button" title="Open the full process guide PDF for this project">Process Guide PDF</button>
       <button id="urgencyReportBtn" type="button" title="Run the local urgency report process if the helper is running, otherwise save directly into the Email folder">Urgency Report</button>

@@ -1529,6 +1529,7 @@ const currentUserContent = document.querySelector("#currentUserContent");
 const toggleCurrentUserBtn = document.querySelector("#toggleCurrentUserBtn");
 const clientSwitchBtn = document.querySelector("#clientSwitchBtn");
 const deviceLayoutIndicator = document.querySelector("#deviceLayoutIndicator");
+const deviceLayoutModeSelect = document.querySelector("#deviceLayoutMode");
 const topClientSwitchBtn = document.querySelector("#topClientSwitchBtn");
 const topClientSelect = document.querySelector("#topClientSelect");
 const pullLatestDevicesBtn = document.querySelector("#pullLatestDevicesBtn");
@@ -5276,7 +5277,7 @@ function renderWorkSchedule() {
   if (workSchedulePrevBtn) workSchedulePrevBtn.disabled = scheduleIndex >= schedules.length - 1;
   if (workScheduleNextBtn) workScheduleNextBtn.disabled = false;
   workScheduleRows.innerHTML = schedule.entries.map(entry => `
-    <tr><th scope="row">${escapeHtml(entry.day)}</th><td>${escapeHtml(formatScheduleDate(entry.date))}</td><td>${escapeHtml(entry.shift || "Off")}</td><td>${Number(entry.hours) || 0}</td></tr>
+    <tr><th scope="row" data-label="Day">${escapeHtml(entry.day)}</th><td data-label="Date">${escapeHtml(formatScheduleDate(entry.date))}</td><td data-label="Shift">${escapeHtml(entry.shift || "Off")}</td><td data-label="Hours">${Number(entry.hours) || 0}</td></tr>
   `).join("");
   const total = schedule.entries.reduce((sum, entry) => sum + (Number(entry.hours) || 0), 0);
   workScheduleTotal.textContent = String(total);
@@ -5806,10 +5807,12 @@ function renderBills() {
   billMonthInput.value = state.billMonth || defaultBillMonth();
   if (billMBFInput) billMBFInput.value = normalizeMoney(state.monthlyBudgetFund);
   if (budgetPanel) {
-    budgetPanel.classList.toggle("budget-panel-compact-view", Boolean(state.billsCompactView));
+    // Patrick uses a simpler list; the Admin compact grid has different columns.
+    budgetPanel.classList.toggle("budget-panel-compact-view", !usesSimpleBills && Boolean(state.billsCompactView));
     budgetPanel.classList.toggle("budget-panel-admin-mini", !usesSimpleBills && isAdminClient() && Boolean(state.billsCompactView));
   }
   if (toggleBillsCompactBtn) {
+    toggleBillsCompactBtn.hidden = usesSimpleBills;
     toggleBillsCompactBtn.textContent = !usesSimpleBills && isAdminClient()
       ? (state.billsCompactView ? "Full View" : "Mini View")
       : (state.billsCompactView ? "Standard View" : "Compact View");
@@ -10676,20 +10679,35 @@ function detectDeviceLayout() {
   return "desktop";
 }
 
+function getDeviceLayoutMode() {
+  const storedMode = localStorage.getItem("threeGTrackingDeviceViewMode") || "auto";
+  return ["auto", "desktop", "tablet", "phone"].includes(storedMode) ? storedMode : "auto";
+}
+
 function applyDeviceLayout() {
-  const layout = detectDeviceLayout();
+  const selectedMode = getDeviceLayoutMode();
+  const layout = selectedMode === "auto" ? detectDeviceLayout() : selectedMode;
   document.body.dataset.deviceLayout = layout;
-  // Remove the retired manual layout override so each device uses its own responsive layout.
+  document.body.dataset.deviceLayoutMode = selectedMode;
+  // Remove the retired iPhone-only override; the selector now supports all device views.
   document.body.classList.remove("iphone-display-mode");
   localStorage.removeItem("threeGTrackingIphoneView");
+  if (deviceLayoutModeSelect) deviceLayoutModeSelect.value = selectedMode;
   if (deviceLayoutIndicator) {
-    deviceLayoutIndicator.textContent = `${layout.charAt(0).toUpperCase()}${layout.slice(1)} layout`;
+    const label = `${layout.charAt(0).toUpperCase()}${layout.slice(1)}`;
+    deviceLayoutIndicator.textContent = selectedMode === "auto" ? `${label} layout` : `${label} view`;
   }
 }
 
 applyDeviceLayout();
 window.addEventListener("resize", applyDeviceLayout);
 window.addEventListener("orientationchange", applyDeviceLayout);
+if (deviceLayoutModeSelect) {
+  deviceLayoutModeSelect.addEventListener("change", () => {
+    localStorage.setItem("threeGTrackingDeviceViewMode", deviceLayoutModeSelect.value || "auto");
+    applyDeviceLayout();
+  });
+}
 
 if (topClientSwitchBtn) {
   topClientSwitchBtn.addEventListener("click", () => {
@@ -10995,37 +11013,37 @@ function renderSimpleBillRow(bill, targetList) {
       <div class="budget-bill-selector-box">
         <button type="button" class="budget-bill-row-selector" aria-label="Select bill row" aria-pressed="${isBillSelected(bill.id) ? "true" : "false"}"></button>
       </div>
-      <label class="budget-bill-field">
+      <label class="budget-bill-field bill-field-name">
         <span>Bill</span>
         <input class="bill-name" value="${escapeAttribute(bill.name)}" aria-label="Bill name">
       </label>
-      <label class="budget-bill-field">
+      <label class="budget-bill-field bill-field-previous-balance">
         <span>Previous balance</span>
         <input class="bill-previous-balance" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.previousBalance ?? bill.currentBalance))}" aria-label="Previous balance">
       </label>
-      <label class="budget-bill-field">
+      <label class="budget-bill-field bill-field-current-balance">
         <span>Current balance</span>
         <input class="bill-current-balance" type="text" value="${escapeAttribute(formatCurrencyInputValue(bill.currentBalance))}" aria-label="Current balance" readonly>
       </label>
-      <label class="budget-bill-field">
+      <label class="budget-bill-field bill-field-amount">
         <span>Amount due</span>
         <input class="bill-amount" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.amount))}" aria-label="Bill amount">
       </label>
-      <label class="budget-bill-field">
+      <label class="budget-bill-field bill-field-due">
         <span>Due date</span>
         <input class="bill-due" type="date" value="${escapeAttribute(bill.due)}" aria-label="Bill due date">
       </label>
-      <label class="budget-bill-field">
+      <label class="budget-bill-field bill-field-paid-date">
         <span>Date paid</span>
         <input class="bill-paid-date" type="date" value="${escapeAttribute(bill.paidDate)}" aria-label="Bill paid date">
       </label>
-      <label class="budget-bill-field">
+      <label class="budget-bill-field bill-field-status">
         <span>Status</span>
         <select class="bill-status" aria-label="Bill status">
           ${billStatusOptions.map(status => `<option${status === bill.status ? " selected" : ""}>${escapeHtml(status)}</option>`).join("")}
         </select>
       </label>
-      <label class="budget-bill-field budget-bill-notes-box">
+      <label class="budget-bill-field budget-bill-notes-box bill-field-notes">
         <span>Notes</span>
         <textarea class="bill-notes" rows="2" aria-label="Bill notes" placeholder="Optional notes">${escapeHtml(bill.notes || "")}</textarea>
       </label>

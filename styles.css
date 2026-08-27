@@ -114,6 +114,30 @@ button:hover,
   justify-content: flex-end;
 }
 
+.device-view-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, .48);
+  border-radius: 999px;
+  color: white;
+  font-size: .82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.device-view-control select {
+  min-height: 26px;
+  padding: 1px 22px 1px 6px;
+  border: 0;
+  border-radius: 6px;
+  color: #163355;
+  background: #fff;
+  font: inherit;
+}
+
 .device-layout-indicator {
   display: inline-flex;
   align-items: center;
@@ -957,7 +981,7 @@ textarea {
   font-size: .95rem;
 }
 
-.budget-panel-compact-view .budget-bill-list-header {
+.budget-panel-compact-view .budget-bill-list-header:not(.is-simple) {
   grid-template-columns:
     22px
     minmax(128px, .92fr)
@@ -980,7 +1004,7 @@ textarea {
   font-size: .68rem;
 }
 
-.budget-panel-compact-view .budget-bill-item {
+.budget-panel-compact-view .budget-bill-item:not(.budget-bill-item-simple) {
   grid-template-columns:
     22px
     minmax(128px, .92fr)
@@ -3549,13 +3573,67 @@ body[data-device-layout="phone"] .panel-actions > :first-child {
 }
 
 body[data-device-layout="phone"] .work-schedule-table {
-  min-width: 460px;
+  min-width: 0;
+}
+
+body[data-device-layout="phone"] .work-schedule-table-wrap {
+  overflow: visible;
+  border: 0;
+}
+
+body[data-device-layout="phone"] .work-schedule-table thead {
+  display: none;
+}
+
+body[data-device-layout="phone"] .work-schedule-table tbody {
+  display: grid;
+  gap: 8px;
+}
+
+body[data-device-layout="phone"] .work-schedule-table tbody tr {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
 }
 
 body[data-device-layout="phone"] .work-schedule-table th,
 body[data-device-layout="phone"] .work-schedule-table td {
-  padding: 8px 10px;
+  display: grid;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  text-align: left;
   font-size: .88rem;
+}
+
+body[data-device-layout="phone"] .work-schedule-table th::before,
+body[data-device-layout="phone"] .work-schedule-table td::before {
+  content: attr(data-label);
+  color: var(--muted);
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+body[data-device-layout="phone"] .work-schedule-table tfoot {
+  display: grid;
+  margin-top: 8px;
+  border-radius: 8px;
+}
+
+body[data-device-layout="phone"] .work-schedule-table tfoot tr {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  padding: 9px 10px;
+}
+
+body[data-device-layout="phone"] .work-schedule-table tfoot td {
+  display: none;
 }
 
 body[data-device-layout="phone"] .controls,
@@ -3575,30 +3653,125 @@ body[data-device-layout="phone"] .budget-metrics {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-body[data-device-layout="phone"] .budget-bill-list,
 body[data-device-layout="phone"] .budget-bill-list-admin {
   overflow: auto;
   max-height: min(62vh, 610px);
 }
 
-body[data-device-layout="phone"] .budget-bill-list-header,
-body[data-device-layout="phone"] .budget-bill-list-header.is-simple {
+body[data-device-layout="phone"] .budget-bill-list-header {
   display: grid;
   min-width: 900px;
 }
 
-body[data-device-layout="phone"] .budget-bill-item-simple {
-  grid-template-columns: 24px minmax(180px, 1fr) 104px 104px 96px 124px 124px 100px minmax(220px, 1fr) 72px;
-  min-width: 1140px;
-}
-
-body[data-device-layout="phone"] .budget-bill-item-simple .budget-bill-notes-box textarea {
-  height: 38px;
-  min-height: 38px;
-}
-
 body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item {
   min-width: 1230px;
+}
+
+/* Patrick's shorter bill list becomes labeled touch cards on iPad and iPhone.
+   Admin keeps its spreadsheet grid because it has many more financial columns. */
+body[data-device-layout="tablet"] .budget-bill-list-simple,
+body[data-device-layout="phone"] .budget-bill-list-simple {
+  max-height: none;
+  overflow: visible;
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+body[data-device-layout="tablet"] .budget-bill-list-header.is-simple,
+body[data-device-layout="phone"] .budget-bill-list-header.is-simple {
+  display: none;
+}
+
+body[data-device-layout="tablet"] .budget-bill-item-simple,
+body[data-device-layout="phone"] .budget-bill-item-simple {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 28px repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "selector bill bill"
+    "selector previous current"
+    "selector amount due"
+    "selector paid-date status"
+    "selector notes notes"
+    "selector actions actions";
+  gap: 8px 10px;
+  padding: 12px;
+  border: 1px solid #cbd8e8;
+  border-radius: 10px;
+  background: #fff;
+}
+
+body[data-device-layout="tablet"] .budget-bill-item-simple .budget-bill-selector-box,
+body[data-device-layout="phone"] .budget-bill-item-simple .budget-bill-selector-box { grid-area: selector; }
+body[data-device-layout="tablet"] .budget-bill-item-simple .bill-field-name,
+body[data-device-layout="phone"] .budget-bill-item-simple .bill-field-name { grid-area: bill; }
+body[data-device-layout="tablet"] .budget-bill-item-simple .bill-field-previous-balance,
+body[data-device-layout="phone"] .budget-bill-item-simple .bill-field-previous-balance { grid-area: previous; }
+body[data-device-layout="tablet"] .budget-bill-item-simple .bill-field-current-balance,
+body[data-device-layout="phone"] .budget-bill-item-simple .bill-field-current-balance { grid-area: current; }
+body[data-device-layout="tablet"] .budget-bill-item-simple .bill-field-amount,
+body[data-device-layout="phone"] .budget-bill-item-simple .bill-field-amount { grid-area: amount; }
+body[data-device-layout="tablet"] .budget-bill-item-simple .bill-field-due,
+body[data-device-layout="phone"] .budget-bill-item-simple .bill-field-due { grid-area: due; }
+body[data-device-layout="tablet"] .budget-bill-item-simple .bill-field-paid-date,
+body[data-device-layout="phone"] .budget-bill-item-simple .bill-field-paid-date { grid-area: paid-date; }
+body[data-device-layout="tablet"] .budget-bill-item-simple .bill-field-status,
+body[data-device-layout="phone"] .budget-bill-item-simple .bill-field-status { grid-area: status; }
+body[data-device-layout="tablet"] .budget-bill-item-simple .bill-field-notes,
+body[data-device-layout="phone"] .budget-bill-item-simple .bill-field-notes { grid-area: notes; }
+body[data-device-layout="tablet"] .budget-bill-item-simple .budget-bill-actions,
+body[data-device-layout="phone"] .budget-bill-item-simple .budget-bill-actions { grid-area: actions; justify-content: flex-end; }
+
+body[data-device-layout="tablet"] .budget-bill-item-simple .budget-bill-field > span,
+body[data-device-layout="phone"] .budget-bill-item-simple .budget-bill-field > span {
+  display: block;
+  margin-bottom: 3px;
+  color: #52647d;
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+body[data-device-layout="tablet"] .budget-bill-item-simple input,
+body[data-device-layout="tablet"] .budget-bill-item-simple select,
+body[data-device-layout="tablet"] .budget-bill-item-simple textarea,
+body[data-device-layout="phone"] .budget-bill-item-simple input,
+body[data-device-layout="phone"] .budget-bill-item-simple select,
+body[data-device-layout="phone"] .budget-bill-item-simple textarea {
+  width: 100%;
+  min-height: 38px;
+  font-size: .96rem;
+}
+
+body[data-device-layout="tablet"] .budget-bill-item-simple .budget-bill-notes-box textarea,
+body[data-device-layout="phone"] .budget-bill-item-simple .budget-bill-notes-box textarea {
+  min-height: 64px;
+  height: 64px;
+}
+
+body[data-device-layout="phone"] .budget-bill-item-simple {
+  grid-template-columns: 24px minmax(0, 1fr);
+  grid-template-areas:
+    "selector bill"
+    "selector previous"
+    "selector current"
+    "selector amount"
+    "selector due"
+    "selector paid-date"
+    "selector status"
+    "selector notes"
+    "selector actions";
+  gap: 8px;
+  padding: 10px;
+}
+
+body[data-device-layout="phone"] .device-view-control {
+  padding: 0 7px;
 }
 
 body[data-device-layout="phone"] .budget-panel-popout {
