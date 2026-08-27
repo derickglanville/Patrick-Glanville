@@ -896,11 +896,14 @@ textarea {
 .budget-bill-list-header.is-simple {
   grid-template-columns:
     24px
-    minmax(220px, 1.1fr)
-    minmax(120px, .7fr)
-    minmax(140px, .8fr)
-    minmax(120px, .7fr)
-    minmax(260px, 1.3fr)
+    minmax(180px, 1fr)
+    minmax(104px, .62fr)
+    minmax(104px, .62fr)
+    minmax(96px, .56fr)
+    minmax(124px, .72fr)
+    minmax(124px, .72fr)
+    minmax(100px, .58fr)
+    minmax(220px, 1.15fr)
     88px;
 }
 
@@ -1119,19 +1122,36 @@ textarea {
 }
 
 .budget-bill-list-simple {
-  max-height: 520px;
+  /* Patrick has a short bill list, so keep every record visible for review. */
+  max-height: none;
 }
 
 .budget-bill-item-simple {
   grid-template-columns:
     24px
-    minmax(220px, 1.1fr)
-    minmax(120px, .7fr)
-    minmax(140px, .8fr)
-    minmax(120px, .7fr)
-    minmax(260px, 1.3fr)
+    minmax(180px, 1fr)
+    minmax(104px, .62fr)
+    minmax(104px, .62fr)
+    minmax(96px, .56fr)
+    minmax(124px, .72fr)
+    minmax(124px, .72fr)
+    minmax(100px, .58fr)
+    minmax(220px, 1.15fr)
     88px;
-  min-width: 0;
+  min-width: 1160px;
+}
+
+.budget-bill-item-simple .bill-current-balance {
+  background: #f1f5fb;
+  color: #334155;
+  font-weight: 700;
+}
+
+.budget-bill-item-simple .bill-paid-date {
+  color: #166534;
+  background: #edf9f1;
+  border-color: #b8dec4;
+  font-weight: 700;
 }
 
 .budget-bill-item-simple .budget-bill-notes-box textarea {
@@ -3568,8 +3588,8 @@ body[data-device-layout="phone"] .budget-bill-list-header.is-simple {
 }
 
 body[data-device-layout="phone"] .budget-bill-item-simple {
-  grid-template-columns: 24px minmax(200px, 1fr) 118px 130px 108px minmax(220px, 1fr) 72px;
-  min-width: 900px;
+  grid-template-columns: 24px minmax(180px, 1fr) 104px 104px 96px 124px 124px 100px minmax(220px, 1fr) 72px;
+  min-width: 1140px;
 }
 
 body[data-device-layout="phone"] .budget-bill-item-simple .budget-bill-notes-box textarea {

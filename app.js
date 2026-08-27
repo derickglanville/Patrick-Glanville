@@ -5315,13 +5315,32 @@ function scheduleDateForOffset(weekStart, offset) {
   return date.toISOString().slice(0, 10);
 }
 
+function getShiftWorkingHours(shift) {
+  const value = String(shift || "").trim();
+  if (!value || /^off\b/i.test(value)) return 0;
+
+  // Supports entries such as "10:00 AM - 4:00 PM" and "7 AM-2:30 PM".
+  const match = value.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)\s*[-–]\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/i);
+  if (!match) return null;
+
+  const toMinutes = (hours, minutes, meridiem) => {
+    let hour = Number(hours) % 12;
+    if (String(meridiem).toLowerCase() === "pm") hour += 12;
+    return hour * 60 + (Number(minutes) || 0);
+  };
+  const start = toMinutes(match[1], match[2], match[3]);
+  let end = toMinutes(match[4], match[5], match[6]);
+  if (end < start) end += 24 * 60;
+  return Math.round(((end - start) / 60) * 100) / 100;
+}
+
 function renderWorkScheduleEntryRows(weekStart, entries = []) {
   const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   workScheduleEntryRows.innerHTML = days.map((day, index) => {
     const entry = entries[index] || {};
     return `<div class="work-schedule-entry-row">
       <label>${day}<input class="work-schedule-date" type="date" value="${escapeAttribute(entry.date || scheduleDateForOffset(weekStart, index))}" readonly></label>
-      <label>Shift<input class="work-schedule-shift" value="${escapeAttribute(entry.shift || "Off")}" placeholder="Off or 10:00 AM - 4:00 PM"></label>
+      <label>Shift / working hours<input class="work-schedule-shift" value="${escapeAttribute(entry.shift || "Off")}" placeholder="Off or 10:00 AM - 4:00 PM" aria-describedby="workScheduleShiftHelp"></label>
       <label>Hours<input class="work-schedule-hours" type="number" min="0" step="0.25" value="${Number(entry.hours) || 0}"></label>
     </div>`;
   }).join("");
@@ -6060,7 +6079,7 @@ function renderBills() {
   if (billListHeader) {
     billListHeader.classList.toggle("is-simple", usesSimpleBills);
     billListHeader.innerHTML = usesSimpleBills
-      ? "<span class=\"budget-bill-selector-header\"></span><span>Bill</span><span>Amount</span><span>Due</span><span>Status</span><span>Notes</span><span>Actions</span>"
+      ? "<span class=\"budget-bill-selector-header\"></span><span>Bill</span><span>Prev Bal</span><span>Current Bal</span><span>Amount</span><span>Due</span><span>Date Paid</span><span>Status</span><span>Notes</span><span>Actions</span>"
       : "<span class=\"budget-bill-selector-header bill-col-selector\"></span><span class=\"bill-col bill-col-name\">Bill</span><span class=\"bill-col bill-col-apr\">APR</span><span class=\"bill-col bill-col-interest-paid is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum interest paid column\">Interest Paid</span><span class=\"bill-col bill-col-prev-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum previous balance column\">Prev Bal</span><span class=\"bill-col bill-col-current-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum current balance column\">Current Bal</span><span class=\"bill-col bill-col-diff is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum difference column\">Diff</span><span class=\"bill-col bill-col-credit-line is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum credit line column\">Credit Line</span><span class=\"bill-col bill-col-due-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum due amount column\">Due Amt</span><span class=\"bill-col bill-col-paid-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum paid amount column\">Paid Amt</span><span class=\"bill-col bill-col-recommended is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum recommended payment column\">Recommended</span><span class=\"bill-col bill-col-tran\">Tran #</span><span class=\"bill-col bill-col-due-date\">Due</span><span class=\"bill-col bill-col-date-paid\">Date Paid</span><span class=\"bill-col bill-col-credit-percent\">% Credit</span><span class=\"bill-col bill-col-status\">Status</span><span class=\"bill-col bill-col-notes\">Notes</span><span class=\"bill-col bill-col-actions\">Actions</span>";
     if (!usesSimpleBills) {
       Object.entries(BILL_COLUMN_SUM_CONFIG).forEach(([columnClass, config]) => {
@@ -6217,9 +6236,17 @@ function updateBillFromRow(row, options = {}) {
     ? normalizeCurrencyCell(getField(".bill-paid-amount").value)
     : bill.paidAmount;
   bill.paidDate = getField(".bill-paid-date")?.value ?? bill.paidDate;
-  bill.status = bill.statusTracksPaidDate
-    ? deriveAutoTrackedBillStatus(bill)
-    : (getField(".bill-status")?.value ?? bill.status);
+  const isSimpleBill = row.classList.contains("budget-bill-item-simple");
+  const simplePaymentRecorded = isSimpleBill && Boolean(bill.paidDate) && normalizeMoney(bill.amount) > 0;
+  if (simplePaymentRecorded) {
+    // Patrick's simpler bill view uses the prior balance as the payment baseline.
+    bill.currentBalance = Math.max(0, normalizeMoney(bill.previousBalance) - normalizeMoney(bill.amount));
+    bill.status = "Paid";
+  } else {
+    bill.status = bill.statusTracksPaidDate
+      ? deriveAutoTrackedBillStatus(bill)
+      : (getField(".bill-status")?.value ?? bill.status);
+  }
   bill.notes = normalizeBillNotes(getField(".bill-notes")?.value.trim() ?? bill.notes, bill.status);
   if (options.recalculateBalance) {
     bill.currentBalance = calculateCurrentBalanceFromPayment(bill.previousBalance, bill.paidAmount, bill.apr);
@@ -6265,7 +6292,8 @@ function updateBillFromRow(row, options = {}) {
     if (getField(".bill-current-balance")) getField(".bill-current-balance").value = formatCurrencyInputValue(bill.currentBalance);
     if (getField(".bill-credit-limit")) getField(".bill-credit-limit").value = formatCurrencyInputValue(bill.creditLimit);
     if (getField(".bill-amount")) getField(".bill-amount").value = formatCurrencyInputValue(bill.amount);
-    if (getField(".bill-paid-amount")) getField(".bill-paid-amount").value = formatCurrencyInputValue(bill.paidAmount);
+    if (simplePaymentRecorded && getField(".bill-status")) getField(".bill-status").value = bill.status;
+    row.classList.toggle("is-paid", bill.status === "Paid");
   }
 }
 
@@ -10562,6 +10590,15 @@ if (workScheduleWeekStart) {
     if (!workScheduleReceivedOn.value) workScheduleReceivedOn.value = scheduleDateForOffset(workScheduleWeekStart.value, 4);
   });
 }
+if (workScheduleEntryRows) {
+  workScheduleEntryRows.addEventListener("change", event => {
+    if (!event.target.matches(".work-schedule-shift")) return;
+    const row = event.target.closest(".work-schedule-entry-row");
+    const hoursInput = row?.querySelector(".work-schedule-hours");
+    const workingHours = getShiftWorkingHours(event.target.value);
+    if (hoursInput && workingHours !== null) hoursInput.value = String(workingHours);
+  });
+}
 if (workScheduleForm) {
   workScheduleForm.addEventListener("submit", event => {
     event.preventDefault();
@@ -10569,12 +10606,18 @@ if (workScheduleForm) {
     const weekStart = workScheduleWeekStart.value;
     if (!weekStart) return;
     const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    const entries = Array.from(workScheduleEntryRows.querySelectorAll(".work-schedule-entry-row")).map((row, index) => ({
-      day: days[index],
-      date: row.querySelector(".work-schedule-date")?.value || scheduleDateForOffset(weekStart, index),
-      shift: row.querySelector(".work-schedule-shift")?.value.trim() || "Off",
-      hours: Math.max(0, Number(row.querySelector(".work-schedule-hours")?.value) || 0)
-    }));
+    const entries = Array.from(workScheduleEntryRows.querySelectorAll(".work-schedule-entry-row")).map((row, index) => {
+      const shift = row.querySelector(".work-schedule-shift")?.value.trim() || "Off";
+      const calculatedHours = getShiftWorkingHours(shift);
+      return {
+        day: days[index],
+        date: row.querySelector(".work-schedule-date")?.value || scheduleDateForOffset(weekStart, index),
+        shift,
+        hours: calculatedHours === null
+          ? Math.max(0, Number(row.querySelector(".work-schedule-hours")?.value) || 0)
+          : calculatedHours
+      };
+    });
     const schedules = normalizeWorkSchedules(state.workSchedules);
     const existingIndex = schedules.findIndex(schedule => schedule.weekStart === weekStart);
     const updated = {
@@ -10957,12 +11000,24 @@ function renderSimpleBillRow(bill, targetList) {
         <input class="bill-name" value="${escapeAttribute(bill.name)}" aria-label="Bill name">
       </label>
       <label class="budget-bill-field">
-        <span>Amount</span>
+        <span>Previous balance</span>
+        <input class="bill-previous-balance" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.previousBalance ?? bill.currentBalance))}" aria-label="Previous balance">
+      </label>
+      <label class="budget-bill-field">
+        <span>Current balance</span>
+        <input class="bill-current-balance" type="text" value="${escapeAttribute(formatCurrencyInputValue(bill.currentBalance))}" aria-label="Current balance" readonly>
+      </label>
+      <label class="budget-bill-field">
+        <span>Amount due</span>
         <input class="bill-amount" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.amount))}" aria-label="Bill amount">
       </label>
       <label class="budget-bill-field">
         <span>Due date</span>
         <input class="bill-due" type="date" value="${escapeAttribute(bill.due)}" aria-label="Bill due date">
+      </label>
+      <label class="budget-bill-field">
+        <span>Date paid</span>
+        <input class="bill-paid-date" type="date" value="${escapeAttribute(bill.paidDate)}" aria-label="Bill paid date">
       </label>
       <label class="budget-bill-field">
         <span>Status</span>
@@ -10981,9 +11036,12 @@ function renderSimpleBillRow(bill, targetList) {
 
     row.querySelector(".bill-name").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-amount").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
+    row.querySelector(".bill-previous-balance").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-name").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-amount").addEventListener("change", () => updateBillFromRow(row));
+    row.querySelector(".bill-previous-balance").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-due").addEventListener("change", () => updateBillFromRow(row));
+    row.querySelector(".bill-paid-date").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-status").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-notes").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-notes").addEventListener("blur", () => updateBillFromRow(row));
