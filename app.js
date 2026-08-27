@@ -10681,7 +10681,7 @@ function detectDeviceLayout() {
 
 function getDeviceLayoutMode() {
   const storedMode = localStorage.getItem("threeGTrackingDeviceViewMode") || "auto";
-  return ["auto", "desktop", "tablet", "phone"].includes(storedMode) ? storedMode : "auto";
+  return ["auto", "desktop", "tablet", "phone", "compact"].includes(storedMode) ? storedMode : "auto";
 }
 
 function applyDeviceLayout() {

@@ -3784,6 +3784,85 @@ body[data-device-layout="phone"] .budget-panel-popout .budget-bill-list-admin {
   max-height: calc(100vh - 170px);
 }
 
+/* Compact keeps Patrick's desktop-style bill list on touch devices without
+   turning every bill into a tall card. The list scrolls horizontally only
+   when the device cannot fit every column. */
+body[data-device-layout="compact"] main {
+  padding-inline: 8px;
+}
+
+body[data-device-layout="compact"] .budget-panel {
+  padding: 10px;
+}
+
+body[data-device-layout="compact"] .budget-bill-list-simple {
+  max-height: calc(100vh - 230px);
+  overflow: auto;
+  gap: 0;
+  padding: 0;
+}
+
+body[data-device-layout="compact"] .budget-bill-list-header.is-simple,
+body[data-device-layout="compact"] .budget-bill-item-simple {
+  grid-template-columns:
+    18px
+    minmax(126px, 1fr)
+    minmax(72px, .56fr)
+    minmax(72px, .56fr)
+    minmax(72px, .52fr)
+    minmax(88px, .68fr)
+    minmax(88px, .68fr)
+    minmax(68px, .5fr)
+    minmax(122px, .86fr)
+    54px;
+  min-width: 830px;
+}
+
+body[data-device-layout="compact"] .budget-bill-list-header.is-simple {
+  font-size: .63rem;
+}
+
+body[data-device-layout="compact"] .budget-bill-item-simple {
+  min-height: 30px;
+  border-width: 0 0 1px;
+  border-radius: 0;
+}
+
+body[data-device-layout="compact"] .budget-bill-item-simple .budget-bill-field > span {
+  display: none;
+}
+
+body[data-device-layout="compact"] .budget-bill-item-simple input,
+body[data-device-layout="compact"] .budget-bill-item-simple select,
+body[data-device-layout="compact"] .budget-bill-item-simple textarea {
+  min-height: 26px;
+  padding: 1px 4px;
+  font-size: .78rem;
+}
+
+body[data-device-layout="compact"] .budget-bill-item-simple .budget-bill-notes-box textarea {
+  min-height: 26px;
+  height: 26px;
+  resize: none;
+}
+
+body[data-device-layout="compact"] .budget-bill-item-simple .budget-bill-selector-box {
+  align-self: stretch;
+}
+
+body[data-device-layout="compact"] .budget-bill-row-selector {
+  width: 12px;
+  min-width: 12px;
+  height: 20px;
+  min-height: 20px;
+}
+
+body[data-device-layout="compact"] .budget-bill-actions button {
+  min-height: 26px;
+  padding: 2px 4px;
+  font-size: .7rem;
+}
+
 @media print {
   body {
     background: white;
