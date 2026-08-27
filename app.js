@@ -6120,7 +6120,12 @@ function renderBills() {
   if (calculateBillsBtn) calculateBillsBtn.hidden = usesSimpleBills;
   if (assignDueDatesBtn) assignDueDatesBtn.hidden = usesSimpleBills;
   if (undoCopyBillsToNextMonthBtn) undoCopyBillsToNextMonthBtn.hidden = usesSimpleBills;
-  if (toggleBillsPopoutBtn) toggleBillsPopoutBtn.hidden = usesSimpleBills;
+  if (toggleBillsPopoutBtn) {
+    const isPoppedOut = Boolean(budgetPanel?.classList.contains("budget-panel-popout"));
+    toggleBillsPopoutBtn.hidden = false;
+    toggleBillsPopoutBtn.textContent = isPoppedOut ? "Dock" : "Pop Out";
+    toggleBillsPopoutBtn.setAttribute("aria-pressed", String(isPoppedOut));
+  }
 
   if (toggleHiddenBillsBtn) {
     const hiddenCount = hiddenBills.length;
@@ -10672,7 +10677,15 @@ if (clientSwitchBtn) {
   clientSwitchBtn.addEventListener("click", openClientSwitcher);
 }
 
+function isAppleMobileDevice() {
+  const userAgent = navigator.userAgent || "";
+  const touchCapableMac = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+  return /iPhone|iPad|iPod/i.test(userAgent) || touchCapableMac;
+}
+
 function detectDeviceLayout() {
+  // Keep the dense bill grid usable on iPhone and iPad when View is set to Auto.
+  if (isAppleMobileDevice()) return "compact";
   const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
   if (viewportWidth <= 680) return "phone";
   if (viewportWidth <= 1100 || window.matchMedia("(pointer: coarse)").matches) return "tablet";

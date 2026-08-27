@@ -3863,6 +3863,15 @@ body[data-device-layout="compact"] .budget-bill-actions button {
   font-size: .7rem;
 }
 
+body[data-device-layout="compact"] .budget-panel-popout {
+  inset: 6px;
+  padding: 8px;
+}
+
+body[data-device-layout="compact"] .budget-panel-popout .budget-bill-list-simple {
+  max-height: calc(100vh - 112px);
+}
+
 @media print {
   body {
     background: white;
