@@ -4959,12 +4959,32 @@ async function subscribeToSharedState() {
   );
 }
 
+async function pullLatestSharedState() {
+  if (!supabaseEnabled || !activeClientId || !getSupabaseStateId()) {
+    throw new Error("Choose a client with Firebase sync active first.");
+  }
+
+  // Discard this device's pending write before loading the canonical Firestore state.
+  window.clearTimeout(supabaseSaveTimer);
+  pendingLocalSharedSaveAt = "";
+  const docRef = supabaseClient.doc(supabaseClient.db, SUPABASE_TABLE, getSupabaseStateId());
+  const snapshot = await supabaseClient.getDoc(docRef);
+  if (!snapshot.exists() || !snapshot.data()?.state) {
+    throw new Error("No shared Firebase state was found for this client.");
+  }
+
+  const data = snapshot.data() || {};
+  applyRemoteSharedState(data.state, data.updated_at || "");
+  return data.updated_at || "";
+}
+
 async function requestRemoteClientRefresh() {
   if (!supabaseEnabled || !activeClientId || !getSupabaseStateId()) {
     alert("Choose a client with Firebase sync active first.");
     return;
   }
   try {
+    const loadedAt = await pullLatestSharedState();
     const requestedAt = new Date().toISOString();
     const refreshDocRef = supabaseClient.doc(
       supabaseClient.db,
@@ -4984,11 +5004,9 @@ async function requestRemoteClientRefresh() {
       { merge: true }
     );
     lastSeenRefreshSignalAt = requestedAt;
-    supabaseStatus = `Firebase Firestore shared storage; latest pull requested for ${currentClientConfig()?.shortName || "client"}`;
+    supabaseStatus = `Firebase Firestore shared storage; latest version loaded for ${currentClientConfig()?.shortName || "client"}${loadedAt ? `; synced ${formatDateTime(loadedAt)}` : ""}`;
     updateDataStoreStatus();
-    const url = new URL(window.location.href);
-    url.searchParams.set("refresh", Date.now().toString());
-    window.location.href = url.toString();
+    alert(`Loaded the latest Firebase version for ${currentClientConfig()?.shortName || "this client"}. Other open devices were asked to refresh.`);
   } catch (error) {
     supabaseStatus = `Firebase Firestore refresh request failed: ${error.message}`;
     updateDataStoreStatus();
