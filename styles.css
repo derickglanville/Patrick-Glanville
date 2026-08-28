@@ -888,7 +888,7 @@ textarea {
     56px
     64px
     minmax(156px, .9fr)
-    64px;
+    78px;
   gap: 1px;
   padding: 0 2px;
   color: #51627d;
@@ -1000,7 +1000,7 @@ textarea {
     50px
     58px
     minmax(128px, .78fr)
-    58px;
+    74px;
   font-size: .68rem;
 }
 
@@ -1023,7 +1023,7 @@ textarea {
     50px
     58px
     minmax(128px, .78fr)
-    58px;
+    74px;
   min-width: 1140px;
   padding: 0 2px;
 }
@@ -1072,7 +1072,7 @@ textarea {
     minmax(92px, .72fr)
     68px
     82px
-    62px;
+    74px;
   min-width: 960px;
 }
 
@@ -1124,7 +1124,7 @@ textarea {
     56px
     64px
     minmax(156px, .9fr)
-    64px;
+    78px;
   gap: 0;
   align-items: center;
   padding: 0;
@@ -1385,6 +1385,33 @@ textarea {
   font-weight: 700;
   border-radius: 8px;
   min-width: 60px;
+}
+
+/* Admin bills keep both actions on one compact, uncluttered line. */
+.budget-bill-list-admin .budget-bill-actions {
+  justify-content: center;
+  gap: 3px;
+}
+
+.budget-bill-list-admin .budget-bill-actions button {
+  min-width: 32px;
+  padding: 2px 4px;
+  font-size: .68rem;
+  line-height: 1.15;
+  border-radius: 5px;
+}
+
+.budget-bill-list-admin .delete-bill-button {
+  color: #9f1239;
+  background: #fff1f2;
+  border-color: #fda4af;
+}
+
+.budget-bill-list-admin .delete-bill-button:hover,
+.budget-bill-list-admin .delete-bill-button:focus-visible {
+  color: #ffffff;
+  background: #be123c;
+  border-color: #be123c;
 }
 
 .budget-bill-item:not(.budget-bill-item-simple) input,

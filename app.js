@@ -3500,6 +3500,37 @@ function dedupeAllMonthlyBudgetBills() {
   });
 }
 
+function isPatrickEyeGlassesBill(bill) {
+  return activeClientId === "patrick" && String(bill?.name || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "") === "eyeglasses";
+}
+
+function buildRolledForwardBills(sourceBills, targetMonth) {
+  return dedupeBudgetBills((sourceBills || []).map(normalizeBill))
+    .filter(bill => !isPatrickEyeGlassesBill(bill))
+    .map(currentBill => ({
+      ...normalizeBill(currentBill),
+      previousBalance: normalizeMoney(currentBill.currentBalance),
+      currentBalance: normalizeMoney(currentBill.currentBalance),
+      creditLimit: normalizeMoney(currentBill.creditLimit),
+      amount: normalizeMoney(currentBill.amount),
+      due: normalizeBillDateLike(currentBill.due)
+        ? moveDateToTargetMonth(normalizeBillDateLike(currentBill.due), targetMonth)
+        : "",
+      status: "Unpaid",
+      paidAmount: 0,
+      paidDate: "",
+      transactionNumber: "",
+      hidden: Boolean(currentBill.hidden)
+    }));
+}
+
+function getRolloverDeletedBillNames() {
+  return activeClientId === "patrick" ? ["eye glasses"] : [];
+}
+
 function calculateBudgetTotals(monthlyBudgetFund, bills) {
   const totalBills = bills.reduce((sum, bill) => sum + normalizeMoney(bill.amount), 0);
   const paidBills = bills
@@ -3535,8 +3566,17 @@ function ensureMonthlyBudgetState(month) {
       if (sourceEntry && copyBudgetDueAmountsFromPreviousMonth(targetEntry, sourceEntry)) {
         targetEntry.copiedForwardFrom = sourceMonth;
       }
+    } else if (activeClientId === "patrick" && targetMonth >= BUDGET_TRACKING_START_MONTH) {
+      const sourceMonth = shiftMonthString(targetMonth, -1);
+      const sourceEntry = state.monthlyBudgets[sourceMonth];
+      if (sourceEntry) {
+        targetEntry.monthlyBudgetFund = normalizeMoney(sourceEntry.monthlyBudgetFund);
+        targetEntry.bills = buildRolledForwardBills(sourceEntry.bills, targetMonth);
+        targetEntry.copiedForwardFrom = sourceMonth;
+        targetEntry.deletedBillNames = getRolloverDeletedBillNames();
+      }
     }
-    state.monthlyBudgets[targetMonth] = targetEntry;
+    state.monthlyBudgets[targetMonth] = normalizeMonthlyBudgetEntry(targetEntry, targetMonth);
   }
   return state.monthlyBudgets[targetMonth];
 }
@@ -6003,7 +6043,7 @@ function renderBills() {
       </div>
       <div class="budget-bill-actions bill-col-actions">
         <button type="button" class="toggle-bill-hidden" aria-label="${bill.hidden ? "Unhide" : "Hide"} bill">${bill.hidden ? "Unhide" : "Hide"}</button>
-        <button type="button" class="delete-bill-button" aria-label="Delete bill">Delete</button>
+        <button type="button" class="delete-bill-button" aria-label="Delete bill" title="Delete bill">${usesSimpleBills ? "Delete" : "Del"}</button>
       </div>
     `;
 
@@ -6134,7 +6174,8 @@ function renderBills() {
   if (hiddenBillsPanel) {
     hiddenBillsPanel.hidden = usesSimpleBills;
   }
-  if (copyBillsToNextMonthBtn) copyBillsToNextMonthBtn.hidden = usesSimpleBills;
+  // Patrick uses the simpler bill layout, but still needs the monthly rollover action.
+  if (copyBillsToNextMonthBtn) copyBillsToNextMonthBtn.hidden = false;
   if (calculateBillsBtn) calculateBillsBtn.hidden = usesSimpleBills;
   if (assignDueDatesBtn) assignDueDatesBtn.hidden = usesSimpleBills;
   if (undoCopyBillsToNextMonthBtn) undoCopyBillsToNextMonthBtn.hidden = usesSimpleBills;
@@ -6622,21 +6663,7 @@ function copyBillsToNextMonth() {
   captureBillSnapshot(`Before copying bills from ${currentMonth} to ${nextMonth}`, currentMonth);
   const currentMonthBudget = ensureMonthlyBudgetState(currentMonth);
   const sourceBills = dedupeBudgetBills((currentMonthBudget?.bills || state.bills).map(normalizeBill));
-  const copiedBills = sourceBills.map(currentBill => ({
-    ...normalizeBill(currentBill),
-    previousBalance: normalizeMoney(currentBill.currentBalance),
-    currentBalance: normalizeMoney(currentBill.currentBalance),
-    creditLimit: normalizeMoney(currentBill.creditLimit),
-    amount: normalizeMoney(currentBill.amount),
-    due: normalizeBillDateLike(currentBill.due)
-      ? moveDateToTargetMonth(normalizeBillDateLike(currentBill.due), nextMonth)
-      : "",
-    status: "Unpaid",
-    paidAmount: 0,
-    paidDate: "",
-    transactionNumber: "",
-    hidden: Boolean(currentBill.hidden)
-  }));
+  const copiedBills = buildRolledForwardBills(sourceBills, nextMonth);
 
   const normalizedNextMonthBudget = normalizeMonthlyBudgetEntry({
     month: nextMonth,
@@ -6644,7 +6671,8 @@ function copyBillsToNextMonth() {
     copiedForwardFrom: currentMonth,
     bills: copiedBills,
     deletedBillKeys: [],
-    deletedBillNames: []
+    // Prevent the seed-data normalizer from adding the one-time bill back.
+    deletedBillNames: getRolloverDeletedBillNames()
   }, nextMonth);
   normalizedNextMonthBudget.bills = normalizedNextMonthBudget.bills.map(bill => {
     const sourceBill = copiedBills.find(candidate => (candidate.templateKey || candidate.name) === (bill.templateKey || bill.name));
