@@ -152,6 +152,20 @@ let currentJsonBackupComparison = {
   toId: ""
 };
 let billSyncAlertState = null;
+const MONTHLY_BILL_EDITOR_SELECTORS = [
+  ".bill-name",
+  ".bill-apr",
+  ".bill-previous-balance",
+  ".bill-current-balance",
+  ".bill-credit-limit",
+  ".bill-amount",
+  ".bill-paid-amount",
+  ".bill-transaction-number",
+  ".bill-due",
+  ".bill-paid-date",
+  ".bill-status",
+  ".bill-notes"
+];
 const allowedUsers = [
   { name: "Deric Glanville", email: DERIC_EMAIL },
   { name: "Patrick Glanville", email: PATRICK_EMAIL },
@@ -468,7 +482,8 @@ const seedData = {
     patrickWatch: true,
     bills: true,
     budgetSnapshots: true,
-    lifeAdmin: true
+    lifeAdmin: true,
+    adminBillSms: true
   },
   runningNotes: [],
   documents: [],
@@ -1126,7 +1141,8 @@ function buildTheoSeedData() {
       patrickWatch: true,
       bills: true,
       budgetSnapshots: true,
-      lifeAdmin: true
+      lifeAdmin: true,
+      adminBillSms: true
     },
     collapsedTaskGroupsVersion: TASK_GROUP_COLLAPSE_VERSION,
     collapsedTaskGroups: {},
@@ -1175,7 +1191,8 @@ function buildAdminSeedData() {
       patrickWatch: true,
       bills: true,
       budgetSnapshots: true,
-      lifeAdmin: true
+      lifeAdmin: true,
+      adminBillSms: true
     },
     collapsedTaskGroupsVersion: TASK_GROUP_COLLAPSE_VERSION,
     collapsedTaskGroups: {},
@@ -1235,7 +1252,8 @@ function buildUnselectedClientState() {
       patrickWatch: true,
       bills: true,
       budgetSnapshots: true,
-      lifeAdmin: true
+      lifeAdmin: true,
+      adminBillSms: true
     },
     collapsedTaskGroupsVersion: TASK_GROUP_COLLAPSE_VERSION,
     collapsedTaskGroups: Object.fromEntries(taskGroupOrder.map(groupName => [groupName, true])),
@@ -1567,6 +1585,8 @@ const assignDueDatesBtn = document.querySelector("#assignDueDatesBtn");
 const undoCopyBillsToNextMonthBtn = document.querySelector("#undoCopyBillsToNextMonthBtn");
 const monthlyBillsReportBtn = document.querySelector("#monthlyBillsReportBtn");
 const adminBillSmsControls = document.querySelector("#adminBillSmsControls");
+const toggleAdminBillSmsBtn = document.querySelector("#toggleAdminBillSmsBtn");
+const adminBillSmsContent = document.querySelector("#adminBillSmsContent");
 const sendAdminBillSmsBtn = document.querySelector("#sendAdminBillSmsBtn");
 const adminBillSmsTime = document.querySelector("#adminBillSmsTime");
 const adminBillSmsStatus = document.querySelector("#adminBillSmsStatus");
@@ -2617,17 +2637,20 @@ function initializeState(loaded) {
     stateAdjusted = true;
   }
   if (loaded.panelVisibilityVersion !== PANEL_VISIBILITY_VERSION) {
-    loaded.hiddenPanels = { patrickWatch: true, bills: false, budgetSnapshots: true, lifeAdmin: true, workSchedule: false };
+    loaded.hiddenPanels = { patrickWatch: true, bills: false, budgetSnapshots: true, lifeAdmin: true, workSchedule: false, adminBillSms: true };
     loaded.panelVisibilityVersion = PANEL_VISIBILITY_VERSION;
     panelVisibilityReset = true;
   } else {
+    const hasAdminBillSmsVisibility = typeof loaded.hiddenPanels?.adminBillSms === "boolean";
     loaded.hiddenPanels = {
       patrickWatch: loaded.hiddenPanels?.patrickWatch ?? true,
       bills: loaded.hiddenPanels?.bills ?? false,
       budgetSnapshots: loaded.hiddenPanels?.budgetSnapshots ?? true,
       lifeAdmin: Boolean(loaded.hiddenPanels?.lifeAdmin),
-      workSchedule: Boolean(loaded.hiddenPanels?.workSchedule)
+      workSchedule: Boolean(loaded.hiddenPanels?.workSchedule),
+      adminBillSms: hasAdminBillSmsVisibility ? loaded.hiddenPanels.adminBillSms : true
     };
+    if (!hasAdminBillSmsVisibility) stateAdjusted = true;
   }
   if (activeClientId === "patrick" && Number(loaded.workScheduleSetupVersion) !== 2) {
     loaded.hiddenPanels.workSchedule = false;
@@ -3263,6 +3286,8 @@ const ADMIN_SCHEDULED_BILL_MONTHS = {
     "2027-04"
   ])
 };
+const ADMIN_SEPTEMBER_YORKTOWN_RECOVERY_VERSION = 1;
+const ADMIN_SEPTEMBER_YORKTOWN_NAME = "Yorktown Taxes and Insurance";
 
 function isBeforeBudgetTrackingStart(month) {
   return String(month || "").trim() && String(month) < BUDGET_TRACKING_START_MONTH;
@@ -3373,16 +3398,27 @@ function normalizeMonthlyBudgetEntry(entry, fallbackMonth = "", seed = getSeedDa
   if (!month) return null;
   const zeroAmounts = isBeforeBudgetTrackingStart(month);
   const fallback = buildDefaultMonthlyBudget(month, seed);
-  const deletedBillKeys = Array.isArray(entry?.deletedBillKeys)
+  const storedDeletedBillKeys = Array.isArray(entry?.deletedBillKeys)
     ? entry.deletedBillKeys
         .map(key => String(key || "").trim())
         .filter(Boolean)
     : [];
-  const deletedBillNames = Array.isArray(entry?.deletedBillNames)
+  const storedDeletedBillNames = Array.isArray(entry?.deletedBillNames)
     ? entry.deletedBillNames
         .map(name => String(name || "").trim().toLowerCase())
         .filter(Boolean)
     : [];
+  const yorktownTemplateKey = buildBudgetBillTemplateKey(ADMIN_SEPTEMBER_YORKTOWN_NAME);
+  const yorktownNormalizedName = ADMIN_SEPTEMBER_YORKTOWN_NAME.toLowerCase();
+  const recoverSeptemberYorktown = isAdminClient()
+    && month === "2026-09"
+    && Number(entry?.adminSeptemberYorktownRecoveryVersion || 0) < ADMIN_SEPTEMBER_YORKTOWN_RECOVERY_VERSION;
+  const deletedBillKeys = recoverSeptemberYorktown
+    ? storedDeletedBillKeys.filter(key => key !== yorktownTemplateKey)
+    : storedDeletedBillKeys;
+  const deletedBillNames = recoverSeptemberYorktown
+    ? storedDeletedBillNames.filter(name => name !== yorktownNormalizedName)
+    : storedDeletedBillNames;
   const deletedBillKeySet = new Set(deletedBillKeys);
   const deletedBillSet = new Set(deletedBillNames);
   const incomingBills = Array.isArray(entry?.bills) && entry.bills.length
@@ -3414,6 +3450,16 @@ function normalizeMonthlyBudgetEntry(entry, fallbackMonth = "", seed = getSeedDa
       month,
       assignSeedKey: true
     });
+    const scheduledOverride = getFutureBudgetBillOverride(seedBill.name, month);
+    if (scheduledOverride) {
+      mergedBill.amount = zeroAmounts ? 0 : normalizeMoney(scheduledOverride.amount);
+      mergedBill.due = zeroAmounts ? "" : scheduledOverride.due;
+      mergedBill.status = "Unpaid";
+      mergedBill.paidAmount = 0;
+      mergedBill.paidDate = "";
+      mergedBill.transactionNumber = "";
+      mergedBill.notes = "";
+    }
     normalizedBills.push(mergedBill);
     billsByIdentity.set(identityKey, mergedBill);
   });
@@ -3423,7 +3469,10 @@ function normalizeMonthlyBudgetEntry(entry, fallbackMonth = "", seed = getSeedDa
     bills: normalizedBills.filter(bill => shouldIncludeAdminBillInMonth(bill?.name, month)),
     copiedForwardFrom: entry?.copiedForwardFrom || "",
     deletedBillKeys,
-    deletedBillNames
+    deletedBillNames,
+    adminSeptemberYorktownRecoveryVersion: recoverSeptemberYorktown
+      ? ADMIN_SEPTEMBER_YORKTOWN_RECOVERY_VERSION
+      : Number(entry?.adminSeptemberYorktownRecoveryVersion) || 0
   };
   return sanitizeFutureMonthlyBudgetEntry(normalizedEntry, seed);
 }
@@ -4946,6 +4995,19 @@ async function subscribeToSharedState() {
             return;
           }
 
+          // Firestore echoes this device's completed write back through the
+          // listener. The local state already contains that exact payload, so
+          // avoid a redundant full render that can interrupt an active editor.
+          if (remoteState.lastSavedAt
+            && remoteState.lastSavedAt === state.lastSavedAt) {
+            cacheRemoteUpdatedAt(updatedAt);
+            pendingLocalSharedSaveAt = "";
+            supabaseStatus = `Firebase Firestore shared storage; live sync active for ${currentClientConfig()?.shortName || "client"}${updatedAt ? `; saved ${formatDateTime(updatedAt)}` : ""}`;
+            updateDataStoreStatus();
+            settleResolve();
+            return;
+          }
+
           const needsNormalizationSave = applyRemoteSharedState(remoteState, updatedAt);
           settleResolve();
           if (needsNormalizationSave) {
@@ -5238,7 +5300,55 @@ function updateClientChrome() {
   if (toggleLifeAdminBtn) toggleLifeAdminBtn.hidden = !client?.supportsLifeAdmin;
 }
 
+function captureMonthlyBillEditorFocus() {
+  const activeElement = document.activeElement;
+  if (!(activeElement instanceof HTMLInputElement)
+    && !(activeElement instanceof HTMLTextAreaElement)
+    && !(activeElement instanceof HTMLSelectElement)) {
+    return null;
+  }
+
+  const row = activeElement.closest(".budget-bill-item[data-bill-id]");
+  if (!row) return null;
+  const selector = MONTHLY_BILL_EDITOR_SELECTORS.find(candidate => activeElement.matches(candidate));
+  if (!selector) return null;
+
+  return {
+    billId: row.dataset.billId,
+    selector,
+    selectionStart: typeof activeElement.selectionStart === "number" ? activeElement.selectionStart : null,
+    selectionEnd: typeof activeElement.selectionEnd === "number" ? activeElement.selectionEnd : null
+  };
+}
+
+function restoreMonthlyBillEditorFocus(snapshot) {
+  if (!snapshot?.billId || !snapshot.selector) return;
+  const row = [...document.querySelectorAll(".budget-bill-item[data-bill-id]")]
+    .find(item => item.dataset.billId === snapshot.billId);
+  const field = row?.querySelector(snapshot.selector);
+  if (!field || field.disabled || field.readOnly) return;
+
+  try {
+    field.focus({ preventScroll: true });
+  } catch {
+    // Older mobile browsers may not support the focus options object.
+    field.focus();
+  }
+  if (snapshot.selectionStart !== null
+    && snapshot.selectionEnd !== null
+    && typeof field.setSelectionRange === "function") {
+    const maxPosition = field.value.length;
+    field.setSelectionRange(
+      Math.min(snapshot.selectionStart, maxPosition),
+      Math.min(snapshot.selectionEnd, maxPosition)
+    );
+  }
+}
+
 function render() {
+  // Firestore can trigger a full render while a bill field is being edited.
+  // Restore the same editor so typing never jumps to the top of the bill panel.
+  const billEditorFocus = captureMonthlyBillEditorFocus();
   updateClientChrome();
   const query = searchInput.value.trim().toLowerCase();
   const status = statusFilter.value;
@@ -5284,6 +5394,7 @@ function render() {
   userSelect.value = state.currentUser || "";
   updateTaskLabelControls();
   renderBillSyncAlert();
+  restoreMonthlyBillEditorFocus(billEditorFocus);
 }
 
 function formatScheduleDate(value) {
@@ -10085,6 +10196,16 @@ function renderAdminBillSmsControls() {
   adminBillSmsControls.hidden = !isAdmin;
   if (!isAdmin) return;
 
+  const isCollapsed = Boolean(state.hiddenPanels?.adminBillSms);
+  adminBillSmsControls.classList.toggle("is-collapsed", isCollapsed);
+  if (adminBillSmsContent) adminBillSmsContent.hidden = isCollapsed;
+  if (toggleAdminBillSmsBtn) {
+    toggleAdminBillSmsBtn.textContent = isCollapsed
+      ? "Show Admin bill text reminder"
+      : "Hide Admin bill text reminder";
+    toggleAdminBillSmsBtn.setAttribute("aria-expanded", String(!isCollapsed));
+  }
+
   populateAdminBillSmsTimeOptions();
   if (adminBillSmsTime) adminBillSmsTime.value = adminBillSmsHelperState.sendTime;
   const canUseLocalHelper = adminBillSmsHelperState.available && adminBillSmsHelperState.enabled;
@@ -10383,6 +10504,14 @@ if (calculateBillsBtn) {
 }
 if (monthlyBillsReportBtn) {
   monthlyBillsReportBtn.addEventListener("click", downloadMonthlyBillsReportHtml);
+}
+if (toggleAdminBillSmsBtn) {
+  toggleAdminBillSmsBtn.addEventListener("click", () => {
+    if (!isAdminClient()) return;
+    state.hiddenPanels.adminBillSms = !state.hiddenPanels.adminBillSms;
+    saveState();
+    renderAdminBillSmsControls();
+  });
 }
 if (sendAdminBillSmsBtn) {
   sendAdminBillSmsBtn.addEventListener("click", sendAdminBillSmsManually);

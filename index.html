@@ -265,14 +265,17 @@
           <button id="hideBillsBtn" type="button" class="ghost">Hide</button>
         </div>
       </header>
-      <div id="adminBillSmsControls" class="admin-bill-sms-controls" hidden aria-label="Admin bill text reminder controls">
-        <strong>Admin bill text reminder</strong>
-        <button id="sendAdminBillSmsBtn" type="button" class="ghost">Send Text If Due</button>
-        <label for="adminBillSmsTime">Daily run time
-          <select id="adminBillSmsTime" aria-label="Admin bill text run time"></select>
-        </label>
-        <span id="adminBillSmsStatus" class="admin-bill-sms-status" aria-live="polite"></span>
-      </div>
+        <div id="adminBillSmsControls" class="admin-bill-sms-controls" hidden aria-label="Admin bill text reminder controls">
+          <button id="toggleAdminBillSmsBtn" type="button" class="ghost admin-bill-sms-toggle" aria-expanded="false">Show Admin bill text reminder</button>
+          <div id="adminBillSmsContent" class="admin-bill-sms-content" hidden>
+            <strong>Admin bill text reminder</strong>
+            <button id="sendAdminBillSmsBtn" type="button" class="ghost">Send Text If Due</button>
+            <label for="adminBillSmsTime">Daily run time
+              <select id="adminBillSmsTime" aria-label="Admin bill text run time"></select>
+            </label>
+            <span id="adminBillSmsStatus" class="admin-bill-sms-status" aria-live="polite"></span>
+          </div>
+        </div>
       <div class="collapsible-content" id="budgetPanelContent">
         <div id="upcomingBillsBanner" class="budget-upcoming-banner" hidden></div>
         <div class="budget-metrics">

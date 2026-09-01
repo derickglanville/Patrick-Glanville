@@ -17,6 +17,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 EMAIL_FOLDER = PROJECT_ROOT / "Email"
 ARCHIVE_FOLDER = EMAIL_FOLDER / "Archive"
 SEND_SCRIPT = PROJECT_ROOT / "Scripts" / "send_daily_email.py"
+EMAIL_POLICY_PATH = EMAIL_FOLDER / "email-automation.json"
 
 sys.path.insert(0, str(PROJECT_ROOT / "Scripts"))
 
@@ -51,6 +52,15 @@ CLOSED_STATUSES = {"Done", "On-Hold"}
 MEDICATION_ALERT_WINDOW_DAYS = 7
 TOP_TODO_LIST_TITLE = "Priority To-Do List"
 PATRICK_EMAIL = "patrick.glanville@gmail.com"
+
+
+def legacy_automatic_emails_enabled():
+    try:
+        import json
+        policy = json.loads(EMAIL_POLICY_PATH.read_text(encoding="utf-8"))
+        return bool(policy.get("legacyAutomaticEmailsEnabled", False))
+    except (FileNotFoundError, ValueError):
+        return False
 
 
 def now_ny():
@@ -744,6 +754,9 @@ def send_report(kind, report_path):
 
 
 def run_weekly_reports(send_emails=True, kinds=None):
+    if send_emails and not legacy_automatic_emails_enabled():
+        print("Weekly report email delivery is disabled by Email/email-automation.json.")
+        send_emails = False
     report_time = now_ny()
     selected = kinds or list(REPORT_CONFIG.keys())
     payload = load_patrick_payload()
@@ -778,6 +791,7 @@ def scheduler_loop():
     last_sent_key = ""
 
     print("Patrick weekly report scheduler started.")
+    print("Automatic email delivery is disabled by Email/email-automation.json.")
     print(f"Schedule: Mondays at {WEEKLY_REPORT_TIME} America/New_York")
     print("Reports: urgency, change, medication, todo")
     print("Press Ctrl+C to stop.")

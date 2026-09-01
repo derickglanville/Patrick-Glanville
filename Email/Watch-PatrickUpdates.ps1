@@ -9,10 +9,19 @@ $ErrorActionPreference = "Stop"
 $PatrickEmail = "patrick.glanville@gmail.com"
 $ScriptFolder = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectFolder = Split-Path -Parent $ScriptFolder
+$EmailPolicyPath = Join-Path $ScriptFolder "email-automation.json"
 $ConfigPath = Join-Path $ProjectFolder "supabase-config.js"
 $SettingsPath = Join-Path $ScriptFolder "smtp-settings.json"
 $CredentialPath = Join-Path $ScriptFolder "smtp-credential.clixml"
 $CheckpointPath = Join-Path $ScriptFolder "patrick-update-notifier-state.json"
+
+if (Test-Path -LiteralPath $EmailPolicyPath) {
+  $EmailPolicy = Get-Content -LiteralPath $EmailPolicyPath -Raw | ConvertFrom-Json
+  if (-not [bool]$EmailPolicy.legacyAutomaticEmailsEnabled) {
+    Write-Host "Legacy Patrick update email watcher is disabled by email-automation.json."
+    exit 0
+  }
+}
 
 function Get-SupabaseConfig {
   param([string]$Path)

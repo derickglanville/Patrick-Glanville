@@ -20,11 +20,20 @@ except ImportError:
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 EMAIL_FOLDER = PROJECT_ROOT / "Email"
 SCRIPTS_FOLDER = PROJECT_ROOT / "Scripts"
+EMAIL_POLICY_PATH = EMAIL_FOLDER / "email-automation.json"
 CHECKPOINT_PATH = EMAIL_FOLDER / "bill-due-alert-state.json"
 HTML_OUTPUT_PATH = EMAIL_FOLDER / "bill-due-alert-latest.html"
 DEFAULT_SEND_TIME = "09:00"
 RECIPIENTS = ["dglanville@gmail.com"]
 PAID_STATUSES = {"paid", "fully paid", "deferred", "n/a"}
+
+
+def legacy_automatic_emails_enabled() -> bool:
+    try:
+        policy = json.loads(EMAIL_POLICY_PATH.read_text(encoding="utf-8"))
+        return bool(policy.get("legacyAutomaticEmailsEnabled", False))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return False
 
 NY_TZ = ZoneInfo("America/New_York") if ZoneInfo else datetime.now().astimezone().tzinfo
 
@@ -350,6 +359,9 @@ def send_html_email(subject: str, html_body: str, recipients: List[str]) -> None
 
 
 def run_once(send_email: bool = True, dry_run: bool = False) -> int:
+    if send_email and not legacy_automatic_emails_enabled():
+        print("Bill due email delivery is disabled by Email/email-automation.json.")
+        send_email = False
     checkpoint = load_checkpoint()
     purge_old_sent_alerts(checkpoint)
     alerts = collect_due_tomorrow_alerts()

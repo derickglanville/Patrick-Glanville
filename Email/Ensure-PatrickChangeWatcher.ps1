@@ -2,8 +2,17 @@ $ErrorActionPreference = "Stop"
 
 $ScriptFolder = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $PSCommandPath }
 $ProjectFolder = Split-Path -Parent $ScriptFolder
+$EmailPolicyPath = Join-Path $ScriptFolder "email-automation.json"
 $WatcherScript = Join-Path $ScriptFolder "Watch-PatrickChangeReport.ps1"
 $WatcherLog = Join-Path $ScriptFolder "watch-patrick-change-report.log"
+
+if (Test-Path -LiteralPath $EmailPolicyPath) {
+  $EmailPolicy = Get-Content -LiteralPath $EmailPolicyPath -Raw | ConvertFrom-Json
+  if (-not [bool]$EmailPolicy.legacyAutomaticEmailsEnabled) {
+    Write-Host "Legacy Patrick change watcher guardian is disabled by email-automation.json."
+    exit 0
+  }
+}
 
 if (-not (Test-Path -LiteralPath $WatcherScript)) {
   throw "Missing Patrick change watcher script: $WatcherScript"

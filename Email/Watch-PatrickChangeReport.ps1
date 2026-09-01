@@ -8,10 +8,19 @@ $ErrorActionPreference = "Stop"
 $PatrickEmail = "patrick.glanville@gmail.com"
 $ScriptFolder = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $PSCommandPath }
 $ProjectFolder = Split-Path -Parent $ScriptFolder
+$EmailPolicyPath = Join-Path $ScriptFolder "email-automation.json"
 $ArchiveFolder = Join-Path $ScriptFolder "Archive"
 $ConfigPath = Join-Path $ProjectFolder "supabase-config.js"
 $RunnerScript = Join-Path $ScriptFolder "Invoke-PatrickChangeReport.ps1"
 $CheckpointPath = Join-Path $ScriptFolder "patrick-change-report-watcher-state.json"
+
+if (Test-Path -LiteralPath $EmailPolicyPath) {
+  $EmailPolicy = Get-Content -LiteralPath $EmailPolicyPath -Raw | ConvertFrom-Json
+  if (-not [bool]$EmailPolicy.legacyAutomaticEmailsEnabled) {
+    Write-Host "Legacy Patrick change report watcher is disabled by email-automation.json."
+    exit 0
+  }
+}
 
 function Get-SupabaseConfig {
   param([string]$Path)
