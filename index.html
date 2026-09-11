@@ -100,6 +100,7 @@
       <span id="deviceLayoutIndicator" class="device-layout-indicator" role="status" aria-live="polite"></span>
       <button id="processGuideBtn" type="button" title="Open the full process guide PDF for this project">Process Guide PDF</button>
       <button id="urgencyReportBtn" type="button" title="Run the local urgency report process if the helper is running, otherwise save directly into the Email folder">Urgency Report</button>
+      <button id="momMedicationRefillBtn" type="button" title="Open Mom's IDeerFit two-week pill dispenser refill tracker">Mom's IDeerFit</button>
       <button id="patrickChangeReportBtn" type="button" title="Review the active client's change report and save it to the local Email folder">Client Change Report</button>
       <button id="htmlEmailDashboardReportBtn" type="button" title="Create a rich HTML email report file for the Email folder">Create HTML Email</button>
       <button id="historyBtn" type="button" title="Review all task updates">History</button>
@@ -137,6 +138,38 @@
             <thead><tr><th>Day</th><th>Date</th><th>Shift</th><th>Hours</th></tr></thead>
             <tbody id="workScheduleRows"></tbody>
             <tfoot><tr><th>Total</th><td></td><td></td><th id="workScheduleTotal">0</th></tr></tfoot>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="mom-medication-panel" id="momMedicationPanel" aria-label="Mom's IDeerFit refill tracker" hidden>
+      <header>
+        <div>
+          <h2>Mom's IDeerFit Refill Tracker</h2>
+          <p>Manage the two-week pill dispenser refill cycle and the medications currently loaded for Mom.</p>
+        </div>
+        <div class="panel-actions">
+          <button id="markMomMedicationRefilledBtn" type="button">Mark Refilled Today</button>
+          <button id="addMomMedicationBtn" type="button" class="ghost">Add medication</button>
+          <button id="toggleMomMedicationBtn" type="button" class="ghost">Hide Mom's IDeerFit Refill Tracker</button>
+        </div>
+      </header>
+      <div class="collapsible-content" id="momMedicationContent">
+        <div class="mom-medication-summary">
+          <label for="momMedicationLastRefill">Last IDeerFit refill
+            <input id="momMedicationLastRefill" type="date">
+          </label>
+          <label for="momMedicationFrequencyDays">Refill cadence (days)
+            <input id="momMedicationFrequencyDays" type="number" min="1" step="1">
+          </label>
+          <article><span>Next refill</span><strong id="momMedicationNextRefill">Not set</strong></article>
+          <article><span>Email reminder</span><strong id="momMedicationReminderDate">Not set</strong></article>
+        </div>
+        <div class="mom-medication-table-wrap">
+          <table class="mom-medication-table">
+            <thead><tr><th>Medication</th><th>Dosage</th><th>Frequency</th><th>Time of day</th><th>Condition</th><th>Prescriber</th><th>Notes</th><th>Action</th></tr></thead>
+            <tbody id="momMedicationRows"></tbody>
           </table>
         </div>
       </div>
@@ -256,6 +289,7 @@
           </div>
           <button id="copyBillsToNextMonthBtn" type="button" class="ghost">Copy To Next Month</button>
           <button id="calculateBillsBtn" type="button" class="ghost">Calculate</button>
+          <button id="adminBillSimulationBtn" type="button" class="ghost" hidden>Balance Simulation</button>
           <button id="assignDueDatesBtn" type="button" class="ghost">Assign Due Dates</button>
           <button id="undoCopyBillsToNextMonthBtn" type="button" class="ghost">Undo Next Month Copy</button>
           <button id="toggleBillsCompactBtn" type="button" class="ghost" aria-pressed="false">Compact View</button>
@@ -267,6 +301,19 @@
       </header>
         <div id="adminBillSmsControls" class="admin-bill-sms-controls" hidden aria-label="Admin bill text reminder controls">
           <button id="toggleAdminBillSmsBtn" type="button" class="ghost admin-bill-sms-toggle" aria-expanded="false">Show Admin bill text reminder</button>
+          <div class="admin-bill-quick-controls">
+            <div id="upcomingBillsBanner" class="budget-upcoming-banner" hidden></div>
+            <button id="refreshAdminBillsBtn" type="button" class="ghost" hidden>Refresh</button>
+            <div class="budget-group-toolbar" aria-label="Bill due-date groups">
+              <div class="segmented-toggle">
+                <button id="billGroupFullBtn" type="button" class="ghost">Full</button>
+                <button id="billGroupEarlyBtn" type="button" class="ghost">Early</button>
+                <button id="billGroupMidBtn" type="button" class="ghost">Mid</button>
+                <button id="billGroupLateBtn" type="button" class="ghost">Late</button>
+              </div>
+            </div>
+            <span id="adminBillSimulationStatus" class="admin-bill-simulation-status" hidden>Projected-balance simulation is active. Real bill data is unchanged.</span>
+          </div>
           <div id="adminBillSmsContent" class="admin-bill-sms-content" hidden>
             <strong>Admin bill text reminder</strong>
             <button id="sendAdminBillSmsBtn" type="button" class="ghost">Send Text If Due</button>
@@ -275,9 +322,8 @@
             </label>
             <span id="adminBillSmsStatus" class="admin-bill-sms-status" aria-live="polite"></span>
           </div>
-        </div>
+      </div>
       <div class="collapsible-content" id="budgetPanelContent">
-        <div id="upcomingBillsBanner" class="budget-upcoming-banner" hidden></div>
         <div class="budget-metrics">
           <article><strong id="billMBFDisplay">$0.00</strong><span>MBF</span></article>
           <article><strong id="billTotal">$0.00</strong><span>Total bills</span></article>
@@ -288,15 +334,6 @@
           <article><strong id="billPastDue">0</strong><span>Past due</span></article>
         </div>
         <p id="budgetAlert" class="budget-alert" hidden></p>
-        <div class="budget-group-toolbar" aria-label="Bill due-date groups">
-          <span class="budget-group-toolbar-label">Bill group</span>
-          <div class="segmented-toggle">
-            <button id="billGroupFullBtn" type="button" class="ghost">Full</button>
-            <button id="billGroupEarlyBtn" type="button" class="ghost">Early</button>
-            <button id="billGroupMidBtn" type="button" class="ghost">Mid</button>
-            <button id="billGroupLateBtn" type="button" class="ghost">Late</button>
-          </div>
-        </div>
         <div class="budget-bill-group" aria-label="Monthly bills list">
           <div class="budget-bill-list-header" aria-hidden="true">
             <span>Bill</span>
@@ -620,6 +657,22 @@
         <button type="button" id="closeBillColumnSumDialog" class="icon-button" aria-label="Close">x</button>
       </div>
       <div id="billColumnSumBody" class="bill-column-sum-body"></div>
+    </div>
+  </dialog>
+
+  <dialog id="adminBillSimulationDialog">
+    <div class="report-dialog admin-bill-simulation-dialog">
+      <div class="dialog-head">
+        <h2>Admin Balance Simulation</h2>
+        <button type="button" id="closeAdminBillSimulationDialog" class="icon-button" aria-label="Close">x</button>
+      </div>
+      <p class="documents-note">Edit projected balances, save the table, then show the temporary projection. Simulation never changes the real bill balances.</p>
+      <div id="adminBillSimulationBody"></div>
+      <div class="dialog-actions admin-bill-simulation-actions">
+        <button type="button" id="saveAdminBillSimulationBtn">Save</button>
+        <button type="button" id="applyAdminBillSimulationBtn">Show Projected Balances</button>
+        <button type="button" id="exitAdminBillSimulationBtn" class="ghost" hidden>Exit Simulation</button>
+      </div>
     </div>
   </dialog>
 

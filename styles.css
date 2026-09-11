@@ -594,6 +594,35 @@ textarea {
   padding: 4px 7px;
 }
 
+.admin-bill-quick-controls {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.admin-bill-quick-controls .budget-upcoming-banner {
+  max-width: none;
+  padding: 5px 8px;
+  font-size: .78rem;
+}
+
+.admin-bill-quick-controls .budget-group-toolbar {
+  display: flex;
+  gap: 0;
+  flex: 0 0 auto;
+}
+
+.admin-bill-quick-controls .segmented-toggle {
+  gap: 4px;
+}
+
+.admin-bill-quick-controls .segmented-toggle button {
+  padding: 5px 9px;
+}
+
 .admin-bill-sms-content {
   display: flex;
   align-items: end;
@@ -733,6 +762,99 @@ textarea {
 #budgetPanel .budget-upcoming-banner {
   margin: 0;
   padding: 7px 11px;
+}
+
+.admin-bill-refresh-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 33px;
+}
+
+.admin-bill-simulation-status {
+  color: #7a4b00;
+  font-size: .8rem;
+  font-weight: 700;
+}
+
+.budget-panel.is-admin-bill-simulation {
+  box-shadow: 0 0 0 2px #e0b754, var(--shadow);
+}
+
+.admin-bill-simulation-dialog {
+  width: min(680px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  box-sizing: border-box;
+}
+
+.admin-bill-simulation-table-wrap {
+  max-height: min(66vh, 560px);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.admin-bill-simulation-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.admin-bill-simulation-table th:first-child,
+.admin-bill-simulation-table td:first-child {
+  width: 42%;
+}
+
+.admin-bill-simulation-table th:not(:first-child),
+.admin-bill-simulation-table td:not(:first-child) {
+  width: 29%;
+}
+
+.admin-bill-simulation-table th,
+.admin-bill-simulation-table td {
+  padding: 4px 7px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-bill-simulation-table th {
+  position: sticky;
+  top: 0;
+  background: #edf4fb;
+  color: var(--ink);
+}
+
+.admin-bill-simulation-table input {
+  width: 100%;
+  min-height: 30px;
+  padding: 4px 6px;
+  box-sizing: border-box;
+  margin: 0;
+}
+
+.admin-bill-simulation-total {
+  margin: 7px 0 0;
+  font-weight: 800;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+}
+
+.admin-bill-simulation-actions {
+  grid-template-columns: auto 1fr auto;
+  margin-top: 10px;
+}
+
+@media (max-width: 640px) {
+  .admin-bill-simulation-dialog { width: calc(100vw - 12px); max-width: calc(100vw - 12px); }
+  .admin-bill-simulation-table th,
+  .admin-bill-simulation-table td { padding: 3px 5px; font-size: .8rem; }
+  .admin-bill-simulation-table input { min-height: 28px; font-size: .82rem; }
+  .admin-bill-simulation-actions { grid-template-columns: 1fr 1fr; gap: 7px; }
+  .admin-bill-simulation-actions #exitAdminBillSimulationBtn { grid-column: 1 / -1; }
 }
 
 .upcoming-bills-dialog-list {
@@ -1724,6 +1846,69 @@ textarea {
 
 .work-schedule-panel h2 { margin: 0 0 6px; }
 .work-schedule-panel p { margin: 0; color: var(--muted); }
+
+.mom-medication-panel {
+  margin: 0 0 18px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.mom-medication-panel header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.mom-medication-panel h2 { margin: 0 0 6px; }
+.mom-medication-panel p { margin: 0; color: var(--muted); }
+
+.mom-medication-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.mom-medication-summary label,
+.mom-medication-summary article {
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.mom-medication-summary label { display: grid; gap: 6px; font-weight: 700; }
+.mom-medication-summary article span { display: block; color: var(--muted); font-size: 0.78rem; }
+.mom-medication-summary article strong { display: block; margin-top: 5px; }
+
+.mom-medication-table-wrap {
+  overflow: auto;
+  max-height: 540px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.mom-medication-table { width: 100%; min-width: 1120px; border-collapse: collapse; }
+.mom-medication-table th,
+.mom-medication-table td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.mom-medication-table th { position: sticky; top: 0; background: #0f4c5c; color: #fff; text-align: left; font-size: 0.78rem; }
+.mom-medication-table tbody tr:nth-child(even) { background: #f5faf9; }
+.mom-medication-table input,
+.mom-medication-table textarea { width: 100%; min-width: 108px; margin: 0; }
+.mom-medication-table textarea { min-height: 38px; resize: vertical; }
+
+@media (max-width: 720px) {
+  .mom-medication-panel { padding: 12px; }
+  .mom-medication-summary { grid-template-columns: 1fr 1fr; }
+  .mom-medication-table-wrap { max-height: 460px; }
+}
+
 .work-schedule-summary { margin: 12px 0; color: var(--muted); font-size: .9rem; }
 .work-schedule-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
 .work-schedule-table { width: 100%; border-collapse: collapse; min-width: 520px; }

@@ -207,6 +207,15 @@ const baseCategories = [
 const statusOptions = ["N/A", "Not started", "In progress", "Waiting", "Blocked", "On-Hold", "Done"];
 const priorityOptions = ["Urgent", "High", "Medium", "Low"];
 const billStatusOptions = ["Unpaid", "Scheduled", "Paid", "Fully Paid", "Deferred", "Past due", "N/A"];
+const ADMIN_BILL_SIMULATION_SEED = [
+  ["Bank of America", 5293.64], ["Citi Simplicity", 2611.20], ["Lowe's", 2327.59],
+  ["American Express", 7279.16], ["Barclay View (Uber)", 665.10], ["Amazon - Chase", 3800.00],
+  ["Citi Bank - Money", 718.89], ["Best Buy", 769.98], ["Amex Centurion", 995.14],
+  ["Key Bank", 1528.35], ["Wells Fargo Credit", 1074.00], ["Citizen Bank", 666.89],
+  ["QuickSilver-CapOne", 663.54], ["CareCredit", -1040.48], ["Apple Card", 2400.00]
+].map(([name, projectedBalance]) => ({
+  key: buildBudgetBillTemplateKey(name), name, projectedBalance
+}));
 const taskGroupOrder = [
   "Priority To-Do List",
   "Daily Project Manager",
@@ -1142,6 +1151,7 @@ function buildTheoSeedData() {
       bills: true,
       budgetSnapshots: true,
       lifeAdmin: true,
+      momMedication: true,
       adminBillSms: true
     },
     collapsedTaskGroupsVersion: TASK_GROUP_COLLAPSE_VERSION,
@@ -1152,6 +1162,7 @@ function buildTheoSeedData() {
     budgetSnapshots: [],
     billAuditLog: [],
     billSnapshots: [],
+    adminBillSimulation: { projections: [] },
     bills: [],
     lifeAdminNotes: [],
     tasks: [
@@ -1266,6 +1277,7 @@ function buildUnselectedClientState() {
     bills: [],
     lifeAdminNotes: [],
     workSchedules: [],
+    momMedicationRefill: null,
     tasks: []
   };
 }
@@ -1348,8 +1360,77 @@ function ensureCurrentPatrickWorkSchedule(loaded) {
   return true;
 }
 
+const MOM_IDEERFIT_SEED_MEDICATIONS = [
+  ["Atorvastatin", "10 mg tablet", "1 tablet daily", "Night", "Heart", "Dr. Shalek"],
+  ["Losartan", "100 mg tablet", "1 tablet daily", "Night", "Heart", "Dr. Shalek"],
+  ["Metoprolol", "50 mg tablet", "1 tablet twice daily", "Day & Night", "Heart", "Dr. Shalek", "Check"],
+  ["Spironolactone", "25 mg tablet", "1 tablet daily", "Day", "Heart", "Dr. Shalek", "Check"],
+  ["Amlodipine", "5 mg tablet", "1 tablet daily", "Night", "Heart", "Dr. Shalek"],
+  ["Furosemide", "20 mg tablet", "1 tablet daily as needed", "", "Swelling", "Dr. Shalek"],
+  ["Donepezil", "10 mg tablet", "1 tablet daily", "Night", "Neurology", "Dr. Ansari"],
+  ["Memantine HCL", "5 mg tablet", "1 tablet twice daily", "Day & Night", "Neurology", "Dr. Ansari", "Check"],
+  ["Gabapentin", "400 mg capsule", "1 capsule daily", "Day & Night", "Nerve Pain", "Dr. Ansari", "Check"],
+  ["Gabapentin", "300 mg tablet", "1 tablet twice daily", "Day & Night", "Diabetes", "Dr. Lee", "Check"],
+  ["Metformin", "500 mg tablet", "1 tablet twice daily", "Day", "Diabetes", "Dr. Lee"],
+  ["Flovent HFA", "110 mcg/activation", "1 activation daily", "Day", "Asthma", "Dr. Lee"],
+  ["Albuterol Sulphate", "90 mcg/activation", "2 inhalations as required", "Day or Night", "Asthma / chest", "Dr. Lee"],
+  ["Albuterol Sulphate", "1.25 mg / 3 ml", "Solution as required", "Day", "Pain", "Dr. Lopez", "Check"],
+  ["Tramadol", "50 mg tablet", "1 tablet daily", "Day", "Pain", "Global Health"],
+  ["Pregabalin", "50 mg tablet", "1 tablet twice daily", "Day", "", ""],
+  ["CBD", "25 mg gummy", "1 gummy", "Day", "", ""],
+  ["Provagen", "Capsule", "1 capsule daily", "Day", "", "OTC"],
+  ["Refresh Plus", "Eye lubricant", "2 drops daily", "Day", "Dry eye", "OTC"],
+  ["Tylenol", "500 mg tablet", "As required", "Day", "Pain", "OTC / Dr. Goldsberry"],
+  ["Prednisolone", "Eye drops", "Quantity varies", "", "Dry eye", "OTC"],
+  ["Aspirin", "81 mg tablet", "1 tablet daily", "", "Health", "OTC / BSW ER"],
+  ["Salonpas", "4% / 5% patch", "As required", "", "Pain", "OTC"]
+].map(([medication, dosage, frequency, timeOfDay, condition, prescriber, notes = ""]) => ({
+  id: crypto.randomUUID(), medication, dosage, frequency, timeOfDay, condition, prescriber, notes
+}));
+
+function normalizeMomRefillDate(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || "")) ? value : "";
+}
+
+function addDaysToIsoDate(value, days) {
+  const date = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return "";
+  date.setDate(date.getDate() + Number(days || 0));
+  return date.toISOString().slice(0, 10);
+}
+
+function normalizeMomMedicationRefill(value, seedIfMissing = false) {
+  const hasPlan = value && typeof value === "object";
+  const medications = hasPlan && Array.isArray(value.medications)
+    ? value.medications.map((item, index) => ({
+      id: item.id || `mom-ideerfit-medication-${index}-${crypto.randomUUID()}`,
+      medication: String(item.medication || ""),
+      dosage: String(item.dosage || ""),
+      frequency: String(item.frequency || ""),
+      timeOfDay: String(item.timeOfDay || ""),
+      condition: String(item.condition || ""),
+      prescriber: String(item.prescriber || ""),
+      notes: String(item.notes || "")
+    }))
+    : (seedIfMissing ? MOM_IDEERFIT_SEED_MEDICATIONS.map(item => ({ ...item })) : []);
+  return {
+    lastRefillDate: normalizeMomRefillDate(value?.lastRefillDate) || "2026-08-30",
+    frequencyDays: Math.max(1, Number(value?.frequencyDays) || 14),
+    medications,
+    updatedAt: value?.updatedAt || ""
+  };
+}
+
+function nextMomMedicationRefillDate(plan, referenceDate = new Date().toISOString().slice(0, 10)) {
+  if (!plan?.lastRefillDate) return "";
+  let next = addDaysToIsoDate(plan.lastRefillDate, plan.frequencyDays);
+  while (next && next < referenceDate) next = addDaysToIsoDate(next, plan.frequencyDays);
+  return next;
+}
+
 let activeClientId = "";
 let currentJsonBackupPayload = null;
+let adminBillSimulationActive = false;
 
 function currentClientConfig() {
   return clientConfigs[activeClientId] || null;
@@ -1581,6 +1662,15 @@ const billPrevMonthBtn = document.querySelector("#billPrevMonthBtn");
 const billNextMonthBtn = document.querySelector("#billNextMonthBtn");
 const copyBillsToNextMonthBtn = document.querySelector("#copyBillsToNextMonthBtn");
 const calculateBillsBtn = document.querySelector("#calculateBillsBtn");
+const refreshAdminBillsBtn = document.querySelector("#refreshAdminBillsBtn");
+const adminBillSimulationBtn = document.querySelector("#adminBillSimulationBtn");
+const adminBillSimulationStatus = document.querySelector("#adminBillSimulationStatus");
+const adminBillSimulationDialog = document.querySelector("#adminBillSimulationDialog");
+const adminBillSimulationBody = document.querySelector("#adminBillSimulationBody");
+const closeAdminBillSimulationDialogBtn = document.querySelector("#closeAdminBillSimulationDialog");
+const saveAdminBillSimulationBtn = document.querySelector("#saveAdminBillSimulationBtn");
+const applyAdminBillSimulationBtn = document.querySelector("#applyAdminBillSimulationBtn");
+const exitAdminBillSimulationBtn = document.querySelector("#exitAdminBillSimulationBtn");
 const assignDueDatesBtn = document.querySelector("#assignDueDatesBtn");
 const undoCopyBillsToNextMonthBtn = document.querySelector("#undoCopyBillsToNextMonthBtn");
 const monthlyBillsReportBtn = document.querySelector("#monthlyBillsReportBtn");
@@ -1663,6 +1753,17 @@ const newWorkScheduleBtn = document.querySelector("#newWorkScheduleBtn");
 const workScheduleRows = document.querySelector("#workScheduleRows");
 const workScheduleTotal = document.querySelector("#workScheduleTotal");
 const workScheduleSummary = document.querySelector("#workScheduleSummary");
+const momMedicationRefillBtn = document.querySelector("#momMedicationRefillBtn");
+const momMedicationPanel = document.querySelector("#momMedicationPanel");
+const momMedicationContent = document.querySelector("#momMedicationContent");
+const toggleMomMedicationBtn = document.querySelector("#toggleMomMedicationBtn");
+const markMomMedicationRefilledBtn = document.querySelector("#markMomMedicationRefilledBtn");
+const addMomMedicationBtn = document.querySelector("#addMomMedicationBtn");
+const momMedicationLastRefill = document.querySelector("#momMedicationLastRefill");
+const momMedicationFrequencyDays = document.querySelector("#momMedicationFrequencyDays");
+const momMedicationNextRefill = document.querySelector("#momMedicationNextRefill");
+const momMedicationReminderDate = document.querySelector("#momMedicationReminderDate");
+const momMedicationRows = document.querySelector("#momMedicationRows");
 const workScheduleDialog = document.querySelector("#workScheduleDialog");
 const workScheduleForm = document.querySelector("#workScheduleForm");
 const workScheduleWeekStart = document.querySelector("#workScheduleWeekStart");
@@ -1736,21 +1837,21 @@ const BILL_COLUMN_SUM_CONFIG = {
   "bill-col-interest-paid": {
     label: "Interest paid",
     getValue: bill => calculateMonthlyInterestPortion(
-      normalizeMoney(bill.previousBalance ?? bill.currentBalance),
+      getEffectiveBillPreviousBalance(bill),
       bill.apr
     )
   },
   "bill-col-prev-bal": {
     label: "Previous balance",
-    getValue: bill => normalizeMoney(bill.previousBalance ?? bill.currentBalance)
+    getValue: bill => getEffectiveBillPreviousBalance(bill)
   },
   "bill-col-current-bal": {
     label: "Current balance",
-    getValue: bill => normalizeMoney(bill.currentBalance)
+    getValue: bill => getEffectiveBillCurrentBalance(bill)
   },
   "bill-col-diff": {
     label: "Difference",
-    getValue: bill => normalizeMoney(bill.currentBalance) - normalizeMoney(bill.previousBalance ?? bill.currentBalance)
+    getValue: bill => getEffectiveBillCurrentBalance(bill) - getEffectiveBillPreviousBalance(bill)
   },
   "bill-col-credit-line": {
     label: "Credit line",
@@ -1815,6 +1916,7 @@ function loadState() {
       budgetSnapshots: Array.isArray(parsed.budgetSnapshots) ? parsed.budgetSnapshots : structuredClone(seedData.budgetSnapshots || []),
       billAuditLog: Array.isArray(parsed.billAuditLog) ? parsed.billAuditLog : structuredClone(seedData.billAuditLog || []),
       billSnapshots: Array.isArray(parsed.billSnapshots) ? parsed.billSnapshots : structuredClone(seedData.billSnapshots || []),
+      adminBillSimulation: parsed.adminBillSimulation || { projections: [] },
       bills: Array.isArray(parsed.bills) ? parsed.bills : structuredClone(seedData.bills),
       lifeAdminNotes: Array.isArray(parsed.lifeAdminNotes) ? parsed.lifeAdminNotes : structuredClone(seedData.lifeAdminNotes),
       workSchedules: Array.isArray(parsed.workSchedules) ? parsed.workSchedules : [],
@@ -2629,6 +2731,12 @@ function initializeState(loaded) {
   loaded.runningNotes = normalizeRunningNotes(loaded.runningNotes, loaded.notes);
   loaded.documents = normalizeDocuments(loaded.documents);
   loaded.workSchedules = normalizeWorkSchedules(loaded.workSchedules);
+  const hadMomMedicationPlan = Boolean(loaded.momMedicationRefill && typeof loaded.momMedicationRefill === "object");
+  loaded.momMedicationRefill = normalizeMomMedicationRefill(
+    loaded.momMedicationRefill,
+    activeClientId === "patrick" && !hadMomMedicationPlan
+  );
+  if (activeClientId === "patrick" && !hadMomMedicationPlan) stateAdjusted = true;
   if (activeClientId === "patrick" && !loaded.workSchedules.length) {
     loaded.workSchedules = buildPatrickWorkScheduleSeed();
     stateAdjusted = true;
@@ -2637,20 +2745,22 @@ function initializeState(loaded) {
     stateAdjusted = true;
   }
   if (loaded.panelVisibilityVersion !== PANEL_VISIBILITY_VERSION) {
-    loaded.hiddenPanels = { patrickWatch: true, bills: false, budgetSnapshots: true, lifeAdmin: true, workSchedule: false, adminBillSms: true };
+    loaded.hiddenPanels = { patrickWatch: true, bills: false, budgetSnapshots: true, lifeAdmin: true, workSchedule: false, momMedication: true, adminBillSms: true };
     loaded.panelVisibilityVersion = PANEL_VISIBILITY_VERSION;
     panelVisibilityReset = true;
   } else {
     const hasAdminBillSmsVisibility = typeof loaded.hiddenPanels?.adminBillSms === "boolean";
+    const hasMomMedicationVisibility = typeof loaded.hiddenPanels?.momMedication === "boolean";
     loaded.hiddenPanels = {
       patrickWatch: loaded.hiddenPanels?.patrickWatch ?? true,
       bills: loaded.hiddenPanels?.bills ?? false,
       budgetSnapshots: loaded.hiddenPanels?.budgetSnapshots ?? true,
       lifeAdmin: Boolean(loaded.hiddenPanels?.lifeAdmin),
       workSchedule: Boolean(loaded.hiddenPanels?.workSchedule),
+      momMedication: hasMomMedicationVisibility ? loaded.hiddenPanels.momMedication : true,
       adminBillSms: hasAdminBillSmsVisibility ? loaded.hiddenPanels.adminBillSms : true
     };
-    if (!hasAdminBillSmsVisibility) stateAdjusted = true;
+    if (!hasAdminBillSmsVisibility || !hasMomMedicationVisibility) stateAdjusted = true;
   }
   if (activeClientId === "patrick" && Number(loaded.workScheduleSetupVersion) !== 2) {
     loaded.hiddenPanels.workSchedule = false;
@@ -2682,6 +2792,9 @@ function initializeState(loaded) {
     loaded.billsCompactView = isAdminClientId(activeClientId);
   }
   loaded.monthlyBudgetFund = normalizeMoney(loaded.monthlyBudgetFund ?? seedData.monthlyBudgetFund ?? 0);
+  const hadAdminBillSimulation = Boolean(loaded.adminBillSimulation && typeof loaded.adminBillSimulation === "object");
+  loaded.adminBillSimulation = normalizeAdminBillSimulation(loaded.adminBillSimulation, isAdminClient());
+  if (isAdminClient() && !hadAdminBillSimulation) stateAdjusted = true;
   loaded.monthlyBudgets = normalizeMonthlyBudgetsMap(loaded.monthlyBudgets, seedData);
   const hasStoredMonthlyBudgets = Object.keys(loaded.monthlyBudgets).length > 0;
   const legacyBills = Array.isArray(loaded.bills) ? loaded.bills.map(normalizeBill) : structuredClone(seedData.bills).map(normalizeBill);
@@ -3127,7 +3240,7 @@ function normalizeBill(bill) {
 }
 
 function defaultBillNoteForStatus(status) {
-  return status === "Paid" ? "This bill is paid" : "Pending";
+  return ["Paid", "Fully Paid"].includes(status) ? "This bill is paid" : "Pending";
 }
 
 function normalizeBillNotes(notes, status) {
@@ -3762,7 +3875,7 @@ function compareBillsByDueDate(a, b) {
 
 function renderUpcomingBillsBanner() {
   if (!upcomingBillsBanner) return;
-  const dueSoon = getBillsDueWithinDays(state.bills, 7);
+  const dueSoon = getBillsDueWithinDays(getBillsForCurrentDisplay(), 7);
   if (!dueSoon.length) {
     upcomingBillsBanner.hidden = true;
     upcomingBillsBanner.textContent = "";
@@ -3803,7 +3916,7 @@ function renderUpcomingBillsBanner() {
 
 function openUpcomingBillsDialog() {
   renderUpcomingBillsBanner();
-  const dueSoon = getBillsDueWithinDays(state.bills, 7);
+  const dueSoon = getBillsDueWithinDays(getBillsForCurrentDisplay(), 7);
   if (!dueSoon.length || !upcomingBillsDialog) return;
   upcomingBillsDialog.showModal();
 }
@@ -3824,6 +3937,78 @@ function normalizeMoney(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return 0;
   return Math.max(0, Math.round(number * 100) / 100);
+}
+
+function normalizeSignedMoney(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.round(number * 100) / 100 : 0;
+}
+
+function normalizeAdminBillSimulation(value, includeSeed = false) {
+  const supplied = Array.isArray(value?.projections) ? value.projections : [];
+  const source = includeSeed ? [...supplied, ...ADMIN_BILL_SIMULATION_SEED] : supplied;
+  const seen = new Set();
+  const projections = source.reduce((result, item) => {
+    const name = String(item?.name || "").trim();
+    const key = String(item?.key || buildBudgetBillTemplateKey(name)).trim();
+    if (!key || seen.has(key)) return result;
+    seen.add(key);
+    result.push({ key, name: name || key, projectedBalance: normalizeSignedMoney(item?.projectedBalance) });
+    return result;
+  }, []);
+  return { projections };
+}
+
+function isAdminBillSimulationActive() {
+  return isAdminClient() && adminBillSimulationActive;
+}
+
+function getAdminBillSimulationProjectionMap() {
+  return new Map((state.adminBillSimulation?.projections || []).map(item => [item.key, item.projectedBalance]));
+}
+
+function getEffectiveBillCurrentBalance(bill) {
+  if (bill && Object.hasOwn(bill, "simulatedCurrentBalance")) {
+    return normalizeSignedMoney(bill.simulatedCurrentBalance);
+  }
+  return normalizeMoney(bill?.currentBalance);
+}
+
+function getEffectiveBillPreviousBalance(bill) {
+  if (bill && Object.hasOwn(bill, "simulatedPreviousBalance")) {
+    return normalizeSignedMoney(bill.simulatedPreviousBalance);
+  }
+  return normalizeMoney(bill?.previousBalance ?? bill?.currentBalance);
+}
+
+function calculateSimulatedCurrentBalance(bill, projectedPreviousBalance) {
+  if (normalizeMoney(bill?.paidAmount) <= 0) return normalizeSignedMoney(projectedPreviousBalance);
+  return calculateCurrentBalanceFromPayment(projectedPreviousBalance, bill.paidAmount, bill.apr);
+}
+
+function getBillsForCurrentDisplay() {
+  if (!isAdminBillSimulationActive()) return state.bills;
+  const projections = getAdminBillSimulationProjectionMap();
+  return state.bills.map(bill => {
+    const key = bill.templateKey || buildBudgetBillTemplateKey(bill.name);
+    if (!projections.has(key)) return bill;
+    const simulatedPreviousBalance = projections.get(key);
+    return {
+      ...bill,
+      simulatedPreviousBalance,
+      simulatedCurrentBalance: calculateSimulatedCurrentBalance(bill, simulatedPreviousBalance)
+    };
+  });
+}
+
+function formatBillCurrentBalanceForDisplay(bill) {
+  const balance = getEffectiveBillCurrentBalance(bill);
+  return Object.hasOwn(bill || {}, "simulatedCurrentBalance") ? formatSignedCurrency(balance) : formatCurrency(balance);
+}
+
+function formatBillPreviousBalanceForDisplay(bill) {
+  const balance = getEffectiveBillPreviousBalance(bill);
+  return Object.hasOwn(bill || {}, "simulatedPreviousBalance") ? formatSignedCurrency(balance) : formatCurrency(balance);
 }
 
 function formatSignedCurrency(value) {
@@ -3855,7 +4040,7 @@ function formatCurrencyInputValue(value) {
 
 function calculateCreditRemainingPercent(bill) {
   const limit = normalizeMoney(bill.creditLimit);
-  const balance = normalizeMoney(bill.currentBalance);
+  const balance = getEffectiveBillCurrentBalance(bill);
   if (!limit) return null;
   const remaining = Math.max(0, limit - balance);
   return Math.max(0, Math.min(100, Math.round((remaining / limit) * 1000) / 10));
@@ -3889,11 +4074,28 @@ function calculateCurrentBalanceFromPayment(previousBalance, paidAmount, apr) {
   return Math.max(0, normalizedPreviousBalance - principalReduction);
 }
 
+function recalculateAdminBillFields(bill) {
+  const recalculated = normalizeBill(bill);
+  if (!isAdminClient()) return recalculated;
+
+  // A recorded payment reduces the balance by the principal portion of that payment.
+  if (recalculated.paidDate && normalizeMoney(recalculated.paidAmount) > 0) {
+    recalculated.currentBalance = calculateCurrentBalanceFromPayment(
+      recalculated.previousBalance,
+      recalculated.paidAmount,
+      recalculated.apr
+    );
+  }
+  recalculated.status = deriveAutoTrackedBillStatus(recalculated);
+  recalculated.notes = normalizeBillNotes(recalculated.notes, recalculated.status);
+  return normalizeBill(recalculated);
+}
+
 function calculateRecommendedBillPayments(bills) {
   const normalizedBills = Array.isArray(bills) ? bills : [];
   const debtCandidates = normalizedBills
     .map(bill => {
-      const balance = normalizeMoney(bill.currentBalance);
+      const balance = Math.max(0, getEffectiveBillCurrentBalance(bill));
       const creditLimit = normalizeMoney(bill.creditLimit);
       const apr = parseAprNumber(bill.apr);
       const scheduledAmount = normalizeMoney(bill.amount);
@@ -4903,6 +5105,8 @@ function applyRemoteSharedState(remoteState, updatedAt = "") {
   const previousState = structuredClone(state);
   const originalStateJson = JSON.stringify(remoteState);
   const normalizedState = structuredClone(remoteState);
+  const missingMomMedicationPlan = activeClientId === "patrick"
+    && !(normalizedState.momMedicationRefill && typeof normalizedState.momMedicationRefill === "object");
   const preferredBillMonth = forceCurrentBillMonthOnNextRemoteApply
     ? defaultBillMonth()
     : (state.billMonth || "");
@@ -4934,7 +5138,9 @@ function applyRemoteSharedState(remoteState, updatedAt = "") {
   updateDataStoreStatus();
   renderBillSyncAlert();
   applyingRemoteState = false;
-  return normalizedStateJson !== originalStateJson;
+  // Persist this new Patrick-only shared feature once, without saving a
+  // device-specific current-user selection back over another device.
+  return missingMomMedicationPlan || normalizedStateJson !== originalStateJson;
 }
 
 async function subscribeToSharedState() {
@@ -5298,6 +5504,7 @@ function updateClientChrome() {
   if (patrickChangeReportBtn) patrickChangeReportBtn.hidden = !client?.supportsReports;
   if (htmlEmailDashboardReportBtn) htmlEmailDashboardReportBtn.hidden = !client?.supportsReports;
   if (toggleLifeAdminBtn) toggleLifeAdminBtn.hidden = !client?.supportsLifeAdmin;
+  if (momMedicationRefillBtn) momMedicationRefillBtn.hidden = !canAccessMomMedicationRefill();
 }
 
 function captureMonthlyBillEditorFocus() {
@@ -5387,10 +5594,13 @@ function render() {
   renderBills();
   renderLifeAdminNotes();
   renderWorkSchedule();
+  renderMomMedicationRefill();
   renderPatrickWatch();
   renderPanelVisibility();
   renderRunningNotes();
   syncTopTodoPopoutState();
+  // Keep the selected editor visible. Sensitive Mom medication controls still
+  // require Deric's PIN through canAccessMomMedicationRefill().
   userSelect.value = state.currentUser || "";
   updateTaskLabelControls();
   renderBillSyncAlert();
@@ -5451,6 +5661,47 @@ function renderWorkSchedule() {
   const total = schedule.entries.reduce((sum, entry) => sum + (Number(entry.hours) || 0), 0);
   workScheduleTotal.textContent = String(total);
   workScheduleSummary.textContent = `Received ${formatScheduleDate(schedule.receivedOn)} · ${total} scheduled hours`;
+}
+
+function renderMomMedicationRefill() {
+  if (!momMedicationPanel) return;
+  const canShow = canAccessMomMedicationRefill();
+  momMedicationPanel.hidden = !canShow;
+  if (!canShow) return;
+
+  state.momMedicationRefill = normalizeMomMedicationRefill(
+    state.momMedicationRefill,
+    !state.momMedicationRefill
+  );
+  const plan = state.momMedicationRefill;
+  const nextRefill = nextMomMedicationRefillDate(plan);
+  const reminderDate = nextRefill ? addDaysToIsoDate(nextRefill, -1) : "";
+
+  setPanelCollapsed(
+    momMedicationPanel,
+    momMedicationContent,
+    toggleMomMedicationBtn,
+    Boolean(state.hiddenPanels.momMedication),
+    "Mom's IDeerFit Refill Tracker"
+  );
+  if (momMedicationLastRefill) momMedicationLastRefill.value = plan.lastRefillDate || "";
+  if (momMedicationFrequencyDays) momMedicationFrequencyDays.value = String(plan.frequencyDays || 14);
+  if (momMedicationNextRefill) momMedicationNextRefill.textContent = nextRefill ? formatScheduleDate(nextRefill) : "Not set";
+  if (momMedicationReminderDate) momMedicationReminderDate.textContent = reminderDate ? formatScheduleDate(reminderDate) : "Not set";
+  if (!momMedicationRows) return;
+
+  momMedicationRows.innerHTML = plan.medications.map(medication => `
+    <tr data-mom-medication-id="${escapeAttribute(medication.id)}">
+      <td><input data-mom-medication-field="medication" value="${escapeAttribute(medication.medication)}" aria-label="Medication"></td>
+      <td><input data-mom-medication-field="dosage" value="${escapeAttribute(medication.dosage)}" aria-label="Dosage"></td>
+      <td><input data-mom-medication-field="frequency" value="${escapeAttribute(medication.frequency)}" aria-label="Frequency"></td>
+      <td><input data-mom-medication-field="timeOfDay" value="${escapeAttribute(medication.timeOfDay)}" aria-label="Time of day"></td>
+      <td><input data-mom-medication-field="condition" value="${escapeAttribute(medication.condition)}" aria-label="Condition treated"></td>
+      <td><input data-mom-medication-field="prescriber" value="${escapeAttribute(medication.prescriber)}" aria-label="Prescriber"></td>
+      <td><textarea data-mom-medication-field="notes" rows="1" aria-label="Notes">${escapeHtml(medication.notes)}</textarea></td>
+      <td><button type="button" class="ghost" data-mom-medication-action="remove">Remove</button></td>
+    </tr>
+  `).join("");
 }
 
 function getSelectedWorkSchedule() {
@@ -5553,7 +5804,7 @@ function buildTaskSearchText(task) {
 }
 
 function renderPatrickWatch() {
-  const isDeric = state.currentUser === DERIC_EMAIL;
+  const isDeric = state.currentUser === DERIC_EMAIL && dericPinValidatedForSession;
   const canShowPatrickWatch = isPatrickClient() && isDeric;
   patrickWatchPanel.hidden = !canShowPatrickWatch;
   if (!canShowPatrickWatch) return;
@@ -5966,6 +6217,8 @@ function setPanelCollapsed(panel, content, button, hidden, label) {
 
 function renderBills() {
   const usesSimpleBills = !clientUsesBillGrouping();
+  const displayBills = getBillsForCurrentDisplay();
+  const simulationActive = isAdminBillSimulationActive();
   renderAdminBillSmsControls();
   if (!["full", "early", "mid", "late"].includes(state.billGroupView)) {
     state.billGroupView = defaultBillGroupView(state.billMonth);
@@ -5979,6 +6232,7 @@ function renderBills() {
     // Patrick uses a simpler list; the Admin compact grid has different columns.
     budgetPanel.classList.toggle("budget-panel-compact-view", !usesSimpleBills && Boolean(state.billsCompactView));
     budgetPanel.classList.toggle("budget-panel-admin-mini", !usesSimpleBills && isAdminClient() && Boolean(state.billsCompactView));
+    budgetPanel.classList.toggle("is-admin-bill-simulation", simulationActive);
   }
   if (toggleBillsCompactBtn) {
     toggleBillsCompactBtn.hidden = usesSimpleBills;
@@ -5988,15 +6242,21 @@ function renderBills() {
     toggleBillsCompactBtn.className = state.billsCompactView ? "" : "ghost";
     toggleBillsCompactBtn.setAttribute("aria-pressed", String(Boolean(state.billsCompactView)));
   }
+  if (adminBillSimulationBtn) {
+    adminBillSimulationBtn.hidden = !isAdminClient();
+    adminBillSimulationBtn.textContent = simulationActive ? "Restore Simulation" : "Balance Simulation";
+    adminBillSimulationBtn.setAttribute("aria-pressed", String(simulationActive));
+  }
+  if (adminBillSimulationStatus) adminBillSimulationStatus.hidden = !simulationActive;
   billList.innerHTML = "";
   if (hiddenBillList) hiddenBillList.innerHTML = "";
 
   const visibleBills = usesSimpleBills
-    ? [...state.bills]
-    : state.bills.filter(bill => !bill.hidden).sort(compareBillsByDueDate);
+    ? [...displayBills]
+    : displayBills.filter(bill => !bill.hidden).sort(compareBillsByDueDate);
   const hiddenBills = usesSimpleBills
     ? []
-    : state.bills.filter(bill => bill.hidden);
+    : displayBills.filter(bill => bill.hidden);
   const recommendedPayments = calculateRecommendedBillPayments(visibleBills);
   const billGroups = {
     early: visibleBills.filter(bill => getBillDueGroup(bill) === "early"),
@@ -6009,13 +6269,10 @@ function renderBills() {
 
   const buildBillTotalsRow = billsForTotals => {
     const totals = billsForTotals.reduce((acc, bill) => {
-      acc.interestPaid += calculateMonthlyInterestPortion(
-        normalizeMoney(bill.previousBalance ?? bill.currentBalance),
-        bill.apr
-      );
-      acc.previousBalance += normalizeMoney(bill.previousBalance ?? bill.currentBalance);
-      acc.currentBalance += normalizeMoney(bill.currentBalance);
-      acc.balanceDiff += normalizeMoney(bill.currentBalance) - normalizeMoney(bill.previousBalance ?? bill.currentBalance);
+      acc.interestPaid += calculateMonthlyInterestPortion(getEffectiveBillPreviousBalance(bill), bill.apr);
+      acc.previousBalance += getEffectiveBillPreviousBalance(bill);
+      acc.currentBalance += getEffectiveBillCurrentBalance(bill);
+      acc.balanceDiff += getEffectiveBillCurrentBalance(bill) - getEffectiveBillPreviousBalance(bill);
       acc.creditLimit += normalizeMoney(bill.creditLimit);
       acc.amount += normalizeMoney(bill.amount);
       acc.paidAmount += normalizeMoney(bill.paidAmount);
@@ -6045,7 +6302,7 @@ function renderBills() {
       <div class="budget-bill-total-cell bill-col-apr">-</div>
       <div class="budget-bill-total-cell bill-col-interest-paid">${escapeHtml(formatCurrency(totals.interestPaid))}</div>
       <div class="budget-bill-total-cell bill-col-prev-bal">${escapeHtml(formatCurrency(totals.previousBalance))}</div>
-      <div class="budget-bill-total-cell bill-col-current-bal">${escapeHtml(formatCurrency(totals.currentBalance))}</div>
+      <div class="budget-bill-total-cell bill-col-current-bal">${escapeHtml(formatSignedCurrency(totals.currentBalance))}</div>
       <div class="budget-bill-total-cell bill-col-diff">${escapeHtml(formatSignedCurrency(totals.balanceDiff))}</div>
       <div class="budget-bill-total-cell bill-col-credit-line">${escapeHtml(formatCurrency(totals.creditLimit))}</div>
       <div class="budget-bill-total-cell bill-col-due-amt">${escapeHtml(formatCurrency(totals.amount))}</div>
@@ -6070,11 +6327,10 @@ function renderBills() {
     const recommendedPayment = recommendedPayments.get(bill.id) ?? normalizeMoney(bill.amount);
     const pastDue = isBillPastDue(bill);
     const dueSoon = !pastDue && isBillDueSoon(bill, 7);
-    const interestPaid = calculateMonthlyInterestPortion(
-      normalizeMoney(bill.previousBalance ?? bill.currentBalance),
-      bill.apr
-    );
-    const balanceDiff = normalizeMoney(bill.currentBalance) - normalizeMoney(bill.previousBalance ?? bill.currentBalance);
+    const effectivePreviousBalance = getEffectiveBillPreviousBalance(bill);
+    const effectiveCurrentBalance = getEffectiveBillCurrentBalance(bill);
+    const interestPaid = calculateMonthlyInterestPortion(effectivePreviousBalance, bill.apr);
+    const balanceDiff = effectiveCurrentBalance - effectivePreviousBalance;
     const row = document.createElement("article");
     row.className = `budget-bill-item${pastDue ? " is-past-due" : ""}${dueSoon ? " is-due-soon" : ""}${bill.status === "Paid" ? " is-paid" : ""}${bill.hidden ? " is-hidden" : ""}`;
     row.dataset.billId = bill.id;
@@ -6096,11 +6352,11 @@ function renderBills() {
       </label>
       <label class="budget-bill-field bill-col-prev-bal">
         <span>Previous balance</span>
-        <input class="bill-previous-balance" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.previousBalance ?? bill.currentBalance))}" aria-label="Previous balance">
+        <input class="bill-previous-balance" type="text" inputmode="decimal" value="${escapeAttribute(formatBillPreviousBalanceForDisplay(bill))}" aria-label="Previous balance">
       </label>
       <label class="budget-bill-field bill-col-current-bal">
         <span>Current balance</span>
-        <input class="bill-current-balance" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.currentBalance))}" aria-label="Current balance">
+        <input class="bill-current-balance" type="text" inputmode="decimal" value="${escapeAttribute(formatBillCurrentBalanceForDisplay(bill))}" aria-label="Current balance">
       </label>
       <label class="budget-bill-field bill-col-diff">
         <span>Difference</span>
@@ -6192,6 +6448,11 @@ function renderBills() {
     row.classList.toggle("is-selected", isBillSelected(bill.id));
     if (hiddenMode) {
       row.querySelectorAll("input, textarea, select").forEach(control => {
+        control.disabled = true;
+      });
+    }
+    if (simulationActive) {
+      row.querySelectorAll("input, textarea, select, button").forEach(control => {
         control.disabled = true;
       });
     }
@@ -6288,6 +6549,7 @@ function renderBills() {
   // Patrick uses the simpler bill layout, but still needs the monthly rollover action.
   if (copyBillsToNextMonthBtn) copyBillsToNextMonthBtn.hidden = false;
   if (calculateBillsBtn) calculateBillsBtn.hidden = usesSimpleBills;
+  if (refreshAdminBillsBtn) refreshAdminBillsBtn.hidden = !isAdminClient();
   if (assignDueDatesBtn) assignDueDatesBtn.hidden = usesSimpleBills;
   if (undoCopyBillsToNextMonthBtn) undoCopyBillsToNextMonthBtn.hidden = usesSimpleBills;
   if (toggleBillsPopoutBtn) {
@@ -6318,6 +6580,79 @@ function renderBills() {
       calculateAllBillBalances({ skipUserCheck: true, skipHistory: true });
     }, 0);
   }
+}
+
+function renderAdminBillSimulationDialog() {
+  if (!adminBillSimulationBody) return;
+  const projections = state.adminBillSimulation?.projections || [];
+  const billsByKey = new Map(state.bills.map(bill => [
+    bill.templateKey || buildBudgetBillTemplateKey(bill.name), bill
+  ]));
+  const projectedPreviousTotal = projections.reduce((sum, item) => sum + normalizeSignedMoney(item.projectedBalance), 0);
+  const projectedCurrentTotal = projections.reduce((sum, item) => {
+    const bill = billsByKey.get(item.key);
+    return sum + (bill ? calculateSimulatedCurrentBalance(bill, item.projectedBalance) : normalizeSignedMoney(item.projectedBalance));
+  }, 0);
+  adminBillSimulationBody.innerHTML = `
+    <div class="admin-bill-simulation-table-wrap">
+      <table class="admin-bill-simulation-table">
+        <thead><tr><th>Bill</th><th>Current Bal</th><th>Projected Prev Bal</th></tr></thead>
+        <tbody>
+          ${projections.map(item => {
+            const bill = billsByKey.get(item.key);
+            const currentBalance = bill ? formatCurrency(bill.currentBalance) : "Not in this month";
+            return `<tr>
+              <td>${escapeHtml(item.name)}</td>
+              <td>${escapeHtml(currentBalance)}</td>
+              <td><input type="text" inputmode="decimal" data-admin-simulation-key="${escapeAttribute(item.key)}" value="${escapeAttribute(formatSignedCurrency(item.projectedBalance))}" aria-label="Projected balance for ${escapeAttribute(item.name)}"></td>
+            </tr>`;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>
+    <div class="admin-bill-simulation-total">
+      <span>Projected Prev Bal total: ${escapeHtml(formatSignedCurrency(projectedPreviousTotal))}</span>
+      <span>Projected Current Bal total: ${escapeHtml(formatSignedCurrency(projectedCurrentTotal))}</span>
+    </div>
+  `;
+  if (applyAdminBillSimulationBtn) applyAdminBillSimulationBtn.hidden = isAdminBillSimulationActive();
+  if (exitAdminBillSimulationBtn) exitAdminBillSimulationBtn.hidden = !isAdminBillSimulationActive();
+}
+
+function saveAdminBillSimulationProjectionTable() {
+  if (!isAdminClient() || !ensureCurrentUser("save Admin projected balances")) return false;
+  const currentByKey = new Map((state.adminBillSimulation?.projections || []).map(item => [item.key, item]));
+  const projections = [...adminBillSimulationBody.querySelectorAll("[data-admin-simulation-key]")]
+    .map(input => {
+      const key = input.dataset.adminSimulationKey;
+      const current = currentByKey.get(key);
+      if (!current) return null;
+      return { ...current, projectedBalance: normalizeSignedMoney(normalizeCurrencyCell(input.value)) };
+    })
+    .filter(Boolean);
+  state.adminBillSimulation = normalizeAdminBillSimulation({ projections });
+  saveState();
+  renderAdminBillSimulationDialog();
+  return true;
+}
+
+function openAdminBillSimulation() {
+  if (!isAdminClient()) return;
+  renderAdminBillSimulationDialog();
+  adminBillSimulationDialog?.showModal();
+}
+
+function applyAdminBillSimulation() {
+  if (!saveAdminBillSimulationProjectionTable()) return;
+  adminBillSimulationActive = true;
+  render();
+  adminBillSimulationDialog?.close();
+}
+
+function exitAdminBillSimulation() {
+  adminBillSimulationActive = false;
+  render();
+  renderAdminBillSimulationDialog();
 }
 
 function deleteBill(id) {
@@ -6414,6 +6749,13 @@ function updateBillFromRow(row, options = {}) {
     ? normalizeCurrencyCell(getField(".bill-paid-amount").value)
     : bill.paidAmount;
   bill.paidDate = getField(".bill-paid-date")?.value ?? bill.paidDate;
+  if (isAdminClient() && bill.paidDate && normalizeMoney(bill.paidAmount) > 0) {
+    bill.currentBalance = calculateCurrentBalanceFromPayment(
+      bill.previousBalance,
+      bill.paidAmount,
+      bill.apr
+    );
+  }
   const isSimpleBill = row.classList.contains("budget-bill-item-simple");
   const simplePaymentRecorded = isSimpleBill && Boolean(bill.paidDate) && normalizeMoney(bill.amount) > 0;
   if (simplePaymentRecorded) {
@@ -6465,6 +6807,32 @@ function updateBillFromRow(row, options = {}) {
   }
   updateBillTotals();
 
+  if (isAdminClient()) {
+    const differenceInput = getField(".bill-balance-diff");
+    const interestInput = getField(".bill-interest-paid");
+    const recommendedInput = getField(".bill-recommended-payment");
+    const creditPercent = calculateCreditRemainingPercent(bill);
+    if (differenceInput) {
+      differenceInput.value = formatSignedCurrency(
+        normalizeMoney(bill.currentBalance) - normalizeMoney(bill.previousBalance ?? bill.currentBalance)
+      );
+    }
+    if (interestInput) {
+      interestInput.value = formatCurrency(calculateMonthlyInterestPortion(bill.previousBalance, bill.apr));
+    }
+    if (recommendedInput) {
+      const recommendations = calculateRecommendedBillPayments(state.bills);
+      recommendedInput.value = formatCurrency(recommendations.get(bill.id) ?? bill.amount);
+    }
+    const creditStatus = row.querySelector(".bill-col-credit-percent .budget-bill-status-note");
+    if (creditStatus) {
+      creditStatus.textContent = creditPercent === null ? "N/A" : formatPercentLabel(creditPercent);
+      creditStatus.className = `budget-bill-status-note${creditPercent === null ? "" : creditPercent < 50 ? " is-low-credit" : " is-healthy-credit"}`;
+    }
+    if (getField(".bill-status")) getField(".bill-status").value = bill.status;
+    if (getField(".bill-notes")) getField(".bill-notes").value = bill.notes;
+  }
+
   if (options.recordHistory !== false) {
     if (getField(".bill-previous-balance")) getField(".bill-previous-balance").value = formatCurrencyInputValue(bill.previousBalance);
     if (getField(".bill-current-balance")) getField(".bill-current-balance").value = formatCurrencyInputValue(bill.currentBalance);
@@ -6496,6 +6864,33 @@ function calculateAllBillBalances(options = {}) {
   renderBills();
 }
 
+function refreshAdminBills() {
+  if (!isAdminClient()) return;
+  if (!ensureCurrentUser("refresh and recalculate monthly bills")) return;
+
+  const month = state.billMonth || defaultBillMonth();
+  const beforeBills = state.bills.map(bill => normalizeBill(bill));
+  const recalculatedBills = beforeBills.map(recalculateAdminBillFields);
+  const changedBills = recalculatedBills.filter((bill, index) => (
+    JSON.stringify(beforeBills[index]) !== JSON.stringify(bill)
+  ));
+
+  if (changedBills.length) {
+    captureBillSnapshot("Before refreshing Admin monthly bill calculations", month, beforeBills);
+    recalculatedBills.forEach((bill, index) => {
+      if (JSON.stringify(beforeBills[index]) !== JSON.stringify(bill)) {
+        recordBillFieldAuditEntries(beforeBills[index], bill, "admin-refresh", month);
+      }
+    });
+    state.bills = recalculatedBills;
+    syncCurrentBudgetMonth(false);
+    saveState();
+  }
+
+  // Refresh all dashboard panels, calculations, and bill metrics from the current state.
+  render();
+}
+
 function updateBillTotals() {
   const monthlyBudgetFund = normalizeMoney(state.monthlyBudgetFund);
   const {
@@ -6506,7 +6901,7 @@ function updateBillTotals() {
     covered,
     fundingGap,
     pastDueCount: pastDue
-  } = calculateBudgetTotals(monthlyBudgetFund, state.bills);
+  } = calculateBudgetTotals(monthlyBudgetFund, getBillsForCurrentDisplay());
 
   if (billMBFDisplay) billMBFDisplay.textContent = formatCurrency(monthlyBudgetFund);
   billTotal.textContent = formatCurrency(total);
@@ -8380,10 +8775,17 @@ function getAllowedUserByEmail(email) {
 }
 
 function canEditTaskLabels() {
-  return state.currentUser === DERIC_EMAIL;
+  return state.currentUser === DERIC_EMAIL && dericPinValidatedForSession;
+}
+
+function canAccessMomMedicationRefill() {
+  // Deric must authenticate again after each page load before admin-only tools appear.
+  return activeClientId === "patrick" && state.currentUser === DERIC_EMAIL && dericPinValidatedForSession;
 }
 
 function currentUser() {
+  // The Deric PIN protects the Mom IDeerFit feature only. Regular client edits
+  // must remain available to the account selected in the collaboration menu.
   return getAllowedUserByEmail(state.currentUser);
 }
 
@@ -8468,11 +8870,11 @@ function closeAccountGateDialog() {
   accountGateDialog.style.display = "none";
 }
 
-function showAccountGate(message = "Choose the account that will be used for updates in this session.") {
+function showAccountGate(message = "Choose the account that will be used for updates in this session.", selectedEmail = state.currentUser || "") {
   accountGateMessage.textContent = message;
   accountGateError.hidden = true;
   accountGateError.textContent = "";
-  accountGateSelect.value = state.currentUser || "";
+  accountGateSelect.value = selectedEmail;
   accountGatePin.value = "";
   updateAccountGatePinVisibility();
   openAccountGateDialog();
@@ -8563,10 +8965,16 @@ function requestUserSwitch(email) {
   }
 
   if (email === DERIC_EMAIL && !dericPinValidatedForSession) {
-    showAccountGate("Enter Deric's PIN to use Deric's account.");
-    accountGateSelect.value = DERIC_EMAIL;
-    updateAccountGatePinVisibility();
-    accountGatePin.focus();
+    // Native prompts are more reliable than <dialog> for a select change on iOS.
+    // This keeps the account selector usable and avoids a hidden modal trapping it.
+    const pin = window.prompt("Enter Deric's PIN to use Deric's account:", "");
+    if (pin !== DERIC_PIN) {
+      userSelect.value = "";
+      if (pin !== null) window.alert("The PIN for Deric's account is incorrect.");
+      return;
+    }
+    dericPinValidatedForSession = true;
+    setCurrentUserEmail(DERIC_EMAIL, { save: true, renderView: true });
     return;
   }
 
@@ -10502,6 +10910,24 @@ if (copyBillsToNextMonthBtn) {
 if (calculateBillsBtn) {
   calculateBillsBtn.addEventListener("click", calculateAllBillBalances);
 }
+if (refreshAdminBillsBtn) {
+  refreshAdminBillsBtn.addEventListener("click", refreshAdminBills);
+}
+if (adminBillSimulationBtn) {
+  adminBillSimulationBtn.addEventListener("click", openAdminBillSimulation);
+}
+if (closeAdminBillSimulationDialogBtn && adminBillSimulationDialog) {
+  closeAdminBillSimulationDialogBtn.addEventListener("click", () => adminBillSimulationDialog.close());
+}
+if (saveAdminBillSimulationBtn) {
+  saveAdminBillSimulationBtn.addEventListener("click", saveAdminBillSimulationProjectionTable);
+}
+if (applyAdminBillSimulationBtn) {
+  applyAdminBillSimulationBtn.addEventListener("click", applyAdminBillSimulation);
+}
+if (exitAdminBillSimulationBtn) {
+  exitAdminBillSimulationBtn.addEventListener("click", exitAdminBillSimulation);
+}
 if (monthlyBillsReportBtn) {
   monthlyBillsReportBtn.addEventListener("click", downloadMonthlyBillsReportHtml);
 }
@@ -10823,6 +11249,107 @@ if (workScheduleForm) {
 }
 document.querySelector("#closeWorkScheduleDialog")?.addEventListener("click", closeWorkScheduleDialog);
 document.querySelector("#cancelWorkScheduleDialog")?.addEventListener("click", closeWorkScheduleDialog);
+if (momMedicationRefillBtn) {
+  momMedicationRefillBtn.addEventListener("click", () => {
+    if (!canAccessMomMedicationRefill()) return;
+    state.hiddenPanels.momMedication = false;
+    saveState();
+    renderMomMedicationRefill();
+    momMedicationPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+if (toggleMomMedicationBtn) {
+  toggleMomMedicationBtn.addEventListener("click", () => {
+    if (!canAccessMomMedicationRefill()) return;
+    state.hiddenPanels.momMedication = !state.hiddenPanels.momMedication;
+    saveState();
+    renderMomMedicationRefill();
+  });
+}
+if (markMomMedicationRefilledBtn) {
+  markMomMedicationRefilledBtn.addEventListener("click", () => {
+    if (!canAccessMomMedicationRefill()) return;
+    const plan = normalizeMomMedicationRefill(state.momMedicationRefill, true);
+    plan.lastRefillDate = new Date().toISOString().slice(0, 10);
+    plan.updatedAt = new Date().toISOString();
+    state.momMedicationRefill = plan;
+    recordHistoryEntry({
+      itemType: "momMedication",
+      itemId: "mom-ideerfit-refill",
+      title: "Mom's IDeerFit Refill Tracker",
+      summary: `IDeerFit refill marked complete for ${plan.lastRefillDate}`,
+      status: "Updated",
+      percent: 0
+    });
+    saveState();
+    renderMomMedicationRefill();
+  });
+}
+if (addMomMedicationBtn) {
+  addMomMedicationBtn.addEventListener("click", () => {
+    if (!canAccessMomMedicationRefill()) return;
+    const plan = normalizeMomMedicationRefill(state.momMedicationRefill, true);
+    const medication = { id: crypto.randomUUID(), medication: "", dosage: "", frequency: "", timeOfDay: "", condition: "", prescriber: "", notes: "" };
+    plan.medications.push(medication);
+    plan.updatedAt = new Date().toISOString();
+    state.momMedicationRefill = plan;
+    recordHistoryEntry({ itemType: "momMedication", itemId: medication.id, title: "Mom's IDeerFit Refill Tracker", summary: "Medication added", status: "Updated", percent: 0 });
+    saveState();
+    renderMomMedicationRefill();
+    momMedicationRows?.querySelector(`tr[data-mom-medication-id="${medication.id}"] input`)?.focus();
+  });
+}
+function saveMomMedicationPlanChange(summary, itemId = "mom-ideerfit-refill") {
+  const plan = normalizeMomMedicationRefill(state.momMedicationRefill, true);
+  plan.updatedAt = new Date().toISOString();
+  state.momMedicationRefill = plan;
+  recordHistoryEntry({ itemType: "momMedication", itemId, title: "Mom's IDeerFit Refill Tracker", summary, status: "Updated", percent: 0 });
+  saveState();
+}
+if (momMedicationLastRefill) {
+  momMedicationLastRefill.addEventListener("change", () => {
+    const plan = normalizeMomMedicationRefill(state.momMedicationRefill, true);
+    plan.lastRefillDate = normalizeMomRefillDate(momMedicationLastRefill.value) || plan.lastRefillDate;
+    state.momMedicationRefill = plan;
+    saveMomMedicationPlanChange("Last IDeerFit refill date updated");
+    renderMomMedicationRefill();
+  });
+}
+if (momMedicationFrequencyDays) {
+  momMedicationFrequencyDays.addEventListener("change", () => {
+    const plan = normalizeMomMedicationRefill(state.momMedicationRefill, true);
+    plan.frequencyDays = Math.max(1, Number(momMedicationFrequencyDays.value) || 14);
+    state.momMedicationRefill = plan;
+    saveMomMedicationPlanChange("IDeerFit refill cadence updated");
+    renderMomMedicationRefill();
+  });
+}
+if (momMedicationRows) {
+  momMedicationRows.addEventListener("change", event => {
+    const field = event.target?.dataset?.momMedicationField;
+    const row = event.target?.closest("tr[data-mom-medication-id]");
+    if (!field || !row) return;
+    const plan = normalizeMomMedicationRefill(state.momMedicationRefill, true);
+    const medication = plan.medications.find(item => item.id === row.dataset.momMedicationId);
+    if (!medication) return;
+    const value = event.target.value;
+    if (medication[field] === value) return;
+    medication[field] = value;
+    state.momMedicationRefill = plan;
+    saveMomMedicationPlanChange(`${field === "notes" ? "Notes" : field} updated for ${medication.medication || "medication"}`, medication.id);
+  });
+  momMedicationRows.addEventListener("click", event => {
+    const button = event.target.closest("[data-mom-medication-action='remove']");
+    const row = event.target.closest("tr[data-mom-medication-id]");
+    if (!button || !row) return;
+    const plan = normalizeMomMedicationRefill(state.momMedicationRefill, true);
+    const medication = plan.medications.find(item => item.id === row.dataset.momMedicationId);
+    plan.medications = plan.medications.filter(item => item.id !== row.dataset.momMedicationId);
+    state.momMedicationRefill = plan;
+    saveMomMedicationPlanChange(`Medication removed: ${medication?.medication || "Unnamed medication"}`, row.dataset.momMedicationId);
+    renderMomMedicationRefill();
+  });
+}
 userSelect.addEventListener("change", () => {
   requestUserSwitch(userSelect.value);
 });
