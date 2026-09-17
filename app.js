@@ -1859,7 +1859,7 @@ const BILL_COLUMN_SUM_CONFIG = {
   },
   "bill-col-due-amt": {
     label: "Due amount",
-    getValue: bill => normalizeMoney(bill.amount)
+    getValue: bill => getEffectiveBillAmount(bill)
   },
   "bill-col-paid-amt": {
     label: "Paid amount",
@@ -1867,7 +1867,7 @@ const BILL_COLUMN_SUM_CONFIG = {
   },
   "bill-col-recommended": {
     label: "Recommended payment",
-    getValue: (bill, recommendedPayments) => normalizeMoney(recommendedPayments.get(bill.id) ?? bill.amount)
+    getValue: (bill, recommendedPayments) => normalizeMoney(recommendedPayments.get(bill.id) ?? getEffectiveBillAmount(bill))
   }
 };
 
@@ -3243,6 +3243,51 @@ function defaultBillNoteForStatus(status) {
   return ["Paid", "Fully Paid"].includes(status) ? "This bill is paid" : "Pending";
 }
 
+function getAdminInterestPriority(bill, interestPaid = null) {
+  const paidAmount = normalizeMoney(bill?.paidAmount);
+  const interest = interestPaid === null
+    ? calculateMonthlyInterestPortion(bill?.previousBalance ?? bill?.currentBalance, bill?.apr)
+    : normalizeMoney(interestPaid);
+  const principalReduction = Math.max(0, paidAmount - interest);
+  // Add one cent so principal is greater than interest, not merely equal to it.
+  const extraForPrincipalLead = Math.max(0, Math.round(((interest * 2) - paidAmount + 0.01) * 100) / 100);
+  return {
+    interest,
+    paidAmount,
+    principalReduction,
+    extraForPrincipalLead,
+    targetPaymentForPrincipalLead: paidAmount + extraForPrincipalLead,
+    isInterestHeavy: isAdminClient() && bill?.status === "Paid" && paidAmount > 0 && interest > principalReduction
+  };
+}
+
+function buildAdminPaidBillProgressNote(bill, interestPaid = null, recommendedPayment = null) {
+  if (!isAdminClient() || bill?.status !== "Paid") return String(bill?.notes || "");
+  const priority = getAdminInterestPriority(bill, interestPaid);
+  const { interest, paidAmount, principalReduction, extraForPrincipalLead, targetPaymentForPrincipalLead } = priority;
+  const calculatedRecommendations = recommendedPayment === null ? calculateRecommendedBillPayments(state.bills) : null;
+  const recommended = normalizeMoney(recommendedPayment ?? calculatedRecommendations?.get(bill.id) ?? bill.amount);
+  const additionalToRecommended = Math.max(0, recommended - paidAmount);
+  const previousBalance = normalizeMoney(bill.previousBalance ?? bill.currentBalance);
+  const currentBalance = normalizeMoney(bill.currentBalance);
+  const interestShare = paidAmount > 0 ? Math.round((interest / paidAmount) * 100) : 0;
+  const balanceChange = Math.max(0, previousBalance - currentBalance);
+  const apr = formatApr(parseAprNumber(bill.apr));
+  const nextStep = priority.isInterestHeavy
+    ? ` Pay ${formatCurrency(extraForPrincipalLead)} more (total ${formatCurrency(targetPaymentForPrincipalLead)}) for more of the payment to reduce principal than to cover interest.`
+    : "";
+  const recommendationGuidance = recommended > paidAmount
+    ? ` Recommended payment: ${formatCurrency(recommended)} (${formatCurrency(additionalToRecommended)} more than paid). If the full target is not possible, any extra directed to this bill still reduces principal sooner.`
+    : ` Recommended payment: ${formatCurrency(recommended)}. This payment meets or exceeds that target.`;
+
+  if (paidAmount < interest) {
+    return `This bill is paid. ${formatCurrency(paidAmount)} payment is ${formatCurrency(interest - paidAmount)} short of the estimated ${formatCurrency(interest)} monthly interest at ${apr} APR, so no principal is reduced and unpaid interest can keep the balance from falling.${nextStep}${recommendationGuidance}`;
+  }
+  if (paidAmount === interest) {
+    return `This bill is paid. The ${formatCurrency(paidAmount)} payment covers the estimated monthly interest at ${apr} APR, leaving no payment for principal; the balance remains ${formatCurrency(currentBalance)}.${nextStep}${recommendationGuidance}`;
+  }
+  return `This bill is paid. Of the ${formatCurrency(paidAmount)} payment, an estimated ${formatCurrency(interest)} (${interestShare}%) covers interest at ${apr} APR, leaving ${formatCurrency(principalReduction)} to reduce principal. Balance: ${formatCurrency(previousBalance)} to ${formatCurrency(currentBalance)} (${formatCurrency(balanceChange)} reduced).${nextStep}${recommendationGuidance}`;
+}
 function normalizeBillNotes(notes, status) {
   const trimmedNotes = String(notes || "").trim();
   if (!trimmedNotes) return defaultBillNoteForStatus(status);
@@ -3694,10 +3739,10 @@ function getRolloverDeletedBillNames() {
 }
 
 function calculateBudgetTotals(monthlyBudgetFund, bills) {
-  const totalBills = bills.reduce((sum, bill) => sum + normalizeMoney(bill.amount), 0);
+  const totalBills = bills.reduce((sum, bill) => sum + getEffectiveBillAmount(bill), 0);
   const paidBills = bills
     .filter(bill => bill.status === "Paid")
-    .reduce((sum, bill) => sum + normalizeMoney(bill.amount), 0);
+    .reduce((sum, bill) => sum + getEffectiveBillAmount(bill), 0);
   const remainingBills = Math.max(0, totalBills - paidBills);
   const cashFlow = Math.round((normalizeMoney(monthlyBudgetFund) - totalBills) * 100) / 100;
   const covered = cashFlow >= 0;
@@ -3886,7 +3931,7 @@ function renderUpcomingBillsBanner() {
     return;
   }
 
-  const totalDue = dueSoon.reduce((sum, entry) => sum + normalizeMoney(entry.bill.amount), 0);
+  const totalDue = dueSoon.reduce((sum, entry) => sum + getEffectiveBillAmount(entry.bill), 0);
   upcomingBillsBanner.textContent = `${dueSoon.length} bill${dueSoon.length === 1 ? "" : "s"} due within 7 days • Total due ${formatCurrency(totalDue)}. Click to review.`;
   upcomingBillsBanner.setAttribute("role", "button");
   upcomingBillsBanner.setAttribute("tabindex", "0");
@@ -3906,7 +3951,7 @@ function renderUpcomingBillsBanner() {
       title.textContent = bill.name || "Untitled bill";
 
       const meta = document.createElement("span");
-      meta.textContent = `${formatCurrency(bill.amount)} due ${bill.due}${bill.hidden ? " • hidden from main list" : ""}`;
+      meta.textContent = `${formatCurrency(getEffectiveBillAmount(bill))} due ${bill.due}${bill.hidden ? " • hidden from main list" : ""}`;
 
       item.append(title, meta);
       upcomingBillsDialogList.appendChild(item);
@@ -3986,6 +4031,20 @@ function calculateSimulatedCurrentBalance(bill, projectedPreviousBalance) {
   return calculateCurrentBalanceFromPayment(projectedPreviousBalance, bill.paidAmount, bill.apr);
 }
 
+function calculateSimulatedDueAmount(bill, simulatedCurrentBalance) {
+  const actualDueAmount = normalizeMoney(bill?.amount);
+  const actualCurrentBalance = normalizeMoney(bill?.currentBalance);
+  const projectedCurrentBalance = Math.max(0, normalizeSignedMoney(simulatedCurrentBalance));
+  if (!actualDueAmount || !projectedCurrentBalance) return 0;
+  if (!actualCurrentBalance) return Math.min(actualDueAmount, projectedCurrentBalance);
+  return Math.round(Math.min(actualDueAmount, actualDueAmount * (projectedCurrentBalance / actualCurrentBalance)) * 100) / 100;
+}
+
+function getEffectiveBillAmount(bill) {
+  if (bill && Object.hasOwn(bill, "simulatedAmount")) return normalizeMoney(bill.simulatedAmount);
+  return normalizeMoney(bill?.amount);
+}
+
 function getBillsForCurrentDisplay() {
   if (!isAdminBillSimulationActive()) return state.bills;
   const projections = getAdminBillSimulationProjectionMap();
@@ -3993,10 +4052,12 @@ function getBillsForCurrentDisplay() {
     const key = bill.templateKey || buildBudgetBillTemplateKey(bill.name);
     if (!projections.has(key)) return bill;
     const simulatedPreviousBalance = projections.get(key);
+    const simulatedCurrentBalance = calculateSimulatedCurrentBalance(bill, simulatedPreviousBalance);
     return {
       ...bill,
       simulatedPreviousBalance,
-      simulatedCurrentBalance: calculateSimulatedCurrentBalance(bill, simulatedPreviousBalance)
+      simulatedCurrentBalance,
+      simulatedAmount: calculateSimulatedDueAmount(bill, simulatedCurrentBalance)
     };
   });
 }
@@ -4098,7 +4159,7 @@ function calculateRecommendedBillPayments(bills) {
       const balance = Math.max(0, getEffectiveBillCurrentBalance(bill));
       const creditLimit = normalizeMoney(bill.creditLimit);
       const apr = parseAprNumber(bill.apr);
-      const scheduledAmount = normalizeMoney(bill.amount);
+      const scheduledAmount = getEffectiveBillAmount(bill);
       const targetBalance = creditLimit > 0 ? creditLimit * 0.25 : 0;
       const reducibleBalance = Math.max(0, balance - targetBalance);
       const payoffBalance = creditLimit > 0 ? reducibleBalance : balance;
@@ -6274,9 +6335,9 @@ function renderBills() {
       acc.currentBalance += getEffectiveBillCurrentBalance(bill);
       acc.balanceDiff += getEffectiveBillCurrentBalance(bill) - getEffectiveBillPreviousBalance(bill);
       acc.creditLimit += normalizeMoney(bill.creditLimit);
-      acc.amount += normalizeMoney(bill.amount);
+      acc.amount += getEffectiveBillAmount(bill);
       acc.paidAmount += normalizeMoney(bill.paidAmount);
-      acc.recommended += normalizeMoney(recommendedPayments.get(bill.id) ?? bill.amount);
+      acc.recommended += normalizeMoney(recommendedPayments.get(bill.id) ?? getEffectiveBillAmount(bill));
       return acc;
     }, {
       interestPaid: 0,
@@ -6304,6 +6365,7 @@ function renderBills() {
       <div class="budget-bill-total-cell bill-col-prev-bal">${escapeHtml(formatCurrency(totals.previousBalance))}</div>
       <div class="budget-bill-total-cell bill-col-current-bal">${escapeHtml(formatSignedCurrency(totals.currentBalance))}</div>
       <div class="budget-bill-total-cell bill-col-diff">${escapeHtml(formatSignedCurrency(totals.balanceDiff))}</div>
+      <div class="budget-bill-total-cell bill-col-payment-priority">-</div>
       <div class="budget-bill-total-cell bill-col-credit-line">${escapeHtml(formatCurrency(totals.creditLimit))}</div>
       <div class="budget-bill-total-cell bill-col-due-amt">${escapeHtml(formatCurrency(totals.amount))}</div>
       <div class="budget-bill-total-cell bill-col-paid-amt">${escapeHtml(formatCurrency(totals.paidAmount))}</div>
@@ -6324,13 +6386,15 @@ function renderBills() {
     const creditRemainingClass = creditRemainingPercent === null
       ? ""
       : (creditRemainingPercent < 50 ? " is-low-credit" : " is-healthy-credit");
-    const recommendedPayment = recommendedPayments.get(bill.id) ?? normalizeMoney(bill.amount);
+    const recommendedPayment = recommendedPayments.get(bill.id) ?? getEffectiveBillAmount(bill);
     const pastDue = isBillPastDue(bill);
     const dueSoon = !pastDue && isBillDueSoon(bill, 7);
     const effectivePreviousBalance = getEffectiveBillPreviousBalance(bill);
     const effectiveCurrentBalance = getEffectiveBillCurrentBalance(bill);
     const interestPaid = calculateMonthlyInterestPortion(effectivePreviousBalance, bill.apr);
+    const interestPriority = getAdminInterestPriority(bill, interestPaid);
     const balanceDiff = effectiveCurrentBalance - effectivePreviousBalance;
+    const notesDisplay = buildAdminPaidBillProgressNote(bill, interestPaid, recommendedPayment) || bill.notes || "";
     const row = document.createElement("article");
     row.className = `budget-bill-item${pastDue ? " is-past-due" : ""}${dueSoon ? " is-due-soon" : ""}${bill.status === "Paid" ? " is-paid" : ""}${bill.hidden ? " is-hidden" : ""}`;
     row.dataset.billId = bill.id;
@@ -6362,13 +6426,17 @@ function renderBills() {
         <span>Difference</span>
         <input class="bill-balance-diff" type="text" value="${escapeAttribute(formatSignedCurrency(balanceDiff))}" aria-label="Balance difference" readonly>
       </label>
+      <div class="budget-bill-field bill-col-payment-priority">
+        <span>Pay more</span>
+        <div class="bill-interest-priority${interestPriority.isInterestHeavy ? " is-interest-heavy" : ""}" title="${escapeAttribute(interestPriority.isInterestHeavy ? `Estimated interest ${formatCurrency(interestPriority.interest)} is greater than the ${formatCurrency(interestPriority.principalReduction)} reducing principal. Pay ${formatCurrency(interestPriority.extraForPrincipalLead)} more (total ${formatCurrency(interestPriority.targetPaymentForPrincipalLead)}) for principal to exceed interest.` : "Interest does not exceed the principal portion of this payment.")}">${interestPriority.isInterestHeavy ? "Pay More" : "-"}</div>
+      </div>
       <label class="budget-bill-field bill-col-credit-line">
         <span>Credit line</span>
         <input class="bill-credit-limit" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.creditLimit))}" aria-label="Credit line">
       </label>
       <label class="budget-bill-field bill-col-due-amt">
         <span>Due amt</span>
-        <input class="bill-amount" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.amount))}" aria-label="Bill amount due">
+        <input class="bill-amount" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrency(getEffectiveBillAmount(bill)))}" aria-label="Bill amount due">
       </label>
       <label class="budget-bill-field bill-col-paid-amt">
         <span>Paid amt</span>
@@ -6405,7 +6473,7 @@ function renderBills() {
       <div class="budget-bill-notes-box bill-col-notes">
         <label class="budget-bill-field">
           <span>Notes</span>
-          <textarea class="bill-notes" rows="2" aria-label="Bill notes" placeholder="Optional notes">${escapeHtml(bill.notes || "")}</textarea>
+          <textarea class="bill-notes${interestPriority.isInterestHeavy ? " is-interest-heavy" : ""}" rows="1" wrap="off" aria-label="Bill notes" placeholder="Optional notes" title="${escapeAttribute(notesDisplay)}">${escapeHtml(notesDisplay)}</textarea>
         </label>
       </div>
       <div class="budget-bill-actions bill-col-actions">
@@ -6420,7 +6488,10 @@ function renderBills() {
     row.querySelector(".bill-current-balance").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-credit-limit").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-amount").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
-    row.querySelector(".bill-paid-amount").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
+    row.querySelector(".bill-paid-amount").addEventListener("input", () => {
+      row.dataset.paymentInsightPending = "true";
+      updateBillFromRow(row, { recordHistory: false, persist: false });
+    });
     row.querySelector(".bill-transaction-number").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-name").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-apr").addEventListener("change", () => updateBillFromRow(row));
@@ -6429,10 +6500,10 @@ function renderBills() {
     row.querySelector(".bill-credit-limit").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-amount").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-due").addEventListener("change", () => updateBillFromRow(row));
-    row.querySelector(".bill-paid-amount").addEventListener("change", () => updateBillFromRow(row));
+    row.querySelector(".bill-paid-amount").addEventListener("change", () => updateBillFromRow(row, { showPaymentInsight: true }));
     row.querySelector(".bill-transaction-number").addEventListener("change", () => updateBillFromRow(row));
-    row.querySelector(".bill-paid-date").addEventListener("change", () => updateBillFromRow(row));
-    row.querySelector(".bill-status").addEventListener("change", () => updateBillFromRow(row));
+    row.querySelector(".bill-paid-date").addEventListener("change", () => updateBillFromRow(row, { showPaymentInsight: true }));
+    row.querySelector(".bill-status").addEventListener("change", () => updateBillFromRow(row, { showPaymentInsight: true }));
     row.querySelector(".bill-notes").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-notes").addEventListener("blur", () => updateBillFromRow(row));
     row.querySelector(".budget-bill-row-selector").addEventListener("click", event => {
@@ -6513,7 +6584,7 @@ function renderBills() {
     billListHeader.classList.toggle("is-simple", usesSimpleBills);
     billListHeader.innerHTML = usesSimpleBills
       ? "<span class=\"budget-bill-selector-header\"></span><span>Bill</span><span>Prev Bal</span><span>Current Bal</span><span>Amount</span><span>Due</span><span>Date Paid</span><span>Status</span><span>Notes</span><span>Actions</span>"
-      : "<span class=\"budget-bill-selector-header bill-col-selector\"></span><span class=\"bill-col bill-col-name\">Bill</span><span class=\"bill-col bill-col-apr\">APR</span><span class=\"bill-col bill-col-interest-paid is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum interest paid column\">Interest Paid</span><span class=\"bill-col bill-col-prev-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum previous balance column\">Prev Bal</span><span class=\"bill-col bill-col-current-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum current balance column\">Current Bal</span><span class=\"bill-col bill-col-diff is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum difference column\">Diff</span><span class=\"bill-col bill-col-credit-line is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum credit line column\">Credit Line</span><span class=\"bill-col bill-col-due-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum due amount column\">Due Amt</span><span class=\"bill-col bill-col-paid-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum paid amount column\">Paid Amt</span><span class=\"bill-col bill-col-recommended is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum recommended payment column\">Recommended</span><span class=\"bill-col bill-col-tran\">Tran #</span><span class=\"bill-col bill-col-due-date\">Due</span><span class=\"bill-col bill-col-date-paid\">Date Paid</span><span class=\"bill-col bill-col-credit-percent\">% Credit</span><span class=\"bill-col bill-col-status\">Status</span><span class=\"bill-col bill-col-notes\">Notes</span><span class=\"bill-col bill-col-actions\">Actions</span>";
+      : "<span class=\"budget-bill-selector-header bill-col-selector\"></span><span class=\"bill-col bill-col-name\">Bill</span><span class=\"bill-col bill-col-apr\">APR</span><span class=\"bill-col bill-col-interest-paid is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum interest paid column\">Interest Paid</span><span class=\"bill-col bill-col-prev-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum previous balance column\">Prev Bal</span><span class=\"bill-col bill-col-current-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum current balance column\">Current Bal</span><span class=\"bill-col bill-col-diff is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum difference column\">Diff</span><span class=\"bill-col bill-col-payment-priority\" title=\"Paid bills where interest consumes more than the principal portion\">Pay More</span><span class=\"bill-col bill-col-credit-line is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum credit line column\">Credit Line</span><span class=\"bill-col bill-col-due-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum due amount column\">Due Amt</span><span class=\"bill-col bill-col-paid-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum paid amount column\">Paid Amt</span><span class=\"bill-col bill-col-recommended is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum recommended payment column\">Recommended</span><span class=\"bill-col bill-col-tran\">Tran #</span><span class=\"bill-col bill-col-due-date\">Due</span><span class=\"bill-col bill-col-date-paid\">Date Paid</span><span class=\"bill-col bill-col-credit-percent\">% Credit</span><span class=\"bill-col bill-col-status\">Status</span><span class=\"bill-col bill-col-notes\">Notes</span><span class=\"bill-col bill-col-actions\">Actions</span>";
     if (!usesSimpleBills) {
       Object.entries(BILL_COLUMN_SUM_CONFIG).forEach(([columnClass, config]) => {
         const headerCell = billListHeader.querySelector(`.${columnClass}`);
@@ -6588,31 +6659,41 @@ function renderAdminBillSimulationDialog() {
   const billsByKey = new Map(state.bills.map(bill => [
     bill.templateKey || buildBudgetBillTemplateKey(bill.name), bill
   ]));
-  const projectedPreviousTotal = projections.reduce((sum, item) => sum + normalizeSignedMoney(item.projectedBalance), 0);
-  const projectedCurrentTotal = projections.reduce((sum, item) => {
-    const bill = billsByKey.get(item.key);
-    return sum + (bill ? calculateSimulatedCurrentBalance(bill, item.projectedBalance) : normalizeSignedMoney(item.projectedBalance));
-  }, 0);
+  const projectedBills = projections
+    .map(item => ({ item, bill: billsByKey.get(item.key) }))
+    .filter(({ bill }) => Boolean(bill));
+  const currentBalanceTotal = projectedBills.reduce((sum, { bill }) => sum + normalizeMoney(bill.currentBalance), 0);
+  const projectedPreviousTotal = projectedBills.reduce((sum, { item }) => sum + normalizeSignedMoney(item.projectedBalance), 0);
+  const projectedCurrentTotal = projectedBills.reduce((sum, { bill, item }) => (
+    sum + calculateSimulatedCurrentBalance(bill, item.projectedBalance)
+  ), 0);
+  const projectedDifferenceTotal = currentBalanceTotal - projectedPreviousTotal;
   adminBillSimulationBody.innerHTML = `
     <div class="admin-bill-simulation-table-wrap">
       <table class="admin-bill-simulation-table">
-        <thead><tr><th>Bill</th><th>Current Bal</th><th>Projected Prev Bal</th></tr></thead>
+        <thead><tr><th>Bill</th><th>Current Bal</th><th>Proj Prev Bal</th><th>Difference</th></tr></thead>
         <tbody>
           ${projections.map(item => {
             const bill = billsByKey.get(item.key);
             const currentBalance = bill ? formatCurrency(bill.currentBalance) : "Not in this month";
+            const difference = bill
+              ? formatSignedCurrency(normalizeMoney(bill.currentBalance) - normalizeSignedMoney(item.projectedBalance))
+              : "N/A";
             return `<tr>
               <td>${escapeHtml(item.name)}</td>
               <td>${escapeHtml(currentBalance)}</td>
               <td><input type="text" inputmode="decimal" data-admin-simulation-key="${escapeAttribute(item.key)}" value="${escapeAttribute(formatSignedCurrency(item.projectedBalance))}" aria-label="Projected balance for ${escapeAttribute(item.name)}"></td>
+              <td>${escapeHtml(difference)}</td>
             </tr>`;
           }).join("")}
         </tbody>
       </table>
     </div>
     <div class="admin-bill-simulation-total">
+      <span>Current Bal total: ${escapeHtml(formatSignedCurrency(currentBalanceTotal))}</span>
       <span>Projected Prev Bal total: ${escapeHtml(formatSignedCurrency(projectedPreviousTotal))}</span>
       <span>Projected Current Bal total: ${escapeHtml(formatSignedCurrency(projectedCurrentTotal))}</span>
+      <span>Difference total: ${escapeHtml(formatSignedCurrency(projectedDifferenceTotal))}</span>
     </div>
   `;
   if (applyAdminBillSimulationBtn) applyAdminBillSimulationBtn.hidden = isAdminBillSimulationActive();
@@ -6725,6 +6806,9 @@ function updateBillFromRow(row, options = {}) {
   const persist = options.persist !== false;
   const shouldCaptureSnapshot = options.suppressSnapshot !== true;
   const originalBaseline = row.dataset.auditBaseline ? JSON.parse(row.dataset.auditBaseline) : null;
+  const wasPaid = bill.status === "Paid";
+  const priorPaidAmount = normalizeMoney(bill.paidAmount);
+  const priorPaidDate = bill.paidDate || "";
   const before = originalBaseline || { ...bill };
   const getField = selector => row.querySelector(selector);
   bill.name = getField(".bill-name")?.value.trim() ?? bill.name;
@@ -6768,6 +6852,9 @@ function updateBillFromRow(row, options = {}) {
       : (getField(".bill-status")?.value ?? bill.status);
   }
   bill.notes = normalizeBillNotes(getField(".bill-notes")?.value.trim() ?? bill.notes, bill.status);
+  if (isAdminClient() && bill.status === "Paid") {
+    bill.notes = buildAdminPaidBillProgressNote(bill, null, calculateRecommendedBillPayments(state.bills).get(bill.id) ?? bill.amount);
+  }
   if (options.recalculateBalance) {
     bill.currentBalance = calculateCurrentBalanceFromPayment(bill.previousBalance, bill.paidAmount, bill.apr);
   }
@@ -6805,6 +6892,12 @@ function updateBillFromRow(row, options = {}) {
     syncCurrentBudgetMonth(false);
     saveState();
   }
+  const paymentInsightPending = row.dataset.paymentInsightPending === "true";
+  const paymentChanged = priorPaidAmount !== normalizeMoney(bill.paidAmount) || priorPaidDate !== (bill.paidDate || "");
+  if (options.showPaymentInsight && isAdminClient() && bill.status === "Paid" && normalizeMoney(bill.paidAmount) > 0 && (paymentChanged || !wasPaid || paymentInsightPending)) {
+    delete row.dataset.paymentInsightPending;
+    window.alert(`Payment recorded for ${bill.name || "this bill"}.\n\n${bill.notes}`);
+  }
   updateBillTotals();
 
   if (isAdminClient()) {
@@ -6830,7 +6923,22 @@ function updateBillFromRow(row, options = {}) {
       creditStatus.className = `budget-bill-status-note${creditPercent === null ? "" : creditPercent < 50 ? " is-low-credit" : " is-healthy-credit"}`;
     }
     if (getField(".bill-status")) getField(".bill-status").value = bill.status;
-    if (getField(".bill-notes")) getField(".bill-notes").value = bill.notes;
+    const notesInput = getField(".bill-notes");
+    const priorityIndicator = row.querySelector(".bill-interest-priority");
+    const updatedInterest = calculateMonthlyInterestPortion(bill.previousBalance, bill.apr);
+    const updatedPriority = getAdminInterestPriority(bill, updatedInterest);
+    if (notesInput) {
+      notesInput.value = bill.notes;
+      notesInput.title = bill.notes;
+      notesInput.classList.toggle("is-interest-heavy", updatedPriority.isInterestHeavy);
+    }
+    if (priorityIndicator) {
+      priorityIndicator.textContent = updatedPriority.isInterestHeavy ? "Pay More" : "-";
+      priorityIndicator.classList.toggle("is-interest-heavy", updatedPriority.isInterestHeavy);
+      priorityIndicator.title = updatedPriority.isInterestHeavy
+        ? `Estimated interest ${formatCurrency(updatedPriority.interest)} is greater than the ${formatCurrency(updatedPriority.principalReduction)} reducing principal. Pay ${formatCurrency(updatedPriority.extraForPrincipalLead)} more (total ${formatCurrency(updatedPriority.targetPaymentForPrincipalLead)}) for principal to exceed interest.`
+        : "Interest does not exceed the principal portion of this payment.";
+    }
   }
 
   if (options.recordHistory !== false) {
@@ -6893,6 +7001,8 @@ function refreshAdminBills() {
 
 function updateBillTotals() {
   const monthlyBudgetFund = normalizeMoney(state.monthlyBudgetFund);
+  const displayBills = getBillsForCurrentDisplay();
+  const simulationActive = isAdminBillSimulationActive();
   const {
     totalBills: total,
     paidBills: paid,
@@ -6901,21 +7011,35 @@ function updateBillTotals() {
     covered,
     fundingGap,
     pastDueCount: pastDue
-  } = calculateBudgetTotals(monthlyBudgetFund, getBillsForCurrentDisplay());
+  } = calculateBudgetTotals(monthlyBudgetFund, displayBills);
 
   if (billMBFDisplay) billMBFDisplay.textContent = formatCurrency(monthlyBudgetFund);
   billTotal.textContent = formatCurrency(total);
   billPaid.textContent = formatCurrency(paid);
   billRemaining.textContent = formatCurrency(remaining);
+  const totalBillsLabel = billTotal.parentElement?.querySelector("span");
+  if (totalBillsLabel) totalBillsLabel.textContent = simulationActive ? "Projected bills" : "Total bills";
+  const remainingBillsLabel = billRemaining.parentElement?.querySelector("span");
+  if (remainingBillsLabel) remainingBillsLabel.textContent = simulationActive ? "Projected remaining" : "Remaining";
   if (billCashFlow) {
     billCashFlow.textContent = formatSignedCurrency(cashFlow);
     billCashFlow.parentElement?.classList.toggle("is-negative", !covered);
     billCashFlow.parentElement?.classList.toggle("is-positive", covered && cashFlow > 0);
+    const cashFlowLabel = billCashFlow.parentElement?.querySelector("span");
+    if (cashFlowLabel) cashFlowLabel.textContent = simulationActive ? "Projected cash flow" : "Cash flow";
+    billCashFlow.parentElement?.setAttribute(
+      "title",
+      simulationActive
+        ? `MBF ${formatCurrency(monthlyBudgetFund)} minus projected bills ${formatCurrency(total)} equals ${formatSignedCurrency(cashFlow)}.`
+        : "MBF minus this month's scheduled bill amounts."
+    );
   }
   if (billCoverage) {
     billCoverage.textContent = covered ? "Covered" : `Short ${formatCurrency(fundingGap)}`;
     billCoverage.parentElement?.classList.toggle("is-negative", !covered);
     billCoverage.parentElement?.classList.toggle("is-positive", covered);
+    const coverageLabel = billCoverage.parentElement?.querySelector("span");
+    if (coverageLabel) coverageLabel.textContent = simulationActive ? "Projected MBF coverage" : "MBF coverage";
   }
   billPastDue.textContent = pastDue;
   if (budgetAlert) {
@@ -6924,7 +7048,9 @@ function updateBillTotals() {
       budgetAlert.textContent = "";
     } else {
       budgetAlert.hidden = false;
-      budgetAlert.textContent = `Monthly Budget Fund does not cover this month's bills. Additional funding needed: ${formatCurrency(fundingGap)}.`;
+      budgetAlert.textContent = simulationActive
+        ? `Monthly Budget Fund does not cover projected bills. Additional funding needed: ${formatCurrency(fundingGap)}.`
+        : `Monthly Budget Fund does not cover this month's bills. Additional funding needed: ${formatCurrency(fundingGap)}.`;
     }
   }
 }
@@ -11774,8 +11900,8 @@ function renderSimpleBillRow(bill, targetList) {
     row.querySelector(".bill-amount").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-previous-balance").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-due").addEventListener("change", () => updateBillFromRow(row));
-    row.querySelector(".bill-paid-date").addEventListener("change", () => updateBillFromRow(row));
-    row.querySelector(".bill-status").addEventListener("change", () => updateBillFromRow(row));
+    row.querySelector(".bill-paid-date").addEventListener("change", () => updateBillFromRow(row, { showPaymentInsight: true }));
+    row.querySelector(".bill-status").addEventListener("change", () => updateBillFromRow(row, { showPaymentInsight: true }));
     row.querySelector(".bill-notes").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-notes").addEventListener("blur", () => updateBillFromRow(row));
     row.querySelector(".budget-bill-row-selector").addEventListener("click", event => {

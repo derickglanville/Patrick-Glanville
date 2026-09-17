@@ -784,40 +784,55 @@ textarea {
 .admin-bill-simulation-dialog {
   width: min(680px, calc(100vw - 24px));
   max-width: calc(100vw - 24px);
+  height: min(760px, calc(100vh - 24px));
+  max-height: calc(100vh - 24px);
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
 }
 
 .admin-bill-simulation-table-wrap {
-  max-height: min(66vh, 560px);
+  flex: 1 1 auto;
+  max-height: none;
   overflow: auto;
   border: 1px solid var(--line);
   border-radius: 8px;
 }
 
+#adminBillSimulationBody {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+}
+
 .admin-bill-simulation-table {
   width: 100%;
+  height: 100%;
   border-collapse: collapse;
   table-layout: fixed;
 }
 
 .admin-bill-simulation-table th:first-child,
 .admin-bill-simulation-table td:first-child {
-  width: 42%;
+  width: 31%;
 }
 
 .admin-bill-simulation-table th:not(:first-child),
 .admin-bill-simulation-table td:not(:first-child) {
-  width: 29%;
+  width: 23%;
 }
 
 .admin-bill-simulation-table th,
 .admin-bill-simulation-table td {
-  padding: 4px 7px;
+  padding: 2px 5px;
   border-bottom: 1px solid var(--line);
   text-align: left;
+  vertical-align: middle;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-size: .68rem;
 }
 
 .admin-bill-simulation-table th {
@@ -829,10 +844,11 @@ textarea {
 
 .admin-bill-simulation-table input {
   width: 100%;
-  min-height: 30px;
-  padding: 4px 6px;
+  min-height: 23px;
+  padding: 1px 4px;
   box-sizing: border-box;
   margin: 0;
+  font-size: .7rem;
 }
 
 .admin-bill-simulation-total {
@@ -851,8 +867,8 @@ textarea {
 @media (max-width: 640px) {
   .admin-bill-simulation-dialog { width: calc(100vw - 12px); max-width: calc(100vw - 12px); }
   .admin-bill-simulation-table th,
-  .admin-bill-simulation-table td { padding: 3px 5px; font-size: .8rem; }
-  .admin-bill-simulation-table input { min-height: 28px; font-size: .82rem; }
+  .admin-bill-simulation-table td { padding: 2px 4px; font-size: .68rem; }
+  .admin-bill-simulation-table input { min-height: 23px; padding: 1px 3px; font-size: .7rem; }
   .admin-bill-simulation-actions { grid-template-columns: 1fr 1fr; gap: 7px; }
   .admin-bill-simulation-actions #exitAdminBillSimulationBtn { grid-column: 1 / -1; }
 }
@@ -1017,6 +1033,7 @@ textarea {
     minmax(72px, .42fr)
     minmax(70px, .4fr)
     minmax(72px, .42fr)
+    minmax(66px, .36fr)
     minmax(66px, .38fr)
     minmax(64px, .36fr)
     minmax(68px, .4fr)
@@ -1133,6 +1150,7 @@ textarea {
     minmax(60px, .38fr)
     minmax(58px, .36fr)
     minmax(54px, .34fr)
+    minmax(58px, .34fr)
     minmax(60px, .38fr)
     minmax(56px, .36fr)
     minmax(60px, .38fr)
@@ -1156,6 +1174,7 @@ textarea {
     minmax(60px, .38fr)
     minmax(58px, .36fr)
     minmax(54px, .34fr)
+    minmax(58px, .34fr)
     minmax(60px, .38fr)
     minmax(56px, .36fr)
     minmax(60px, .38fr)
@@ -1221,6 +1240,7 @@ textarea {
 
 .budget-panel-admin-mini .bill-col-apr,
 .budget-panel-admin-mini .bill-col-interest-paid,
+.budget-panel-admin-mini .bill-col-payment-priority,
 .budget-panel-admin-mini .bill-col-prev-bal,
 .budget-panel-admin-mini .bill-col-credit-line,
 .budget-panel-admin-mini .bill-col-due-amt,
@@ -1257,6 +1277,7 @@ textarea {
     minmax(72px, .42fr)
     minmax(70px, .4fr)
     minmax(72px, .42fr)
+    minmax(66px, .36fr)
     minmax(66px, .38fr)
     minmax(64px, .36fr)
     minmax(68px, .4fr)
@@ -1541,7 +1562,21 @@ textarea {
   min-height: 24px;
   height: 24px;
   resize: none;
+  white-space: nowrap;
+  overflow: hidden;
 }
+
+.budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-notes-box textarea {
+  box-sizing: border-box;
+  min-height: 24px;
+  height: 24px;
+  max-height: 24px;
+  line-height: 20px;
+  overflow: hidden;
+  resize: none;
+  white-space: nowrap;
+}
+
 
 .budget-bill-actions {
   display: flex;
@@ -1690,7 +1725,37 @@ textarea {
   text-align: center;
 }
 
-.budget-bill-list-header > span:nth-child(15) {
+.bill-col-payment-priority {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.bill-interest-priority {
+  width: 100%;
+  color: #64748b;
+  font-size: .7rem;
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.bill-interest-priority.is-interest-heavy {
+  color: #b91c1c;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  border-radius: 4px;
+  padding: 2px 3px;
+}
+
+.budget-bill-item:not(.budget-bill-item-simple) .bill-notes.is-interest-heavy {
+  color: #b91c1c;
+  background: #fff1f2;
+  border-color: #fca5a5;
+  font-weight: 700;
+}
+.budget-bill-list-header > span:nth-child(16) {
   text-align: center;
 }
 
