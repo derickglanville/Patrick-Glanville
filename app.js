@@ -1480,6 +1480,18 @@ function setBillSelected(billId, selected) {
   }
 }
 
+function selectOnlyBillRow(row, billId) {
+  if (!row || !billId) return;
+  selectedBillIds.clear();
+  selectedBillIds.add(billId);
+  document.querySelectorAll(".budget-bill-item.is-selected").forEach(item => {
+    item.classList.remove("is-selected");
+    item.querySelector(".budget-bill-row-selector")?.setAttribute("aria-pressed", "false");
+  });
+  row.classList.add("is-selected");
+  row.querySelector(".budget-bill-row-selector")?.setAttribute("aria-pressed", "true");
+}
+
 function showBillColumnSumDialog({ label, total, count, scope }) {
   if (!billColumnSumDialog || !billColumnSumBody) return;
   if (billColumnSumTitle) {
@@ -2550,7 +2562,7 @@ function renderJsonBackupComparison(points, payload) {
     <section class="json-backup-compare-panel">
       <div class="json-backup-compare-toolbar">
         <div class="json-backup-compare-field">
-          <label for="jsonBackupCompareFrom">From snapshot</label>
+          <label for="jsonBackupCompareFrom">Saved day to restore</label>
           <select id="jsonBackupCompareFrom">
             ${availablePoints.map(point => `
               <option value="${escapeHtml(point.id)}" ${point.id === fromId ? "selected" : ""}>
@@ -2570,12 +2582,12 @@ function renderJsonBackupComparison(points, payload) {
           </select>
         </div>
         <div class="json-backup-compare-caption">
-          Compare bill snapshots across a chosen backup time span.
+          Choose a saved daily backup to restore, or compare it with another backup before restoring.
         </div>
       </div>
       <div class="json-backup-compare-actions">
         <button type="button" class="ghost" id="restoreJsonBackupFromSnapshotBtn" data-point-id="${escapeHtml(fromPoint?.id || "")}">
-          Restore from selected "From snapshot"
+          Restore <span class="json-backup-restore-emphasis">Selected Saved Day</span>
         </button>
       </div>
       <div class="json-backup-compare-metrics">
@@ -5162,8 +5174,44 @@ function stopSharedStateSync() {
   lastSeenRefreshSignalAt = "";
 }
 
+function assessAdminBillDataLoss(referenceState, candidateState) {
+  if (!isAdminClient()) return null;
+  const previousBills = Array.isArray(referenceState?.bills) ? referenceState.bills : [];
+  const nextBills = Array.isArray(candidateState?.bills) ? candidateState.bills : [];
+  if (previousBills.length < 5 || !nextBills.length) return null;
+  const billKey = bill => String(bill?.templateKey || bill?.name || "").trim().toLowerCase();
+  const nextByKey = new Map(nextBills.map(bill => [billKey(bill), bill]));
+  const previouslyFunded = previousBills.filter(bill => normalizeMoney(bill?.previousBalance) > 0 || normalizeMoney(bill?.currentBalance) > 0 || normalizeMoney(bill?.paidAmount) > 0);
+  const zeroedBills = previouslyFunded.filter(previousBill => {
+    const nextBill = nextByKey.get(billKey(previousBill));
+    return nextBill && normalizeMoney(nextBill.previousBalance) === 0 && normalizeMoney(nextBill.currentBalance) === 0 && normalizeMoney(nextBill.paidAmount) === 0;
+  });
+  const previousBalanceTotal = previouslyFunded.reduce((sum, bill) => sum + Math.max(normalizeMoney(bill.previousBalance), normalizeMoney(bill.currentBalance)), 0);
+  const nextBalanceTotal = nextBills.reduce((sum, bill) => sum + Math.max(normalizeMoney(bill.previousBalance), normalizeMoney(bill.currentBalance)), 0);
+  const removedBills = Math.max(0, previousBills.length - nextBills.length);
+  const widespreadZeroing = zeroedBills.length >= Math.max(3, Math.ceil(previouslyFunded.length * 0.35));
+  const balanceCollapse = previousBalanceTotal >= 1000 && nextBalanceTotal < previousBalanceTotal * 0.25;
+  const significantRemoval = removedBills >= Math.max(2, Math.ceil(previousBills.length * 0.15));
+  return widespreadZeroing || balanceCollapse || significantRemoval ? { zeroedBills, removedBills, previousBalanceTotal, nextBalanceTotal } : null;
+}
+
+function blockAdminBillDataLoss(risk, source) {
+  const details = [];
+  if (risk.zeroedBills.length) details.push(`${risk.zeroedBills.length} populated bills would be zeroed`);
+  if (risk.removedBills) details.push(`${risk.removedBills} bills would be removed`);
+  if (risk.previousBalanceTotal) details.push(`balances would fall from ${formatCurrency(risk.previousBalanceTotal)} to ${formatCurrency(risk.nextBalanceTotal)}`);
+  billSyncAlertState = { clientId: activeClientId, createdAt: new Date().toISOString(), title: "Firebase data-loss protection blocked a bill wipe", text: `${source} was blocked because ${details.join(", ")}. No Admin bill data was replaced. Use Daily Backup Recovery to restore a trusted saved day if needed.`, entries: [], affectedBills: risk.zeroedBills.map(bill => bill.name || "Untitled bill") };
+  supabaseStatus = "Firebase data-loss protection blocked a destructive bill update";
+  updateDataStoreStatus();
+  renderBillSyncAlert();
+}
 function applyRemoteSharedState(remoteState, updatedAt = "") {
   const previousState = structuredClone(state);
+  const dataLossRisk = assessAdminBillDataLoss(previousState, remoteState);
+  if (dataLossRisk) {
+    blockAdminBillDataLoss(dataLossRisk, "Incoming Firebase update");
+    return false;
+  }
   const originalStateJson = JSON.stringify(remoteState);
   const normalizedState = structuredClone(remoteState);
   const missingMomMedicationPlan = activeClientId === "patrick"
@@ -5400,6 +5448,13 @@ async function saveSharedStateNow() {
   try {
     const docRef = supabaseClient.doc(supabaseClient.db, SUPABASE_TABLE, getSupabaseStateId());
     const currentSnapshot = await supabaseClient.getDoc(docRef);
+    const liveState = currentSnapshot.exists() ? currentSnapshot.data()?.state : null;
+    const dataLossRisk = assessAdminBillDataLoss(liveState, state);
+    if (dataLossRisk) {
+      pendingLocalSharedSaveAt = "";
+      blockAdminBillDataLoss(dataLossRisk, "Local Firebase save");
+      throw new Error("Firebase data-loss protection blocked a destructive Admin bill save.");
+    }
     const liveUpdatedAt = currentSnapshot.exists() ? String(currentSnapshot.data()?.updated_at || "") : "";
     const liveUpdatedAtMs = toTimestampMs(liveUpdatedAt);
     const cachedRemoteUpdatedAtMs = toTimestampMs(remoteUpdatedAt);
@@ -6506,6 +6561,10 @@ function renderBills() {
     row.querySelector(".bill-status").addEventListener("change", () => updateBillFromRow(row, { showPaymentInsight: true }));
     row.querySelector(".bill-notes").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-notes").addEventListener("blur", () => updateBillFromRow(row));
+    row.addEventListener("click", event => {
+      if (event.target.closest("button")) return;
+      selectOnlyBillRow(row, bill.id);
+    });
     row.querySelector(".budget-bill-row-selector").addEventListener("click", event => {
       event.preventDefault();
       event.stopPropagation();
@@ -11904,6 +11963,10 @@ function renderSimpleBillRow(bill, targetList) {
     row.querySelector(".bill-status").addEventListener("change", () => updateBillFromRow(row, { showPaymentInsight: true }));
     row.querySelector(".bill-notes").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-notes").addEventListener("blur", () => updateBillFromRow(row));
+    row.addEventListener("click", event => {
+      if (event.target.closest("button")) return;
+      selectOnlyBillRow(row, bill.id);
+    });
     row.querySelector(".budget-bill-row-selector").addEventListener("click", event => {
       event.preventDefault();
       event.stopPropagation();

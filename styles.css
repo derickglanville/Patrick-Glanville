@@ -4263,3 +4263,131 @@ body[data-device-layout="compact"] .budget-panel-popout .budget-bill-list-simple
     min-height: 180px;
   }
 }
+
+.json-backup-restore-emphasis {
+  color: #facc15;
+  font-weight: 800;
+  text-shadow: 0 1px 1px rgba(15, 23, 42, .45);
+}
+.json-backup-entry-button {
+  color: #facc15;
+  font-weight: 800;
+  border-color: #ca8a04;
+  background: #334155;
+  text-shadow: 0 1px 1px rgba(15, 23, 42, .45);
+}
+
+.json-backup-entry-button:hover,
+.json-backup-entry-button:focus-visible {
+  color: #fef08a;
+  border-color: #facc15;
+  background: #1e293b;
+}
+/* Keep the payment cues on the actual amounts instead of the grid headers. */
+.budget-bill-item:not(.budget-bill-item-simple) .bill-interest-paid,
+.budget-bill-item:not(.budget-bill-item-simple) .bill-recommended-payment,
+.budget-bill-item:not(.budget-bill-item-simple) .bill-paid-amount {
+  border-width: 1px;
+  border-radius: 999px;
+  box-shadow: none;
+}
+
+.budget-bill-item:not(.budget-bill-item-simple) .bill-interest-paid {
+  color: #b91c1c;
+  background: #fff7f7;
+  border-color: #ef4444;
+}
+
+.budget-bill-item:not(.budget-bill-item-simple) .bill-recommended-payment {
+  color: #854d0e;
+  background: #fffbea;
+  border-color: #eab308;
+}
+
+.budget-bill-item:not(.budget-bill-item-simple) .bill-paid-amount {
+  color: #166534;
+  background: #f4fff7;
+  border-color: #22c55e;
+}
+
+.budget-bill-total-cell.bill-col-interest-paid,
+.budget-bill-total-cell.bill-col-recommended,
+.budget-bill-total-cell.bill-col-paid-amt {
+  width: fit-content;
+  min-height: 0;
+  justify-self: center;
+  align-self: center;
+  padding: 1px 5px;
+  border: 1px solid;
+  border-radius: 999px;
+  line-height: 1;
+}
+
+.budget-bill-total-cell.bill-col-interest-paid {
+  color: #b91c1c;
+  border-color: #ef4444;
+  background: #fff7f7;
+}
+
+.budget-bill-total-cell.bill-col-recommended {
+  color: #854d0e;
+  border-color: #eab308;
+  background: #fffbea;
+}
+
+.budget-bill-total-cell.bill-col-paid-amt {
+  color: #166534;
+  border-color: #22c55e;
+  background: #f4fff7;
+}
+
+/* Use a spreadsheet-style highlight so the active bill is unmistakable. */
+.budget-bill-item.is-selected {
+  border-color: #6f8500 !important;
+  background: #efff00 !important;
+  box-shadow: inset 0 0 0 2px #8da900, 0 0 0 1px #d8f500;
+}
+
+.budget-bill-item.is-selected:nth-child(even) {
+  background: #efff00 !important;
+}
+
+.budget-bill-item.is-selected input:not(.bill-interest-paid):not(.bill-recommended-payment):not(.bill-paid-amount),
+.budget-bill-item.is-selected select,
+.budget-bill-item.is-selected textarea {
+  background: #f7ff5c;
+  border-color: #9eae00;
+}
+
+.budget-bill-item.is-selected .budget-bill-selector-box,
+.budget-bill-item.is-selected .budget-bill-actions,
+.budget-bill-item.is-selected .budget-bill-field,
+.budget-bill-item.is-selected .budget-bill-status-box,
+.budget-bill-item.is-selected .budget-bill-notes-box {
+  background: #efff00;
+}
+/* Make hidden bills unmistakable in the restore list. */
+.budget-bill-item.is-hidden {
+  border-color: #16803d !important;
+  background: #b9f6c7 !important;
+  box-shadow: inset 0 0 0 2px #3ba95d, 0 0 0 1px #89e8a1;
+}
+
+.budget-bill-item.is-hidden:nth-child(even) {
+  background: #b9f6c7 !important;
+}
+
+.budget-bill-item.is-hidden input,
+.budget-bill-item.is-hidden select,
+.budget-bill-item.is-hidden textarea {
+  background: #dcffe4;
+  border-color: #53b973;
+}
+
+.budget-bill-item.is-hidden .budget-bill-selector-box,
+.budget-bill-item.is-hidden .budget-bill-actions,
+.budget-bill-item.is-hidden .budget-bill-field,
+.budget-bill-item.is-hidden .budget-bill-status-box,
+.budget-bill-item.is-hidden .budget-bill-notes-box {
+  background: #b9f6c7;
+}
