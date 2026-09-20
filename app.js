@@ -6953,12 +6953,25 @@ function renderAdminMonthlyExpendituresDialog() {
     </div>`;
   adminMonthlyExpendituresBody.querySelectorAll(".delete-admin-expenditure").forEach(button => {
     button.addEventListener("click", () => {
-      if (!saveAdminMonthlyExpenditures()) return;
       const row = button.closest("[data-admin-expenditure-id]");
       const id = row?.dataset.adminExpenditureId;
-      state.monthlyExpenditures[month] = getMonthlyExpendituresForMonth(month).filter(entry => entry.id !== id);
+      if (!id || !isAdminClient() || !ensureCurrentUser("delete monthly expenditure")) return;
+      const entries = [...adminMonthlyExpendituresBody.querySelectorAll("[data-admin-expenditure-id]")]
+        .filter(currentRow => currentRow.dataset.adminExpenditureId !== id)
+        .map(currentRow => normalizeMonthlyExpenditure({
+          id: currentRow.dataset.adminExpenditureId,
+          date: currentRow.querySelector('[data-admin-expenditure-field="date"]')?.value,
+          category: currentRow.querySelector('[data-admin-expenditure-field="category"]')?.value,
+          merchant: currentRow.querySelector('[data-admin-expenditure-field="merchant"]')?.value,
+          description: currentRow.querySelector('[data-admin-expenditure-field="description"]')?.value,
+          amount: currentRow.querySelector('[data-admin-expenditure-field="amount"]')?.value
+        }))
+        .filter(Boolean);
+      state.monthlyExpenditures = normalizeMonthlyExpendituresMap(state.monthlyExpenditures);
+      state.monthlyExpenditures[month] = entries;
       saveState();
       renderAdminMonthlyExpendituresDialog();
+      showExpenditureSaveFeedback(saveAdminMonthlyExpendituresBtn, true);
     });
   });
 }
