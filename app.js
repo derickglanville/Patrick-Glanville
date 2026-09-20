@@ -1760,6 +1760,8 @@ const billColumnSumTitle = document.querySelector("#billColumnSumTitle");
 const billColumnSumBody = document.querySelector("#billColumnSumBody");
 const closeBillColumnSumDialogBtn = document.querySelector("#closeBillColumnSumDialog");
 const chooseJsonBackupBtn = document.querySelector("#chooseJsonBackupBtn");
+const openJsonBackupBtn = document.querySelector("#openJsonBackupBtn");
+const openJsonBackupInput = document.querySelector("#openJsonBackupInput");
 const validateJsonBackupBtn = document.querySelector("#validateJsonBackupBtn");
 const viewJsonBackupBtn = document.querySelector("#viewJsonBackupBtn");
 const viewBillAuditBtn = document.querySelector("#viewBillAuditBtn");
@@ -2740,6 +2742,23 @@ async function openJsonBackupViewer() {
   }
 }
 
+async function openSelectedJsonBackupFile(file) {
+  if (!file) return;
+  try {
+    const text = await file.text();
+    if (!text.trim()) throw new Error("The selected JSON backup file is empty.");
+    const payload = JSON.parse(text);
+    if (!payload?.state || !payload?.clientId) throw new Error("The selected file is not a 3G JSON backup.");
+    if (activeClientId && payload.clientId !== activeClientId) throw new Error(`This is a ${payload.clientName || payload.clientId} backup. Select that client first.`);
+    currentJsonBackupPayload = payload;
+    currentJsonBackupComparison = { fromId: "", toId: "" };
+    jsonBackupViewerMeta.innerHTML = renderJsonBackupViewerMeta(payload);
+    renderJsonBackupViewerBody(payload);
+    if (typeof jsonBackupViewerDialog.showModal === "function" && !jsonBackupViewerDialog.open) jsonBackupViewerDialog.showModal();
+  } catch (error) {
+    alert(`Could not open the selected backup JSON: ${error.message}`);
+  }
+}
 function loadTaskViewMode() {
   if (!activeClientId || !getTaskViewKey()) return "active";
   try {
@@ -11535,8 +11554,7 @@ if (closeJsonBackupViewerDialogBtn && jsonBackupViewerDialog) {
 }
 if (jsonBackupViewerDialog) {
   jsonBackupViewerDialog.addEventListener("close", () => {
-    currentJsonBackupPayload = null;
-    currentJsonBackupComparison = { fromId: "", toId: "" };
+    // Keep the selected backup in memory for targeted restores after close.
   });
 }
 if (jsonBackupViewerBody) {
@@ -12185,6 +12203,13 @@ if (validateJsonBackupBtn) {
 if (viewJsonBackupBtn) {
   viewJsonBackupBtn.addEventListener("click", () => {
     openJsonBackupViewer();
+  });
+}if (openJsonBackupBtn && openJsonBackupInput) {
+  openJsonBackupBtn.addEventListener("click", () => openJsonBackupInput.click());
+  openJsonBackupInput.addEventListener("change", () => {
+    const file = openJsonBackupInput.files?.[0];
+    openSelectedJsonBackupFile(file);
+    openJsonBackupInput.value = "";
   });
 }
 if (pullLatestDevicesBtn) {

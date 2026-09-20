@@ -64,6 +64,8 @@
       <span id="dataStoreStatus"></span>
     </div>
     <button id="chooseJsonBackupBtn" type="button" class="ghost">Choose Backup JSON</button>
+    <button id="openJsonBackupBtn" type="button" class="ghost">Open Backup JSON</button>
+    <input id="openJsonBackupInput" type="file" accept="application/json,.json" hidden>
     <button id="validateJsonBackupBtn" type="button" class="ghost">Validate Firebase vs JSON</button>
     <button id="viewJsonBackupBtn" type="button" class="ghost json-backup-entry-button">View Backup JSON</button>
     <button id="viewBillAuditBtn" type="button" class="ghost">Bill Audit</button>
@@ -769,6 +771,6 @@
     onerror="window.__firebaseConfigLoadError = 'firebase-config.js failed to load';"
   ></script>
   <script src="firebase-init.js?v=2026-07-08-003"></script>
-  <script src="app.js?v=2026-09-20-login-fix-001"></script>
+  <script src="app.js?v=2026-09-20-backup-open-001"></script>
   </body>
   </html>
