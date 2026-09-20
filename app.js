@@ -1719,6 +1719,7 @@ const adminMonthlyExpendituresDialog = document.querySelector("#adminMonthlyExpe
 const adminMonthlyExpendituresBody = document.querySelector("#adminMonthlyExpendituresBody");
 const closeAdminMonthlyExpendituresDialogBtn = document.querySelector("#closeAdminMonthlyExpendituresDialog");
 const addAdminMonthlyExpenditureBtn = document.querySelector("#addAdminMonthlyExpenditureBtn");
+const importAdminMonthlyExpendituresBtn = document.querySelector("#importAdminMonthlyExpendituresBtn");
 const saveAdminMonthlyExpendituresBtn = document.querySelector("#saveAdminMonthlyExpendituresBtn");
 const restoreAdminMonthlyExpendituresBtn = document.querySelector("#restoreAdminMonthlyExpendituresBtn");
 const adminBillSimulationStatus = document.querySelector("#adminBillSimulationStatus");
@@ -6978,6 +6979,101 @@ function addAdminMonthlyExpenditure() {
   renderAdminMonthlyExpendituresDialog();
 }
 
+function parseExpenditureCsv(text, sourceName) {
+  const rows = [];
+  let row = [];
+  let value = "";
+  let quoted = false;
+  for (let index = 0; index <= text.length; index += 1) {
+    const char = text[index] ?? "\n";
+    if (char === '"') {
+      if (quoted && text[index + 1] === '"') {
+        value += '"';
+        index += 1;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (char === "," && !quoted) {
+      row.push(value.trim());
+      value = "";
+    } else if ((char === "\n" || char === "\r") && !quoted) {
+      if (char === "\r" && text[index + 1] === "\n") index += 1;
+      row.push(value.trim());
+      if (row.some(cell => cell)) rows.push(row);
+      row = [];
+      value = "";
+    } else {
+      value += char;
+    }
+  }
+  return rows.map((row, index) => {
+    if (row.length < 4) throw new Error(`${sourceName}, row ${index + 1} needs Date, Vendor, Item Purchase, and Amount.`);
+    const dateMatch = String(row[0] || "").match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (!dateMatch) {
+      if (index === 0 && /date/i.test(row[0] || "")) return null;
+      throw new Error(`${sourceName}, row ${index + 1} has an invalid date. Use MM/DD/YYYY.`);
+    }
+    const date = `${dateMatch[3]}-${dateMatch[1].padStart(2, "0")}-${dateMatch[2].padStart(2, "0")}`;
+    const amount = normalizeMoney(normalizeCurrencyCell(row[3]));
+    if (!row[1] || !row[2] || !Number.isFinite(amount)) throw new Error(`${sourceName}, row ${index + 1} is incomplete.`);
+    return normalizeMonthlyExpenditure({ id: crypto.randomUUID(), date, category: "Other", merchant: row[1], description: row[2], amount });
+  }).filter(Boolean);
+}
+
+async function importAdminMonthlyExpendituresFromFolder() {
+  if (!isAdminClient() || !ensureCurrentUser("import monthly expenditures")) return;
+  if (typeof window.showDirectoryPicker !== "function") {
+    alert("CSV folder import requires Edge or Chrome on this computer. Open the dashboard there, then click Import CSV Folder.");
+    return;
+  }
+  let directory;
+  try {
+    directory = await window.showDirectoryPicker({ mode: "readwrite", id: "admin-expenditures-import" });
+  } catch (error) {
+    if (error?.name !== "AbortError") alert(`Could not open the Import Folder: ${error.message}`);
+    return;
+  }
+  const imported = [];
+  const failures = [];
+  for await (const [name, handle] of directory.entries()) {
+    if (handle.kind !== "file" || !/\.csv$/i.test(name)) continue;
+    try {
+      const entries = parseExpenditureCsv(await (await handle.getFile()).text(), name);
+      if (!entries.length) throw new Error(`${name} has no expenditure rows.`);
+      state.monthlyExpenditures = normalizeMonthlyExpendituresMap(state.monthlyExpenditures);
+      entries.forEach(entry => {
+        const month = entry.date.slice(0, 7);
+        state.monthlyExpenditures[month] = state.monthlyExpenditures[month] || [];
+        state.monthlyExpenditures[month].push(entry);
+      });
+      saveState();
+      await directory.removeEntry(name);
+      imported.push({ name, count: entries.length });
+    } catch (error) {
+      failures.push(`${name}: ${error.message}`);
+    }
+  }
+  renderAdminMonthlyExpendituresDialog();
+  const importedCount = imported.reduce((sum, item) => sum + item.count, 0);
+  if (!importedCount && !failures.length) alert("No CSV files were found in the selected Import Folder.");
+  else alert(`Imported ${importedCount} expenditure record(s) from ${imported.length} CSV file(s).${failures.length ? `\n\nFiles left in the folder:\n${failures.join("\n")}` : " Source file(s) were deleted."}`);
+}
+
+function showExpenditureSaveFeedback(button, saved) {
+  if (!button) return;
+  button.classList.remove("is-saved");
+  button.classList.add("is-pressed");
+  window.setTimeout(() => button.classList.remove("is-pressed"), 160);
+  if (!saved) return;
+  const label = button.dataset.defaultLabel || button.textContent;
+  button.dataset.defaultLabel = label;
+  button.textContent = "Saved";
+  button.classList.add("is-saved");
+  window.setTimeout(() => {
+    button.textContent = label;
+    button.classList.remove("is-saved");
+  }, 1400);
+}
 function restoreAdminMonthlyExpendituresFromBackup() {
   if (!isAdminClient() || !ensureCurrentUser("restore monthly expenditures")) return;
   const payload = currentJsonBackupPayload;
@@ -11439,7 +11535,12 @@ if (addAdminMonthlyExpenditureBtn) {
   addAdminMonthlyExpenditureBtn.addEventListener("click", addAdminMonthlyExpenditure);
 }
 if (saveAdminMonthlyExpendituresBtn) {
-  saveAdminMonthlyExpendituresBtn.addEventListener("click", saveAdminMonthlyExpenditures);
+  saveAdminMonthlyExpendituresBtn.addEventListener("click", () => {
+    showExpenditureSaveFeedback(saveAdminMonthlyExpendituresBtn, saveAdminMonthlyExpenditures());
+  });
+}
+if (importAdminMonthlyExpendituresBtn) {
+  importAdminMonthlyExpendituresBtn.addEventListener("click", importAdminMonthlyExpendituresFromFolder);
 }
 if (restoreAdminMonthlyExpendituresBtn) {
   restoreAdminMonthlyExpendituresBtn.addEventListener("click", restoreAdminMonthlyExpendituresFromBackup);

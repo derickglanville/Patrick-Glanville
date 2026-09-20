@@ -5019,3 +5019,15 @@ body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-total-row
       "selector actions actions actions";
   }
 }
+#saveAdminMonthlyExpendituresBtn {
+  transition: transform 120ms ease, box-shadow 120ms ease, background 160ms ease;
+}
+
+#saveAdminMonthlyExpendituresBtn.is-pressed {
+  transform: translateY(2px) scale(.98);
+  box-shadow: inset 0 2px 5px rgba(15, 38, 67, .3);
+}
+
+#saveAdminMonthlyExpendituresBtn.is-saved {
+  background: #0f7a4b;
+}
