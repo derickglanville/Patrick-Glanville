@@ -5633,7 +5633,7 @@ function updateClientChrome() {
   if (topClientSwitchBtn) topClientSwitchBtn.hidden = true;
   if (topClientSelect) topClientSelect.value = client?.id || "";
   if (topClientPin) {
-    const needsPin = !!(topClientSelect && clientNeedsAccessPin(topClientSelect.value) && !isClientAccessValidated(topClientSelect.value));
+    const needsPin = topClientSelectionNeedsAccessPin();
     if (topClientPinWrapInline) topClientPinWrapInline.hidden = !needsPin;
     topClientPin.hidden = !needsPin;
     if (topClientPin.hidden) topClientPin.value = "";
@@ -9290,9 +9290,15 @@ function updateClientGatePinVisibility() {
   if (!needsPin) clientGatePin.value = "";
 }
 
+function topClientSelectionNeedsAccessPin() {
+  return Boolean(topClientSelect
+    && clientNeedsAccessPin(topClientSelect.value)
+    && topClientSelect.value !== activeClientId);
+}
+
 function updateTopClientPinVisibility() {
   if (!topClientPin) return;
-  const needsPin = clientNeedsAccessPin(topClientSelect?.value) && !isClientAccessValidated(topClientSelect?.value);
+  const needsPin = topClientSelectionNeedsAccessPin();
   if (topClientPinWrapInline) topClientPinWrapInline.hidden = !needsPin;
   topClientPin.hidden = !needsPin;
   if (!needsPin) topClientPin.value = "";
@@ -9475,7 +9481,7 @@ async function switchClient(clientId, pin = "") {
   }
 
   const requiredPin = clientAccessPin(nextClient.id);
-  if (nextClient.requiresAccessPin && pin !== requiredPin) {
+  if (nextClient.requiresAccessPin && !isClientAccessValidated(nextClient.id) && pin !== requiredPin) {
     clientGateError.textContent = `The access code for ${clientAccessLabel(nextClient.id)} is incorrect.`;
     clientGateError.hidden = false;
     return false;
@@ -9520,7 +9526,7 @@ function handleTopClientSelection() {
   const selectedClientId = topClientSelect.value;
   updateTopClientPinVisibility();
   if (!selectedClientId) return;
-  if (clientNeedsAccessPin(selectedClientId) && !isClientAccessValidated(selectedClientId)) {
+  if (topClientSelectionNeedsAccessPin()) {
     if (topClientPin) topClientPin.focus();
     return;
   }
