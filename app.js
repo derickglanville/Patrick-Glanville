@@ -1719,7 +1719,7 @@ const adminMonthlyExpendituresDialog = document.querySelector("#adminMonthlyExpe
 const adminMonthlyExpendituresBody = document.querySelector("#adminMonthlyExpendituresBody");
 const closeAdminMonthlyExpendituresDialogBtn = document.querySelector("#closeAdminMonthlyExpendituresDialog");
 const addAdminMonthlyExpenditureBtn = document.querySelector("#addAdminMonthlyExpenditureBtn");
-const saveAdminMonthlyExpendituresBtn = document.querySelector("#saveAdminMonthlyExpendituresBtn");
+const saveAdminMonthlyExpendituresBtn = document.querySelector(\
 const adminBillSimulationStatus = document.querySelector("#adminBillSimulationStatus");
 const adminBillSimulationDialog = document.querySelector("#adminBillSimulationDialog");
 const adminBillSimulationBody = document.querySelector("#adminBillSimulationBody");
@@ -1968,6 +1968,7 @@ function loadState() {
       collapsedTaskGroups: parsed.collapsedTaskGroups || {},
       billMonth: parsed.billMonth || "",
       monthlyBudgetFund: normalizeMoney(parsed.monthlyBudgetFund ?? seedData.monthlyBudgetFund ?? 0),
+      monthlyExpenditures: parsed.monthlyExpenditures || {},
       monthlyBudgets: parsed.monthlyBudgets || {},
       budgetSnapshots: Array.isArray(parsed.budgetSnapshots) ? parsed.budgetSnapshots : structuredClone(seedData.budgetSnapshots || []),
       billAuditLog: Array.isArray(parsed.billAuditLog) ? parsed.billAuditLog : structuredClone(seedData.billAuditLog || []),
@@ -5287,6 +5288,13 @@ function applyRemoteSharedState(remoteState, updatedAt = "") {
   }
   const originalStateJson = JSON.stringify(remoteState);
   const normalizedState = structuredClone(remoteState);
+  // Older builds did not include this collection in their load payload. Keep
+  // a populated local collection rather than letting that older shape erase it.
+  const localExpenditures = normalizeMonthlyExpendituresMap(previousState.monthlyExpenditures);
+  if (!Object.prototype.hasOwnProperty.call(normalizedState, "monthlyExpenditures")
+    && Object.values(localExpenditures).some(entries => entries.length)) {
+    normalizedState.monthlyExpenditures = structuredClone(localExpenditures);
+  }
   const missingMomMedicationPlan = activeClientId === "patrick"
     && !(normalizedState.momMedicationRefill && typeof normalizedState.momMedicationRefill === "object");
   const preferredBillMonth = forceCurrentBillMonthOnNextRemoteApply
@@ -6950,6 +6958,37 @@ function addAdminMonthlyExpenditure() {
   renderAdminMonthlyExpendituresDialog();
 }
 
+function restoreAdminMonthlyExpendituresFromBackup() {
+  if (!isAdminClient() || !ensureCurrentUser("restore monthly expenditures")) return;
+  const payload = currentJsonBackupPayload;
+  if (!payload) {
+    alert("Choose the Admin backup JSON first, then reopen Monthly Expenditures to restore its saved records.");
+    return;
+  }
+  const month = state.billMonth || defaultBillMonth();
+  const snapshots = [
+    { dateKey: getDailyBackupDateKey(payload.savedAt || ""), savedAt: payload.savedAt || "", state: payload.state || {} },
+    ...(Array.isArray(payload.dailySnapshots) ? payload.dailySnapshots.map(normalizeDailyBackupEntry).filter(Boolean) : [])
+  ];
+  const source = snapshots
+    .map(snapshot => ({
+      ...snapshot,
+      entries: normalizeMonthlyExpendituresMap(snapshot.state?.monthlyExpenditures)[month] || []
+    }))
+    .filter(snapshot => snapshot.entries.length)
+    .sort((left, right) => String(right.savedAt || right.dateKey).localeCompare(String(left.savedAt || left.dateKey)))[0];
+  if (!source) {
+    alert(`No saved ${formatBudgetMonthLabel(month)} expenditures were found in this backup.`);
+    return;
+  }
+  const dateLabel = source.dateKey || formatDateTime(source.savedAt);
+  if (!confirm(`Restore ${source.entries.length} ${formatBudgetMonthLabel(month)} expenditure record(s) from the ${dateLabel} backup? Bills and other dashboard data will not change.`)) return;
+  state.monthlyExpenditures = normalizeMonthlyExpendituresMap(state.monthlyExpenditures);
+  state.monthlyExpenditures[month] = structuredClone(source.entries);
+  saveState();
+  renderAdminMonthlyExpendituresDialog();
+  alert(`Restored ${source.entries.length} ${formatBudgetMonthLabel(month)} expenditure record(s) from ${dateLabel}.`);
+}
 function openAdminMonthlyExpenditures() {
   if (!isAdminClient() || !adminMonthlyExpendituresDialog) return;
   renderAdminMonthlyExpendituresDialog();
@@ -11376,6 +11415,9 @@ if (addAdminMonthlyExpenditureBtn) {
 if (saveAdminMonthlyExpendituresBtn) {
   saveAdminMonthlyExpendituresBtn.addEventListener("click", saveAdminMonthlyExpenditures);
 }
+if (restoreAdminMonthlyExpendituresBtn) {
+  restoreAdminMonthlyExpendituresBtn.addEventListener("click", restoreAdminMonthlyExpendituresFromBackup);
+}
 if (cellphoneBillingHistoryBtn) {
   cellphoneBillingHistoryBtn.addEventListener("click", openCellphoneBillingHistory);
 }
@@ -12035,6 +12077,7 @@ document.querySelector("#importInput").addEventListener("change", event => {
         collapsedTaskGroups: imported.collapsedTaskGroups,
         billMonth: imported.billMonth,
       monthlyBudgetFund: imported.monthlyBudgetFund,
+      monthlyExpenditures: imported.monthlyExpenditures,
       monthlyBudgets: imported.monthlyBudgets,
       budgetSnapshots: imported.budgetSnapshots,
       billAuditLog: imported.billAuditLog,
