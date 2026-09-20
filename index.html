@@ -2,12 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#123b5d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>3G Tracking and Notifications</title>
-  <link rel="stylesheet" href="styles.css?v=2026-08-08-001">
+  <link rel="stylesheet" href="styles.css?v=2026-09-20-mobile-001">
 </head>
 <body>
   <section class="collaboration-panel" aria-label="Collaboration access">
@@ -80,7 +83,7 @@
     </div>
   </section>
 
-  <header class="app-header">
+  <header id="appHeader" class="app-header">
     <div>
       <p class="eyebrow" id="appEyebrow">Multi-client tracking workspace</p>
       <h1 id="appTitle">3G Tracking and Notifications</h1>
@@ -290,6 +293,8 @@
           <button id="copyBillsToNextMonthBtn" type="button" class="ghost">Copy To Next Month</button>
           <button id="calculateBillsBtn" type="button" class="ghost">Calculate</button>
           <button id="adminBillSimulationBtn" type="button" class="ghost" hidden>Balance Simulation</button>
+          <button id="adminMonthlyExpendituresBtn" type="button" class="ghost" hidden>Monthly Expenditures</button>
+          <button id="cellphoneBillingHistoryBtn" type="button" class="ghost" hidden>Cellphone History</button>
           <button id="assignDueDatesBtn" type="button" class="ghost">Assign Due Dates</button>
           <button id="undoCopyBillsToNextMonthBtn" type="button" class="ghost">Undo Next Month Copy</button>
           <button id="toggleBillsCompactBtn" type="button" class="ghost" aria-pressed="false">Compact View</button>
@@ -422,6 +427,12 @@
       </div>
     </section>
   </main>
+  <nav id="mobileDashboardNav" class="mobile-dashboard-nav" aria-label="Dashboard navigation">
+    <button type="button" data-mobile-section="home" class="is-active"><span aria-hidden="true">H</span><b>Home</b></button>
+    <button type="button" data-mobile-section="bills"><span aria-hidden="true">$</span><b>Bills</b></button>
+    <button type="button" data-mobile-section="tasks"><span aria-hidden="true">T</span><b>Tasks</b></button>
+    <button type="button" data-mobile-section="schedule"><span aria-hidden="true">W</span><b>Schedule</b></button>
+  </nav>
 
   <dialog id="taskDialog">
     <form method="dialog" id="taskForm">
@@ -676,6 +687,40 @@
     </div>
   </dialog>
 
+  <dialog id="adminMonthlyExpendituresDialog">
+    <div class="report-dialog admin-monthly-expenditures-dialog">
+      <div class="dialog-head">
+        <h2>Monthly Expenditures</h2>
+        <button type="button" id="closeAdminMonthlyExpendituresDialog" class="icon-button" aria-label="Close">x</button>
+      </div>
+      <p class="documents-note">Log food, family meals, home purchases, and other spending outside the regular bill budget. These records do not change MBF.</p>
+      <div id="adminMonthlyExpendituresBody"></div>
+      <div class="dialog-actions admin-monthly-expenditures-actions">
+        <button type="button" id="addAdminMonthlyExpenditureBtn" class="ghost">Add Expenditure</button>
+        <button type="button" id="saveAdminMonthlyExpendituresBtn">Save Changes</button>
+      </div>
+    </div>
+  </dialog>
+  <dialog id="billBalanceHistoryDialog">
+    <div class="report-dialog bill-balance-history-dialog">
+      <div class="dialog-head">
+        <h2 id="billBalanceHistoryTitle">Bill Balance History</h2>
+        <button type="button" id="closeBillBalanceHistoryDialog" class="icon-button" aria-label="Close">x</button>
+      </div>
+      <div id="billBalanceHistoryBody"></div>
+    </div>
+  </dialog>
+
+  <dialog id="cellphoneBillingHistoryDialog">
+    <div class="report-dialog cellphone-billing-history-dialog">
+      <div class="dialog-head">
+        <h2>Verizon Cellphone Billing History</h2>
+        <button type="button" id="closeCellphoneBillingHistoryDialog" class="icon-button" aria-label="Close">x</button>
+      </div>
+      <p class="documents-note">Monthly totals are transcribed from the local Verizon PDF bills. Current line costs are a planning view and do not change the Admin bill budget.</p>
+      <div id="cellphoneBillingHistoryBody"></div>
+    </div>
+  </dialog>
   <dialog id="billAuditDialog">
     <div class="report-dialog">
       <div class="dialog-head">

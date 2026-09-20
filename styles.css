@@ -4391,3 +4391,631 @@ body[data-device-layout="compact"] .budget-panel-popout .budget-bill-list-simple
 .budget-bill-item.is-hidden .budget-bill-notes-box {
   background: #b9f6c7;
 }
+/* Admin-only log for spending outside of the monthly bill budget. */
+.admin-monthly-expenditures-dialog {
+  width: min(1080px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+}
+
+.admin-monthly-expenditures-summary {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: 10px 0;
+  padding: 9px 12px;
+  border: 1px solid #bfd2e8;
+  border-radius: 8px;
+  background: #f3f8fe;
+  color: #183153;
+}
+
+.admin-monthly-expenditures-summary strong {
+  color: #0f5a36;
+  font-size: 1.2rem;
+}
+
+.admin-monthly-expenditures-summary small {
+  color: #526981;
+  font-weight: 700;
+}
+
+.admin-monthly-expenditures-table-wrap {
+  max-height: min(60vh, 520px);
+  overflow: auto;
+  border: 1px solid #cbd8e8;
+  border-radius: 8px;
+}
+
+.admin-monthly-expenditures-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+}
+
+.admin-monthly-expenditures-table th,
+.admin-monthly-expenditures-table td {
+  padding: 5px;
+  border-bottom: 1px solid #d8e2ee;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.admin-monthly-expenditures-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #e7f0fb;
+  color: #234a72;
+  font-size: .74rem;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.admin-monthly-expenditures-table tbody tr:nth-child(even) {
+  background: #f8fbff;
+}
+
+.admin-monthly-expenditures-table input,
+.admin-monthly-expenditures-table select {
+  width: 100%;
+  min-height: 30px;
+  padding: 3px 6px;
+  font-size: .88rem;
+}
+
+.admin-monthly-expenditures-table td:nth-child(1) { width: 130px; }
+.admin-monthly-expenditures-table td:nth-child(2) { width: 170px; }
+.admin-monthly-expenditures-table td:nth-child(3) { width: 160px; }
+.admin-monthly-expenditures-table td:nth-child(5) { width: 110px; }
+.admin-monthly-expenditures-table td:last-child { width: 70px; }
+
+.admin-monthly-expenditures-table .delete-admin-expenditure {
+  padding: 4px 7px;
+  font-size: .76rem;
+  color: #b91c1c;
+  background: #fff5f5;
+  border-color: #f0a4a4;
+}
+
+.admin-monthly-expenditures-empty {
+  padding: 22px !important;
+  color: #526981;
+  font-style: italic;
+  text-align: center !important;
+}
+
+.admin-monthly-expenditures-actions {
+  justify-content: space-between;
+}
+
+@media (max-width: 640px) {
+  .admin-monthly-expenditures-dialog { width: calc(100vw - 12px); max-width: calc(100vw - 12px); }
+  .admin-monthly-expenditures-summary { gap: 5px 10px; font-size: .86rem; }
+  .admin-monthly-expenditures-summary strong { font-size: 1.05rem; }
+  .admin-monthly-expenditures-table { min-width: 700px; }
+  .admin-monthly-expenditures-table th,
+  .admin-monthly-expenditures-table td { padding: 4px; }
+  .admin-monthly-expenditures-table input,
+  .admin-monthly-expenditures-table select { min-height: 28px; font-size: .8rem; }
+}
+/* Give the expenditure log a near-full-screen working area. */
+#adminMonthlyExpendituresDialog {
+  width: min(1440px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  height: min(880px, calc(100vh - 24px));
+  max-height: calc(100vh - 24px);
+  padding: 0;
+}
+
+#adminMonthlyExpendituresDialog .admin-monthly-expenditures-dialog {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
+}
+
+#adminMonthlyExpendituresBody {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+}
+
+#adminMonthlyExpendituresDialog .admin-monthly-expenditures-table-wrap {
+  flex: 1 1 auto;
+  min-height: 360px;
+  max-height: none;
+}
+
+#adminMonthlyExpendituresDialog .admin-monthly-expenditures-actions {
+  margin-top: 12px;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 640px) {
+  #adminMonthlyExpendituresDialog {
+    width: calc(100vw - 12px);
+    max-width: calc(100vw - 12px);
+    height: calc(100vh - 12px);
+    max-height: calc(100vh - 12px);
+  }
+
+  #adminMonthlyExpendituresDialog .admin-monthly-expenditures-dialog {
+    padding: 12px;
+  }
+
+  #adminMonthlyExpendituresDialog .admin-monthly-expenditures-table-wrap {
+    min-height: 260px;
+  }
+}
+/* Historical Admin bill and Verizon billing analysis dialogs. */
+#billBalanceHistoryDialog,
+#cellphoneBillingHistoryDialog {
+  width: min(1180px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 24px);
+  padding: 0;
+}
+
+#billBalanceHistoryDialog .bill-balance-history-dialog,
+#cellphoneBillingHistoryDialog .cellphone-billing-history-dialog {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  max-height: calc(100vh - 24px);
+  overflow: auto;
+  padding: 18px;
+}
+
+.bill-history-summary,
+.cellphone-billing-summary {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 10px 0;
+  padding: 9px 12px;
+  border: 1px solid #bfd2e8;
+  border-radius: 8px;
+  background: #f3f8fe;
+  color: #183153;
+}
+
+.bill-history-summary strong,
+.cellphone-billing-summary strong {
+  color: #0f5a36;
+  font-size: 1.16rem;
+}
+
+.cellphone-billing-summary small {
+  flex-basis: 100%;
+  color: #526981;
+  font-weight: 700;
+}
+
+.history-line-chart {
+  display: block;
+  width: 100%;
+  min-width: 560px;
+  height: auto;
+  margin: 12px 0;
+  border: 1px solid #cbd8e8;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #fbfdff 0%, #eef6fd 100%);
+}
+
+.history-chart-grid {
+  stroke: #cbd8e8;
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+.history-chart-line {
+  fill: none;
+  stroke: #1d6fb8;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.history-chart-dot {
+  fill: #facc15;
+  stroke: #155e9a;
+  stroke-width: 2;
+}
+
+.history-chart-axis {
+  fill: #526981;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.bill-history-table-wrap,
+.cellphone-billing-table-wrap {
+  overflow: auto;
+  margin-top: 12px;
+  border: 1px solid #cbd8e8;
+  border-radius: 8px;
+}
+
+.bill-history-table,
+.cellphone-billing-table {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: collapse;
+}
+
+.bill-history-table th,
+.bill-history-table td,
+.cellphone-billing-table th,
+.cellphone-billing-table td {
+  padding: 7px 9px;
+  border-bottom: 1px solid #d8e2ee;
+  text-align: left;
+  vertical-align: top;
+}
+
+.bill-history-table th,
+.cellphone-billing-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #e7f0fb;
+  color: #234a72;
+  font-size: .75rem;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.bill-history-table tbody tr:nth-child(even),
+.cellphone-billing-table tbody tr:nth-child(even) {
+  background: #f8fbff;
+}
+
+.cellphone-billing-insight,
+.cellphone-current-lines {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid #d8c36b;
+  border-radius: 8px;
+  background: #fffbea;
+}
+
+.cellphone-billing-insight h3,
+.cellphone-current-lines h3 {
+  margin: 0 0 6px;
+  color: #6d4c00;
+}
+
+.cellphone-billing-insight p,
+.cellphone-current-lines p {
+  margin: 0;
+  color: #4c5f73;
+  line-height: 1.45;
+}
+
+.cellphone-current-lines {
+  border-color: #b9d8c1;
+  background: #f2fbf4;
+}
+
+.cellphone-current-lines h3 {
+  color: #166534;
+}
+
+@media (max-width: 640px) {
+  #billBalanceHistoryDialog,
+  #cellphoneBillingHistoryDialog { width: calc(100vw - 12px); max-width: calc(100vw - 12px); }
+  #billBalanceHistoryDialog .bill-balance-history-dialog,
+  #cellphoneBillingHistoryDialog .cellphone-billing-history-dialog { padding: 12px; }
+  .history-line-chart { min-width: 500px; }
+  .bill-history-summary,
+  .cellphone-billing-summary { gap: 5px 10px; font-size: .85rem; }
+  .bill-history-table th,
+  .bill-history-table td,
+  .cellphone-billing-table th,
+  .cellphone-billing-table td { padding: 6px; font-size: .8rem; }
+}
+/* Clear emphasis for Verizon cost-reduction and eligibility guidance. */
+.cellphone-billing-note {
+  margin: 10px 0 0 !important;
+  color: #0f5a36 !important;
+  font-weight: 700;
+}
+
+.cellphone-discount-review {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid #adc6e5;
+  border-radius: 8px;
+  background: #eef6ff;
+}
+
+.cellphone-discount-review h3 {
+  margin: 0 0 7px;
+  color: #1e4d7a;
+}
+
+.cellphone-discount-review ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #314d68;
+  line-height: 1.45;
+}
+
+.cellphone-discount-review li + li {
+  margin-top: 6px;
+}
+
+.cellphone-discount-review a {
+  color: #155e9a;
+  font-weight: 800;
+}
+/* Mobile-first dashboard navigation and touch layouts. */
+.mobile-dashboard-nav {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  body[data-device-layout="phone"],
+  body[data-device-layout="tablet"] {
+    font-size: 16px;
+    scroll-padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+
+  body[data-device-layout="phone"] main,
+  body[data-device-layout="tablet"] main {
+    padding-bottom: calc(104px + env(safe-area-inset-bottom));
+  }
+
+  body[data-device-layout="phone"] button,
+  body[data-device-layout="phone"] input,
+  body[data-device-layout="phone"] select,
+  body[data-device-layout="phone"] textarea,
+  body[data-device-layout="tablet"] button,
+  body[data-device-layout="tablet"] input,
+  body[data-device-layout="tablet"] select,
+  body[data-device-layout="tablet"] textarea {
+    font-size: 16px;
+  }
+
+  body[data-device-layout="phone"] button,
+  body[data-device-layout="tablet"] button {
+    min-height: 44px;
+  }
+
+  body[data-device-layout="phone"] .collaboration-panel,
+  body[data-device-layout="tablet"] .collaboration-panel {
+    padding: 12px 16px;
+    gap: 10px 16px;
+  }
+
+  body[data-device-layout="phone"] .collaboration-panel > :first-child,
+  body[data-device-layout="tablet"] .collaboration-panel > :first-child,
+  body[data-device-layout="phone"] .access-note,
+  body[data-device-layout="tablet"] .access-note {
+    display: none;
+  }
+
+  body[data-device-layout="phone"] .sync-panel,
+  body[data-device-layout="tablet"] .sync-panel {
+    display: none;
+  }
+
+  body[data-device-layout="phone"] .app-header,
+  body[data-device-layout="tablet"] .app-header {
+    min-height: 0;
+    padding: 20px 16px 16px;
+    gap: 14px;
+  }
+
+  body[data-device-layout="phone"] .app-header h1,
+  body[data-device-layout="tablet"] .app-header h1 {
+    font-size: clamp(1.75rem, 8vw, 2.45rem);
+    line-height: 1.08;
+  }
+
+  body[data-device-layout="phone"] .eyebrow,
+  body[data-device-layout="phone"] .lede {
+    display: none;
+  }
+
+  body[data-device-layout="phone"] .header-actions,
+  body[data-device-layout="tablet"] .header-actions {
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    justify-content: flex-start;
+    padding-bottom: 5px;
+    scrollbar-width: thin;
+  }
+
+  body[data-device-layout="phone"] .header-actions > *,
+  body[data-device-layout="tablet"] .header-actions > * {
+    flex: 0 0 auto;
+  }
+
+  body[data-device-layout="phone"] .controls,
+  body[data-device-layout="tablet"] .controls,
+  body[data-device-layout="phone"] .work-schedule-panel,
+  body[data-device-layout="tablet"] .work-schedule-panel,
+  body[data-device-layout="phone"] .budget-panel,
+  body[data-device-layout="tablet"] .budget-panel {
+    border-radius: 14px;
+  }
+
+  .mobile-dashboard-nav {
+    position: fixed;
+    z-index: 50;
+    right: 10px;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    left: 10px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+    padding: 7px;
+    border: 1px solid rgba(175, 199, 221, .88);
+    border-radius: 17px;
+    background: rgba(255, 255, 255, .96);
+    box-shadow: 0 12px 34px rgba(11, 45, 72, .22);
+    backdrop-filter: blur(14px);
+  }
+
+  .mobile-dashboard-nav.has-three-items {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .mobile-dashboard-nav button {
+    display: grid;
+    place-items: center;
+    gap: 1px;
+    min-height: 54px;
+    padding: 5px 4px;
+    border: 0;
+    border-radius: 11px;
+    color: #47627b;
+    background: transparent;
+    box-shadow: none;
+    font-size: .68rem !important;
+    font-weight: 800;
+    letter-spacing: .02em;
+  }
+
+  .mobile-dashboard-nav button span {
+    font-size: .78rem;
+    font-weight: 800;
+  }
+
+  .mobile-dashboard-nav button b {
+    font-size: .68rem;
+  }
+
+  .mobile-dashboard-nav button.is-active {
+    color: #fff;
+    background: #1768b6;
+  }
+}
+
+/* Admin bills become touch cards on iPhone and iPad instead of a wide sheet. */
+body[data-device-layout="phone"] .budget-bill-list-admin,
+body[data-device-layout="tablet"] .budget-bill-list-admin {
+  overflow: visible;
+  max-height: none;
+}
+
+body[data-device-layout="phone"] .budget-bill-list-header:not(.is-simple),
+body[data-device-layout="tablet"] .budget-bill-list-header:not(.is-simple) {
+  display: none;
+}
+
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple),
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 26px repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "selector bill bill"
+    "selector previous current"
+    "selector amount paid"
+    "selector due paid-date"
+    "selector status actions"
+    "selector notes notes";
+  gap: 9px 10px;
+  padding: 12px;
+  margin-bottom: 10px;
+  border: 1px solid #cbd8e8;
+  border-radius: 12px;
+  background: #fff;
+}
+
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-selector-box,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-selector-box { grid-area: selector; }
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-name,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-name { grid-area: bill; }
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-prev-bal,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-prev-bal { grid-area: previous; }
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-current-bal,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-current-bal { grid-area: current; }
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-due-amt,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-due-amt { grid-area: amount; }
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-paid-amt,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-paid-amt { grid-area: paid; }
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-due-date,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-due-date { grid-area: due; }
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-date-paid,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-date-paid { grid-area: paid-date; }
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-status,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-status { grid-area: status; }
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-notes,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-notes { grid-area: notes; }
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-actions,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-actions { grid-area: actions; }
+
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-apr,
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-interest-paid,
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-diff,
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-payment-priority,
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-credit-line,
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-recommended,
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-tran,
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-credit-percent,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-apr,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-interest-paid,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-diff,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-payment-priority,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-credit-line,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-recommended,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-tran,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-credit-percent {
+  display: none;
+}
+
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-field > span,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-field > span {
+  display: block;
+  margin-bottom: 3px;
+  color: #52647d;
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) input,
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) select,
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) textarea,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) input,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) select,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) textarea {
+  width: 100%;
+  min-height: 42px;
+  padding: 7px 9px;
+  font-size: 16px;
+}
+
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-notes-box textarea,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-notes-box textarea {
+  min-height: 54px;
+  height: 54px;
+}
+
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-total-row,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-total-row {
+  display: none;
+}
+
+@media (min-width: 681px) and (max-width: 1100px) {
+  body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) {
+    grid-template-columns: 30px repeat(3, minmax(0, 1fr));
+    grid-template-areas:
+      "selector bill bill bill"
+      "selector previous current amount"
+      "selector paid due paid-date"
+      "selector status notes notes"
+      "selector actions actions actions";
+  }
+}

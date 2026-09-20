@@ -216,6 +216,33 @@ const ADMIN_BILL_SIMULATION_SEED = [
 ].map(([name, projectedBalance]) => ({
   key: buildBudgetBillTemplateKey(name), name, projectedBalance
 }));
+const VERIZON_BILL_HISTORY = [
+  { month: "2026-02", total: 194.24, note: "Baseline bill before Theodore, Georgette, and Patrick were added." },
+  { month: "2026-03", total: 184.24, note: "Down $10.00 from February; still the pre-added-line baseline." },
+  { month: "2026-04", total: 318.95, note: "Up $134.71. Theodore and Georgette first appear as new plan/device lines ($68.39 and $85.29); other plan changes and credits offset part of their impact." },
+  { month: "2026-05", total: 310.17, note: "Down $8.78, but the added Theodore and Georgette lines remained on the account." },
+  { month: "2026-06", total: 268.88, note: "Down $41.29; this is the last statement before Patrick first appears as an added line." },
+  { month: "2026-07", total: 332.56, note: "Up $63.68. Patrick's line first appears on this statement after a June addition; plan/device changes also occurred." },
+  { month: "2026-08", total: 566.22, note: "Up $233.66. The bill includes high surcharges and remaining line/device changes; this is not a clean recurring baseline." },
+  { month: "2026-09", total: 385.34, note: "Down $180.88. The statement reports $333.81 in one-time credits, so this decrease is not all recurring savings." }
+];
+const VERIZON_CURRENT_LINE_COSTS = [
+  { name: "Shanelle", number: "914-409-5940", plan: "Unlimited Ultimate", amount: 74.35, note: "Highest standard plan cost; compare Unlimited Welcome only if its data features are not needed." },
+  { name: "Theodore", number: "914-409-5907", plan: "Unlimited Welcome", amount: 59.34, note: "Review device payment and promotions before changing the plan." },
+  { name: "Georgette", number: "914-953-0851", plan: "Unlimited Welcome", amount: 15.90, note: "Low current cost; preserve applicable discounts." },
+  { name: "Derick", number: "914-672-2393", plan: "Unlimited Welcome", amount: 138.62, note: "Highest line cost. Review device installment, international usage, and plan/add-on charges first." },
+  { name: "Patrick", number: "612-581-0697", plan: "Unlimited Welcome", amount: 47.12, note: "Review device credits and loyalty discounts before making a plan change." },
+  { name: "iPhone 17 Pro second line", number: "914-675-4305", plan: "Second number", amount: 21.75, note: "Remove if the second number is no longer needed." },
+  { name: "Watch", number: "6072", plan: "Number Share", amount: 14.00, note: "Review whether the watch line is actively used." },
+  { name: "iPad", number: "1007", plan: "Tablet", amount: 11.58, note: "Review whether the tablet line is actively used." },
+  { name: "55+ loyalty discount", number: "Account credit", plan: "Discount", amount: -25.00, note: "Keep this account-level discount active." }
+];
+const VERIZON_LINE_ADDITION_HISTORY = [
+  { person: "Theodore", added: "April 2026", firstStatement: "April", firstCharge: 68.39, latestPdfCharge: 59.30, contributionStatus: "Not currently contributing", effect: "New plan and device added in April." },
+  { person: "Georgette", added: "April 2026", firstStatement: "April", firstCharge: 85.29, latestPdfCharge: 74.81, contributionStatus: "Contributes monthly", effect: "New plan and device added in April." },
+  { person: "Patrick", added: "June 2026", firstStatement: "July", firstCharge: 49.88, latestPdfCharge: -1.99, contributionStatus: "Contributes monthly", effect: "First appears on the July statement. September is temporarily negative because of plan-change credits, not a stable normal charge." }
+];
+const BILL_BALANCE_HISTORY_START_MONTH = "2026-07";
 const taskGroupOrder = [
   "Priority To-Do List",
   "Daily Project Manager",
@@ -1431,6 +1458,7 @@ function nextMomMedicationRefillDate(plan, referenceDate = new Date().toISOStrin
 let activeClientId = "";
 let currentJsonBackupPayload = null;
 let adminBillSimulationActive = false;
+let activeBillBalanceHistoryKey = "";
 
 function currentClientConfig() {
   return clientConfigs[activeClientId] || null;
@@ -1641,6 +1669,8 @@ const toggleCurrentUserBtn = document.querySelector("#toggleCurrentUserBtn");
 const clientSwitchBtn = document.querySelector("#clientSwitchBtn");
 const deviceLayoutIndicator = document.querySelector("#deviceLayoutIndicator");
 const deviceLayoutModeSelect = document.querySelector("#deviceLayoutMode");
+const mobileDashboardNav = document.querySelector("#mobileDashboardNav");
+const mobileDashboardNavButtons = [...document.querySelectorAll("#mobileDashboardNav [data-mobile-section]")];
 const topClientSwitchBtn = document.querySelector("#topClientSwitchBtn");
 const topClientSelect = document.querySelector("#topClientSelect");
 const pullLatestDevicesBtn = document.querySelector("#pullLatestDevicesBtn");
@@ -1676,6 +1706,20 @@ const copyBillsToNextMonthBtn = document.querySelector("#copyBillsToNextMonthBtn
 const calculateBillsBtn = document.querySelector("#calculateBillsBtn");
 const refreshAdminBillsBtn = document.querySelector("#refreshAdminBillsBtn");
 const adminBillSimulationBtn = document.querySelector("#adminBillSimulationBtn");
+const adminMonthlyExpendituresBtn = document.querySelector("#adminMonthlyExpendituresBtn");
+const cellphoneBillingHistoryBtn = document.querySelector("#cellphoneBillingHistoryBtn");
+const cellphoneBillingHistoryDialog = document.querySelector("#cellphoneBillingHistoryDialog");
+const cellphoneBillingHistoryBody = document.querySelector("#cellphoneBillingHistoryBody");
+const closeCellphoneBillingHistoryDialogBtn = document.querySelector("#closeCellphoneBillingHistoryDialog");
+const billBalanceHistoryDialog = document.querySelector("#billBalanceHistoryDialog");
+const billBalanceHistoryTitle = document.querySelector("#billBalanceHistoryTitle");
+const billBalanceHistoryBody = document.querySelector("#billBalanceHistoryBody");
+const closeBillBalanceHistoryDialogBtn = document.querySelector("#closeBillBalanceHistoryDialog");
+const adminMonthlyExpendituresDialog = document.querySelector("#adminMonthlyExpendituresDialog");
+const adminMonthlyExpendituresBody = document.querySelector("#adminMonthlyExpendituresBody");
+const closeAdminMonthlyExpendituresDialogBtn = document.querySelector("#closeAdminMonthlyExpendituresDialog");
+const addAdminMonthlyExpenditureBtn = document.querySelector("#addAdminMonthlyExpenditureBtn");
+const saveAdminMonthlyExpendituresBtn = document.querySelector("#saveAdminMonthlyExpendituresBtn");
 const adminBillSimulationStatus = document.querySelector("#adminBillSimulationStatus");
 const adminBillSimulationDialog = document.querySelector("#adminBillSimulationDialog");
 const adminBillSimulationBody = document.querySelector("#adminBillSimulationBody");
@@ -2804,6 +2848,7 @@ function initializeState(loaded) {
     loaded.billsCompactView = isAdminClientId(activeClientId);
   }
   loaded.monthlyBudgetFund = normalizeMoney(loaded.monthlyBudgetFund ?? seedData.monthlyBudgetFund ?? 0);
+  loaded.monthlyExpenditures = normalizeMonthlyExpendituresMap(loaded.monthlyExpenditures);
   const hadAdminBillSimulation = Boolean(loaded.adminBillSimulation && typeof loaded.adminBillSimulation === "object");
   loaded.adminBillSimulation = normalizeAdminBillSimulation(loaded.adminBillSimulation, isAdminClient());
   if (isAdminClient() && !hadAdminBillSimulation) stateAdjusted = true;
@@ -3647,6 +3692,34 @@ function normalizeMonthlyBudgetEntry(entry, fallbackMonth = "", seed = getSeedDa
   return sanitizeFutureMonthlyBudgetEntry(normalizedEntry, seed);
 }
 
+function normalizeMonthlyExpenditure(entry) {
+  if (!entry || typeof entry !== "object") return null;
+  const amount = normalizeMoney(normalizeCurrencyCell(entry.amount));
+  return {
+    id: String(entry.id || crypto.randomUUID()),
+    date: normalizeBillDateLike(entry.date),
+    category: String(entry.category || "Other").trim().slice(0, 60) || "Other",
+    merchant: String(entry.merchant || "").trim().slice(0, 100),
+    description: String(entry.description || "").trim().slice(0, 240),
+    amount
+  };
+}
+
+function normalizeMonthlyExpendituresMap(monthlyExpenditures) {
+  const normalized = {};
+  if (!monthlyExpenditures || typeof monthlyExpenditures !== "object") return normalized;
+  Object.entries(monthlyExpenditures).forEach(([month, entries]) => {
+    if (!/^\d{4}-\d{2}$/.test(month) || !Array.isArray(entries)) return;
+    normalized[month] = entries.map(normalizeMonthlyExpenditure).filter(Boolean);
+  });
+  return normalized;
+}
+
+function getMonthlyExpendituresForMonth(month = state.billMonth || defaultBillMonth()) {
+  state.monthlyExpenditures = normalizeMonthlyExpendituresMap(state.monthlyExpenditures);
+  if (!state.monthlyExpenditures[month]) state.monthlyExpenditures[month] = [];
+  return state.monthlyExpenditures[month];
+}
 function normalizeMonthlyBudgetsMap(monthlyBudgets, seed = getSeedData()) {
   const normalized = {};
   if (monthlyBudgets && typeof monthlyBudgets === "object") {
@@ -5713,6 +5786,7 @@ function render() {
   renderMomMedicationRefill();
   renderPatrickWatch();
   renderPanelVisibility();
+  updateMobileDashboardNavigation();
   renderRunningNotes();
   syncTopTodoPopoutState();
   // Keep the selected editor visible. Sensitive Mom medication controls still
@@ -6363,6 +6437,8 @@ function renderBills() {
     adminBillSimulationBtn.textContent = simulationActive ? "Restore Simulation" : "Balance Simulation";
     adminBillSimulationBtn.setAttribute("aria-pressed", String(simulationActive));
   }
+  if (adminMonthlyExpendituresBtn) adminMonthlyExpendituresBtn.hidden = !isAdminClient();
+  if (cellphoneBillingHistoryBtn) cellphoneBillingHistoryBtn.hidden = !isAdminClient();
   if (adminBillSimulationStatus) adminBillSimulationStatus.hidden = !simulationActive;
   billList.innerHTML = "";
   if (hiddenBillList) hiddenBillList.innerHTML = "";
@@ -6564,6 +6640,9 @@ function renderBills() {
     row.addEventListener("click", event => {
       if (event.target.closest("button")) return;
       selectOnlyBillRow(row, bill.id);
+      if (isAdminClient() && !event.target.closest("input, select, textarea")) {
+        openBillBalanceHistory(bill);
+      }
     });
     row.querySelector(".budget-bill-row-selector").addEventListener("click", event => {
       event.preventDefault();
@@ -6795,6 +6874,187 @@ function exitAdminBillSimulation() {
   renderAdminBillSimulationDialog();
 }
 
+function renderAdminMonthlyExpendituresDialog() {
+  if (!adminMonthlyExpendituresBody) return;
+  const month = state.billMonth || defaultBillMonth();
+  const entries = getMonthlyExpendituresForMonth(month);
+  const total = entries.reduce((sum, entry) => sum + normalizeMoney(entry.amount), 0);
+  const categoryOptions = ["Food / groceries", "Dining / family meals", "Home / repairs", "Household", "Other"];
+  adminMonthlyExpendituresBody.innerHTML = `
+    <div class="admin-monthly-expenditures-summary">
+      <span>${escapeHtml(formatBudgetMonthLabel(month))}</span>
+      <strong>${escapeHtml(formatCurrency(total))}</strong>
+      <small>Separate from MBF and regular bills</small>
+    </div>
+    <div class="admin-monthly-expenditures-table-wrap">
+      <table class="admin-monthly-expenditures-table">
+        <thead><tr><th>Date</th><th>Category</th><th>Merchant</th><th>Description</th><th>Amount</th><th></th></tr></thead>
+        <tbody>
+          ${entries.length ? entries.map(entry => `
+            <tr data-admin-expenditure-id="${escapeAttribute(entry.id)}">
+              <td><input type="date" data-admin-expenditure-field="date" value="${escapeAttribute(entry.date)}" aria-label="Expenditure date"></td>
+              <td><select data-admin-expenditure-field="category" aria-label="Expenditure category">${categoryOptions.map(category => `<option value="${escapeAttribute(category)}"${category === entry.category ? " selected" : ""}>${escapeHtml(category)}</option>`).join("")}</select></td>
+              <td><input type="text" data-admin-expenditure-field="merchant" value="${escapeAttribute(entry.merchant)}" aria-label="Merchant"></td>
+              <td><input type="text" data-admin-expenditure-field="description" value="${escapeAttribute(entry.description)}" aria-label="Description"></td>
+              <td><input type="text" inputmode="decimal" data-admin-expenditure-field="amount" value="${escapeAttribute(formatCurrencyInputValue(entry.amount))}" aria-label="Expenditure amount"></td>
+              <td><button type="button" class="delete-admin-expenditure" aria-label="Delete expenditure">Delete</button></td>
+            </tr>`).join("") : '<tr><td colspan="6" class="admin-monthly-expenditures-empty">No expenditures recorded for this month.</td></tr>'}
+        </tbody>
+      </table>
+    </div>`;
+  adminMonthlyExpendituresBody.querySelectorAll(".delete-admin-expenditure").forEach(button => {
+    button.addEventListener("click", () => {
+      if (!saveAdminMonthlyExpenditures()) return;
+      const row = button.closest("[data-admin-expenditure-id]");
+      const id = row?.dataset.adminExpenditureId;
+      state.monthlyExpenditures[month] = getMonthlyExpendituresForMonth(month).filter(entry => entry.id !== id);
+      saveState();
+      renderAdminMonthlyExpendituresDialog();
+    });
+  });
+}
+
+function saveAdminMonthlyExpenditures() {
+  if (!isAdminClient() || !ensureCurrentUser("save monthly expenditures")) return false;
+  const month = state.billMonth || defaultBillMonth();
+  const entries = [...(adminMonthlyExpendituresBody?.querySelectorAll("[data-admin-expenditure-id]") || [])]
+    .map(row => normalizeMonthlyExpenditure({
+      id: row.dataset.adminExpenditureId,
+      date: row.querySelector('[data-admin-expenditure-field="date"]')?.value,
+      category: row.querySelector('[data-admin-expenditure-field="category"]')?.value,
+      merchant: row.querySelector('[data-admin-expenditure-field="merchant"]')?.value,
+      description: row.querySelector('[data-admin-expenditure-field="description"]')?.value,
+      amount: row.querySelector('[data-admin-expenditure-field="amount"]')?.value
+    }))
+    .filter(Boolean);
+  state.monthlyExpenditures = normalizeMonthlyExpendituresMap(state.monthlyExpenditures);
+  state.monthlyExpenditures[month] = entries;
+  saveState();
+  renderAdminMonthlyExpendituresDialog();
+  return true;
+}
+
+function addAdminMonthlyExpenditure() {
+  if (!isAdminClient() || !saveAdminMonthlyExpenditures()) return;
+  const month = state.billMonth || defaultBillMonth();
+  const today = new Date().toISOString().slice(0, 10);
+  getMonthlyExpendituresForMonth(month).push(normalizeMonthlyExpenditure({
+    id: crypto.randomUUID(),
+    date: today.startsWith(month) ? today : `${month}-01`,
+    category: "Other",
+    merchant: "",
+    description: "",
+    amount: 0
+  }));
+  saveState();
+  renderAdminMonthlyExpendituresDialog();
+}
+
+function openAdminMonthlyExpenditures() {
+  if (!isAdminClient() || !adminMonthlyExpendituresDialog) return;
+  renderAdminMonthlyExpendituresDialog();
+  adminMonthlyExpendituresDialog.showModal();
+}
+function getBillBalanceHistory(bill) {
+  if (!bill) return [];
+  const key = String(bill.templateKey || buildBudgetBillTemplateKey(bill.name) || "").trim().toLowerCase();
+  const name = String(bill.name || "").trim().toLowerCase();
+  const currentMonth = defaultBillMonth();
+  return Object.entries(state.monthlyBudgets || {})
+    .filter(([month]) => month >= BILL_BALANCE_HISTORY_START_MONTH && month <= currentMonth)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([month, budget]) => {
+      const historicalBill = (budget?.bills || []).map(normalizeBill).find(candidate => {
+        const candidateKey = String(candidate.templateKey || buildBudgetBillTemplateKey(candidate.name) || "").trim().toLowerCase();
+        return candidateKey === key || String(candidate.name || "").trim().toLowerCase() === name;
+      });
+      if (!historicalBill) return null;
+      return { month, previousBalance: normalizeMoney(historicalBill.previousBalance ?? historicalBill.currentBalance), currentBalance: normalizeMoney(historicalBill.currentBalance), paidAmount: normalizeMoney(historicalBill.paidAmount) };
+    })
+    .filter(Boolean);
+}
+
+function buildHistoryLineChart(points, label = "History chart") {
+  if (!points.length) return "";
+  const width = 720;
+  const height = 200;
+  const padding = { top: 18, right: 20, bottom: 36, left: 74 };
+  const values = points.map(point => normalizeMoney(point.value));
+  const rawMin = Math.min(...values);
+  const rawMax = Math.max(...values);
+  const span = Math.max(1, rawMax - rawMin);
+  const min = Math.max(0, rawMin - span * .12);
+  const max = rawMax + span * .12;
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+  const x = index => padding.left + (points.length === 1 ? plotWidth / 2 : (index / (points.length - 1)) * plotWidth);
+  const y = value => padding.top + ((max - value) / Math.max(1, max - min)) * plotHeight;
+  const path = points.map((point, index) => `${index ? "L" : "M"}${x(index).toFixed(1)},${y(point.value).toFixed(1)}`).join(" ");
+  const grid = [0, .5, 1].map(fraction => {
+    const value = max - (max - min) * fraction;
+    const yPosition = padding.top + plotHeight * fraction;
+    return `<g><line x1="${padding.left}" x2="${width - padding.right}" y1="${yPosition}" y2="${yPosition}" class="history-chart-grid"></line><text x="${padding.left - 8}" y="${yPosition + 4}" text-anchor="end" class="history-chart-axis">${escapeHtml(formatCurrency(value))}</text></g>`;
+  }).join("");
+  const dots = points.map((point, index) => `<g><circle cx="${x(index)}" cy="${y(point.value)}" r="4" class="history-chart-dot"><title>${escapeHtml(`${point.label}: ${formatCurrency(point.value)}`)}</title></circle><text x="${x(index)}" y="${height - 12}" text-anchor="middle" class="history-chart-axis">${escapeHtml(point.label)}</text></g>`).join("");
+  return `<svg class="history-line-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeAttribute(label)}">${grid}<path d="${path}" class="history-chart-line"></path>${dots}</svg>`;
+}
+
+function renderBillBalanceHistoryDialog() {
+  if (!billBalanceHistoryBody) return;
+  const bill = state.bills.find(item => (item.templateKey || buildBudgetBillTemplateKey(item.name)) === activeBillBalanceHistoryKey) || state.bills.find(item => item.id === activeBillBalanceHistoryKey);
+  if (!bill) { billBalanceHistoryBody.innerHTML = '<p class="documents-note">This bill is not available in the selected month.</p>'; return; }
+  const history = getBillBalanceHistory(bill);
+  const first = history[0];
+  const latest = history[history.length - 1];
+  if (billBalanceHistoryTitle) billBalanceHistoryTitle.textContent = `${bill.name || "Bill"} Balance History`;
+  billBalanceHistoryBody.innerHTML = history.length ? `
+    <div class="bill-history-summary"><span>Tracking since July 1, 2026</span><strong>Latest: ${escapeHtml(formatCurrency(latest.currentBalance))}</strong><span>${escapeHtml(formatSignedCurrency(latest.currentBalance - first.currentBalance))} since first saved month</span></div>
+    ${buildHistoryLineChart(history.map(point => ({ label: formatBudgetMonthLabel(point.month).slice(0, 3), value: point.currentBalance })), `${bill.name} current balance history`)}
+    <div class="bill-history-table-wrap"><table class="bill-history-table"><thead><tr><th>Month</th><th>Previous balance</th><th>Current balance</th><th>Paid</th></tr></thead><tbody>${history.map(point => `<tr><td>${escapeHtml(formatBudgetMonthLabel(point.month))}</td><td>${escapeHtml(formatCurrency(point.previousBalance))}</td><td>${escapeHtml(formatCurrency(point.currentBalance))}</td><td>${escapeHtml(formatCurrency(point.paidAmount))}</td></tr>`).join("")}</tbody></table></div>` : '<p class="documents-note">No saved monthly balance is available for this bill from July 1, 2026 onward. New monthly saves will add points to this chart.</p>';
+}
+
+function openBillBalanceHistory(bill) {
+  if (!isAdminClient() || !bill || !billBalanceHistoryDialog) return;
+  activeBillBalanceHistoryKey = bill.templateKey || buildBudgetBillTemplateKey(bill.name) || bill.id;
+  renderBillBalanceHistoryDialog();
+  billBalanceHistoryDialog.showModal();
+}
+
+function renderCellphoneBillingHistoryDialog() {
+  if (!cellphoneBillingHistoryBody) return;
+  const latest = VERIZON_BILL_HISTORY[VERIZON_BILL_HISTORY.length - 1];
+  const previous = VERIZON_BILL_HISTORY[VERIZON_BILL_HISTORY.length - 2];
+  const change = latest.total - previous.total;
+  const targetGap = latest.total - 300;
+  const lineTotal = VERIZON_CURRENT_LINE_COSTS.reduce((sum, line) => sum + line.amount, 0);
+  const highestLine = VERIZON_CURRENT_LINE_COSTS.filter(line => line.amount > 0).sort((left, right) => right.amount - left.amount)[0];
+  const unassigned = latest.total - lineTotal;
+  const sharedChargeShare = Math.max(0, unassigned) / 4;
+  const contributionStatus = new Map(VERIZON_LINE_ADDITION_HISTORY.map(item => [item.person, item.contributionStatus]));
+  const contributorNames = ["Georgette", "Patrick", "Theodore", "Shanelle"];
+  const contributionRows = contributorNames.map(name => {
+    const line = VERIZON_CURRENT_LINE_COSTS.find(item => item.name === name);
+    const directCost = normalizeMoney(line?.amount);
+    return { name, directCost, sharedChargeShare, suggestedContribution: directCost + sharedChargeShare, status: contributionStatus.get(name) || "Not currently contributing" };
+  });
+  const optionalSavings = 21.75 + 14 + 11.58 + 25 + 31.84;
+  cellphoneBillingHistoryBody.innerHTML = `
+    <div class="cellphone-billing-summary"><span>Latest PDF total</span><strong>${escapeHtml(formatCurrency(latest.total))}</strong><span>${escapeHtml(formatSignedCurrency(change))} from August</span><small>${escapeHtml(latest.note)}</small></div>
+    ${buildHistoryLineChart(VERIZON_BILL_HISTORY.map(point => ({ label: formatBudgetMonthLabel(point.month).slice(0, 3), value: point.total })), "Verizon monthly bill history")}
+    <section class="cellphone-billing-insight"><h3>Why the monthly bill grew</h3><p>The pre-added-line baseline was about ${escapeHtml(formatCurrency(184.24))} to ${escapeHtml(formatCurrency(194.24))} in February and March. Theodore and Georgette were added in April, when the bill rose ${escapeHtml(formatCurrency(134.71))}; their first listed charges were ${escapeHtml(formatCurrency(68.39))} and ${escapeHtml(formatCurrency(85.29))}. Patrick was added in June and first appeared on the July statement at ${escapeHtml(formatCurrency(49.88))}, while the total rose ${escapeHtml(formatCurrency(63.68))}. The bill later includes plan, device, credit, and surcharge changes, so not every monthly difference is a new recurring charge.</p></section>
+    <div class="cellphone-billing-table-wrap"><table class="cellphone-billing-table"><thead><tr><th>Bill month</th><th>Total due</th><th>Change</th><th>Why it changed</th></tr></thead><tbody>${VERIZON_BILL_HISTORY.map((point, index) => `<tr><td>${escapeHtml(formatBudgetMonthLabel(point.month))}</td><td>${escapeHtml(formatCurrency(point.total))}</td><td>${index ? escapeHtml(formatSignedCurrency(point.total - VERIZON_BILL_HISTORY[index - 1].total)) : "-"}</td><td>${escapeHtml(point.note)}</td></tr>`).join("")}</tbody></table></div>
+    <section class="cellphone-current-lines"><h3>Added-line timeline and contribution status</h3><div class="cellphone-billing-table-wrap"><table class="cellphone-billing-table"><thead><tr><th>Person</th><th>Added</th><th>First bill charge</th><th>Latest PDF charge</th><th>Contribution</th><th>Context</th></tr></thead><tbody>${VERIZON_LINE_ADDITION_HISTORY.map(item => `<tr><td>${escapeHtml(item.person)}</td><td>${escapeHtml(item.added)}</td><td>${escapeHtml(formatCurrency(item.firstCharge))}</td><td>${escapeHtml(formatSignedCurrency(item.latestPdfCharge))}</td><td>${escapeHtml(item.contributionStatus)}</td><td>${escapeHtml(item.effect)}</td></tr>`).join("")}</tbody></table></div></section>
+    <section class="cellphone-billing-insight"><h3>Fair monthly contributions</h3><p>A standalone Verizon account could cost more because family-plan, loyalty, Auto Pay, device-promotion, and shared-fee benefits may be lost. As a fair shared-account contribution, the direct planning cost plus an equal ${escapeHtml(formatCurrency(sharedChargeShare))} share of the current ${escapeHtml(formatCurrency(unassigned))} non-line difference gives a practical floor, not a Verizon quote.</p><div class="cellphone-billing-table-wrap"><table class="cellphone-billing-table"><thead><tr><th>Person</th><th>Direct planning cost</th><th>Shared fees/charges share</th><th>Suggested contribution</th><th>Current status</th></tr></thead><tbody>${contributionRows.map(item => `<tr><td>${escapeHtml(item.name)}</td><td>${escapeHtml(formatCurrency(item.directCost))}</td><td>${escapeHtml(formatCurrency(item.sharedChargeShare))}</td><td><strong>${escapeHtml(formatCurrency(item.suggestedContribution))}</strong></td><td>${escapeHtml(item.status)}</td></tr>`).join("")}</tbody></table></div><p class="cellphone-billing-note">Based on the current planning amounts: Georgette and Patrick already contribute; Theodore and Shanelle do not. Asking Theodore and Shanelle to cover their suggested shares makes the responsibility consistent without claiming this is their exact standalone-account price.</p></section>
+    <section class="cellphone-current-lines"><h3>Current line-cost planning view</h3><p>Listed lines total ${escapeHtml(formatCurrency(lineTotal))}. The difference from the latest PDF total is ${escapeHtml(formatCurrency(unassigned))}, which can include taxes, surcharges, account charges, credits, or bill-cycle timing.</p><div class="cellphone-billing-table-wrap"><table class="cellphone-billing-table"><thead><tr><th>Line or item</th><th>Number</th><th>Plan</th><th>Monthly cost</th><th>Review</th></tr></thead><tbody>${VERIZON_CURRENT_LINE_COSTS.map(line => `<tr><td>${escapeHtml(line.name)}</td><td>${escapeHtml(line.number)}</td><td>${escapeHtml(line.plan)}</td><td>${escapeHtml(formatSignedCurrency(line.amount))}</td><td>${escapeHtml(line.note)}</td></tr>`).join("")}</tbody></table></div></section>
+    <section class="cellphone-billing-insight"><h3>Path toward $300</h3><p>The latest total is ${escapeHtml(formatCurrency(targetGap))} above $300. Conditional opportunities are: remove the second number (${escapeHtml(formatCurrency(21.75))}) if unnecessary; remove an unused watch (${escapeHtml(formatCurrency(14))}) and iPad line (${escapeHtml(formatCurrency(11.58))}); move an Unlimited Ultimate line to Welcome only if the reduced features work (the latest PDF's plan-rate difference is about ${escapeHtml(formatCurrency(25))}); and prevent recurring international mobile charges such as September's ${escapeHtml(formatCurrency(31.84))}. Together these potential reductions total about ${escapeHtml(formatCurrency(optionalSavings))}, enough to cross the $300 goal only if the services and feature changes are appropriate.</p></section>
+    <section class="cellphone-discount-review"><h3>Discounts and senior-plan review</h3><ul><li>The September PDF shows a $20 55+ loyalty discount for 4+ phones and a $25 55+ loyalty adjustment/removal; keep the currently active loyalty credit and ask Verizon why the amount changed.</li><li>The PDF advertises Auto Pay and paper-free savings up to $50 per month. Confirm every eligible phone line and payment method receives the intended discount.</li><li>Device promotional credits appear on several lines. Do not transfer, cancel, or change a line without confirming whether its device credits continue.</li><li>Verizon's current 55+ mobile discount is an Account Owner benefit, not a separate discount for each line. Verizon states it requires the Account Owner to be 55+, a Florida billing address, and 1 or 2 Unlimited Welcome phone lines. This New York, multi-line account does not appear to meet those current Florida-offer conditions, and the PDFs alone cannot establish whether you or Georgette qualifies for another senior offer. Ask Verizon to audit account-specific loyalty, employer, military, teacher, first-responder, and income-based Lifeline eligibility before changing plans. <a href="https://www.verizon.com/support/55-plus-unlimited-plan/" target="_blank" rel="noreferrer">Review Verizon 55+ eligibility</a>.</li></ul></section>`;
+}
+
+function openCellphoneBillingHistory() {
+  if (!isAdminClient() || !cellphoneBillingHistoryDialog) return;
+  renderCellphoneBillingHistoryDialog();
+  cellphoneBillingHistoryDialog.showModal();
+}
 function deleteBill(id) {
   const bill = state.bills.find(item => item.id === id);
   if (!bill) return;
@@ -11104,6 +11364,27 @@ if (adminBillSimulationBtn) {
 if (closeAdminBillSimulationDialogBtn && adminBillSimulationDialog) {
   closeAdminBillSimulationDialogBtn.addEventListener("click", () => adminBillSimulationDialog.close());
 }
+if (adminMonthlyExpendituresBtn) {
+  adminMonthlyExpendituresBtn.addEventListener("click", openAdminMonthlyExpenditures);
+}
+if (closeAdminMonthlyExpendituresDialogBtn && adminMonthlyExpendituresDialog) {
+  closeAdminMonthlyExpendituresDialogBtn.addEventListener("click", () => adminMonthlyExpendituresDialog.close());
+}
+if (addAdminMonthlyExpenditureBtn) {
+  addAdminMonthlyExpenditureBtn.addEventListener("click", addAdminMonthlyExpenditure);
+}
+if (saveAdminMonthlyExpendituresBtn) {
+  saveAdminMonthlyExpendituresBtn.addEventListener("click", saveAdminMonthlyExpenditures);
+}
+if (cellphoneBillingHistoryBtn) {
+  cellphoneBillingHistoryBtn.addEventListener("click", openCellphoneBillingHistory);
+}
+if (closeCellphoneBillingHistoryDialogBtn && cellphoneBillingHistoryDialog) {
+  closeCellphoneBillingHistoryDialogBtn.addEventListener("click", () => cellphoneBillingHistoryDialog.close());
+}
+if (closeBillBalanceHistoryDialogBtn && billBalanceHistoryDialog) {
+  closeBillBalanceHistoryDialogBtn.addEventListener("click", () => billBalanceHistoryDialog.close());
+}
 if (saveAdminBillSimulationBtn) {
   saveAdminBillSimulationBtn.addEventListener("click", saveAdminBillSimulationProjectionTable);
 }
@@ -11570,9 +11851,15 @@ function isAppleMobileDevice() {
   return /iPhone|iPad|iPod/i.test(userAgent) || touchCapableMac;
 }
 
+function isAppleTabletDevice() {
+  const userAgent = navigator.userAgent || "";
+  return /iPad/i.test(userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
 function detectDeviceLayout() {
-  // Keep the dense bill grid usable on iPhone and iPad when View is set to Auto.
-  if (isAppleMobileDevice()) return "compact";
+  // Apple devices receive the purpose-built touch layout. Compact remains an
+  // optional manual view for people who specifically prefer a spreadsheet.
+  if (isAppleMobileDevice()) return isAppleTabletDevice() ? "tablet" : "phone";
   const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
   if (viewportWidth <= 680) return "phone";
   if (viewportWidth <= 1100 || window.matchMedia("(pointer: coarse)").matches) return "tablet";
@@ -11599,6 +11886,31 @@ function applyDeviceLayout() {
   }
 }
 
+function getMobileSectionTarget(section) {
+  if (section === "bills") return budgetPanel;
+  if (section === "tasks") return taskList;
+  if (section === "schedule") return workSchedulePanel;
+  return document.querySelector(".overview") || document.querySelector("main");
+}
+
+function updateMobileDashboardNavigation() {
+  if (!mobileDashboardNav) return;
+  const scheduleButton = mobileDashboardNav.querySelector('[data-mobile-section="schedule"]');
+  const canShowSchedule = activeClientId === "patrick";
+  if (scheduleButton) scheduleButton.hidden = !canShowSchedule;
+  mobileDashboardNav.classList.toggle("has-three-items", !canShowSchedule);
+}
+
+function navigateMobileDashboard(section) {
+  if (section === "bills" && budgetPanel?.hidden) toggleBillsBtn?.click();
+  if (section === "schedule" && workSchedulePanel?.hidden) return;
+  const target = getMobileSectionTarget(section);
+  if (!target) return;
+  mobileDashboardNavButtons.forEach(button => {
+    button.classList.toggle("is-active", button.dataset.mobileSection === section);
+  });
+  window.setTimeout(() => target.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+}
 applyDeviceLayout();
 window.addEventListener("resize", applyDeviceLayout);
 window.addEventListener("orientationchange", applyDeviceLayout);
@@ -11608,6 +11920,9 @@ if (deviceLayoutModeSelect) {
     applyDeviceLayout();
   });
 }
+mobileDashboardNavButtons.forEach(button => {
+  button.addEventListener("click", () => navigateMobileDashboard(button.dataset.mobileSection));
+});
 
 if (topClientSwitchBtn) {
   topClientSwitchBtn.addEventListener("click", () => {
