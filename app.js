@@ -11868,6 +11868,13 @@ function detectDeviceLayout() {
 
 function getDeviceLayoutMode() {
   const storedMode = localStorage.getItem("threeGTrackingDeviceViewMode") || "auto";
+  // Migrate the old iPhone-only Compact preference once; people can still
+  // explicitly choose Compact afterward if that spreadsheet view is wanted.
+  if (isAppleMobileDevice() && storedMode === "compact" && !localStorage.getItem("threeGTrackingMobileLayoutMigrated")) {
+    localStorage.setItem("threeGTrackingMobileLayoutMigrated", "true");
+    localStorage.setItem("threeGTrackingDeviceViewMode", "auto");
+    return "auto";
+  }
   return ["auto", "desktop", "tablet", "phone", "compact"].includes(storedMode) ? storedMode : "auto";
 }
 
