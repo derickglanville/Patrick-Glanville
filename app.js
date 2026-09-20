@@ -26,6 +26,7 @@ const SUPABASE_SAVE_DELAY_MS = 700;
 const JSON_BACKUP_SAVE_DELAY_MS = 900;
 const JSON_BACKUP_DB_NAME = "tracker-json-backup-handles-v1";
 const JSON_BACKUP_STORE_NAME = "handles";
+const EXPENDITURE_IMPORT_DIRECTORY_HANDLE_KEY = "admin-expenditures-import-directory";
 const PATRICK_REMOTE_UPDATED_AT_KEY = "patrick-glanville-remote-updated-at-v1";
 const THEODORE_REMOTE_UPDATED_AT_KEY = "theodore-glanville-remote-updated-at-v1";
 const ADMIN_REMOTE_UPDATED_AT_KEY = "admin-glanville-remote-updated-at-v1";
@@ -2052,6 +2053,25 @@ async function getJsonBackupHandleFromDb(clientId) {
   });
 }
 
+async function getExpenditureImportDirectoryHandle() {
+  const db = await openJsonBackupDb();
+  if (!db) return null;
+  return await new Promise((resolve, reject) => {
+    const request = db.transaction(JSON_BACKUP_STORE_NAME, "readonly").objectStore(JSON_BACKUP_STORE_NAME).get(EXPENDITURE_IMPORT_DIRECTORY_HANDLE_KEY);
+    request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () => reject(request.error || new Error("Could not read the expenditure import folder."));
+  });
+}
+
+async function saveExpenditureImportDirectoryHandle(handle) {
+  const db = await openJsonBackupDb();
+  if (!db) return;
+  await new Promise((resolve, reject) => {
+    const request = db.transaction(JSON_BACKUP_STORE_NAME, "readwrite").objectStore(JSON_BACKUP_STORE_NAME).put(handle, EXPENDITURE_IMPORT_DIRECTORY_HANDLE_KEY);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error || new Error("Could not remember the expenditure import folder."));
+  });
+}
 async function saveJsonBackupHandleToDb(clientId, handle) {
   if (!clientId || !supportsJsonBackupFileAccess()) return;
   const db = await openJsonBackupDb();
@@ -7028,7 +7048,13 @@ async function importAdminMonthlyExpendituresFromFolder() {
   }
   let directory;
   try {
-    directory = await window.showDirectoryPicker({ mode: "readwrite", id: "admin-expenditures-import" });
+    const savedDirectory = await getExpenditureImportDirectoryHandle();
+    directory = await window.showDirectoryPicker({
+      mode: "readwrite",
+      id: "admin-expenditures-import",
+      ...(savedDirectory ? { startIn: savedDirectory } : { startIn: "documents" })
+    });
+    await saveExpenditureImportDirectoryHandle(directory);
   } catch (error) {
     if (error?.name !== "AbortError") alert(`Could not open the Import Folder: ${error.message}`);
     return;
