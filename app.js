@@ -3356,7 +3356,8 @@ function getAdminInterestPriority(bill, interestPaid = null) {
     principalReduction,
     extraForPrincipalLead,
     targetPaymentForPrincipalLead: paidAmount + extraForPrincipalLead,
-    isInterestHeavy: isAdminClient() && bill?.status === "Paid" && paidAmount > 0 && interest > principalReduction
+    isInterestHeavy: isAdminClient() && bill?.status === "Paid" && paidAmount > 0 && interest > principalReduction,
+    isGoodPayment: isAdminClient() && bill?.status === "Paid" && paidAmount > 0 && principalReduction > interest
   };
 }
 
@@ -6608,7 +6609,7 @@ function renderBills() {
       </label>
       <div class="budget-bill-field bill-col-payment-priority">
         <span>Pay more</span>
-        <div class="bill-interest-priority${interestPriority.isInterestHeavy ? " is-interest-heavy" : ""}" title="${escapeAttribute(interestPriority.isInterestHeavy ? `Estimated interest ${formatCurrency(interestPriority.interest)} is greater than the ${formatCurrency(interestPriority.principalReduction)} reducing principal. Pay ${formatCurrency(interestPriority.extraForPrincipalLead)} more (total ${formatCurrency(interestPriority.targetPaymentForPrincipalLead)}) for principal to exceed interest.` : "Interest does not exceed the principal portion of this payment.")}">${interestPriority.isInterestHeavy ? "Pay More" : "-"}</div>
+        <div class="bill-interest-priority${interestPriority.isInterestHeavy ? " is-interest-heavy" : ""}${interestPriority.isGoodPayment ? " is-good-payment" : ""}" title="${escapeAttribute(interestPriority.isInterestHeavy ? `Estimated interest ${formatCurrency(interestPriority.interest)} is greater than the ${formatCurrency(interestPriority.principalReduction)} reducing principal. Pay ${formatCurrency(interestPriority.extraForPrincipalLead)} more (total ${formatCurrency(interestPriority.targetPaymentForPrincipalLead)}) for principal to exceed interest.` : interestPriority.isGoodPayment ? `Good payment: ${formatCurrency(interestPriority.principalReduction)} reduces principal, which is more than the estimated ${formatCurrency(interestPriority.interest)} interest.` : "Interest does not exceed the principal portion of this payment.")}">${interestPriority.isInterestHeavy ? "Pay More" : interestPriority.isGoodPayment ? "Good payment" : "-"}</div>
       </div>
       <label class="budget-bill-field bill-col-credit-line">
         <span>Credit line</span>
@@ -7446,11 +7447,14 @@ function updateBillFromRow(row, options = {}) {
       notesInput.classList.toggle("is-interest-heavy", updatedPriority.isInterestHeavy);
     }
     if (priorityIndicator) {
-      priorityIndicator.textContent = updatedPriority.isInterestHeavy ? "Pay More" : "-";
+      priorityIndicator.textContent = updatedPriority.isInterestHeavy ? "Pay More" : updatedPriority.isGoodPayment ? "Good payment" : "-";
       priorityIndicator.classList.toggle("is-interest-heavy", updatedPriority.isInterestHeavy);
+      priorityIndicator.classList.toggle("is-good-payment", updatedPriority.isGoodPayment);
       priorityIndicator.title = updatedPriority.isInterestHeavy
         ? `Estimated interest ${formatCurrency(updatedPriority.interest)} is greater than the ${formatCurrency(updatedPriority.principalReduction)} reducing principal. Pay ${formatCurrency(updatedPriority.extraForPrincipalLead)} more (total ${formatCurrency(updatedPriority.targetPaymentForPrincipalLead)}) for principal to exceed interest.`
-        : "Interest does not exceed the principal portion of this payment.";
+        : updatedPriority.isGoodPayment
+          ? `Good payment: ${formatCurrency(updatedPriority.principalReduction)} reduces principal, which is more than the estimated ${formatCurrency(updatedPriority.interest)} interest.`
+          : "Interest does not exceed the principal portion of this payment.";
     }
   }
 

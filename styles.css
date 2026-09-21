@@ -1749,6 +1749,15 @@ textarea {
   padding: 2px 3px;
 }
 
+.bill-interest-priority.is-good-payment {
+  color: #087443;
+  background: #e6f7ed;
+  border: 1px solid #72c997;
+  border-radius: 4px;
+  padding: 2px 3px;
+  font-weight: 800;
+}
+
 .budget-bill-item:not(.budget-bill-item-simple) .bill-notes.is-interest-heavy {
   color: #b91c1c;
   background: #fff1f2;
