@@ -295,6 +295,7 @@
           <button id="copyBillsToNextMonthBtn" type="button" class="ghost">Copy To Next Month</button>
           <button id="calculateBillsBtn" type="button" class="ghost">Calculate</button>
           <button id="adminBillSimulationBtn" type="button" class="ghost" hidden>Balance Simulation</button>
+          <button id="adminCreditCardFinderBtn" type="button" class="ghost" hidden>Card Finder</button>
           <button id="adminMonthlyExpendituresBtn" type="button" class="ghost" hidden>Monthly Expenditures</button>
           <button id="cellphoneBillingHistoryBtn" type="button" class="ghost" hidden>Cellphone History</button>
           <button id="assignDueDatesBtn" type="button" class="ghost">Assign Due Dates</button>
@@ -673,6 +674,22 @@
     </div>
   </dialog>
 
+  <dialog id="adminCreditCardFinderDialog">
+    <div class="report-dialog admin-credit-card-finder-dialog">
+      <div class="dialog-head">
+        <h2>Credit Card Finder</h2>
+        <button type="button" id="closeAdminCreditCardFinderDialog" class="icon-button" aria-label="Close">x</button>
+      </div>
+      <p class="documents-note">Enter a charge amount to compare eligible cards. Rankings favor lower APR, healthy available credit after the charge, and protecting cards that are already making payoff progress.</p>
+      <div class="admin-credit-card-finder-form">
+        <label for="adminCreditCardCharge">Charge amount
+          <input id="adminCreditCardCharge" type="text" inputmode="decimal" placeholder="$0.00" aria-label="Charge amount">
+        </label>
+        <button type="button" id="calculateAdminCreditCardFinderBtn">Find Best Card</button>
+      </div>
+      <div id="adminCreditCardFinderBody" class="admin-credit-card-finder-body"></div>
+    </div>
+  </dialog>
   <dialog id="adminBillSimulationDialog">
     <div class="report-dialog admin-bill-simulation-dialog">
       <div class="dialog-head">
@@ -773,6 +790,6 @@
     onerror="window.__firebaseConfigLoadError = 'firebase-config.js failed to load';"
   ></script>
   <script src="firebase-init.js?v=2026-07-08-003"></script>
-  <script src="app.js?v=2026-09-20-csv-import-002"></script>
+  <script src="app.js?v=2026-09-22-card-finder-001"></script>
   </body>
   </html>

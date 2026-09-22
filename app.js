@@ -1707,6 +1707,12 @@ const copyBillsToNextMonthBtn = document.querySelector("#copyBillsToNextMonthBtn
 const calculateBillsBtn = document.querySelector("#calculateBillsBtn");
 const refreshAdminBillsBtn = document.querySelector("#refreshAdminBillsBtn");
 const adminBillSimulationBtn = document.querySelector("#adminBillSimulationBtn");
+const adminCreditCardFinderBtn = document.querySelector("#adminCreditCardFinderBtn");
+const adminCreditCardFinderDialog = document.querySelector("#adminCreditCardFinderDialog");
+const adminCreditCardFinderBody = document.querySelector("#adminCreditCardFinderBody");
+const adminCreditCardCharge = document.querySelector("#adminCreditCardCharge");
+const calculateAdminCreditCardFinderBtn = document.querySelector("#calculateAdminCreditCardFinderBtn");
+const closeAdminCreditCardFinderDialogBtn = document.querySelector("#closeAdminCreditCardFinderDialog");
 const adminMonthlyExpendituresBtn = document.querySelector("#adminMonthlyExpendituresBtn");
 const cellphoneBillingHistoryBtn = document.querySelector("#cellphoneBillingHistoryBtn");
 const cellphoneBillingHistoryDialog = document.querySelector("#cellphoneBillingHistoryDialog");
@@ -3342,28 +3348,45 @@ function defaultBillNoteForStatus(status) {
   return ["Paid", "Fully Paid"].includes(status) ? "This bill is paid" : "Pending";
 }
 
-function getAdminInterestPriority(bill, interestPaid = null) {
+function getAdminInterestPriority(bill, interestPaid = null, recommendedPayment = null) {
   const paidAmount = normalizeMoney(bill?.paidAmount);
   const interest = interestPaid === null
     ? calculateMonthlyInterestPortion(bill?.previousBalance ?? bill?.currentBalance, bill?.apr)
     : normalizeMoney(interestPaid);
+  const recommended = normalizeMoney(recommendedPayment ?? bill?.amount);
   const principalReduction = Math.max(0, paidAmount - interest);
+  const isPaid = ["Paid", "Fully Paid"].includes(bill?.status);
   // Add one cent so principal is greater than interest, not merely equal to it.
   const extraForPrincipalLead = Math.max(0, Math.round(((interest * 2) - paidAmount + 0.01) * 100) / 100);
   return {
     interest,
     paidAmount,
+    recommended,
     principalReduction,
     extraForPrincipalLead,
     targetPaymentForPrincipalLead: paidAmount + extraForPrincipalLead,
-    isInterestHeavy: isAdminClient() && bill?.status === "Paid" && paidAmount > 0 && interest > principalReduction,
-    isGoodPayment: isAdminClient() && bill?.status === "Paid" && paidAmount > 0 && principalReduction > interest
+    isRecommendedAmountPaid: isAdminClient() && isPaid && recommended > 0 && paidAmount >= recommended,
+    isInterestHeavy: isAdminClient() && isPaid && paidAmount > 0 && interest > principalReduction,
+    isGoodPayment: isAdminClient() && isPaid && paidAmount > 0 && principalReduction > interest
   };
+}
+
+function getAdminPaymentPriorityDisplay(priority) {
+  if (priority.isRecommendedAmountPaid) {
+    return { label: "Recom Amt Paid", className: " is-recommended-amount-paid", title: `Recommended amount met: ${formatCurrency(priority.paidAmount)} paid against a ${formatCurrency(priority.recommended)} recommendation.` };
+  }
+  if (priority.isInterestHeavy) {
+    return { label: "Pay More", className: " is-interest-heavy", title: `Estimated interest ${formatCurrency(priority.interest)} is greater than the ${formatCurrency(priority.principalReduction)} reducing principal. Pay ${formatCurrency(priority.extraForPrincipalLead)} more (total ${formatCurrency(priority.targetPaymentForPrincipalLead)}) for principal to exceed interest.` };
+  }
+  if (priority.isGoodPayment) {
+    return { label: "Good payment", className: " is-good-payment", title: `Good payment: ${formatCurrency(priority.principalReduction)} reduces principal, which is more than the estimated ${formatCurrency(priority.interest)} interest.` };
+  }
+  return { label: "-", className: "", title: "Enter a payment to evaluate its principal reduction." };
 }
 
 function buildAdminPaidBillProgressNote(bill, interestPaid = null, recommendedPayment = null) {
   if (!isAdminClient() || bill?.status !== "Paid") return String(bill?.notes || "");
-  const priority = getAdminInterestPriority(bill, interestPaid);
+  const priority = getAdminInterestPriority(bill, interestPaid, recommendedPayment);
   const { interest, paidAmount, principalReduction, extraForPrincipalLead, targetPaymentForPrincipalLead } = priority;
   const calculatedRecommendations = recommendedPayment === null ? calculateRecommendedBillPayments(state.bills) : null;
   const recommended = normalizeMoney(recommendedPayment ?? calculatedRecommendations?.get(bill.id) ?? bill.amount);
@@ -6488,6 +6511,7 @@ function renderBills() {
     adminBillSimulationBtn.setAttribute("aria-pressed", String(simulationActive));
   }
   if (adminMonthlyExpendituresBtn) adminMonthlyExpendituresBtn.hidden = !isAdminClient();
+  if (adminCreditCardFinderBtn) adminCreditCardFinderBtn.hidden = !isAdminClient();
   if (cellphoneBillingHistoryBtn) cellphoneBillingHistoryBtn.hidden = !isAdminClient();
   if (adminBillSimulationStatus) adminBillSimulationStatus.hidden = !simulationActive;
   billList.innerHTML = "";
@@ -6573,9 +6597,10 @@ function renderBills() {
     const effectivePreviousBalance = getEffectiveBillPreviousBalance(bill);
     const effectiveCurrentBalance = getEffectiveBillCurrentBalance(bill);
     const interestPaid = calculateMonthlyInterestPortion(effectivePreviousBalance, bill.apr);
-    const interestPriority = getAdminInterestPriority(bill, interestPaid);
+    const interestPriority = getAdminInterestPriority(bill, interestPaid, recommendedPayment);
     const balanceDiff = effectiveCurrentBalance - effectivePreviousBalance;
     const notesDisplay = buildAdminPaidBillProgressNote(bill, interestPaid, recommendedPayment) || bill.notes || "";
+    const paymentPriorityDisplay = getAdminPaymentPriorityDisplay(interestPriority);
     const row = document.createElement("article");
     row.className = `budget-bill-item${pastDue ? " is-past-due" : ""}${dueSoon ? " is-due-soon" : ""}${bill.status === "Paid" ? " is-paid" : ""}${bill.hidden ? " is-hidden" : ""}`;
     row.dataset.billId = bill.id;
@@ -6609,7 +6634,7 @@ function renderBills() {
       </label>
       <div class="budget-bill-field bill-col-payment-priority">
         <span>Pay more</span>
-        <div class="bill-interest-priority${interestPriority.isInterestHeavy ? " is-interest-heavy" : ""}${interestPriority.isGoodPayment ? " is-good-payment" : ""}" title="${escapeAttribute(interestPriority.isInterestHeavy ? `Estimated interest ${formatCurrency(interestPriority.interest)} is greater than the ${formatCurrency(interestPriority.principalReduction)} reducing principal. Pay ${formatCurrency(interestPriority.extraForPrincipalLead)} more (total ${formatCurrency(interestPriority.targetPaymentForPrincipalLead)}) for principal to exceed interest.` : interestPriority.isGoodPayment ? `Good payment: ${formatCurrency(interestPriority.principalReduction)} reduces principal, which is more than the estimated ${formatCurrency(interestPriority.interest)} interest.` : "Interest does not exceed the principal portion of this payment.")}">${interestPriority.isInterestHeavy ? "Pay More" : interestPriority.isGoodPayment ? "Good payment" : "-"}</div>
+        <div class="bill-interest-priority${paymentPriorityDisplay.className}" title="${escapeAttribute(paymentPriorityDisplay.title)}">${escapeHtml(paymentPriorityDisplay.label)}</div>
       </div>
       <label class="budget-bill-field bill-col-credit-line">
         <span>Credit line</span>
@@ -6924,6 +6949,58 @@ function exitAdminBillSimulation() {
   renderAdminBillSimulationDialog();
 }
 
+function getAdminCreditCardCandidates(chargeAmount) {
+  const charge = normalizeMoney(chargeAmount);
+  if (charge <= 0) return { charge, safetyCushion: 0, candidates: [], excludedCount: 0 };
+  const safetyCushion = Math.max(100, normalizeMoney(charge * 0.1));
+  const recommendedPayments = calculateRecommendedBillPayments(state.bills);
+  const creditCards = state.bills.filter(bill => normalizeMoney(bill.creditLimit) > 0 && parseAprNumber(bill.apr) > 0);
+  const candidates = creditCards.map(bill => {
+    const currentBalance = Math.max(0, normalizeMoney(bill.currentBalance));
+    const creditLimit = normalizeMoney(bill.creditLimit);
+    const availableCredit = Math.max(0, creditLimit - currentBalance);
+    const remainingCredit = availableCredit - charge;
+    const projectedUtilization = creditLimit > 0 ? (currentBalance + charge) / creditLimit : 1;
+    const previousBalance = Math.max(0, normalizeMoney(bill.previousBalance ?? currentBalance));
+    const payoffProgress = previousBalance > 0 ? Math.max(0, (previousBalance - currentBalance) / previousBalance) : 0;
+    const apr = parseAprNumber(bill.apr);
+    const aprScore = Math.max(0, 1 - Math.min(apr, 35) / 35);
+    const capacityScore = Math.max(0, 1 - Math.min(projectedUtilization, 1));
+    // Protect cards that are already moving down quickly instead of reusing them.
+    const payoffProtectionScore = Math.max(0, 1 - Math.min(1, payoffProgress * 4));
+    return { bill, apr, currentBalance, creditLimit, availableCredit, remainingCredit, projectedUtilization, payoffProgress, recommendedPayment: normalizeMoney(recommendedPayments.get(bill.id) ?? bill.amount), score: (aprScore * 55) + (capacityScore * 30) + (payoffProtectionScore * 15) };
+  }).filter(card => card.availableCredit >= charge + safetyCushion)
+    .sort((left, right) => right.score - left.score || left.apr - right.apr || right.remainingCredit - left.remainingCredit);
+  return { charge, safetyCushion, candidates, excludedCount: creditCards.length - candidates.length };
+}
+
+function renderAdminCreditCardFinderResults(chargeAmount = 0) {
+  if (!adminCreditCardFinderBody) return;
+  const result = getAdminCreditCardCandidates(chargeAmount);
+  if (result.charge <= 0) {
+    adminCreditCardFinderBody.innerHTML = '<p class="admin-credit-card-finder-empty">Enter the amount of the planned charge to compare your eligible credit cards.</p>';
+    return;
+  }
+  if (!result.candidates.length) {
+    adminCreditCardFinderBody.innerHTML = `<p class="admin-credit-card-finder-empty">No card has enough available credit for ${escapeHtml(formatCurrency(result.charge))} while keeping the ${escapeHtml(formatCurrency(result.safetyCushion))} safety cushion. Consider paying down a card or using another payment method.</p>`;
+    return;
+  }
+  const best = result.candidates[0];
+  const rows = result.candidates.map((card, index) => {
+    const progress = card.payoffProgress > 0 ? `${formatPercentLabel(card.payoffProgress * 100)} paid down this cycle` : "No current payoff progress";
+    const reason = index === 0 ? "Best balance of lower APR, available credit, and payoff protection." : `Higher cost or less room than ${best.bill.name}.`;
+    return `<tr${index === 0 ? ' class="is-recommended-card"' : ""}><td>${index === 0 ? "Best choice" : `Option ${index + 1}`}</td><td>${escapeHtml(card.bill.name || "Untitled card")}</td><td>${escapeHtml(formatApr(card.apr))}</td><td>${escapeHtml(formatCurrency(card.availableCredit))}</td><td>${escapeHtml(formatCurrency(card.remainingCredit))}</td><td>${escapeHtml(formatPercentLabel(card.projectedUtilization * 100))}</td><td>${escapeHtml(progress)}</td><td>${escapeHtml(reason)}</td></tr>`;
+  }).join("");
+  adminCreditCardFinderBody.innerHTML = `<div class="admin-credit-card-finder-summary"><strong>Use ${escapeHtml(best.bill.name || "this card")} for ${escapeHtml(formatCurrency(result.charge))}</strong><span>It keeps ${escapeHtml(formatCurrency(best.remainingCredit))} available after the charge and projects to ${escapeHtml(formatPercentLabel(best.projectedUtilization * 100))} utilization.</span></div><p class="admin-credit-card-finder-note">A ${escapeHtml(formatCurrency(result.safetyCushion))} cushion is reserved on every recommendation. The result is a planning aid based on the current Admin bill values; it does not make a purchase or change any card balance.</p><div class="admin-credit-card-finder-table-wrap"><table class="admin-credit-card-finder-table"><thead><tr><th>Rank</th><th>Card</th><th>APR</th><th>Open credit</th><th>After charge</th><th>Projected use</th><th>Payoff progress</th><th>Why</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function openAdminCreditCardFinder() {
+  if (!isAdminClient() || !adminCreditCardFinderDialog) return;
+  if (adminCreditCardCharge) adminCreditCardCharge.value = "";
+  renderAdminCreditCardFinderResults();
+  adminCreditCardFinderDialog.showModal();
+  adminCreditCardCharge?.focus();
+}
 function renderAdminMonthlyExpendituresDialog() {
   if (!adminMonthlyExpendituresBody) return;
   const month = state.billMonth || defaultBillMonth();
@@ -7440,21 +7517,17 @@ function updateBillFromRow(row, options = {}) {
     const notesInput = getField(".bill-notes");
     const priorityIndicator = row.querySelector(".bill-interest-priority");
     const updatedInterest = calculateMonthlyInterestPortion(bill.previousBalance, bill.apr);
-    const updatedPriority = getAdminInterestPriority(bill, updatedInterest);
+    const updatedPriority = getAdminInterestPriority(bill, updatedInterest, calculateRecommendedBillPayments(state.bills).get(bill.id) ?? bill.amount);
+    const updatedPriorityDisplay = getAdminPaymentPriorityDisplay(updatedPriority);
     if (notesInput) {
       notesInput.value = bill.notes;
       notesInput.title = bill.notes;
       notesInput.classList.toggle("is-interest-heavy", updatedPriority.isInterestHeavy);
     }
     if (priorityIndicator) {
-      priorityIndicator.textContent = updatedPriority.isInterestHeavy ? "Pay More" : updatedPriority.isGoodPayment ? "Good payment" : "-";
-      priorityIndicator.classList.toggle("is-interest-heavy", updatedPriority.isInterestHeavy);
-      priorityIndicator.classList.toggle("is-good-payment", updatedPriority.isGoodPayment);
-      priorityIndicator.title = updatedPriority.isInterestHeavy
-        ? `Estimated interest ${formatCurrency(updatedPriority.interest)} is greater than the ${formatCurrency(updatedPriority.principalReduction)} reducing principal. Pay ${formatCurrency(updatedPriority.extraForPrincipalLead)} more (total ${formatCurrency(updatedPriority.targetPaymentForPrincipalLead)}) for principal to exceed interest.`
-        : updatedPriority.isGoodPayment
-          ? `Good payment: ${formatCurrency(updatedPriority.principalReduction)} reduces principal, which is more than the estimated ${formatCurrency(updatedPriority.interest)} interest.`
-          : "Interest does not exceed the principal portion of this payment.";
+      priorityIndicator.textContent = updatedPriorityDisplay.label;
+      priorityIndicator.className = `bill-interest-priority${updatedPriorityDisplay.className}`;
+      priorityIndicator.title = updatedPriorityDisplay.title;
     }
   }
 
@@ -11564,6 +11637,20 @@ if (refreshAdminBillsBtn) {
 }
 if (adminBillSimulationBtn) {
   adminBillSimulationBtn.addEventListener("click", openAdminBillSimulation);
+}
+if (adminCreditCardFinderBtn) {
+  adminCreditCardFinderBtn.addEventListener("click", openAdminCreditCardFinder);
+}
+if (calculateAdminCreditCardFinderBtn) {
+  calculateAdminCreditCardFinderBtn.addEventListener("click", () => renderAdminCreditCardFinderResults(normalizeCurrencyCell(adminCreditCardCharge?.value)));
+}
+if (adminCreditCardCharge) {
+  adminCreditCardCharge.addEventListener("keydown", event => {
+    if (event.key === "Enter") renderAdminCreditCardFinderResults(normalizeCurrencyCell(adminCreditCardCharge.value));
+  });
+}
+if (closeAdminCreditCardFinderDialogBtn && adminCreditCardFinderDialog) {
+  closeAdminCreditCardFinderDialogBtn.addEventListener("click", () => adminCreditCardFinderDialog.close());
 }
 if (closeAdminBillSimulationDialogBtn && adminBillSimulationDialog) {
   closeAdminBillSimulationDialogBtn.addEventListener("click", () => adminBillSimulationDialog.close());
