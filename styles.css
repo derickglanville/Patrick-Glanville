@@ -5082,3 +5082,17 @@ body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-total-row
 #adminCreditCardFinderDialog.is-zoomed-out .admin-credit-card-finder-table { min-width: 1180px; font-size: .78rem; }
 #adminCreditCardFinderDialog.is-zoomed-out .admin-credit-card-finder-table th, #adminCreditCardFinderDialog.is-zoomed-out .admin-credit-card-finder-table td { padding: 6px 7px; }
 @media (max-width: 640px) { #adminCreditCardFinderDialog { width: calc(100vw - 12px); max-width: calc(100vw - 12px); } #adminCreditCardFinderDialog .admin-credit-card-finder-dialog { padding: 12px; } .admin-credit-card-finder-form { align-items: stretch; flex-direction: column; } .admin-credit-card-finder-form label, .admin-credit-card-finder-form button { width: 100%; min-width: 0; } }
+/* Type must remain editable on mobile so Card Finder can enforce its Credit Card-only rule. */
+body[data-device-layout="phone"] .budget-panel-admin-mini .budget-bill-item:not(.budget-bill-item-simple) .bill-col-type,
+body[data-device-layout="tablet"] .budget-panel-admin-mini .budget-bill-item:not(.budget-bill-item-simple) .bill-col-type {
+  display: block !important;
+  grid-area: type;
+}
+
+body[data-device-layout="phone"] #adminCreditCardFinderBtn,
+body[data-device-layout="tablet"] #adminCreditCardFinderBtn {
+  border-color: #1b6fbb;
+  background: #e9f4ff;
+  color: #0d4e8d;
+  font-weight: 800;
+}
