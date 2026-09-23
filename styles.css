@@ -5056,7 +5056,7 @@ body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-total-row
 #saveAdminMonthlyExpendituresBtn.is-saved {
   background: #0f7a4b;
 }
-#adminCreditCardFinderDialog { width: min(1320px, calc(100vw - 24px)); max-width: calc(100vw - 24px); max-height: calc(100vh - 24px); padding: 0; }
+#adminCreditCardFinderDialog { width: min(1700px, calc(100vw - 32px)); max-width: calc(100vw - 32px); max-height: calc(100vh - 24px); padding: 0; }
 #adminCreditCardFinderDialog .admin-credit-card-finder-dialog { min-height: min(840px, calc(100vh - 80px)); padding: 18px; }
 .admin-credit-card-finder-form { display: flex; align-items: end; gap: 12px; margin: 16px 0; }
 .admin-credit-card-finder-form label { display: grid; gap: 5px; min-width: 220px; font-size: .82rem; font-weight: 800; color: #173a63; }
@@ -5064,18 +5064,18 @@ body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-total-row
 .admin-credit-card-finder-form button { min-height: 38px; }
 .admin-credit-card-finder-summary { display: grid; gap: 4px; padding: 12px; border: 1px solid #57a978; border-radius: 8px; background: #ebf8ef; color: #075f42; }
 .admin-credit-card-finder-summary strong { font-size: 1rem; }
-.admin-credit-card-finder-note, .admin-credit-card-finder-empty { color: #526a87; font-size: .85rem; line-height: 1.4; }
+.admin-credit-card-finder-note, .admin-credit-card-finder-empty { color: #526a87; font-size: .95rem; line-height: 1.45; }
 .admin-credit-card-finder-payoff-advice { margin: 12px 0; padding: 12px; border: 1px solid #e6b24a; border-radius: 8px; background: #fff8df; color: #714800; }
 .admin-credit-card-finder-payoff-advice strong { font-size: .92rem; }
-.admin-credit-card-finder-payoff-advice p { margin: 6px 0 0; font-size: .84rem; line-height: 1.45; }
+.admin-credit-card-finder-payoff-advice p { margin: 6px 0 0; font-size: .95rem; line-height: 1.5; }
 .admin-credit-card-finder-table-wrap { overflow: auto; max-height: calc(100vh - 300px); border: 1px solid #cbd8e8; border-radius: 8px; }
-.admin-credit-card-finder-table { width: 100%; min-width: 1020px; border-collapse: collapse; font-size: .82rem; }
-.admin-credit-card-finder-table th, .admin-credit-card-finder-table td { padding: 9px 10px; border-bottom: 1px solid #d8e2ef; text-align: left; vertical-align: top; }
+.admin-credit-card-finder-table { width: 100%; min-width: 1240px; border-collapse: collapse; font-size: .92rem; }
+.admin-credit-card-finder-table th, .admin-credit-card-finder-table td { padding: 10px 11px; border-bottom: 1px solid #d8e2ef; text-align: left; vertical-align: top; }
 .admin-credit-card-finder-table th { position: sticky; top: 0; background: #e9f2fc; color: #183d67; font-size: .7rem; letter-spacing: .03em; text-transform: uppercase; }
 .admin-credit-card-finder-table .is-recommended-card td { background: #e9f8ed; color: #075f42; font-weight: 700; }
 #adminCreditCardFinderDialog.is-zoomed-out { width: min(1500px, calc(100vw - 12px)); max-width: calc(100vw - 12px); max-height: calc(100vh - 12px); }
 #adminCreditCardFinderDialog.is-zoomed-out .admin-credit-card-finder-dialog { min-height: 0; padding: 10px; }
 #adminCreditCardFinderDialog.is-zoomed-out .admin-credit-card-finder-table-wrap { max-height: none; overflow: visible; }
-#adminCreditCardFinderDialog.is-zoomed-out .admin-credit-card-finder-table { min-width: 900px; font-size: .68rem; }
-#adminCreditCardFinderDialog.is-zoomed-out .admin-credit-card-finder-table th, #adminCreditCardFinderDialog.is-zoomed-out .admin-credit-card-finder-table td { padding: 4px 5px; }
+#adminCreditCardFinderDialog.is-zoomed-out .admin-credit-card-finder-table { min-width: 1180px; font-size: .78rem; }
+#adminCreditCardFinderDialog.is-zoomed-out .admin-credit-card-finder-table th, #adminCreditCardFinderDialog.is-zoomed-out .admin-credit-card-finder-table td { padding: 6px 7px; }
 @media (max-width: 640px) { #adminCreditCardFinderDialog { width: calc(100vw - 12px); max-width: calc(100vw - 12px); } #adminCreditCardFinderDialog .admin-credit-card-finder-dialog { padding: 12px; } .admin-credit-card-finder-form { align-items: stretch; flex-direction: column; } .admin-credit-card-finder-form label, .admin-credit-card-finder-form button { width: 100%; min-width: 0; } }
