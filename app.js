@@ -6991,6 +6991,25 @@ function getAdminCreditCardCandidates(chargeAmount) {
   return { charge, safetyCushion, candidates, excludedCount: creditCards.length - candidates.length };
 }
 
+function describeAdminCreditCardFinderRank(card, best, index) {
+  const aprDelta = card.apr - best.apr;
+  const utilizationDelta = (card.projectedUtilization - best.projectedUtilization) * 100;
+  const aprComparison = Math.abs(aprDelta) < 0.01
+    ? `the same APR as ${best.bill.name}`
+    : `${formatPercentLabel(Math.abs(aprDelta))} ${aprDelta > 0 ? "higher" : "lower"} APR than ${best.bill.name}`;
+  const utilizationComparison = Math.abs(utilizationDelta) < 0.1
+    ? "the same projected utilization"
+    : `${formatPercentLabel(Math.abs(utilizationDelta))} ${utilizationDelta > 0 ? "higher" : "lower"} projected utilization`;
+  const payoffComparison = card.payoffProgress > best.payoffProgress
+    ? `It has ${formatPercentLabel(card.payoffProgress * 100)} payoff progress, above ${best.bill.name}'s ${formatPercentLabel(best.payoffProgress * 100)}, so the Finder protects more active payoff progress.`
+    : card.payoffProgress < best.payoffProgress
+      ? `It has ${formatPercentLabel(card.payoffProgress * 100)} payoff progress versus ${best.bill.name}'s ${formatPercentLabel(best.payoffProgress * 100)}, so there is less payoff progress to protect.`
+      : `It has the same payoff progress as ${best.bill.name}.`;
+  if (index === 0) {
+    return `Ranked first: ${formatApr(card.apr)} APR, ${formatCurrency(card.remainingCredit)} left after the charge, and ${formatPercentLabel(card.projectedUtilization * 100)} projected use create the strongest overall mix. It has ${formatPercentLabel(card.payoffProgress * 100)} payoff progress this cycle.`;
+  }
+  return `Compared with ${best.bill.name}, it has ${aprComparison} and ${utilizationComparison} after this charge. ${payoffComparison} Those tradeoffs place it at option ${index + 1}.`;
+}
 function renderAdminCreditCardFinderResults(chargeAmount = 0) {
   if (!adminCreditCardFinderBody) return;
   const result = getAdminCreditCardCandidates(chargeAmount);
@@ -7005,10 +7024,10 @@ function renderAdminCreditCardFinderResults(chargeAmount = 0) {
   const best = result.candidates[0];
   const rows = result.candidates.map((card, index) => {
     const progress = card.payoffProgress > 0 ? `${formatPercentLabel(card.payoffProgress * 100)} paid down this cycle` : "No current payoff progress";
-    const reason = index === 0 ? "Best balance of lower APR, available credit, and payoff protection." : `Higher cost or less room than ${best.bill.name}.`;
+    const reason = describeAdminCreditCardFinderRank(card, best, index);
     return `<tr${index === 0 ? ' class="is-recommended-card"' : ""}><td>${index === 0 ? "Best choice" : `Option ${index + 1}`}</td><td>${escapeHtml(card.bill.name || "Untitled card")}</td><td>${escapeHtml(formatApr(card.apr))}</td><td>${escapeHtml(formatCurrency(card.availableCredit))}</td><td>${escapeHtml(formatCurrency(card.remainingCredit))}</td><td>${escapeHtml(formatPercentLabel(card.projectedUtilization * 100))}</td><td>${escapeHtml(progress)}</td><td>${escapeHtml(reason)}</td></tr>`;
   }).join("");
-  adminCreditCardFinderBody.innerHTML = `<div class="admin-credit-card-finder-summary"><strong>Use ${escapeHtml(best.bill.name || "this card")} for ${escapeHtml(formatCurrency(result.charge))}</strong><span>It keeps ${escapeHtml(formatCurrency(best.remainingCredit))} available after the charge and projects to ${escapeHtml(formatPercentLabel(best.projectedUtilization * 100))} utilization.</span></div><p class="admin-credit-card-finder-note">A ${escapeHtml(formatCurrency(result.safetyCushion))} cushion is reserved on every recommendation. The result is a planning aid based on the current Admin bill values; it does not make a purchase or change any card balance.</p><div class="admin-credit-card-finder-table-wrap"><table class="admin-credit-card-finder-table"><thead><tr><th>Rank</th><th>Card</th><th>APR</th><th>Open credit</th><th>After charge</th><th>Projected use</th><th>Payoff progress</th><th>Why</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+adminCreditCardFinderBody.innerHTML = `<div class="admin-credit-card-finder-summary"><strong>Use ${escapeHtml(best.bill.name || "this card")} for ${escapeHtml(formatCurrency(result.charge))}</strong><span>It keeps ${escapeHtml(formatCurrency(best.remainingCredit))} available after the charge and projects to ${escapeHtml(formatPercentLabel(best.projectedUtilization * 100))} utilization.</span></div><p class="admin-credit-card-finder-note"><strong>Order:</strong> best choice to least suitable choice. A ${escapeHtml(formatCurrency(result.safetyCushion))} cushion is reserved on every recommendation. The result is a planning aid based on the current Admin bill values; it does not make a purchase or change any card balance.</p><div class="admin-credit-card-finder-table-wrap"><table class="admin-credit-card-finder-table"><thead><tr><th>Rank<br><small>Best to worst</small></th><th>Card</th><th>APR</th><th>Open credit</th><th>After charge</th><th>Projected use</th><th>Payoff progress</th><th>Why</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 function openAdminCreditCardFinder() {
