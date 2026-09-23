@@ -1840,6 +1840,7 @@ const workScheduleEntryRows = document.querySelector("#workScheduleEntryRows");
 const toggleBudgetSnapshotsBtn = document.querySelector("#toggleBudgetSnapshotsBtn");
 const hideBillsBtn = document.querySelector("#hideBillsBtn");
 const toggleBillsCompactBtn = document.querySelector("#toggleBillsCompactBtn");
+const adminTabletGridViewBtn = document.querySelector("#adminTabletGridViewBtn");
 const toggleBillsPopoutBtn = document.querySelector("#toggleBillsPopoutBtn");
 const hideLifeAdminBtn = document.querySelector("#hideLifeAdminBtn");
 const pdfUploadInput = document.querySelector("#pdfUploadInput");
@@ -2899,6 +2900,7 @@ function initializeState(loaded) {
   } else {
     loaded.billsCompactView = isAdminClientId(activeClientId);
   }
+  loaded.adminTabletGridView = Boolean(loaded.adminTabletGridView);
   loaded.monthlyBudgetFund = normalizeMoney(loaded.monthlyBudgetFund ?? seedData.monthlyBudgetFund ?? 0);
   loaded.monthlyExpenditures = normalizeMonthlyExpendituresMap(loaded.monthlyExpenditures);
   const hadAdminBillSimulation = Boolean(loaded.adminBillSimulation && typeof loaded.adminBillSimulation === "object");
@@ -6508,6 +6510,7 @@ function renderBills() {
     budgetPanel.classList.toggle("budget-panel-compact-view", !usesSimpleBills && Boolean(state.billsCompactView));
     budgetPanel.classList.toggle("budget-panel-admin-mini", !usesSimpleBills && isAdminClient() && Boolean(state.billsCompactView));
     budgetPanel.classList.toggle("is-admin-bill-simulation", simulationActive);
+    budgetPanel.classList.toggle("is-admin-tablet-grid", isAdminClient() && document.body.dataset.deviceLayout === "tablet" && Boolean(state.adminTabletGridView));
   }
   if (toggleBillsCompactBtn) {
     toggleBillsCompactBtn.hidden = usesSimpleBills;
@@ -6523,6 +6526,12 @@ function renderBills() {
     adminBillSimulationBtn.setAttribute("aria-pressed", String(simulationActive));
   }
   if (adminMonthlyExpendituresBtn) adminMonthlyExpendituresBtn.hidden = !isAdminClient();
+  if (adminTabletGridViewBtn) {
+    const canUseTabletGrid = isAdminClient() && document.body.dataset.deviceLayout === "tablet";
+    adminTabletGridViewBtn.hidden = !canUseTabletGrid;
+    adminTabletGridViewBtn.textContent = state.adminTabletGridView ? "Card View" : "iPad Grid View";
+    adminTabletGridViewBtn.setAttribute("aria-pressed", String(Boolean(state.adminTabletGridView)));
+  }
   if (adminCreditCardFinderBtn) adminCreditCardFinderBtn.hidden = !isAdminClient();
   if (cellphoneBillingHistoryBtn) cellphoneBillingHistoryBtn.hidden = !isAdminClient();
   if (adminBillSimulationStatus) adminBillSimulationStatus.hidden = !simulationActive;
@@ -12009,6 +12018,13 @@ if (toggleBillsPopoutBtn) {
 if (toggleBillsCompactBtn) {
   toggleBillsCompactBtn.addEventListener("click", () => {
     state.billsCompactView = !state.billsCompactView;
+    saveState();
+    renderBills();
+  });
+}
+if (adminTabletGridViewBtn) {
+  adminTabletGridViewBtn.addEventListener("click", () => {
+    state.adminTabletGridView = !state.adminTabletGridView;
     saveState();
     renderBills();
   });
