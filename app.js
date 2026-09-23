@@ -6492,6 +6492,10 @@ function setPanelCollapsed(panel, content, button, hidden, label) {
   button.setAttribute("aria-label", `${hidden ? "Show" : "Hide"} ${label}`);
 }
 
+function canUseAdminTabletGrid() {
+  const appleTablet = /iPad/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  return isAdminClient() && (appleTablet || (document.body.dataset.deviceLayout === "tablet" && window.innerWidth >= 768));
+}
 function renderBills() {
   const usesSimpleBills = !clientUsesBillGrouping();
   const displayBills = getBillsForCurrentDisplay();
@@ -6510,7 +6514,7 @@ function renderBills() {
     budgetPanel.classList.toggle("budget-panel-compact-view", !usesSimpleBills && Boolean(state.billsCompactView));
     budgetPanel.classList.toggle("budget-panel-admin-mini", !usesSimpleBills && isAdminClient() && Boolean(state.billsCompactView));
     budgetPanel.classList.toggle("is-admin-bill-simulation", simulationActive);
-    budgetPanel.classList.toggle("is-admin-tablet-grid", isAdminClient() && document.body.dataset.deviceLayout === "tablet" && Boolean(state.adminTabletGridView));
+    budgetPanel.classList.toggle("is-admin-tablet-grid", canUseAdminTabletGrid() && Boolean(state.adminTabletGridView));
   }
   if (toggleBillsCompactBtn) {
     toggleBillsCompactBtn.hidden = usesSimpleBills;
@@ -6527,7 +6531,7 @@ function renderBills() {
   }
   if (adminMonthlyExpendituresBtn) adminMonthlyExpendituresBtn.hidden = !isAdminClient();
   if (adminTabletGridViewBtn) {
-    const canUseTabletGrid = isAdminClient() && document.body.dataset.deviceLayout === "tablet";
+    const canUseTabletGrid = canUseAdminTabletGrid();
     adminTabletGridViewBtn.hidden = !canUseTabletGrid;
     adminTabletGridViewBtn.textContent = state.adminTabletGridView ? "Card View" : "iPad Grid View";
     adminTabletGridViewBtn.setAttribute("aria-pressed", String(Boolean(state.adminTabletGridView)));
