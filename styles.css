@@ -5065,6 +5065,9 @@ body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-total-row
 .admin-credit-card-finder-summary { display: grid; gap: 4px; padding: 12px; border: 1px solid #57a978; border-radius: 8px; background: #ebf8ef; color: #075f42; }
 .admin-credit-card-finder-summary strong { font-size: 1rem; }
 .admin-credit-card-finder-note, .admin-credit-card-finder-empty { color: #526a87; font-size: .85rem; line-height: 1.4; }
+.admin-credit-card-finder-payoff-advice { margin: 12px 0; padding: 12px; border: 1px solid #e6b24a; border-radius: 8px; background: #fff8df; color: #714800; }
+.admin-credit-card-finder-payoff-advice strong { font-size: .92rem; }
+.admin-credit-card-finder-payoff-advice p { margin: 6px 0 0; font-size: .84rem; line-height: 1.45; }
 .admin-credit-card-finder-table-wrap { overflow: auto; max-height: calc(100vh - 300px); border: 1px solid #cbd8e8; border-radius: 8px; }
 .admin-credit-card-finder-table { width: 100%; min-width: 1020px; border-collapse: collapse; font-size: .82rem; }
 .admin-credit-card-finder-table th, .admin-credit-card-finder-table td { padding: 9px 10px; border-bottom: 1px solid #d8e2ef; text-align: left; vertical-align: top; }
