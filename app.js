@@ -1712,6 +1712,7 @@ const adminCreditCardFinderDialog = document.querySelector("#adminCreditCardFind
 const adminCreditCardFinderBody = document.querySelector("#adminCreditCardFinderBody");
 const adminCreditCardCharge = document.querySelector("#adminCreditCardCharge");
 const calculateAdminCreditCardFinderBtn = document.querySelector("#calculateAdminCreditCardFinderBtn");
+const zoomOutAdminCreditCardFinderBtn = document.querySelector("#zoomOutAdminCreditCardFinderBtn");
 const closeAdminCreditCardFinderDialogBtn = document.querySelector("#closeAdminCreditCardFinderDialog");
 const adminMonthlyExpendituresBtn = document.querySelector("#adminMonthlyExpendituresBtn");
 const cellphoneBillingHistoryBtn = document.querySelector("#cellphoneBillingHistoryBtn");
@@ -7025,14 +7026,16 @@ function renderAdminCreditCardFinderResults(chargeAmount = 0) {
   const rows = result.candidates.map((card, index) => {
     const progress = card.payoffProgress > 0 ? `${formatPercentLabel(card.payoffProgress * 100)} paid down this cycle` : "No current payoff progress";
     const reason = describeAdminCreditCardFinderRank(card, best, index);
-    return `<tr${index === 0 ? ' class="is-recommended-card"' : ""}><td>${index === 0 ? "Best choice" : `Option ${index + 1}`}</td><td>${escapeHtml(card.bill.name || "Untitled card")}</td><td>${escapeHtml(formatApr(card.apr))}</td><td>${escapeHtml(formatCurrency(card.availableCredit))}</td><td>${escapeHtml(formatCurrency(card.remainingCredit))}</td><td>${escapeHtml(formatPercentLabel(card.projectedUtilization * 100))}</td><td>${escapeHtml(progress)}</td><td>${escapeHtml(reason)}</td></tr>`;
+    return `<tr${index === 0 ? ' class="is-recommended-card"' : ""}><td>${index === 0 ? "Best choice" : `Option ${index + 1}`}</td><td>${escapeHtml(card.bill.name || "Untitled card")}</td><td>${escapeHtml(formatApr(card.apr))}</td><td>${escapeHtml(formatCurrency(card.creditLimit))}</td><td>${escapeHtml(formatCurrency(card.availableCredit))}</td><td>${escapeHtml(formatCurrency(card.remainingCredit))}</td><td>${escapeHtml(formatPercentLabel(card.projectedUtilization * 100))}</td><td>${escapeHtml(progress)}</td><td>${escapeHtml(reason)}</td></tr>`;
   }).join("");
-adminCreditCardFinderBody.innerHTML = `<div class="admin-credit-card-finder-summary"><strong>Use ${escapeHtml(best.bill.name || "this card")} for ${escapeHtml(formatCurrency(result.charge))}</strong><span>It keeps ${escapeHtml(formatCurrency(best.remainingCredit))} available after the charge and projects to ${escapeHtml(formatPercentLabel(best.projectedUtilization * 100))} utilization.</span></div><p class="admin-credit-card-finder-note"><strong>Order:</strong> best choice to least suitable choice. A ${escapeHtml(formatCurrency(result.safetyCushion))} cushion is reserved on every recommendation. The result is a planning aid based on the current Admin bill values; it does not make a purchase or change any card balance.</p><div class="admin-credit-card-finder-table-wrap"><table class="admin-credit-card-finder-table"><thead><tr><th>Rank<br><small>Best to worst</small></th><th>Card</th><th>APR</th><th>Open credit</th><th>After charge</th><th>Projected use</th><th>Payoff progress</th><th>Why</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  adminCreditCardFinderBody.innerHTML = `<div class="admin-credit-card-finder-summary"><strong>Use ${escapeHtml(best.bill.name || "this card")} for ${escapeHtml(formatCurrency(result.charge))}</strong><span>It keeps ${escapeHtml(formatCurrency(best.remainingCredit))} available after the charge and projects to ${escapeHtml(formatPercentLabel(best.projectedUtilization * 100))} utilization.</span></div><p class="admin-credit-card-finder-note"><strong>Order:</strong> best choice to least suitable choice. A ${escapeHtml(formatCurrency(result.safetyCushion))} cushion is reserved on every recommendation. The result is a planning aid based on the current Admin bill values; it does not make a purchase or change any card balance.</p><div class="admin-credit-card-finder-table-wrap"><table class="admin-credit-card-finder-table"><thead><tr><th>Rank<br><small>Best to worst</small></th><th>Card</th><th>APR</th><th>Card limit</th><th>Open credit</th><th>After charge</th><th>Projected use</th><th>Payoff progress</th><th>Why</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 function openAdminCreditCardFinder() {
   if (!isAdminClient() || !adminCreditCardFinderDialog) return;
   if (adminCreditCardCharge) adminCreditCardCharge.value = "";
+  adminCreditCardFinderDialog.classList.remove("is-zoomed-out");
+  if (zoomOutAdminCreditCardFinderBtn) zoomOutAdminCreditCardFinderBtn.textContent = "Zoom Out";
   renderAdminCreditCardFinderResults();
   adminCreditCardFinderDialog.showModal();
   adminCreditCardCharge?.focus();
@@ -11679,6 +11682,12 @@ if (adminBillSimulationBtn) {
 }
 if (adminCreditCardFinderBtn) {
   adminCreditCardFinderBtn.addEventListener("click", openAdminCreditCardFinder);
+}
+if (zoomOutAdminCreditCardFinderBtn && adminCreditCardFinderDialog) {
+  zoomOutAdminCreditCardFinderBtn.addEventListener("click", () => {
+    const isZoomedOut = adminCreditCardFinderDialog.classList.toggle("is-zoomed-out");
+    zoomOutAdminCreditCardFinderBtn.textContent = isZoomedOut ? "Reset Zoom" : "Zoom Out";
+  });
 }
 if (calculateAdminCreditCardFinderBtn) {
   calculateAdminCreditCardFinderBtn.addEventListener("click", () => renderAdminCreditCardFinderResults(normalizeCurrencyCell(adminCreditCardCharge?.value)));
