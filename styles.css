@@ -1028,6 +1028,7 @@ textarea {
   grid-template-columns:
     24px
     minmax(148px, 1fr)
+    minmax(88px, .55fr)
     48px
     minmax(70px, .4fr)
     minmax(72px, .42fr)
@@ -1145,6 +1146,7 @@ textarea {
   grid-template-columns:
     22px
     minmax(128px, .92fr)
+    minmax(78px, .5fr)
     44px
     minmax(58px, .36fr)
     minmax(60px, .38fr)
@@ -1169,6 +1171,7 @@ textarea {
   grid-template-columns:
     22px
     minmax(128px, .92fr)
+    minmax(78px, .5fr)
     44px
     minmax(58px, .36fr)
     minmax(60px, .38fr)
@@ -1238,6 +1241,7 @@ textarea {
   min-width: 960px;
 }
 
+.budget-panel-admin-mini .bill-col-type,
 .budget-panel-admin-mini .bill-col-apr,
 .budget-panel-admin-mini .bill-col-interest-paid,
 .budget-panel-admin-mini .bill-col-payment-priority,
@@ -1272,6 +1276,7 @@ textarea {
   grid-template-columns:
     24px
     minmax(148px, 1fr)
+    minmax(88px, .55fr)
     48px
     minmax(70px, .4fr)
     minmax(72px, .42fr)
@@ -4936,6 +4941,7 @@ body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(
   grid-template-columns: 26px repeat(2, minmax(0, 1fr));
   grid-template-areas:
     "selector bill bill"
+    "selector type type"
     "selector previous current"
     "selector amount paid"
     "selector due paid-date"
@@ -4953,6 +4959,8 @@ body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.
 body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-selector-box { grid-area: selector; }
 body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-name,
 body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-name { grid-area: bill; }
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-type,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-type { grid-area: type; }
 body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-prev-bal,
 body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-prev-bal { grid-area: previous; }
 body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-current-bal,

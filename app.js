@@ -1864,8 +1864,10 @@ let activeMedicationTaskId = "";
 let forceCurrentBillMonthOnNextRemoteApply = false;
 const BILL_AUDIT_LIMIT = 400;
 const BILL_SNAPSHOT_LIMIT = 40;
+const ADMIN_BILL_TYPE_OPTIONS = ["Credit Card", "Taxes", "Loan", "Other"];
 const BILL_AUDIT_FIELDS = [
   "name",
+  "type",
   "apr",
   "previousBalance",
   "currentBalance",
@@ -1884,6 +1886,7 @@ const BILL_AUDIT_FIELDS = [
 
 const BILL_AUDIT_FIELD_LABELS = {
   name: "Bill",
+  type: "Type",
   apr: "APR",
   previousBalance: "Prev Bal",
   currentBalance: "Current Bal",
@@ -3313,6 +3316,13 @@ function normalizeBill(bill) {
       })
     : explicitStatus;
   const normalizedName = String(bill.name || "").trim();
+  const suppliedType = String(bill.type || "").trim();
+  const inferredType = /tax|insurance/i.test(normalizedName)
+    ? "Taxes"
+    : /green sky|third federal/i.test(normalizedName)
+      ? "Loan"
+      : (normalizeMoney(bill.creditLimit) > 0 && parseAprNumber(apr) > 0 ? "Credit Card" : "Other");
+  const normalizedType = ADMIN_BILL_TYPE_OPTIONS.includes(suppliedType) ? suppliedType : inferredType;
   const normalizedTemplateKey = typeof bill.templateKey === "string" && bill.templateKey.trim()
     ? bill.templateKey.trim()
     : buildBudgetBillTemplateKey(normalizedName);
@@ -3320,6 +3330,7 @@ function normalizeBill(bill) {
     id: bill.id || crypto.randomUUID(),
     templateKey: normalizedTemplateKey,
     name: normalizedName,
+    type: normalizedType,
     amount: normalizeMoney(bill.amount),
     due,
     status: normalizedStatus,
@@ -6565,6 +6576,7 @@ function renderBills() {
     row.innerHTML = `
       <div class="budget-bill-total-cell budget-bill-selector-spacer bill-col-selector"></div>
       <div class="budget-bill-total-cell budget-bill-total-label bill-col-name">Totals</div>
+      <div class="budget-bill-total-cell bill-col-type">-</div>
       <div class="budget-bill-total-cell bill-col-apr">-</div>
       <div class="budget-bill-total-cell bill-col-interest-paid">${escapeHtml(formatCurrency(totals.interestPaid))}</div>
       <div class="budget-bill-total-cell bill-col-prev-bal">${escapeHtml(formatCurrency(totals.previousBalance))}</div>
@@ -6611,6 +6623,10 @@ function renderBills() {
       <label class="budget-bill-field budget-bill-name-box bill-col-name">
         <span>Bill</span>
         <input class="bill-name" value="${escapeAttribute(bill.name)}" aria-label="Bill name">
+      </label>
+      <label class="budget-bill-field bill-col-type">
+        <span>Type</span>
+        <select class="bill-type" aria-label="Bill type">${ADMIN_BILL_TYPE_OPTIONS.map(type => `<option${type === bill.type ? " selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select>
       </label>
       <label class="budget-bill-field budget-bill-apr-box bill-col-apr">
         <span>APR</span>
@@ -6690,6 +6706,7 @@ function renderBills() {
 
     row.querySelector(".bill-name").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-apr").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
+    row.querySelector(".bill-type").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-previous-balance").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-current-balance").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-credit-limit").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
@@ -6797,7 +6814,7 @@ function renderBills() {
     billListHeader.classList.toggle("is-simple", usesSimpleBills);
     billListHeader.innerHTML = usesSimpleBills
       ? "<span class=\"budget-bill-selector-header\"></span><span>Bill</span><span>Prev Bal</span><span>Current Bal</span><span>Amount</span><span>Due</span><span>Date Paid</span><span>Status</span><span>Notes</span><span>Actions</span>"
-      : "<span class=\"budget-bill-selector-header bill-col-selector\"></span><span class=\"bill-col bill-col-name\">Bill</span><span class=\"bill-col bill-col-apr\">APR</span><span class=\"bill-col bill-col-interest-paid is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum interest paid column\">Interest Paid</span><span class=\"bill-col bill-col-prev-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum previous balance column\">Prev Bal</span><span class=\"bill-col bill-col-current-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum current balance column\">Current Bal</span><span class=\"bill-col bill-col-diff is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum difference column\">Diff</span><span class=\"bill-col bill-col-payment-priority\" title=\"Paid bills where interest consumes more than the principal portion\">Pay More</span><span class=\"bill-col bill-col-credit-line is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum credit line column\">Credit Line</span><span class=\"bill-col bill-col-due-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum due amount column\">Due Amt</span><span class=\"bill-col bill-col-paid-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum paid amount column\">Paid Amt</span><span class=\"bill-col bill-col-recommended is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum recommended payment column\">Recommended</span><span class=\"bill-col bill-col-tran\">Tran #</span><span class=\"bill-col bill-col-due-date\">Due</span><span class=\"bill-col bill-col-date-paid\">Date Paid</span><span class=\"bill-col bill-col-credit-percent\">% Credit</span><span class=\"bill-col bill-col-status\">Status</span><span class=\"bill-col bill-col-notes\">Notes</span><span class=\"bill-col bill-col-actions\">Actions</span>";
+      : "<span class=\"budget-bill-selector-header bill-col-selector\"></span><span class=\"bill-col bill-col-name\">Bill</span><span class=\"bill-col bill-col-type\">Type</span><span class=\"bill-col bill-col-apr\">APR</span><span class=\"bill-col bill-col-interest-paid is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum interest paid column\">Interest Paid</span><span class=\"bill-col bill-col-prev-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum previous balance column\">Prev Bal</span><span class=\"bill-col bill-col-current-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum current balance column\">Current Bal</span><span class=\"bill-col bill-col-diff is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum difference column\">Diff</span><span class=\"bill-col bill-col-payment-priority\" title=\"Paid bills where interest consumes more than the principal portion\">Pay More</span><span class=\"bill-col bill-col-credit-line is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum credit line column\">Credit Line</span><span class=\"bill-col bill-col-due-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum due amount column\">Due Amt</span><span class=\"bill-col bill-col-paid-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum paid amount column\">Paid Amt</span><span class=\"bill-col bill-col-recommended is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum recommended payment column\">Recommended</span><span class=\"bill-col bill-col-tran\">Tran #</span><span class=\"bill-col bill-col-due-date\">Due</span><span class=\"bill-col bill-col-date-paid\">Date Paid</span><span class=\"bill-col bill-col-credit-percent\">% Credit</span><span class=\"bill-col bill-col-status\">Status</span><span class=\"bill-col bill-col-notes\">Notes</span><span class=\"bill-col bill-col-actions\">Actions</span>";
     if (!usesSimpleBills) {
       Object.entries(BILL_COLUMN_SUM_CONFIG).forEach(([columnClass, config]) => {
         const headerCell = billListHeader.querySelector(`.${columnClass}`);
@@ -6954,7 +6971,7 @@ function getAdminCreditCardCandidates(chargeAmount) {
   if (charge <= 0) return { charge, safetyCushion: 0, candidates: [], excludedCount: 0 };
   const safetyCushion = Math.max(100, normalizeMoney(charge * 0.1));
   const recommendedPayments = calculateRecommendedBillPayments(state.bills);
-  const creditCards = state.bills.filter(bill => normalizeMoney(bill.creditLimit) > 0 && parseAprNumber(bill.apr) > 0);
+  const creditCards = state.bills.filter(bill => bill.type === "Credit Card" && normalizeMoney(bill.creditLimit) > 0 && parseAprNumber(bill.apr) > 0);
   const candidates = creditCards.map(bill => {
     const currentBalance = Math.max(0, normalizeMoney(bill.currentBalance));
     const creditLimit = normalizeMoney(bill.creditLimit);
@@ -7406,6 +7423,9 @@ function updateBillFromRow(row, options = {}) {
   bill.apr = getField(".bill-apr")
     ? String(getField(".bill-apr").value || "").replace(/%/g, "").trim()
     : bill.apr;
+  bill.type = ADMIN_BILL_TYPE_OPTIONS.includes(getField(".bill-type")?.value)
+    ? getField(".bill-type").value
+    : bill.type;
   bill.previousBalance = getField(".bill-previous-balance")
     ? normalizeCurrencyCell(getField(".bill-previous-balance").value)
     : (bill.previousBalance ?? bill.currentBalance);
