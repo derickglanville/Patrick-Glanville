@@ -5128,3 +5128,86 @@ body[data-device-layout="tablet"] #adminCreditCardFinderBtn {
 .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) input,
 .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) select,
 .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) textarea { min-height: 28px; height: 28px; padding: 2px 4px; font-size: .78rem; }
+/* iPad sheet view keeps the useful payment columns in one readable spreadsheet row. */
+.budget-panel.is-admin-tablet-grid .budget-bill-list-admin {
+  overflow: auto;
+  max-height: calc(100vh - 300px);
+  padding: 0;
+}
+.budget-panel.is-admin-tablet-grid .budget-bill-list-header:not(.is-simple) {
+  display: grid !important;
+  grid-template-columns: 28px minmax(190px, 1.4fr) 108px 62px 110px 110px 96px 116px 92px 78px;
+  min-width: 1060px;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+.budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple),
+.budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-total-row {
+  display: grid;
+  grid-template-columns: 28px minmax(190px, 1.4fr) 108px 62px 110px 110px 96px 116px 92px 78px;
+  min-width: 1060px;
+  grid-template-areas: none;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  margin: 0;
+  border-radius: 0;
+}
+.budget-panel.is-admin-tablet-grid .bill-col-interest-paid,
+.budget-panel.is-admin-tablet-grid .bill-col-diff,
+.budget-panel.is-admin-tablet-grid .bill-col-payment-priority,
+.budget-panel.is-admin-tablet-grid .bill-col-credit-line,
+.budget-panel.is-admin-tablet-grid .bill-col-due-amt,
+.budget-panel.is-admin-tablet-grid .bill-col-tran,
+.budget-panel.is-admin-tablet-grid .bill-col-due-date,
+.budget-panel.is-admin-tablet-grid .bill-col-date-paid,
+.budget-panel.is-admin-tablet-grid .bill-col-credit-percent,
+.budget-panel.is-admin-tablet-grid .bill-col-notes {
+  display: none !important;
+}
+.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-field,
+.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-status-box,
+.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-actions {
+  display: block !important;
+  grid-area: auto;
+}
+.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-field > span {
+  display: none !important;
+}
+.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-selector-box {
+  display: flex;
+  grid-area: auto;
+  justify-content: center;
+}
+.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) input,
+.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) select,
+.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) textarea {
+  min-height: 30px;
+  height: 30px;
+  padding: 3px 5px;
+  font-size: .8rem;
+}
+.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-actions {
+  display: flex !important;
+  gap: 3px;
+  padding-inline: 3px;
+}
+.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-actions button {
+  min-height: 28px;
+  padding: 2px 5px;
+  font-size: .72rem;
+}
+/* Override the first grid prototype's force-show rule for the reduced iPad sheet. */
+.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-interest-paid,
+.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-diff,
+.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-payment-priority,
+.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-credit-line,
+.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-due-amt,
+.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-tran,
+.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-due-date,
+.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-date-paid,
+.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-credit-percent,
+.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-notes {
+  display: none !important;
+}
