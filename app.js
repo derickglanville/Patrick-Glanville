@@ -1866,7 +1866,7 @@ let activeMedicationTaskId = "";
 let forceCurrentBillMonthOnNextRemoteApply = false;
 const BILL_AUDIT_LIMIT = 400;
 const BILL_SNAPSHOT_LIMIT = 40;
-const ADMIN_BILL_TYPE_OPTIONS = ["Credit Card", "Taxes", "Loan", "Other"];
+const ADMIN_BILL_TYPE_OPTIONS = ["Credit Card", "Merchant Card", "Taxes", "Loan", "Other"];
 const BILL_AUDIT_FIELDS = [
   "name",
   "type",
