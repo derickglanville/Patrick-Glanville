@@ -5096,38 +5096,6 @@ body[data-device-layout="tablet"] #adminCreditCardFinderBtn {
   color: #0d4e8d;
   font-weight: 800;
 }
-/* Optional spreadsheet-style bill grid for iPad; phones keep the accessible touch-card layout. */
-.budget-panel.is-admin-tablet-grid .budget-bill-list-admin {
-  overflow: auto;
-  max-height: calc(100vh - 250px);
-}
-.budget-panel.is-admin-tablet-grid .budget-bill-list-header:not(.is-simple) {
-  display: grid;
-  min-width: 2100px;
-}
-.budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple),
-.budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-total-row {
-  display: grid;
-  grid-template-columns: 24px minmax(148px, 1fr) minmax(88px, .55fr) 48px minmax(70px, .4fr) minmax(72px, .42fr) minmax(70px, .4fr) minmax(72px, .42fr) minmax(66px, .36fr) minmax(66px, .38fr) minmax(64px, .36fr) minmax(68px, .4fr) minmax(78px, .44fr) minmax(68px, .38fr) minmax(108px, .68fr) minmax(108px, .68fr) 56px 64px minmax(156px, .9fr) 78px;
-  min-width: 2100px;
-  grid-template-areas: none;
-  gap: 0;
-  padding: 0;
-  margin: 0;
-  border-radius: 0;
-}
-.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-field,
-.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-status-box,
-.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-notes-box,
-.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-actions {
-  display: block !important;
-  grid-area: auto;
-}
-.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-field > span { display: none; }
-.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-selector-box { grid-area: auto; }
-.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) input,
-.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) select,
-.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) textarea { min-height: 28px; height: 28px; padding: 2px 4px; font-size: .78rem; }
 /* iPad sheet view keeps the useful payment columns in one readable spreadsheet row. */
 .budget-panel.is-admin-tablet-grid .budget-bill-list-admin {
   overflow: auto;
@@ -5198,7 +5166,7 @@ body[data-device-layout="tablet"] #adminCreditCardFinderBtn {
   padding: 2px 5px;
   font-size: .72rem;
 }
-/* Override the first grid prototype's force-show rule for the reduced iPad sheet. */
+/* Keep secondary fields out of the reduced iPad sheet. */
 .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-interest-paid,
 .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-diff,
 .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-payment-priority,
