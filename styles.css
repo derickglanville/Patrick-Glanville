@@ -1826,7 +1826,9 @@ textarea {
 }
 
 .hidden-bill-list {
-  max-height: 260px;
+  /* Let every restored bill remain visible instead of trapping the list in a scroll box. */
+  max-height: none;
+  overflow: visible;
   gap: 0;
   padding: 0 2px 0 0;
 }
