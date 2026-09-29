@@ -70,7 +70,6 @@
     <button id="viewJsonBackupBtn" type="button" class="ghost json-backup-entry-button">View Backup JSON</button>
     <button id="viewBillAuditBtn" type="button" class="ghost">Bill Audit</button>
     <button id="restoreBillSnapshotBtn" type="button" class="ghost">Restore Bill Snapshot</button>
-    <button id="pullLatestDevicesBtn" type="button" class="ghost">Pull Latest From Firebase</button>
     <button id="refreshAppBtn" type="button" class="ghost">Refresh Website</button>
     <div id="billSyncAlertBanner" class="sync-alert-banner" hidden>
       <div class="sync-alert-banner-copy">
@@ -282,8 +281,8 @@
           <h2>Monthly Bills</h2>
         </div>
         <div class="panel-actions">
-          <label for="billMBF">Monthly Budget Fund (MBF)
-            <input id="billMBF" type="number" min="0" step="0.01">
+          <label class="bill-mbf-control" for="billMBF" title="Monthly Budget Fund (MBF)">
+            <input id="billMBF" type="number" min="0" step="0.01" aria-label="Monthly Budget Fund (MBF)" title="Monthly Budget Fund (MBF)">
           </label>
           <div class="bill-month-nav">
             <button id="billPrevMonthBtn" type="button" class="ghost" aria-label="Previous month">Prev</button>
@@ -294,6 +293,7 @@
           </div>
           <button id="copyBillsToNextMonthBtn" type="button" class="ghost">Copy To Next Month</button>
           <button id="calculateBillsBtn" type="button" class="ghost">Calculate</button>
+          <button id="pullLatestDevicesBtn" type="button" class="ghost" title="Load the latest saved version for this account from Firebase.">Pull Latest From Firebase</button>
           <button id="adminBillSimulationBtn" type="button" class="ghost" hidden>Balance Simulation</button>
           <button id="adminCreditCardFinderBtn" type="button" class="ghost" hidden>Card Finder</button>
           <button id="adminMonthlyExpendituresBtn" type="button" class="ghost" hidden>Monthly Expenditures</button>
@@ -312,7 +312,7 @@
           <button id="toggleAdminBillSmsBtn" type="button" class="ghost admin-bill-sms-toggle" aria-expanded="false">Show Admin bill text reminder</button>
           <div class="admin-bill-quick-controls">
             <div id="upcomingBillsBanner" class="budget-upcoming-banner" hidden></div>
-            <button id="refreshAdminBillsBtn" type="button" class="ghost" hidden>Refresh</button>
+            <button id="refreshAdminBillsBtn" type="button" class="ghost" hidden title="Recalculate this month's bill values and refresh the dashboard without downloading shared data.">Refresh Current Month</button>
             <div class="budget-group-toolbar" aria-label="Bill due-date groups">
               <div class="segmented-toggle">
                 <button id="billGroupFullBtn" type="button" class="ghost">Full</button>
@@ -372,7 +372,8 @@
             <button id="toggleHiddenBillsBtn" type="button" class="ghost">Show Hidden Bills</button>
           </div>
           <div id="hiddenBillsContent" hidden>
-            <div id="hiddenBillList" class="budget-bill-list hidden-bill-list"></div>
+            <div id="hiddenBillListHeader" class="budget-bill-list-header" aria-hidden="true"></div>
+            <div id="hiddenBillList" class="budget-bill-list budget-bill-list-admin hidden-bill-list"></div>
           </div>
         </section>
         <button id="addBillBtn" type="button">Add bill</button>

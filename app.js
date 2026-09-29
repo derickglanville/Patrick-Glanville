@@ -7,7 +7,7 @@ const ADMIN_WATCH_STORAGE_KEY = "admin-glanville-client-watch-v1";
 const PATRICK_TASK_VIEW_KEY = "patrick-glanville-task-view-v1";
 const THEODORE_TASK_VIEW_KEY = "theodore-glanville-task-view-v1";
 const ADMIN_TASK_VIEW_KEY = "admin-glanville-task-view-v1";
-const DATA_VERSION = 2026080201;
+const DATA_VERSION = 2026092702;
 const PANEL_VISIBILITY_VERSION = 2026071302;
 const TASK_GROUP_COLLAPSE_VERSION = 2026070101;
 const BUILD_INFO = {
@@ -140,7 +140,7 @@ let pendingLocalSharedSaveAt = "";
 let refreshSignalUnsubscribe = null;
 let refreshSignalListenerId = "";
 let lastSeenRefreshSignalAt = "";
-let autoCalculateBillsOnLoadPending = true;
+let sharedSaveInFlight = null;
 let selectedBillIds = new Set();
 const DEVICE_SESSION_ID = `session-${Math.random().toString(36).slice(2)}-${Date.now()}`;
 let jsonBackupHandle = null;
@@ -207,7 +207,7 @@ const baseCategories = [
 ];
 const statusOptions = ["N/A", "Not started", "In progress", "Waiting", "Blocked", "On-Hold", "Done"];
 const priorityOptions = ["Urgent", "High", "Medium", "Low"];
-const billStatusOptions = ["Unpaid", "Scheduled", "Paid", "Fully Paid", "Deferred", "Past due", "N/A"];
+const billStatusOptions = ["Unpaid", "Scheduled", "Paid", "Paid Off", "Fully Paid", "Deferred", "Past due", "N/A"];
 const ADMIN_BILL_SIMULATION_SEED = [
   ["Bank of America", 5293.64], ["Citi Simplicity", 2611.20], ["Lowe's", 2327.59],
   ["American Express", 7279.16], ["Barclay View (Uber)", 665.10], ["Amazon - Chase", 3800.00],
@@ -3088,7 +3088,7 @@ function deriveAutoTrackedBillStatus(bill) {
   const creditLimit = normalizeMoney(bill?.creditLimit);
   const apr = String(bill?.apr || "").trim();
   const hasPayoffContext = creditLimit > 0 || previousBalance > 0 || Boolean(apr);
-  if (currentBalance <= 0 && hasPayoffContext) return "Fully Paid";
+  if (currentBalance <= 0 && hasPayoffContext) return "Paid Off";
   if (String(bill?.paidDate || "").trim()) return "Paid";
   return "Unpaid";
 }
@@ -3359,7 +3359,7 @@ function normalizeBill(bill) {
 }
 
 function defaultBillNoteForStatus(status) {
-  return ["Paid", "Fully Paid"].includes(status) ? "This bill is paid" : "Pending";
+  return ["Paid", "Paid Off", "Fully Paid"].includes(status) ? "This bill is paid" : "Pending";
 }
 
 function getAdminInterestPriority(bill, interestPaid = null, recommendedPayment = null) {
@@ -3369,7 +3369,7 @@ function getAdminInterestPriority(bill, interestPaid = null, recommendedPayment 
     : normalizeMoney(interestPaid);
   const recommended = normalizeMoney(recommendedPayment ?? bill?.amount);
   const principalReduction = Math.max(0, paidAmount - interest);
-  const isPaid = ["Paid", "Fully Paid"].includes(bill?.status);
+  const isPaid = ["Paid", "Paid Off", "Fully Paid"].includes(bill?.status);
   // Add one cent so principal is greater than interest, not merely equal to it.
   const extraForPrincipalLead = Math.max(0, Math.round(((interest * 2) - paidAmount + 0.01) * 100) / 100);
   return {
@@ -4305,7 +4305,7 @@ function recalculateAdminBillFields(bill) {
   if (!isAdminClient()) return recalculated;
 
   // A recorded payment reduces the balance by the principal portion of that payment.
-  if (recalculated.paidDate && normalizeMoney(recalculated.paidAmount) > 0) {
+  if (recalculated.currentBalance > 0 && recalculated.paidDate && normalizeMoney(recalculated.paidAmount) > 0) {
     recalculated.currentBalance = calculateCurrentBalanceFromPayment(
       recalculated.previousBalance,
       recalculated.paidAmount,
@@ -4366,6 +4366,26 @@ function calculateRecommendedBillPayments(bills) {
   });
 
   return recommendations;
+}
+
+function getExpectedBillPayoff(bill, recommendedPayment) {
+  const balance = Math.max(0, getEffectiveBillCurrentBalance(bill));
+  const payment = normalizeMoney(recommendedPayment);
+  const rate = parseAprNumber(bill.apr) / 1200;
+  const assumptions = "Estimate using the current balance, fixed monthly Recommended amount and APR, with no new charges. First payment is one month after the bill due date (or selected month end).";
+  if (balance <= 0) return { label: deriveAutoTrackedBillStatus(bill) === "Paid Off" ? "Paid Off" : "N/A", title: "No outstanding balance to pay off." };
+  if (payment <= 0 || payment <= balance * rate) {
+    return { label: "No payoff", title: "The Recommended amount does not exceed monthly interest or is zero." };
+  }
+  const months = Math.ceil((rate > 0
+    ? -Math.log1p(-balance * rate / payment) / Math.log1p(rate)
+    : balance / payment) - 1e-10);
+  if (!Number.isFinite(months) || months > 1200) return { label: ">100 years", title: assumptions };
+  const month = state.billMonth || defaultBillMonth();
+  const anchor = bill.due || shiftDateByMonths(`${month}-01`, 1);
+  const base = bill.due ? anchor : getLocalIsoDate(new Date(new Date(`${anchor}T00:00:00`).getTime() - 86400000));
+  const date = shiftDateByMonths(base, months);
+  return { year: Number(date.slice(0, 4)), label: formatShortDate(date), title: `${months} monthly payment${months === 1 ? "" : "s"}. ${assumptions}` };
 }
 
 function normalizeLifeAdminNote(note) {
@@ -4850,11 +4870,31 @@ function applyOngoingStateRepairs(loaded) {
   }
 }
 
+// One-time correction confirmed by the user for the September 2026 budget.
+// Keep prior months, payment history, and future new balances intact.
+function applySeptemberAdminPayoffCorrection(loaded) {
+  if (!isAdminClient()) return;
+  const isConfirmedBill = name => /^(BJ['’]s Club|Raymour Flanigan|Marcus Loan\s*-\s*SST|Mortgage\s*-\s*ShellPoint(?:\s*-.*)?)$/i.test(String(name || "").trim());
+  const correct = bills => (bills || []).forEach(bill => {
+    if (!isConfirmedBill(bill.name)) return;
+    bill.previousBalance = 0;
+    bill.currentBalance = 0;
+    bill.status = "Paid Off";
+    bill.notes = "Paid Off. Zero remaining balance confirmed September 27, 2026."
+      + (bill.notes ? `\nPrevious notes: ${bill.notes}` : "");
+    // Remove legacy balance metadata so normalization cannot restore the old balance.
+    bill.notes = extractLegacyBillMetadata(bill.notes).notes;
+  });
+  if (loaded.billMonth === "2026-09") correct(loaded.bills);
+  correct(loaded.monthlyBudgets?.["2026-09"]?.bills);
+}
+
 function applyDataMigrations(loaded) {
   if ((Number(loaded.dataVersion) || 0) >= DATA_VERSION) return false;
 
   applyOngoingStateRepairs(loaded);
   applyAdminDueAmountRollover(loaded);
+  applySeptemberAdminPayoffCorrection(loaded);
   if (activeClientId === "patrick" && (!Array.isArray(loaded.workSchedules) || !loaded.workSchedules.length)) {
     loaded.workSchedules = buildPatrickWorkScheduleSeed();
   }
@@ -5188,6 +5228,8 @@ function saveState() {
   if (storageKey) {
     localStorage.setItem(storageKey, JSON.stringify(state));
   }
+  pendingLocalSharedSaveAt = state.lastSavedAt;
+  if (storageKey) localStorage.setItem(`${storageKey}:pending-save`, pendingLocalSharedSaveAt);
   updateDataStoreStatus();
   queueJsonBackupSave("local save");
   queueSharedStateSave();
@@ -5331,7 +5373,7 @@ function assessAdminBillDataLoss(referenceState, candidateState) {
   if (!isAdminClient()) return null;
   const previousBills = Array.isArray(referenceState?.bills) ? referenceState.bills : [];
   const nextBills = Array.isArray(candidateState?.bills) ? candidateState.bills : [];
-  if (previousBills.length < 5 || !nextBills.length) return null;
+  if (previousBills.length < 5) return null;
   const billKey = bill => String(bill?.templateKey || bill?.name || "").trim().toLowerCase();
   const nextByKey = new Map(nextBills.map(bill => [billKey(bill), bill]));
   const previouslyFunded = previousBills.filter(bill => normalizeMoney(bill?.previousBalance) > 0 || normalizeMoney(bill?.currentBalance) > 0 || normalizeMoney(bill?.paidAmount) > 0);
@@ -5396,6 +5438,8 @@ function applyRemoteSharedState(remoteState, updatedAt = "") {
   const syncAlert = buildBillSyncAlert(remoteAuditEntries, updatedAt);
   if (syncAlert) {
     billSyncAlertState = syncAlert;
+  } else if (billSyncAlertState?.kind === "save-conflict") {
+    billSyncAlertState = null;
   }
   cacheRemoteUpdatedAt(updatedAt || state.lastSavedAt || "");
   if (getStorageKey()) {
@@ -5415,6 +5459,7 @@ function applyRemoteSharedState(remoteState, updatedAt = "") {
 async function subscribeToSharedState() {
   if (!supabaseEnabled || !activeClientId || !getSupabaseStateId()) return;
   stopSharedStateSync();
+  pendingLocalSharedSaveAt = localStorage.getItem(`${getStorageKey()}:pending-save`) || pendingLocalSharedSaveAt;
   const clientId = activeClientId;
   const stateId = getSupabaseStateId();
   const docRef = supabaseClient.doc(supabaseClient.db, SUPABASE_TABLE, stateId);
@@ -5439,6 +5484,7 @@ async function subscribeToSharedState() {
 
     sharedStateUnsubscribe = supabaseClient.onSnapshot(
       docRef,
+      { includeMetadataChanges: true },
       async snapshot => {
         if (sharedStateListenerId !== `${clientId}:${stateId}` || activeClientId !== clientId) {
           settleResolve();
@@ -5446,48 +5492,28 @@ async function subscribeToSharedState() {
         }
 
         try {
+          // Cached/local snapshots are not a confirmed server baseline.
+          if (snapshot.metadata?.fromCache || snapshot.metadata?.hasPendingWrites) return;
           if (!snapshot.exists()) {
-            cacheRemoteUpdatedAt("");
             settleResolve();
-            await saveSharedStateNow();
+            if (pendingLocalSharedSaveAt) await saveSharedStateNow();
             return;
           }
-
           const data = snapshot.data() || {};
           const remoteState = data.state;
           const updatedAt = data.updated_at || "";
-          const remoteUpdatedAtMs = toTimestampMs(updatedAt);
-          const pendingLocalSaveMs = toTimestampMs(pendingLocalSharedSaveAt);
-
-          if (pendingLocalSaveMs && (!remoteUpdatedAtMs || remoteUpdatedAtMs < pendingLocalSaveMs)) {
-            settleResolve();
-            return;
-          }
-
           if (!remoteState || !Array.isArray(remoteState.tasks)) {
+            throw new Error("Firebase data is incomplete; no local or remote data was replaced.");
+          }
+          // Never replace pending edits, regardless of device clock ordering.
+          if (pendingLocalSharedSaveAt || sharedSaveInFlight) {
             settleResolve();
-            await saveSharedStateNow();
+            if (!sharedSaveInFlight) await saveSharedStateNow();
             return;
           }
-
-          // Firestore echoes this device's completed write back through the
-          // listener. The local state already contains that exact payload, so
-          // avoid a redundant full render that can interrupt an active editor.
-          if (remoteState.lastSavedAt
-            && remoteState.lastSavedAt === state.lastSavedAt) {
-            cacheRemoteUpdatedAt(updatedAt);
-            pendingLocalSharedSaveAt = "";
-            supabaseStatus = `Firebase Firestore shared storage; live sync active for ${currentClientConfig()?.shortName || "client"}${updatedAt ? `; saved ${formatDateTime(updatedAt)}` : ""}`;
-            updateDataStoreStatus();
-            settleResolve();
-            return;
-          }
-
-          const needsNormalizationSave = applyRemoteSharedState(remoteState, updatedAt);
+          applyRemoteSharedState(remoteState, updatedAt);
           settleResolve();
-          if (needsNormalizationSave) {
-            await saveSharedStateNow();
-          }
+          // Normalizing a view is not authorization to write it back on login.
         } catch (error) {
           supabaseStatus = `Firebase Firestore sync failed: ${error.message}`;
           updateDataStoreStatus();
@@ -5523,7 +5549,9 @@ async function subscribeToSharedState() {
       if (requestedBySession === DEVICE_SESSION_ID) return;
       supabaseStatus = `Firebase Firestore shared storage; remote refresh requested for ${currentClientConfig()?.shortName || "client"}; reloading`;
       updateDataStoreStatus();
+      if (pendingLocalSharedSaveAt || sharedSaveInFlight) return;
       window.setTimeout(() => {
+        if (pendingLocalSharedSaveAt || sharedSaveInFlight) return;
         const url = new URL(window.location.href);
         url.searchParams.set("refresh", Date.now().toString());
         window.location.href = url.toString();
@@ -5541,9 +5569,22 @@ async function pullLatestSharedState() {
     throw new Error("Choose a client with Firebase sync active first.");
   }
 
-  // Discard this device's pending write before loading the canonical Firestore state.
+  if (sharedSaveInFlight) await sharedSaveInFlight;
+  const pendingAtStart = pendingLocalSharedSaveAt;
+  if (pendingAtStart) {
+    if (!confirm("This device has pending edits. Save a recovery copy on this device and download it before loading Firebase's version?")) {
+      throw new Error("Refresh cancelled; pending edits are unchanged.");
+    }
+    const recovery = JSON.stringify({ clientId: activeClientId, savedAt: new Date().toISOString(), state }, null, 2);
+    localStorage.setItem(`${getStorageKey()}:recovery:${Date.now()}`, recovery);
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([recovery], { type: "application/json" }));
+    link.download = `${activeClientId}-pending-edits-${Date.now()}.json`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  }
   window.clearTimeout(supabaseSaveTimer);
-  pendingLocalSharedSaveAt = "";
+  const clientId = activeClientId;
   const docRef = supabaseClient.doc(supabaseClient.db, SUPABASE_TABLE, getSupabaseStateId());
   const snapshot = await supabaseClient.getDoc(docRef);
   if (!snapshot.exists() || !snapshot.data()?.state) {
@@ -5551,7 +5592,18 @@ async function pullLatestSharedState() {
   }
 
   const data = snapshot.data() || {};
+  if (activeClientId !== clientId || pendingLocalSharedSaveAt !== pendingAtStart) {
+    throw new Error("New edits or a client change occurred during refresh; nothing was replaced.");
+  }
+  if (!Array.isArray(data.state.tasks)) throw new Error("Firebase data is incomplete; nothing was replaced.");
+  const risk = assessAdminBillDataLoss(state, data.state);
+  if (risk) {
+    blockAdminBillDataLoss(risk, "Manual Firebase refresh");
+    throw new Error("Refresh blocked by data-loss protection; pending edits are unchanged.");
+  }
   applyRemoteSharedState(data.state, data.updated_at || "");
+  pendingLocalSharedSaveAt = "";
+  localStorage.removeItem(`${getStorageKey()}:pending-save`);
   return data.updated_at || "";
 }
 
@@ -5603,55 +5655,72 @@ function queueSharedStateSave() {
   }, SUPABASE_SAVE_DELAY_MS);
 }
 
+function showSharedSaveConflict() {
+  billSyncAlertState = {
+    kind: "save-conflict", clientId: activeClientId,
+    createdAt: new Date().toISOString(),
+    title: "Firebase save blocked to prevent overwrite",
+    text: "Another saved version conflicts with pending edits on this device. Your edits remain saved locally; Firebase was not overwritten. Review Bill Audit. Pull Latest offers a local recovery copy before replacing pending edits.",
+    entries: [], affectedBills: []
+  };
+  renderBillSyncAlert();
+}
+
 async function saveSharedStateNow() {
-  if (!supabaseEnabled || !activeClientId || !getSupabaseStateId()) return;
-  try {
-    const docRef = supabaseClient.doc(supabaseClient.db, SUPABASE_TABLE, getSupabaseStateId());
-    const currentSnapshot = await supabaseClient.getDoc(docRef);
-    const liveState = currentSnapshot.exists() ? currentSnapshot.data()?.state : null;
-    const dataLossRisk = assessAdminBillDataLoss(liveState, state);
-    if (dataLossRisk) {
-      pendingLocalSharedSaveAt = "";
-      blockAdminBillDataLoss(dataLossRisk, "Local Firebase save");
-      throw new Error("Firebase data-loss protection blocked a destructive Admin bill save.");
-    }
-    const liveUpdatedAt = currentSnapshot.exists() ? String(currentSnapshot.data()?.updated_at || "") : "";
-    const liveUpdatedAtMs = toTimestampMs(liveUpdatedAt);
-    const cachedRemoteUpdatedAtMs = toTimestampMs(remoteUpdatedAt);
-    if (liveUpdatedAtMs && cachedRemoteUpdatedAtMs && liveUpdatedAtMs > cachedRemoteUpdatedAtMs) {
-      pendingLocalSharedSaveAt = "";
-      billSyncAlertState = {
-        clientId: activeClientId,
-        createdAt: new Date().toISOString(),
-        title: "Firebase save blocked to prevent overwrite",
-        text: `A newer Firebase version was detected for ${currentClientConfig()?.shortName || "this client"}. Your local save was blocked so an older device state could not overwrite newer bill changes. Pull the latest data, review Bill Audit, and restore from the JSON backup if needed.`,
-        entries: [],
-        affectedBills: []
-      };
-      supabaseStatus = `Firebase Firestore save blocked: newer shared version detected for ${currentClientConfig()?.shortName || "client"}`;
-      updateDataStoreStatus();
-      renderBillSyncAlert();
-      throw new Error("A newer Firebase version exists. Pull the latest shared data before saving again.");
-    }
-
-    const payload = {
-      id: getSupabaseStateId(),
-      state,
-      updated_by: state.currentUser || "",
-      updated_at: new Date().toISOString()
-    };
-
-    await supabaseClient.setDoc(docRef, payload, { merge: true });
-
-    cacheRemoteUpdatedAt(payload.updated_at);
-    pendingLocalSharedSaveAt = "";
-    supabaseStatus = `Firebase Firestore shared storage; live sync active for ${currentClientConfig()?.shortName || "client"}; saved ${formatDateTime(remoteUpdatedAt)}`;
-    updateDataStoreStatus();
-  } catch (error) {
-    supabaseStatus = `Firebase Firestore save failed: ${error.message}`;
-    updateDataStoreStatus();
-    throw error;
+  if (!supabaseEnabled || !activeClientId || !getSupabaseStateId() || !pendingLocalSharedSaveAt) return;
+  if (sharedSaveInFlight) {
+    await sharedSaveInFlight;
+    return saveSharedStateNow();
   }
+  const clientId = activeClientId;
+  const storageKey = getStorageKey();
+  const baseline = remoteUpdatedAt || "";
+  const pendingVersion = pendingLocalSharedSaveAt;
+  const payload = { id: getSupabaseStateId(), state: structuredClone(state),
+    updated_by: state.currentUser || "", updated_at: new Date().toISOString() };
+  const docRef = supabaseClient.doc(supabaseClient.db, SUPABASE_TABLE, payload.id);
+  sharedSaveInFlight = (async () => {
+    try {
+      await supabaseClient.runTransaction(supabaseClient.db, async transaction => {
+        const snapshot = await transaction.get(docRef);
+        const live = snapshot.exists() ? snapshot.data() : null;
+        if (String(live?.updated_at || "") !== baseline) {
+          const error = new Error("The shared version changed; pending edits were preserved locally.");
+          error.code = "local/save-conflict";
+          throw error;
+        }
+        const risk = assessAdminBillDataLoss(live?.state, payload.state);
+        if (risk) {
+          const error = new Error("Firebase data-loss protection blocked a destructive Admin bill save.");
+          error.dataLossRisk = risk;
+          throw error;
+        }
+        transaction.set(docRef, payload, { merge: true });
+      });
+      if (activeClientId !== clientId) return;
+      cacheRemoteUpdatedAt(payload.updated_at);
+      if (pendingLocalSharedSaveAt === pendingVersion) {
+        pendingLocalSharedSaveAt = "";
+        localStorage.removeItem(`${storageKey}:pending-save`);
+      }
+      if (billSyncAlertState?.kind === "save-conflict") {
+        billSyncAlertState = null;
+        renderBillSyncAlert();
+      }
+      supabaseStatus = `Firebase Firestore shared storage; saved ${formatDateTime(payload.updated_at)}`;
+      updateDataStoreStatus();
+    } catch (error) {
+      if (activeClientId === clientId) {
+        if (error.code === "local/save-conflict") showSharedSaveConflict();
+        if (error.dataLossRisk) blockAdminBillDataLoss(error.dataLossRisk, "Local Firebase save");
+        supabaseStatus = `Firebase Firestore save failed: ${error.message}`;
+        updateDataStoreStatus();
+      }
+      throw error;
+    }
+  })();
+  try { await sharedSaveInFlight; }
+  finally { sharedSaveInFlight = null; }
 }
 
 async function updateSyncStatus() {
@@ -6549,6 +6618,7 @@ function renderBills() {
     ? []
     : displayBills.filter(bill => bill.hidden);
   const recommendedPayments = calculateRecommendedBillPayments(visibleBills);
+  const hiddenRecommendedPayments = calculateRecommendedBillPayments(hiddenBills);
   const billGroups = {
     early: visibleBills.filter(bill => getBillDueGroup(bill) === "early"),
     mid: visibleBills.filter(bill => getBillDueGroup(bill) === "mid"),
@@ -6601,6 +6671,7 @@ function renderBills() {
       <div class="budget-bill-total-cell bill-col-due-amt">${escapeHtml(formatCurrency(totals.amount))}</div>
       <div class="budget-bill-total-cell bill-col-paid-amt">${escapeHtml(formatCurrency(totals.paidAmount))}</div>
       <div class="budget-bill-total-cell bill-col-recommended">${escapeHtml(formatCurrency(totals.recommended))}</div>
+      <div class="budget-bill-total-cell bill-col-payoff-date">-</div>
       <div class="budget-bill-total-cell bill-col-tran">-</div>
       <div class="budget-bill-total-cell bill-col-due-date">-</div>
       <div class="budget-bill-total-cell bill-col-date-paid">-</div>
@@ -6617,7 +6688,8 @@ function renderBills() {
     const creditRemainingClass = creditRemainingPercent === null
       ? ""
       : (creditRemainingPercent < 50 ? " is-low-credit" : " is-healthy-credit");
-    const recommendedPayment = recommendedPayments.get(bill.id) ?? getEffectiveBillAmount(bill);
+    const recommendedPayment = (hiddenMode ? hiddenRecommendedPayments : recommendedPayments).get(bill.id) ?? getEffectiveBillAmount(bill);
+    const expectedPayoff = getExpectedBillPayoff(bill, recommendedPayment);
     const pastDue = isBillPastDue(bill);
     const dueSoon = !pastDue && isBillDueSoon(bill, 7);
     const effectivePreviousBalance = getEffectiveBillPreviousBalance(bill);
@@ -6628,7 +6700,7 @@ function renderBills() {
     const notesDisplay = buildAdminPaidBillProgressNote(bill, interestPaid, recommendedPayment) || bill.notes || "";
     const paymentPriorityDisplay = getAdminPaymentPriorityDisplay(interestPriority);
     const row = document.createElement("article");
-    row.className = `budget-bill-item${pastDue ? " is-past-due" : ""}${dueSoon ? " is-due-soon" : ""}${bill.status === "Paid" ? " is-paid" : ""}${bill.hidden ? " is-hidden" : ""}`;
+    row.className = `budget-bill-item${pastDue ? " is-past-due" : ""}${dueSoon ? " is-due-soon" : ""}${bill.status === "Paid" ? " is-paid" : ""}${isAdminClient() && bill.status === "Paid" ? " is-admin-paid" : ""}${bill.hidden && bill.status === "Paid Off" ? " is-hidden-paid-off" : ""}`;
     row.dataset.billId = bill.id;
     row.innerHTML = `
       <div class="budget-bill-selector-box">
@@ -6681,6 +6753,10 @@ function renderBills() {
       <label class="budget-bill-field bill-col-recommended">
         <span>Recommended</span>
         <input class="bill-recommended-payment" type="text" value="${escapeAttribute(formatCurrency(recommendedPayment))}" aria-label="Recommended payment" readonly>
+      </label>
+      <label class="budget-bill-field bill-col-payoff-date" title="${escapeAttribute(expectedPayoff.title)}">
+        <span>Expected Paid Off Date</span>
+        <input class="bill-payoff-date"${expectedPayoff.year ? ` data-payoff-year="${expectedPayoff.year}" style="--payoff-year-hue: ${((210 + (expectedPayoff.year - 2027) * 137.508) % 360 + 360) % 360}"` : ""} type="text" value="${escapeAttribute(expectedPayoff.label)}" aria-label="Expected Paid Off Date" readonly>
       </label>
       <label class="budget-bill-field bill-col-tran">
         <span>Tran #</span>
@@ -6828,7 +6904,15 @@ function renderBills() {
     billListHeader.classList.toggle("is-simple", usesSimpleBills);
     billListHeader.innerHTML = usesSimpleBills
       ? "<span class=\"budget-bill-selector-header\"></span><span>Bill</span><span>Prev Bal</span><span>Current Bal</span><span>Amount</span><span>Due</span><span>Date Paid</span><span>Status</span><span>Notes</span><span>Actions</span>"
-      : "<span class=\"budget-bill-selector-header bill-col-selector\"></span><span class=\"bill-col bill-col-name\">Bill</span><span class=\"bill-col bill-col-type\">Type</span><span class=\"bill-col bill-col-apr\">APR</span><span class=\"bill-col bill-col-interest-paid is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum interest paid column\">Interest Paid</span><span class=\"bill-col bill-col-prev-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum previous balance column\">Prev Bal</span><span class=\"bill-col bill-col-current-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum current balance column\">Current Bal</span><span class=\"bill-col bill-col-diff is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum difference column\">Diff</span><span class=\"bill-col bill-col-payment-priority\" title=\"Paid bills where interest consumes more than the principal portion\">Pay More</span><span class=\"bill-col bill-col-credit-line is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum credit line column\">Credit Line</span><span class=\"bill-col bill-col-due-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum due amount column\">Due Amt</span><span class=\"bill-col bill-col-paid-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum paid amount column\">Paid Amt</span><span class=\"bill-col bill-col-recommended is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum recommended payment column\">Recommended</span><span class=\"bill-col bill-col-tran\">Tran #</span><span class=\"bill-col bill-col-due-date\">Due</span><span class=\"bill-col bill-col-date-paid\">Date Paid</span><span class=\"bill-col bill-col-credit-percent\">% Credit</span><span class=\"bill-col bill-col-status\">Status</span><span class=\"bill-col bill-col-notes\">Notes</span><span class=\"bill-col bill-col-actions\">Actions</span>";
+      : "<span class=\"budget-bill-selector-header bill-col-selector\"></span><span class=\"bill-col bill-col-name\">Bill</span><span class=\"bill-col bill-col-type\">Type</span><span class=\"bill-col bill-col-apr\">APR</span><span class=\"bill-col bill-col-interest-paid is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum interest paid column\">Interest Paid</span><span class=\"bill-col bill-col-prev-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum previous balance column\">Prev Bal</span><span class=\"bill-col bill-col-current-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum current balance column\">Current Bal</span><span class=\"bill-col bill-col-diff is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum difference column\">Diff</span><span class=\"bill-col bill-col-payment-priority\" title=\"Paid bills where interest consumes more than the principal portion\">Pay More</span><span class=\"bill-col bill-col-credit-line is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum credit line column\">Credit Line</span><span class=\"bill-col bill-col-due-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum due amount column\">Due Amt</span><span class=\"bill-col bill-col-paid-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum paid amount column\">Paid Amt</span><span class=\"bill-col bill-col-recommended is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum recommended payment column\">Recommended</span><span class=\"bill-col bill-col-payoff-date\">Expected Paid Off Date</span><span class=\"bill-col bill-col-tran\">Tran #</span><span class=\"bill-col bill-col-due-date\">Due</span><span class=\"bill-col bill-col-date-paid\">Date Paid</span><span class=\"bill-col bill-col-credit-percent\">% Credit</span><span class=\"bill-col bill-col-status\">Status</span><span class=\"bill-col bill-col-notes\">Notes</span><span class=\"bill-col bill-col-actions\">Actions</span>";
+    const hiddenHeader = document.querySelector("#hiddenBillListHeader");
+    if (hiddenHeader) {
+      hiddenHeader.innerHTML = billListHeader.innerHTML;
+      hiddenHeader.querySelectorAll(".is-summable").forEach(cell => {
+        cell.classList.remove("is-summable");
+        ["tabindex", "role", "aria-label"].forEach(attribute => cell.removeAttribute(attribute));
+      });
+    }
     if (!usesSimpleBills) {
       Object.entries(BILL_COLUMN_SUM_CONFIG).forEach(([columnClass, config]) => {
         const headerCell = billListHeader.querySelector(`.${columnClass}`);
@@ -6889,12 +6973,7 @@ function renderBills() {
   renderUpcomingBillsBanner();
   renderBudgetSnapshots();
 
-  if (autoCalculateBillsOnLoadPending && !usesSimpleBills) {
-    autoCalculateBillsOnLoadPending = false;
-    setTimeout(() => {
-      calculateAllBillBalances({ skipUserCheck: true, skipHistory: true });
-    }, 0);
-  }
+
 }
 
 function renderAdminBillSimulationDialog() {
@@ -7555,7 +7634,7 @@ function updateBillFromRow(row, options = {}) {
     ? normalizeCurrencyCell(getField(".bill-paid-amount").value)
     : bill.paidAmount;
   bill.paidDate = getField(".bill-paid-date")?.value ?? bill.paidDate;
-  if (isAdminClient() && bill.paidDate && normalizeMoney(bill.paidAmount) > 0) {
+  if (isAdminClient() && bill.currentBalance > 0 && bill.paidDate && normalizeMoney(bill.paidAmount) > 0) {
     bill.currentBalance = calculateCurrentBalanceFromPayment(
       bill.previousBalance,
       bill.paidAmount,
@@ -7577,9 +7656,10 @@ function updateBillFromRow(row, options = {}) {
   if (isAdminClient() && bill.status === "Paid") {
     bill.notes = buildAdminPaidBillProgressNote(bill, null, calculateRecommendedBillPayments(state.bills).get(bill.id) ?? bill.amount);
   }
-  if (options.recalculateBalance) {
+  if (options.recalculateBalance && bill.currentBalance > 0) {
     bill.currentBalance = calculateCurrentBalanceFromPayment(bill.previousBalance, bill.paidAmount, bill.apr);
   }
+  if (bill.statusTracksPaidDate) bill.status = deriveAutoTrackedBillStatus(bill);
   const hasChanges = JSON.stringify(before) !== JSON.stringify(bill);
   if (!recordHistory) {
     if (hasChanges && !originalBaseline) {
@@ -9639,7 +9719,8 @@ function currentUser() {
 function setCurrentUserEmail(email, { save = true, renderView = true } = {}) {
   state.currentUser = email;
   userSelect.value = email;
-  if (save) saveState();
+  // Account selection is device-local; logging in must not save bill data.
+  if (save && getStorageKey()) localStorage.setItem(getStorageKey(), JSON.stringify(state));
   if (renderView) render();
 }
 
@@ -9854,7 +9935,7 @@ async function switchClient(clientId, pin = "") {
     validatedProtectedClientIds.add(nextClient.id);
   }
 
-  if (supabaseEnabled && !applyingRemoteState) {
+  if (supabaseEnabled && !applyingRemoteState && pendingLocalSharedSaveAt) {
     window.clearTimeout(supabaseSaveTimer);
     await saveSharedStateNow();
   }
@@ -9864,8 +9945,8 @@ async function switchClient(clientId, pin = "") {
   activeClientId = nextClient.id;
   remoteUpdatedAt = readCachedRemoteUpdatedAt();
   state = loadState();
+  pendingLocalSharedSaveAt = localStorage.getItem(`${getStorageKey()}:pending-save`) || "";
   await loadConfiguredJsonBackupForActiveClient();
-  autoCalculateBillsOnLoadPending = true;
   loadBudgetMonth(defaultBillMonth(), { syncSnapshot: false });
   patrickWatchState = loadPatrickWatchState();
   taskViewMode = loadTaskViewMode();

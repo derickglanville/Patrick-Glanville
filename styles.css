@@ -559,8 +559,73 @@ textarea {
 }
 
 #budgetPanel header {
+  /* Reserve room for the heading before the action bar wraps. Without this,
+     the action bar's intrinsic width can collapse the heading column and
+     paint the MBF field over its text. */
+  grid-template-columns: max-content minmax(0, 1fr);
   gap: 4px;
   align-items: start;
+}
+
+#budgetPanel .panel-actions {
+  min-width: 0;
+  justify-content: flex-start;
+  gap: 5px;
+}
+
+/* The MBF metric below already names this value. Keep this field compact and
+   expose its full meaning through the native hover/focus tooltip instead. */
+#budgetPanel .bill-mbf-control {
+  min-width: 116px;
+  width: 116px;
+  gap: 0;
+}
+
+#budgetPanel .bill-mbf-control input {
+  min-height: 34px;
+  padding: 6px 9px;
+}
+
+/* Fit the current-month controls into the available row before wrapping. */
+#budgetPanel .panel-actions > button {
+  min-height: 34px;
+  padding: 0 9px;
+  font-size: .9rem;
+  font-weight: 700;
+}
+
+#budgetPanel .admin-bill-quick-controls > button,
+#budgetPanel .admin-bill-quick-controls .segmented-toggle button {
+  font-size: .9rem;
+  font-weight: 700;
+}
+
+@media (min-width: 1101px) {
+  /* Keep every current-month action visible in one desktop toolbar row.
+     Longer labels wrap inside their own compact buttons rather than forcing
+     a second toolbar row. */
+  #budgetPanel .panel-actions > button {
+    padding-inline: 6px;
+    line-height: 1.1;
+    text-align: center;
+    white-space: normal;
+  }
+
+  #budgetPanel .bill-month-nav label { min-width: 125px; }
+  #copyBillsToNextMonthBtn { width: 96px; }
+  #calculateBillsBtn { width: 70px; }
+  #pullLatestDevicesBtn { width: 108px; }
+  #adminBillSimulationBtn { width: 100px; }
+  #adminCreditCardFinderBtn { width: 78px; }
+  #adminMonthlyExpendituresBtn { width: 96px; }
+  #cellphoneBillingHistoryBtn { width: 88px; }
+  #assignDueDatesBtn { width: 85px; }
+  #undoCopyBillsToNextMonthBtn { width: 96px; }
+  #toggleBillsCompactBtn { width: 66px; }
+  #toggleBillsPopoutBtn { width: 65px; }
+  #monthlyBillsReportBtn { width: 78px; }
+  #saveBudgetSnapshotBtn { width: 82px; }
+  #hideBillsBtn { width: 52px; }
 }
 
 .budget-panel h2 {
@@ -1039,6 +1104,7 @@ textarea {
     minmax(64px, .36fr)
     minmax(68px, .4fr)
     minmax(78px, .44fr)
+    minmax(118px, .7fr)
     minmax(68px, .38fr)
     minmax(108px, .68fr)
     minmax(108px, .68fr)
@@ -1157,6 +1223,7 @@ textarea {
     minmax(56px, .36fr)
     minmax(60px, .38fr)
     minmax(68px, .42fr)
+    minmax(118px, .7fr)
     minmax(62px, .38fr)
     minmax(98px, .62fr)
     minmax(98px, .62fr)
@@ -1182,6 +1249,7 @@ textarea {
     minmax(56px, .36fr)
     minmax(60px, .38fr)
     minmax(68px, .42fr)
+    minmax(118px, .7fr)
     minmax(62px, .38fr)
     minmax(98px, .62fr)
     minmax(98px, .62fr)
@@ -1249,6 +1317,7 @@ textarea {
 .budget-panel-admin-mini .bill-col-credit-line,
 .budget-panel-admin-mini .bill-col-due-amt,
 .budget-panel-admin-mini .bill-col-recommended,
+.budget-panel-admin-mini .bill-col-payoff-date,
 .budget-panel-admin-mini .bill-col-notes {
   display: none !important;
 }
@@ -1287,6 +1356,7 @@ textarea {
     minmax(64px, .36fr)
     minmax(68px, .4fr)
     minmax(78px, .44fr)
+    minmax(118px, .7fr)
     minmax(68px, .38fr)
     minmax(108px, .68fr)
     minmax(108px, .68fr)
@@ -1409,7 +1479,7 @@ textarea {
   background: #e4f2e9;
 }
 
-.budget-bill-item.is-hidden {
+.budget-bill-item.is-hidden-paid-off {
   opacity: .9;
   background: #e7ecf4;
   border-style: dashed;
@@ -4391,28 +4461,28 @@ body[data-device-layout="compact"] .budget-panel-popout .budget-bill-list-simple
   background: #efff00;
 }
 /* Make hidden bills unmistakable in the restore list. */
-.budget-bill-item.is-hidden {
+.budget-bill-item.is-hidden-paid-off {
   border-color: #16803d !important;
   background: #b9f6c7 !important;
   box-shadow: inset 0 0 0 2px #3ba95d, 0 0 0 1px #89e8a1;
 }
 
-.budget-bill-item.is-hidden:nth-child(even) {
+.budget-bill-item.is-hidden-paid-off:nth-child(even) {
   background: #b9f6c7 !important;
 }
 
-.budget-bill-item.is-hidden input,
-.budget-bill-item.is-hidden select,
-.budget-bill-item.is-hidden textarea {
+.budget-bill-item.is-hidden-paid-off input,
+.budget-bill-item.is-hidden-paid-off select,
+.budget-bill-item.is-hidden-paid-off textarea {
   background: #dcffe4;
   border-color: #53b973;
 }
 
-.budget-bill-item.is-hidden .budget-bill-selector-box,
-.budget-bill-item.is-hidden .budget-bill-actions,
-.budget-bill-item.is-hidden .budget-bill-field,
-.budget-bill-item.is-hidden .budget-bill-status-box,
-.budget-bill-item.is-hidden .budget-bill-notes-box {
+.budget-bill-item.is-hidden-paid-off .budget-bill-selector-box,
+.budget-bill-item.is-hidden-paid-off .budget-bill-actions,
+.budget-bill-item.is-hidden-paid-off .budget-bill-field,
+.budget-bill-item.is-hidden-paid-off .budget-bill-status-box,
+.budget-bill-item.is-hidden-paid-off .budget-bill-notes-box {
   background: #b9f6c7;
 }
 /* Admin-only log for spending outside of the monthly bill budget. */
@@ -5106,8 +5176,8 @@ body[data-device-layout="tablet"] #adminCreditCardFinderBtn {
 }
 .budget-panel.is-admin-tablet-grid .budget-bill-list-header:not(.is-simple) {
   display: grid !important;
-  grid-template-columns: 28px minmax(190px, 1.4fr) 108px 62px 110px 110px 96px 116px 92px 78px;
-  min-width: 1060px;
+  grid-template-columns: 28px minmax(190px, 1.4fr) 108px 62px 110px 110px 96px 116px 128px 92px 78px;
+  min-width: 1188px;
   position: sticky;
   top: 0;
   z-index: 3;
@@ -5115,8 +5185,8 @@ body[data-device-layout="tablet"] #adminCreditCardFinderBtn {
 .budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple),
 .budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-total-row {
   display: grid;
-  grid-template-columns: 28px minmax(190px, 1.4fr) 108px 62px 110px 110px 96px 116px 92px 78px;
-  min-width: 1060px;
+  grid-template-columns: 28px minmax(190px, 1.4fr) 108px 62px 110px 110px 96px 116px 128px 92px 78px;
+  min-width: 1188px;
   grid-template-areas: none;
   align-items: center;
   gap: 0;
@@ -5180,4 +5250,38 @@ body[data-device-layout="tablet"] #adminCreditCardFinderBtn {
 .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-credit-percent,
 .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-notes {
   display: none !important;
+}
+
+#hiddenBillsContent { overflow-x: auto; }
+body[data-device-layout="phone"] .budget-panel:not(.is-admin-tablet-grid) .bill-col-payoff-date,
+body[data-device-layout="tablet"] .budget-panel:not(.is-admin-tablet-grid) .bill-col-payoff-date {
+  grid-column: 2 / -1;
+}
+
+/* A paid Admin bill is a complete green touch card on smaller screens, making
+   payment status easy to scan without relying on the compact status selector. */
+body[data-device-layout="phone"] #budgetPanel .budget-bill-list-admin .budget-bill-item.is-admin-paid:not(.budget-bill-item-simple),
+body[data-device-layout="tablet"] #budgetPanel .budget-bill-list-admin .budget-bill-item.is-admin-paid:not(.budget-bill-item-simple) {
+  border-color: #16803d !important;
+  background: #c8f5d6 !important;
+  box-shadow: inset 0 0 0 2px #54b978;
+}
+
+body[data-device-layout="phone"] #budgetPanel .budget-bill-list-admin .budget-bill-item.is-admin-paid:not(.budget-bill-item-simple) input,
+body[data-device-layout="phone"] #budgetPanel .budget-bill-list-admin .budget-bill-item.is-admin-paid:not(.budget-bill-item-simple) select,
+body[data-device-layout="phone"] #budgetPanel .budget-bill-list-admin .budget-bill-item.is-admin-paid:not(.budget-bill-item-simple) textarea,
+body[data-device-layout="tablet"] #budgetPanel .budget-bill-list-admin .budget-bill-item.is-admin-paid:not(.budget-bill-item-simple) input,
+body[data-device-layout="tablet"] #budgetPanel .budget-bill-list-admin .budget-bill-item.is-admin-paid:not(.budget-bill-item-simple) select,
+body[data-device-layout="tablet"] #budgetPanel .budget-bill-list-admin .budget-bill-item.is-admin-paid:not(.budget-bill-item-simple) textarea {
+  border-color: #55ae73;
+  background: #effff4;
+}
+
+/* Stable year colors also remain visible inside selected and hidden bill rows. */
+.budget-bill-item input.bill-payoff-date[data-payoff-year] {
+  background: hsl(var(--payoff-year-hue), 78%, 90%) !important;
+  color: hsl(var(--payoff-year-hue), 65%, 22%) !important;
+  border-color: hsl(var(--payoff-year-hue), 48%, 52%) !important;
+  border-left-width: 4px;
+  font-weight: 800;
 }
