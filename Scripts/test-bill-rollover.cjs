@@ -55,7 +55,7 @@ assert.match(source, /bill-col-observation/);
 assert.match(fs.readFileSync('index.html', 'utf8'), />Observation<\/span>\s*<span>Actions<\/span>/);
 const styles = fs.readFileSync('styles.css', 'utf8');
 assert.match(styles, /"selector observation observation observation"/);
-assert.match(styles, /minmax\(108px, \.58fr\)\s+minmax\(142px, \.82fr\)/);
+assert.match(styles, /minmax\(96px, \.58fr\)\s+minmax\(142px, \.82fr\)/);
 
 const totalsContext = {
   normalizeMoney: value => Math.round((Number(value) || 0) * 100) / 100,
