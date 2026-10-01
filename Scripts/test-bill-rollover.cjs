@@ -65,6 +65,9 @@ assert.match(fs.readFileSync('index.html', 'utf8'), /id="balanceProgressReportBt
 assert.match(source, /const ADMIN_BALANCE_PROGRESS_BILL_ORDER = \[/);
 assert.match(source, /getMonthlyBillReportEntries\(\)\s*\.filter\(entry => entry\.month <= selectedMonth\)\s*\.slice\(-4\)/);
 assert.match(source, /Start = 100/);
+assert.match(source, /const minIndex = 78;/);
+assert.match(source, /const maxIndex = 150;/);
+assert.match(source, /const directLabels = endpointLabels\.map/);
 
 const totalsContext = {
   normalizeMoney: value => Math.round((Number(value) || 0) * 100) / 100,

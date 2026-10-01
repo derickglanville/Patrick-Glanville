@@ -11055,23 +11055,40 @@ function buildAdminBalanceProgressReportHtml() {
   if (months.length < 2 || !series.length) {
     return `<!doctype html><meta charset="utf-8"><title>Admin Balance Progress</title><main style="font:16px Arial;padding:32px"><h1>Admin Balance Progress</h1><p>At least two saved months with active credit-card balances are needed to create this report.</p></main>`;
   }
-  const width = 1220;
+  const width = 1420;
   const height = 560;
-  const margin = { top: 38, right: 38, bottom: 72, left: 78 };
+  const margin = { top: 38, right: 280, bottom: 72, left: 78 };
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
-  const allValues = series.flatMap(item => item.values.filter(value => value !== null));
-  const maxIndex = Math.max(110, Math.ceil(Math.max(...allValues) / 25) * 25);
+  const minIndex = 78;
+  const maxIndex = 150;
   const x = index => margin.left + (months.length === 1 ? 0 : (plotWidth * index) / (months.length - 1));
-  const y = value => margin.top + plotHeight - ((value / maxIndex) * plotHeight);
-  const tickValues = Array.from({ length: 6 }, (_, index) => Math.round((maxIndex * index) / 5));
-  const grid = tickValues.map(value => `<g><line x1="${margin.left}" y1="${y(value)}" x2="${width - margin.right}" y2="${y(value)}" class="grid"/><text x="${margin.left - 14}" y="${y(value) + 5}" text-anchor="end" class="axis-label">${value}</text></g>`).join("");
+  const y = value => margin.top + plotHeight - (((value - minIndex) / (maxIndex - minIndex)) * plotHeight);
+  const majorTicks = [78, ...Array.from({ length: 15 }, (_, index) => 80 + (index * 5))];
+  const minorTicks = Array.from({ length: 71 }, (_, index) => 79 + index).filter(value => !majorTicks.includes(value));
+  const minorGrid = minorTicks.map(value => `<line x1="${margin.left}" y1="${y(value)}" x2="${width - margin.right}" y2="${y(value)}" stroke="#edf3f8" stroke-width=".7"/>`).join("");
+  const grid = minorGrid + majorTicks.map(value => `<g><line x1="${margin.left}" y1="${y(value)}" x2="${width - margin.right}" y2="${y(value)}" class="grid"/><text x="${margin.left - 14}" y="${y(value) + 5}" text-anchor="end" class="axis-label">${value}</text></g>`).join("");
   const xLabels = months.map((entry, index) => `<g><line x1="${x(index)}" y1="${margin.top}" x2="${x(index)}" y2="${height - margin.bottom}" class="vertical-grid"/><text x="${x(index)}" y="${height - margin.bottom + 28}" text-anchor="middle" class="axis-label">${escapeHtml(entry.label)}</text></g>`).join("");
-  const lines = series.map(item => {
+  let lines = series.map(item => {
     const points = item.values.map((value, index) => value === null ? "" : `${x(index)},${y(value)}`).filter(Boolean).join(" ");
     const dots = item.values.map((value, index) => value === null ? "" : `<circle cx="${x(index)}" cy="${y(value)}" r="4.5" fill="${item.color}" class="point"><title>${escapeHtml(`${item.name} — ${months[index].label}: ${value}% of starting balance`)}</title></circle>`).join("");
     return `<g class="series"><polyline points="${points}" stroke="${item.color}"><title>${escapeHtml(`${item.name}: ${item.values.at(-1)}% of starting balance`)}</title></polyline>${dots}</g>`;
   }).join("");
+  const endpointLabels = series
+    .map(item => ({ ...item, actualY: y(item.values.at(-1)) }))
+    .sort((left, right) => left.actualY - right.actualY);
+  let priorLabelY = margin.top - 24;
+  endpointLabels.forEach(item => {
+    item.labelY = Math.max(item.actualY, priorLabelY + 24);
+    priorLabelY = item.labelY;
+  });
+  const lastLabelY = endpointLabels.at(-1)?.labelY || margin.top;
+  if (lastLabelY > height - margin.bottom) {
+    const overflow = lastLabelY - (height - margin.bottom);
+    endpointLabels.forEach(item => { item.labelY -= overflow; });
+  }
+  const directLabels = endpointLabels.map(item => `<g><line x1="${x(months.length - 1)}" y1="${item.actualY}" x2="${width - margin.right + 12}" y2="${item.labelY}" stroke="${item.color}" stroke-width="1.4"/><circle cx="${width - margin.right + 12}" cy="${item.labelY}" r="3" fill="${item.color}"/><text x="${width - margin.right + 21}" y="${item.labelY + 4}" fill="${item.color}" font-size="12" font-weight="700">${escapeHtml(`${item.name} ${item.values.at(-1).toFixed(1)}%`)}</text></g>`).join("");
+  lines += directLabels;
   const legend = series.map(item => `<div class="legend-item"><i style="background:${item.color}"></i><span>${escapeHtml(item.name)}</span><strong>${item.values.at(-1)}%</strong></div>`).join("");
   const details = series.map(item => {
     const latestIndex = item.values.at(-1);
