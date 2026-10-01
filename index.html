@@ -223,20 +223,26 @@
     </section>
 
     <section class="progress-band" aria-label="Progress summary">
-      <div>
+      <div class="progress-stat">
         <span id="completeCount">0</span>
         <small>completed</small>
       </div>
-      <div>
+      <div class="progress-stat">
         <span id="activeCount">0</span>
         <small>active</small>
       </div>
-      <div>
+      <div class="progress-stat">
         <span id="blockedCount">0</span>
         <small>blocked</small>
       </div>
-      <div class="progress-meter" aria-label="Overall completion">
-        <span id="progressFill"></span>
+      <div class="progress-payment-summary">
+        <div class="progress-payment-line" aria-label="Monthly bill payment progress">
+          <span id="billPaidPercent">0% paid</span>
+          <span id="billRemainingPercent">100% remaining</span>
+        </div>
+        <div class="progress-meter" aria-label="Monthly bill payment progress">
+          <span id="progressFill"></span>
+        </div>
       </div>
     </section>
 

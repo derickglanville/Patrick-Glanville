@@ -9731,11 +9731,17 @@ function updateProgress() {
   const done = state.tasks.filter(task => isClosedTask(task)).length;
   const blocked = state.tasks.filter(task => task.status === "Blocked").length;
   const active = state.tasks.length - done;
-  const average = state.tasks.reduce((sum, task) => sum + normalizePercent(task.percent), 0) / total;
+  const billTotals = calculateBudgetTotals(state.monthlyBudgetFund, state.bills, getCurrentMonthlyCashUsed());
+  const billPaidPercent = billTotals.totalBills > 0
+    ? Math.round((billTotals.paidBills / billTotals.totalBills) * 100)
+    : 100;
+  const billRemainingPercent = Math.max(0, 100 - billPaidPercent);
   document.querySelector("#completeCount").textContent = done;
   document.querySelector("#activeCount").textContent = active;
   document.querySelector("#blockedCount").textContent = blocked;
-  document.querySelector("#progressFill").style.width = `${Math.round(average)}%`;
+  document.querySelector("#billPaidPercent").textContent = `${billPaidPercent}% paid`;
+  document.querySelector("#billRemainingPercent").textContent = `${billRemainingPercent}% remaining`;
+  document.querySelector("#progressFill").style.width = `${billPaidPercent}%`;
 }
 
 function openTask(id) {

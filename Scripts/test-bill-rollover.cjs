@@ -96,6 +96,10 @@ assert.match(source, /calculateBudgetTotals\(state\.monthlyBudgetFund, state\.bi
 assert.match(source, /Scheduled bill amounts not yet marked Paid: \$\{formatCurrency\(remaining\)\}/);
 assert.match(source, /unpaidScheduledBills\.join\("\\n"\)/);
 assert.match(fs.readFileSync('index.html', 'utf8'), /<span>Not marked Paid<\/span>/);
+assert.match(fs.readFileSync('index.html', 'utf8'), /id="billPaidPercent">0% paid/);
+assert.match(fs.readFileSync('index.html', 'utf8'), /id="billRemainingPercent">100% remaining/);
+assert.match(source, /const billPaidPercent = billTotals\.totalBills > 0/);
+assert.match(source, /progressFill"\)\.style\.width = `\$\{billPaidPercent\}%`/);
 
 const observationContext = {
   state: {
