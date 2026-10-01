@@ -91,5 +91,6 @@ vm.runInContext(extract('getBillCurrentBalanceObservation'), observationContext)
 const observation = observationContext.getBillCurrentBalanceObservation({ templateKey: 'apple-card', name: 'Apple Card' });
 assert.equal(observation.value, '$4,197.93 / $4,348.88 / $4,500.00');
 assert.match(observation.title, /newest first/);
+assert.match(observation.title, /Apple Card/);
 
 console.log('PASS: Admin future-month creation and Copy To Next Month use the prior closing balance for both balance fields, reset payment details, render the Observation column with the three latest validated balances, and account for monthly cash used in cash flow and Card Finder.');
