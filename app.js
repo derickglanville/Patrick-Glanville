@@ -7904,11 +7904,19 @@ function updateBillTotals() {
     billCashUsed.parentElement?.setAttribute("title", `Cash used for non-bill spending throughout this month: ${formatCurrency(getCurrentMonthlyCashUsed())}.`);
   }
   billRemaining.textContent = formatCurrency(remaining);
-  billRemaining.parentElement?.setAttribute("title", `Scheduled bill amounts not yet marked Paid: ${formatCurrency(remaining)}.`);
+  const unpaidScheduledBills = displayBills
+    .filter(bill => bill.status !== "Paid" && getEffectiveBillAmount(bill) > 0)
+    .map(bill => `${bill.name || "Untitled bill"}: ${formatCurrency(getEffectiveBillAmount(bill))} (${bill.status || "Unpaid"})`);
+  billRemaining.parentElement?.setAttribute(
+    "title",
+    unpaidScheduledBills.length
+      ? `Scheduled bill amounts not yet marked Paid: ${formatCurrency(remaining)}.\n${unpaidScheduledBills.join("\n")}`
+      : "All scheduled bill amounts are marked Paid."
+  );
   const totalBillsLabel = billTotal.parentElement?.querySelector("span");
   if (totalBillsLabel) totalBillsLabel.textContent = simulationActive ? "Projected bills" : "Total bills";
   const remainingBillsLabel = billRemaining.parentElement?.querySelector("span");
-  if (remainingBillsLabel) remainingBillsLabel.textContent = simulationActive ? "Projected remaining" : "Remaining";
+  if (remainingBillsLabel) remainingBillsLabel.textContent = simulationActive ? "Projected not marked Paid" : "Not marked Paid";
   if (billCashFlow) {
     billCashFlow.textContent = formatSignedCurrency(cashFlow);
     billCashFlow.parentElement?.classList.toggle("is-negative", !covered);

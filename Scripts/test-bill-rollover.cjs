@@ -69,6 +69,9 @@ assert.equal(totals.cashUsed, 1000);
 assert.equal(totals.cashFlow, 527.01);
 assert.match(source, /const cardCharge = normalizeMoney\(Math\.max\(0, charge - cashAvailable\)\);/);
 assert.match(source, /calculateBudgetTotals\(state\.monthlyBudgetFund, state\.bills, getCurrentMonthlyCashUsed\(\)\)/);
+assert.match(source, /Scheduled bill amounts not yet marked Paid: \$\{formatCurrency\(remaining\)\}/);
+assert.match(source, /unpaidScheduledBills\.join\("\\n"\)/);
+assert.match(fs.readFileSync('index.html', 'utf8'), /<span>Not marked Paid<\/span>/);
 
 const observationContext = {
   state: {
