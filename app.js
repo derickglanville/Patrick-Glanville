@@ -1950,6 +1950,38 @@ const BILL_COLUMN_SUM_CONFIG = {
   }
 };
 
+const BILL_HEADER_TOOLTIPS = {
+  "Bill": "Bill or account name.",
+  "Type": "Bill category used for planning and payoff rules.",
+  "APR": "Annual percentage rate. It is used to estimate monthly interest and the payoff date.",
+  "Interest Paid": "Estimated monthly interest: Previous Balance × APR ÷ 12. Click to view the column total.",
+  "Prev Bal": "Balance carried into the selected month from the prior month’s closing balance. Click to view the column total.",
+  "Current Bal": "Current recorded balance for the selected month. Click to view the column total.",
+  "Diff": "Current Balance minus Previous Balance. A negative value shows the balance fell. Click to view the column total.",
+  "Pay More": "Payment guidance. It identifies paid bills where estimated interest consumes more than the principal-reducing portion of the payment.",
+  "Credit Line": "Credit limit or available credit line. Click to view the column total.",
+  "Amount": "Scheduled amount due for this bill in the selected month.",
+  "Due Amt": "Scheduled amount due for this bill in the selected month. Click to view the column total.",
+  "Paid Amt": "Amount recorded as paid in the selected month. Click to view the column total.",
+  "Recommended": "Calculated monthly payoff target. It is at least the scheduled Due Amt or estimated monthly interest, then allocates a weighted 36-month payoff amount. Click to view the column total.",
+  "Expected Paid Off Date": "Estimate based on Current Balance, APR, and a fixed monthly Recommended amount with no new charges. Due Amt is not used directly, except that it helps set the Recommended amount. Taxes are recurring and display Ongoing.",
+  "Tran #": "Payment transaction or confirmation number.",
+  "Due": "Scheduled payment due date.",
+  "Date Paid": "Date the payment was recorded as paid.",
+  "% Credit": "Available credit percentage: (Credit Line − Current Balance) ÷ Credit Line.",
+  "Status": "Current payment status for the selected month.",
+  "Notes": "Bill notes and payment guidance.",
+  "Observation": "The three most recent recorded Current Bal values, newest first. Hover the value for the month and bill details.",
+  "Actions": "Controls for hiding, restoring, or deleting the bill."
+};
+
+function applyBillHeaderTooltips(header) {
+  header?.querySelectorAll("span").forEach(cell => {
+    const tooltip = BILL_HEADER_TOOLTIPS[cell.textContent.trim()];
+    if (tooltip) cell.title = tooltip;
+  });
+}
+
 const fields = {
   id: document.querySelector("#taskId"),
   title: document.querySelector("#taskTitle"),
@@ -7092,6 +7124,7 @@ function renderBills() {
     billListHeader.innerHTML = usesSimpleBills
       ? "<span class=\"budget-bill-selector-header\"></span><span>Bill</span><span>Prev Bal</span><span>Current Bal</span><span>Amount</span><span>Due</span><span>Date Paid</span><span>Status</span><span>Notes</span><span>Actions</span>"
       : "<span class=\"budget-bill-selector-header bill-col-selector\"></span><span class=\"bill-col bill-col-name\">Bill</span><span class=\"bill-col bill-col-type\">Type</span><span class=\"bill-col bill-col-apr\">APR</span><span class=\"bill-col bill-col-interest-paid is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum interest paid column\">Interest Paid</span><span class=\"bill-col bill-col-prev-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum previous balance column\">Prev Bal</span><span class=\"bill-col bill-col-current-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum current balance column\">Current Bal</span><span class=\"bill-col bill-col-diff is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum difference column\">Diff</span><span class=\"bill-col bill-col-payment-priority\" title=\"Paid bills where interest consumes more than the principal portion\">Pay More</span><span class=\"bill-col bill-col-credit-line is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum credit line column\">Credit Line</span><span class=\"bill-col bill-col-due-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum due amount column\">Due Amt</span><span class=\"bill-col bill-col-paid-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum paid amount column\">Paid Amt</span><span class=\"bill-col bill-col-recommended is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum recommended payment column\">Recommended</span><span class=\"bill-col bill-col-payoff-date\">Expected Paid Off Date</span><span class=\"bill-col bill-col-tran\">Tran #</span><span class=\"bill-col bill-col-due-date\">Due</span><span class=\"bill-col bill-col-date-paid\">Date Paid</span><span class=\"bill-col bill-col-credit-percent\">% Credit</span><span class=\"bill-col bill-col-status\">Status</span><span class=\"bill-col bill-col-notes\">Notes</span><span class=\"bill-col bill-col-observation\">Observation</span><span class=\"bill-col bill-col-actions\">Actions</span>";
+    applyBillHeaderTooltips(billListHeader);
     const hiddenHeader = document.querySelector("#hiddenBillListHeader");
     if (hiddenHeader) {
       hiddenHeader.innerHTML = billListHeader.innerHTML;
