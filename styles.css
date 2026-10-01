@@ -1111,6 +1111,7 @@ textarea {
     56px
     64px
     minmax(156px, .9fr)
+    minmax(156px, .9fr)
     78px;
   gap: 1px;
   padding: 0 2px;
@@ -1204,6 +1205,7 @@ textarea {
 .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-name,
 .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-status,
 .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-notes,
+.budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-observation,
 .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-credit-box .budget-bill-status-note {
   font-size: .95rem;
 }
@@ -1229,6 +1231,7 @@ textarea {
     minmax(98px, .62fr)
     50px
     58px
+    minmax(128px, .78fr)
     minmax(128px, .78fr)
     74px;
   font-size: .68rem;
@@ -1256,6 +1259,7 @@ textarea {
     50px
     58px
     minmax(128px, .78fr)
+    minmax(128px, .78fr)
     74px;
   min-width: 1140px;
   padding: 0 2px;
@@ -1276,6 +1280,7 @@ textarea {
 .budget-panel-compact-view .budget-bill-item:not(.budget-bill-item-simple) .bill-name,
 .budget-panel-compact-view .budget-bill-item:not(.budget-bill-item-simple) .bill-status,
 .budget-panel-compact-view .budget-bill-item:not(.budget-bill-item-simple) .bill-notes,
+.budget-panel-compact-view .budget-bill-item:not(.budget-bill-item-simple) .bill-observation,
 .budget-panel-compact-view .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-credit-box .budget-bill-status-note {
   font-size: .8rem;
 }
@@ -1318,7 +1323,8 @@ textarea {
 .budget-panel-admin-mini .bill-col-due-amt,
 .budget-panel-admin-mini .bill-col-recommended,
 .budget-panel-admin-mini .bill-col-payoff-date,
-.budget-panel-admin-mini .bill-col-notes {
+.budget-panel-admin-mini .bill-col-notes,
+.budget-panel-admin-mini .bill-col-observation {
   display: none !important;
 }
 
@@ -1362,6 +1368,7 @@ textarea {
     minmax(108px, .68fr)
     56px
     64px
+    minmax(156px, .9fr)
     minmax(156px, .9fr)
     78px;
   gap: 0;
@@ -5018,7 +5025,8 @@ body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(
     "selector amount paid"
     "selector due paid-date"
     "selector status actions"
-    "selector notes notes";
+    "selector notes notes"
+    "selector observation observation";
   gap: 9px 10px;
   padding: 12px;
   margin-bottom: 10px;
@@ -5049,6 +5057,8 @@ body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.
 body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-status { grid-area: status; }
 body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-notes,
 body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-notes { grid-area: notes; }
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-observation,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-observation { grid-area: observation; }
 body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-actions,
 body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-actions { grid-area: actions; }
 
@@ -5113,6 +5123,7 @@ body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-total-row
       "selector previous current amount"
       "selector paid due paid-date"
       "selector status notes notes"
+      "selector observation observation observation"
       "selector actions actions actions";
   }
 }
@@ -5203,7 +5214,8 @@ body[data-device-layout="tablet"] #adminCreditCardFinderBtn {
 .budget-panel.is-admin-tablet-grid .bill-col-due-date,
 .budget-panel.is-admin-tablet-grid .bill-col-date-paid,
 .budget-panel.is-admin-tablet-grid .bill-col-credit-percent,
-.budget-panel.is-admin-tablet-grid .bill-col-notes {
+.budget-panel.is-admin-tablet-grid .bill-col-notes,
+.budget-panel.is-admin-tablet-grid .bill-col-observation {
   display: none !important;
 }
 .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-field,
@@ -5248,7 +5260,8 @@ body[data-device-layout="tablet"] #adminCreditCardFinderBtn {
 .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-due-date,
 .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-date-paid,
 .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-credit-percent,
-.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-notes {
+.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-notes,
+.budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-observation {
   display: none !important;
 }
 
