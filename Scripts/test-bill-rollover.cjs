@@ -92,5 +92,6 @@ const observation = observationContext.getBillCurrentBalanceObservation({ templa
 assert.equal(observation.value, '$4,197.93 / $4,348.88 / $4,500.00');
 assert.match(observation.title, /newest first/);
 assert.match(observation.title, /Apple Card/);
+assert.match(observation.title, /\n2026-09: \$4,197\.93\n2026-08: \$4,348\.88/);
 
 console.log('PASS: Admin future-month creation and Copy To Next Month use the prior closing balance for both balance fields, reset payment details, render the Observation column with the three latest validated balances, and account for monthly cash used in cash flow and Card Finder.');

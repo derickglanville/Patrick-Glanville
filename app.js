@@ -7524,7 +7524,7 @@ function getBillCurrentBalanceObservation(bill, targetMonth = state.billMonth ||
   return {
     value: balances.map(entry => formatCurrency(entry.balance)).join(" / "),
     title: balances.length
-      ? `${bill.name || "This bill"} — current balances, newest first: ${balances.map(entry => `${formatBudgetMonthLabel(entry.month)} ${formatCurrency(entry.balance)}`).join("; ")}.`
+      ? `${bill.name || "This bill"} — current balances, newest first:\n${balances.map(entry => `${formatBudgetMonthLabel(entry.month)}: ${formatCurrency(entry.balance)}`).join("\n")}`
       : `${bill.name || "This bill"} — no validated current-balance history is available.`
   };
 }
