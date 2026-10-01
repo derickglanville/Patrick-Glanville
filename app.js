@@ -1809,8 +1809,8 @@ const processGuideBtn = document.querySelector("#processGuideBtn");
 const urgencyReportBtn = document.querySelector("#urgencyReportBtn");
 const patrickChangeReportBtn = document.querySelector("#patrickChangeReportBtn");
 const htmlEmailDashboardReportBtn = document.querySelector("#htmlEmailDashboardReportBtn");
-const toggleBillsBtn = document.querySelector("#toggleBillsBtn");
-const toggleLifeAdminBtn = document.querySelector("#toggleLifeAdminBtn");
+const toggleBillsBtn = document.querySelector("#hideBillsBtn");
+const toggleLifeAdminBtn = document.querySelector("#hideLifeAdminBtn");
 const workScheduleEntryBtn = document.querySelector("#workScheduleEntryBtn");
 const workSchedulePanel = document.querySelector("#workSchedulePanel");
 const workScheduleContent = document.querySelector("#workScheduleContent");
@@ -6573,7 +6573,7 @@ function renderPanelVisibility() {
   }
   const client = currentClientConfig();
   if (client?.supportsLifeAdmin) {
-    setPanelHidden(
+    setPanelCollapsed(
       lifeAdminPanel,
       lifeAdminPanelContent,
       toggleLifeAdminBtn,
@@ -12201,11 +12201,6 @@ toggleBillsBtn.addEventListener("click", () => {
   saveState();
   renderPanelVisibility();
 });
-hideBillsBtn.addEventListener("click", () => {
-  state.hiddenPanels.bills = true;
-  saveState();
-  renderPanelVisibility();
-});
 if (toggleBillsPopoutBtn) {
   toggleBillsPopoutBtn.addEventListener("click", () => {
     budgetPanel.classList.toggle("budget-panel-popout");
@@ -12259,11 +12254,6 @@ document.querySelector("#addLifeAdminNoteBtn").addEventListener("click", () => {
 });
 toggleLifeAdminBtn.addEventListener("click", () => {
   state.hiddenPanels.lifeAdmin = !state.hiddenPanels.lifeAdmin;
-  saveState();
-  renderPanelVisibility();
-});
-hideLifeAdminBtn.addEventListener("click", () => {
-  state.hiddenPanels.lifeAdmin = true;
   saveState();
   renderPanelVisibility();
 });

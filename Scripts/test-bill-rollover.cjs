@@ -98,6 +98,9 @@ assert.match(source, /unpaidScheduledBills\.join\("\\n"\)/);
 assert.match(fs.readFileSync('index.html', 'utf8'), /<span>Not marked Paid<\/span>/);
 assert.match(fs.readFileSync('index.html', 'utf8'), /id="billPaidPercent">0% paid/);
 assert.match(fs.readFileSync('index.html', 'utf8'), /id="billRemainingPercent">100% remaining/);
+assert.doesNotMatch(fs.readFileSync('index.html', 'utf8'), /optional-section-controls/);
+assert.match(fs.readFileSync('index.html', 'utf8'), /id="hideBillsBtn"[^>]*>Hide Monthly Bills/);
+assert.match(source, /const toggleBillsBtn = document\.querySelector\("#hideBillsBtn"\);/);
 assert.match(source, /const billPaidPercent = billTotals\.totalBills > 0/);
 assert.match(source, /progressFill"\)\.style\.width = `\$\{billPaidPercent\}%`/);
 
