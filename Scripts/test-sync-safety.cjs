@@ -19,6 +19,8 @@ function setup() {
     localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},
     assessAdminBillDataLoss:()=>null, renderBillSyncAlert:()=>{},updateDataStoreStatus:()=>{},formatDateTime:v=>v,
     cacheRemoteUpdatedAt:v=>c.remoteUpdatedAt=v,blockAdminBillDataLoss:()=>{},
+    buildFirebaseSavePayload:updatedAt=>({main:{id:'admin',state:structuredClone(c.state),updated_at:updatedAt,updated_by:''},archiveDocuments:[]}),
+    saveFirebaseArchiveDocuments:async()=>{}, hydrateFirebaseArchivedState:async data=>data.state,
     currentClientConfig:()=>({shortName:'Admin'}), userSelect:{}, render:()=>{},
     writes:[], live:{updated_at:'v1',state:{tasks:[],bills:[{name:'Test',currentBalance:100}]}},
     supabaseClient:{db:{},doc:()=>({}),runTransaction:async(_,fn)=>fn({get:async()=>({exists:()=>true,data:()=>c.live}),set:(_,payload)=>c.writes.push(structuredClone(payload))})}

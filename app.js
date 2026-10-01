@@ -19,6 +19,9 @@ const BUILD_INFO = {
 const GITHUB_COMMIT_API = "https://api.github.com/repos/derickglanville/Patrick-Glanville/commits/main";
 const SUPABASE_TABLE = "tracker_state";
 const FIREBASE_REFRESH_SIGNAL_TABLE = "tracker_refresh_signals";
+const FIREBASE_ARCHIVE_SUBCOLLECTION = "archives";
+const FIREBASE_ARCHIVE_FIELDS = ["billSnapshots", "billAuditLog", "history"];
+const FIREBASE_ARCHIVE_CHUNK_MAX_BYTES = 700000;
 const PATRICK_SUPABASE_STATE_ID = "patrick-glanville";
 const THEODORE_SUPABASE_STATE_ID = "theodore-glanville";
 const ADMIN_SUPABASE_STATE_ID = "admin-glanville";
@@ -5443,6 +5446,98 @@ function blockAdminBillDataLoss(risk, source) {
   updateDataStoreStatus();
   renderBillSyncAlert();
 }
+
+function getFirebaseValueByteSize(value) {
+  return new TextEncoder().encode(JSON.stringify(value)).length;
+}
+
+function splitFirebaseArchiveValue(values) {
+  if (!Array.isArray(values)) throw new Error("Firebase archive data is invalid; the main record was not changed.");
+  const chunks = [];
+  let chunk = [];
+  for (const value of values) {
+    const candidate = [...chunk, value];
+    if (chunk.length && getFirebaseValueByteSize(candidate) > FIREBASE_ARCHIVE_CHUNK_MAX_BYTES) {
+      chunks.push(chunk);
+      chunk = [value];
+    } else {
+      chunk = candidate;
+    }
+    if (getFirebaseValueByteSize(chunk) > FIREBASE_ARCHIVE_CHUNK_MAX_BYTES) {
+      throw new Error("A Firebase archive entry is too large to store safely; the main record was not changed.");
+    }
+  }
+  if (chunk.length) chunks.push(chunk);
+  return chunks;
+}
+
+function buildFirebaseSavePayload(updatedAt) {
+  const fullState = structuredClone(state);
+  const main = {
+    id: getSupabaseStateId(), client_id: activeClientId, state: fullState,
+    updated_by: state.currentUser || "", updated_at: updatedAt
+  };
+  if (activeClientId !== "admin") return { main, archiveDocuments: [] };
+
+  const archiveVersion = `${updatedAt}:${DEVICE_SESSION_ID}`;
+  const compactState = structuredClone(fullState);
+  const archiveManifest = {};
+  const archiveDocuments = [];
+  FIREBASE_ARCHIVE_FIELDS.forEach(field => {
+    const chunks = splitFirebaseArchiveValue(fullState[field] || []);
+    delete compactState[field];
+    archiveManifest[field] = { chunks: chunks.length, itemCount: fullState[field]?.length || 0 };
+    chunks.forEach((values, index) => archiveDocuments.push({
+      field, index, archive_version: archiveVersion, values
+    }));
+  });
+  main.state = compactState;
+  main.archive_version = archiveVersion;
+  main.archive_manifest = archiveManifest;
+  return { main, archiveDocuments };
+}
+
+async function saveFirebaseArchiveDocuments(stateId, archiveDocuments) {
+  await Promise.all(archiveDocuments.map(archive => {
+    const archiveRef = supabaseClient.doc(
+      supabaseClient.db, SUPABASE_TABLE, stateId, FIREBASE_ARCHIVE_SUBCOLLECTION, `${archive.field}-${archive.index}`
+    );
+    return supabaseClient.setDoc(archiveRef, archive);
+  }));
+}
+
+async function hydrateFirebaseArchivedState(data, stateId) {
+  const compactState = data?.state;
+  if (!data?.archive_version && !data?.archive_manifest) return compactState;
+  if (!data?.archive_version || !data?.archive_manifest || typeof compactState !== "object") {
+    throw new Error("Firebase archive metadata is incomplete; no local data was replaced.");
+  }
+  const hydratedState = structuredClone(compactState);
+  for (const field of FIREBASE_ARCHIVE_FIELDS) {
+    const manifest = data.archive_manifest[field];
+    if (!manifest || !Number.isInteger(manifest.chunks) || manifest.chunks < 0 || !Number.isInteger(manifest.itemCount) || manifest.itemCount < 0) {
+      throw new Error(`Firebase ${field} archive metadata is invalid; no local data was replaced.`);
+    }
+    const parts = await Promise.all(Array.from({ length: manifest.chunks }, async (_, index) => {
+      const archiveRef = supabaseClient.doc(
+        supabaseClient.db, SUPABASE_TABLE, stateId, FIREBASE_ARCHIVE_SUBCOLLECTION, `${field}-${index}`
+      );
+      const snapshot = await supabaseClient.getDoc(archiveRef);
+      const archive = snapshot.exists() ? snapshot.data() : null;
+      if (!archive || archive.archive_version !== data.archive_version || !Array.isArray(archive.values)) {
+        throw new Error(`Firebase ${field} archive is incomplete; no local data was replaced.`);
+      }
+      return archive.values;
+    }));
+    const values = parts.flat();
+    if (values.length !== manifest.itemCount) {
+      throw new Error(`Firebase ${field} archive count does not match; no local data was replaced.`);
+    }
+    hydratedState[field] = values;
+  }
+  return hydratedState;
+}
+
 function applyRemoteSharedState(remoteState, updatedAt = "") {
   const previousState = structuredClone(state);
   const dataLossRisk = assessAdminBillDataLoss(previousState, remoteState);
@@ -5543,7 +5638,7 @@ async function subscribeToSharedState() {
             return;
           }
           const data = snapshot.data() || {};
-          const remoteState = data.state;
+          const remoteState = await hydrateFirebaseArchivedState(data, stateId);
           const updatedAt = data.updated_at || "";
           if (!remoteState || !Array.isArray(remoteState.tasks)) {
             throw new Error("Firebase data is incomplete; no local or remote data was replaced.");
@@ -5638,13 +5733,14 @@ async function pullLatestSharedState() {
   if (activeClientId !== clientId || pendingLocalSharedSaveAt !== pendingAtStart) {
     throw new Error("New edits or a client change occurred during refresh; nothing was replaced.");
   }
-  if (!Array.isArray(data.state.tasks)) throw new Error("Firebase data is incomplete; nothing was replaced.");
-  const risk = assessAdminBillDataLoss(state, data.state);
+  const remoteState = await hydrateFirebaseArchivedState(data, getSupabaseStateId());
+  if (!Array.isArray(remoteState?.tasks)) throw new Error("Firebase data is incomplete; nothing was replaced.");
+  const risk = assessAdminBillDataLoss(state, remoteState);
   if (risk) {
     blockAdminBillDataLoss(risk, "Manual Firebase refresh");
     throw new Error("Refresh blocked by data-loss protection; pending edits are unchanged.");
   }
-  applyRemoteSharedState(data.state, data.updated_at || "");
+  applyRemoteSharedState(remoteState, data.updated_at || "");
   pendingLocalSharedSaveAt = "";
   localStorage.removeItem(`${getStorageKey()}:pending-save`);
   return data.updated_at || "";
@@ -5719,11 +5815,13 @@ async function saveSharedStateNow() {
   const storageKey = getStorageKey();
   const baseline = remoteUpdatedAt || "";
   const pendingVersion = pendingLocalSharedSaveAt;
-  const payload = { id: getSupabaseStateId(), state: structuredClone(state),
-    updated_by: state.currentUser || "", updated_at: new Date().toISOString() };
-  const docRef = supabaseClient.doc(supabaseClient.db, SUPABASE_TABLE, payload.id);
+  const payload = buildFirebaseSavePayload(new Date().toISOString());
+  const docRef = supabaseClient.doc(supabaseClient.db, SUPABASE_TABLE, payload.main.id);
   sharedSaveInFlight = (async () => {
     try {
+      // Archive documents are written before the main document references them.
+      // A failed archive write leaves the prior complete version untouched.
+      await saveFirebaseArchiveDocuments(payload.main.id, payload.archiveDocuments);
       await supabaseClient.runTransaction(supabaseClient.db, async transaction => {
         const snapshot = await transaction.get(docRef);
         const live = snapshot.exists() ? snapshot.data() : null;
@@ -5732,16 +5830,18 @@ async function saveSharedStateNow() {
           error.code = "local/save-conflict";
           throw error;
         }
-        const risk = assessAdminBillDataLoss(live?.state, payload.state);
+        const risk = assessAdminBillDataLoss(live?.state, payload.main.state);
         if (risk) {
           const error = new Error("Firebase data-loss protection blocked a destructive Admin bill save.");
           error.dataLossRisk = risk;
           throw error;
         }
-        transaction.set(docRef, payload, { merge: true });
+        // Replace the main record so the old embedded history is removed after
+        // its complete archive version is available.
+        transaction.set(docRef, payload.main);
       });
       if (activeClientId !== clientId) return;
-      cacheRemoteUpdatedAt(payload.updated_at);
+      cacheRemoteUpdatedAt(payload.main.updated_at);
       if (pendingLocalSharedSaveAt === pendingVersion) {
         pendingLocalSharedSaveAt = "";
         localStorage.removeItem(`${storageKey}:pending-save`);
@@ -5750,7 +5850,7 @@ async function saveSharedStateNow() {
         billSyncAlertState = null;
         renderBillSyncAlert();
       }
-      supabaseStatus = `Firebase Firestore shared storage; saved ${formatDateTime(payload.updated_at)}`;
+      supabaseStatus = `Firebase Firestore shared storage; saved ${formatDateTime(payload.main.updated_at)}`;
       updateDataStoreStatus();
     } catch (error) {
       if (activeClientId === clientId) {
