@@ -61,12 +61,19 @@ const totalsContext = {
   normalizeMoney: value => Math.round((Number(value) || 0) * 100) / 100,
   getEffectiveBillAmount: bill => Number(bill.amount) || 0,
   isBillPastDue: () => false,
+  isBillPayoffComplete: bill => ['Paid Off', 'Fully Paid'].includes(bill.status),
 };
 vm.createContext(totalsContext);
 vm.runInContext(extract('calculateBudgetTotals'), totalsContext);
 const totals = totalsContext.calculateBudgetTotals(5000, [{ amount: 3472.99, status: 'Paid' }], 1000);
 assert.equal(totals.cashUsed, 1000);
 assert.equal(totals.cashFlow, 527.01);
+const settledTotals = totalsContext.calculateBudgetTotals(5000, [
+  { amount: 3392.99, status: 'Paid' },
+  { amount: 80, status: 'Paid Off', currentBalance: 0 },
+], 1000);
+assert.equal(settledTotals.totalBills, 3392.99);
+assert.equal(settledTotals.remainingBills, 0);
 assert.match(source, /const cardCharge = normalizeMoney\(Math\.max\(0, charge - cashAvailable\)\);/);
 assert.match(source, /calculateBudgetTotals\(state\.monthlyBudgetFund, state\.bills, getCurrentMonthlyCashUsed\(\)\)/);
 assert.match(source, /Scheduled bill amounts not yet marked Paid: \$\{formatCurrency\(remaining\)\}/);

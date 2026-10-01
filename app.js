@@ -3913,8 +3913,13 @@ function getRolloverDeletedBillNames() {
   return activeClientId === "patrick" ? ["eye glasses"] : [];
 }
 
+function isBillPayoffComplete(bill) {
+  return ["Paid Off", "Fully Paid"].includes(String(bill?.status || "").trim());
+}
+
 function calculateBudgetTotals(monthlyBudgetFund, bills, monthlyCashUsed = 0) {
-  const totalBills = bills.reduce((sum, bill) => sum + getEffectiveBillAmount(bill), 0);
+  const activeBills = bills.filter(bill => !isBillPayoffComplete(bill));
+  const totalBills = activeBills.reduce((sum, bill) => sum + getEffectiveBillAmount(bill), 0);
   const paidBills = bills
     .filter(bill => bill.status === "Paid")
     .reduce((sum, bill) => sum + getEffectiveBillAmount(bill), 0);
@@ -3923,7 +3928,7 @@ function calculateBudgetTotals(monthlyBudgetFund, bills, monthlyCashUsed = 0) {
   const cashFlow = Math.round((normalizeMoney(monthlyBudgetFund) - totalBills - cashUsed) * 100) / 100;
   const covered = cashFlow >= 0;
   const fundingGap = covered ? 0 : Math.abs(cashFlow);
-  const pastDueCount = bills.filter(bill => isBillPastDue(bill)).length;
+  const pastDueCount = activeBills.filter(bill => isBillPastDue(bill)).length;
   return {
     totalBills,
     paidBills,
@@ -7905,7 +7910,7 @@ function updateBillTotals() {
   }
   billRemaining.textContent = formatCurrency(remaining);
   const unpaidScheduledBills = displayBills
-    .filter(bill => bill.status !== "Paid" && getEffectiveBillAmount(bill) > 0)
+    .filter(bill => bill.status !== "Paid" && !isBillPayoffComplete(bill) && getEffectiveBillAmount(bill) > 0)
     .map(bill => `${bill.name || "Untitled bill"}: ${formatCurrency(getEffectiveBillAmount(bill))} (${bill.status || "Unpaid"})`);
   billRemaining.parentElement?.setAttribute(
     "title",
@@ -8137,11 +8142,11 @@ function restoreBillSnapshot(snapshotId) {
 }
 
 function isBillPastDue(bill) {
-  return Boolean(bill.due && bill.status !== "Paid" && bill.status !== "Deferred" && bill.due < getTodayIsoDate());
+  return Boolean(bill.due && bill.status !== "Paid" && bill.status !== "Deferred" && !isBillPayoffComplete(bill) && bill.due < getTodayIsoDate());
 }
 
 function isBillDueSoon(bill, days = 7) {
-  if (!bill?.due || bill.status === "Paid" || bill.status === "Deferred") return false;
+  if (!bill?.due || bill.status === "Paid" || bill.status === "Deferred" || isBillPayoffComplete(bill)) return false;
   const today = new Date(`${getTodayIsoDate()}T00:00:00`);
   const dueDate = new Date(`${bill.due}T00:00:00`);
   if (Number.isNaN(today.getTime()) || Number.isNaN(dueDate.getTime())) return false;
