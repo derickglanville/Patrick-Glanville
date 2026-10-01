@@ -6736,6 +6736,7 @@ function renderBills() {
     const interestPriority = getAdminInterestPriority(bill, interestPaid, recommendedPayment);
     const balanceDiff = effectiveCurrentBalance - effectivePreviousBalance;
     const notesDisplay = buildAdminPaidBillProgressNote(bill, interestPaid, recommendedPayment) || bill.notes || "";
+    const balanceObservation = getBillCurrentBalanceObservation(bill);
     const paymentPriorityDisplay = getAdminPaymentPriorityDisplay(interestPriority);
     const row = document.createElement("article");
     row.className = `budget-bill-item${pastDue ? " is-past-due" : ""}${dueSoon ? " is-due-soon" : ""}${bill.status === "Paid" ? " is-paid" : ""}${isAdminClient() && bill.status === "Paid" ? " is-admin-paid" : ""}${bill.hidden && bill.status === "Paid Off" ? " is-hidden-paid-off" : ""}`;
@@ -6827,9 +6828,9 @@ function renderBills() {
         </label>
       </div>
       <div class="budget-bill-notes-box bill-col-observation">
-        <label class="budget-bill-field">
+        <label class="budget-bill-field" title="${escapeAttribute(balanceObservation.title)}">
           <span>Observation</span>
-          <textarea class="bill-observation" rows="1" wrap="off" aria-label="Bill observation" placeholder="Optional observation" title="${escapeAttribute(bill.observation || "")}">${escapeHtml(bill.observation || "")}</textarea>
+          <input class="bill-observation" type="text" value="${escapeAttribute(balanceObservation.value)}" aria-label="Last three current balances" readonly>
         </label>
       </div>
       <div class="budget-bill-actions bill-col-actions">
@@ -6863,8 +6864,6 @@ function renderBills() {
     row.querySelector(".bill-status").addEventListener("change", () => updateBillFromRow(row, { showPaymentInsight: true }));
     row.querySelector(".bill-notes").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-notes").addEventListener("blur", () => updateBillFromRow(row));
-    row.querySelector(".bill-observation").addEventListener("change", () => updateBillFromRow(row));
-    row.querySelector(".bill-observation").addEventListener("blur", () => updateBillFromRow(row));
     row.addEventListener("click", event => {
       if (event.target.closest("button")) return;
       selectOnlyBillRow(row, bill.id);
@@ -7505,6 +7504,31 @@ function getBillBalanceHistory(bill) {
     .filter(Boolean);
 }
 
+function getBillCurrentBalanceObservation(bill, targetMonth = state.billMonth || defaultBillMonth()) {
+  if (!bill) return { value: "", title: "No bill is available for balance-history lookup." };
+  const key = String(bill.templateKey || buildBudgetBillTemplateKey(bill.name) || "").trim().toLowerCase();
+  const name = String(bill.name || "").trim().toLowerCase();
+  const balances = Object.entries(state.monthlyBudgets || {})
+    .filter(([month]) => month <= targetMonth)
+    .sort(([left], [right]) => right.localeCompare(left))
+    .map(([month, budget]) => {
+      const historicalBill = (budget?.bills || []).map(normalizeBill).find(candidate => {
+        const candidateKey = String(candidate.templateKey || buildBudgetBillTemplateKey(candidate.name) || "").trim().toLowerCase();
+        return candidateKey === key || String(candidate.name || "").trim().toLowerCase() === name;
+      });
+      if (!historicalBill || !Number.isFinite(Number(historicalBill.currentBalance))) return null;
+      return { month, balance: normalizeMoney(historicalBill.currentBalance) };
+    })
+    .filter(Boolean)
+    .slice(0, 3);
+  return {
+    value: balances.map(entry => formatCurrency(entry.balance)).join(" / "),
+    title: balances.length
+      ? `Current balances, newest first: ${balances.map(entry => `${formatBudgetMonthLabel(entry.month)} ${formatCurrency(entry.balance)}`).join("; ")}.`
+      : "No validated current-balance history is available."
+  };
+}
+
 function buildHistoryLineChart(points, label = "History chart") {
   if (!points.length) return "";
   const width = 720;
@@ -7687,10 +7711,6 @@ function updateBillFromRow(row, options = {}) {
     ? normalizeCurrencyCell(getField(".bill-paid-amount").value)
     : bill.paidAmount;
   bill.paidDate = getField(".bill-paid-date")?.value ?? bill.paidDate;
-  const observationField = getField(".bill-observation");
-  bill.observation = observationField
-    ? observationField.value.trim().slice(0, 500)
-    : bill.observation;
   if (isAdminClient() && bill.currentBalance > 0 && bill.paidDate && normalizeMoney(bill.paidAmount) > 0) {
     bill.currentBalance = calculateCurrentBalanceFromPayment(
       bill.previousBalance,

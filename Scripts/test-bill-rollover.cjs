@@ -70,4 +70,26 @@ assert.equal(totals.cashFlow, 527.01);
 assert.match(source, /const cardCharge = normalizeMoney\(Math\.max\(0, charge - cashAvailable\)\);/);
 assert.match(source, /calculateBudgetTotals\(state\.monthlyBudgetFund, state\.bills, getCurrentMonthlyCashUsed\(\)\)/);
 
-console.log('PASS: Admin future-month creation and Copy To Next Month use the prior closing balance for both balance fields, reset payment details, preserve observations, render the Observation column, and account for monthly cash used in cash flow and Card Finder.');
+const observationContext = {
+  state: {
+    billMonth: '2026-09',
+    monthlyBudgets: {
+      '2026-07': { bills: [{ templateKey: 'apple-card', name: 'Apple Card', currentBalance: 4500 }] },
+      '2026-08': { bills: [{ templateKey: 'apple-card', name: 'Apple Card', currentBalance: 4348.88 }] },
+      '2026-09': { bills: [{ templateKey: 'apple-card', name: 'Apple Card', currentBalance: 4197.93 }] },
+    },
+  },
+  defaultBillMonth: () => '2026-09',
+  buildBudgetBillTemplateKey: name => String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+  normalizeBill: bill => ({ ...bill }),
+  normalizeMoney: value => Math.round((Number(value) || 0) * 100) / 100,
+  formatCurrency: value => `$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+  formatBudgetMonthLabel: month => month,
+};
+vm.createContext(observationContext);
+vm.runInContext(extract('getBillCurrentBalanceObservation'), observationContext);
+const observation = observationContext.getBillCurrentBalanceObservation({ templateKey: 'apple-card', name: 'Apple Card' });
+assert.equal(observation.value, '$4,197.93 / $4,348.88 / $4,500.00');
+assert.match(observation.title, /newest first/);
+
+console.log('PASS: Admin future-month creation and Copy To Next Month use the prior closing balance for both balance fields, reset payment details, render the Observation column with the three latest validated balances, and account for monthly cash used in cash flow and Card Finder.');
