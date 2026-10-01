@@ -53,6 +53,8 @@ assert.match(source, /targetEntry\.bills = buildRolledForwardBills\(sourceEntry\
 assert.match(source, /class="bill-observation"/);
 assert.match(source, /bill-col-observation/);
 assert.match(fs.readFileSync('index.html', 'utf8'), />Observation<\/span>\s*<span>Actions<\/span>/);
-assert.match(fs.readFileSync('styles.css', 'utf8'), /"selector observation observation observation"/);
+const styles = fs.readFileSync('styles.css', 'utf8');
+assert.match(styles, /"selector observation observation observation"/);
+assert.match(styles, /minmax\(108px, \.58fr\)\s+minmax\(142px, \.82fr\)/);
 
 console.log('PASS: Admin future-month creation and Copy To Next Month use the prior closing balance for both balance fields, reset payment details, preserve observations, and render the Observation column.');
