@@ -68,6 +68,8 @@ assert.match(source, /Start = 100/);
 assert.match(source, /const minIndex = 78;/);
 assert.match(source, /const maxIndex = 150;/);
 assert.match(source, /const directLabels = endpointLabels\.map/);
+assert.match(source, /Above 100: \$\{aboveStart\}/);
+assert.match(source, /Below 100: \$\{improved\}/);
 
 const totalsContext = {
   normalizeMoney: value => Math.round((Number(value) || 0) * 100) / 100,

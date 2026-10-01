@@ -11096,6 +11096,9 @@ function buildAdminBalanceProgressReportHtml() {
     return `<tr><td><i class="dot" style="background:${item.color}"></i>${escapeHtml(item.name)}</td><td>${escapeHtml(formatCurrency(item.startingBalance))}</td><td>${escapeHtml(formatCurrency(item.currentBalance))}</td><td class="${movement <= 0 ? "improved" : "increased"}">${movement <= 0 ? "" : "+"}${movement.toFixed(1)}%</td><td>${latestIndex.toFixed(1)}%</td></tr>`;
   }).join("");
   const improved = series.filter(item => (item.values.at(-1) || 0) < 100).length;
+  const aboveStart = series.filter(item => (item.values.at(-1) || 0) > 100).length;
+  const unchanged = series.length - improved - aboveStart;
+  lines += `<text x="${width - margin.right + 20}" y="22" fill="#365877" font-size="12" font-weight="700">Above 100: ${aboveStart}  |  Below 100: ${improved}${unchanged ? `  |  At 100: ${unchanged}` : ""}</text>`;
   const averageIndex = series.reduce((sum, item) => sum + (item.values.at(-1) || 0), 0) / series.length;
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Admin Balance Progress</title><style>
