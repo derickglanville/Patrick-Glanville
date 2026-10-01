@@ -1773,6 +1773,7 @@ const billColumnSumTitle = document.querySelector("#billColumnSumTitle");
 const billColumnSumBody = document.querySelector("#billColumnSumBody");
 const closeBillColumnSumDialogBtn = document.querySelector("#closeBillColumnSumDialog");
 const chooseJsonBackupBtn = document.querySelector("#chooseJsonBackupBtn");
+const saveJsonBackupBtn = document.querySelector("#saveJsonBackupBtn");
 const openJsonBackupBtn = document.querySelector("#openJsonBackupBtn");
 const openJsonBackupInput = document.querySelector("#openJsonBackupInput");
 const validateJsonBackupBtn = document.querySelector("#validateJsonBackupBtn");
@@ -2101,13 +2102,13 @@ async function saveJsonBackupHandleToDb(clientId, handle) {
   });
 }
 
-async function ensureJsonBackupPermission(handle, mode = "readwrite") {
+async function ensureJsonBackupPermission(handle, mode = "readwrite", requestIfNeeded = true) {
   if (!handle) return false;
   if (typeof handle.queryPermission === "function") {
     const existing = await handle.queryPermission({ mode });
     if (existing === "granted") return true;
   }
-  if (typeof handle.requestPermission === "function") {
+  if (requestIfNeeded && typeof handle.requestPermission === "function") {
     const granted = await handle.requestPermission({ mode });
     return granted === "granted";
   }
@@ -2447,10 +2448,23 @@ async function readJsonBackupPayload() {
   return JSON.parse(text);
 }
 
-async function saveJsonBackupNow(reason = "auto") {
+async function saveJsonBackupNow(reason = "auto", requestPermission = false) {
   if (!activeClientId || !jsonBackupHandle) return false;
-  const hasPermission = await ensureJsonBackupPermission(jsonBackupHandle, "readwrite");
+  const hasPermission = await ensureJsonBackupPermission(jsonBackupHandle, "readwrite", requestPermission);
   if (!hasPermission) {
+    if (!requestPermission) {
+      jsonBackupMeta = {
+        ...(jsonBackupMeta || {}),
+        fileName: jsonBackupMeta?.fileName || jsonBackupHandle?.name || "",
+        lastSavedAt: jsonBackupMeta?.lastSavedAt || "",
+        lastSavedReason: jsonBackupMeta?.lastSavedReason || "",
+        lastValidationAt: jsonBackupMeta?.lastValidationAt || "",
+        lastValidationResult: "backup access required (click Save Backup JSON)"
+      };
+      writeJsonBackupMeta(jsonBackupMeta, activeClientId);
+      updateDataStoreStatus();
+      return false;
+    }
     throw new Error("Permission to write the JSON backup file was not granted.");
   }
 
@@ -2533,12 +2547,26 @@ async function chooseJsonBackupFile() {
       lastValidationResult: ""
     };
     writeJsonBackupMeta(jsonBackupMeta, activeClientId);
-    await saveJsonBackupNow("manual setup");
+    await saveJsonBackupNow("manual setup", true);
     updateClientChrome();
     alert(`JSON backup configured for ${currentClientConfig()?.shortName || "this client"}.\n\nFile: ${jsonBackupMeta.fileName}`);
   } catch (error) {
     if (error?.name === "AbortError") return;
     alert(`Could not configure the JSON backup file: ${error.message}`);
+  }
+}
+
+async function saveConfiguredJsonBackup() {
+  if (!activeClientId || !jsonBackupHandle) {
+    alert("Choose a backup JSON file first.");
+    return;
+  }
+  try {
+    await saveJsonBackupNow("manual save", true);
+    updateClientChrome();
+    alert(`JSON backup saved for ${currentClientConfig()?.shortName || "this client"}.\n\nFile: ${jsonBackupMeta?.fileName || jsonBackupHandle.name || "Configured file"}`);
+  } catch (error) {
+    alert(`Could not save the JSON backup.\n\n${error.message}`);
   }
 }
 
@@ -5945,6 +5973,14 @@ function updateClientChrome() {
     chooseJsonBackupBtn.disabled = !client;
     chooseJsonBackupBtn.title = client
       ? `Choose the local JSON verification backup file for ${client.shortName}`
+      : "Choose a client first";
+  }
+  if (saveJsonBackupBtn) {
+    saveJsonBackupBtn.disabled = !client || !jsonBackupHandle;
+    saveJsonBackupBtn.title = client
+      ? jsonBackupHandle
+        ? `Save a fresh local JSON backup for ${client.shortName}`
+        : `Choose a JSON backup file for ${client.shortName} first`
       : "Choose a client first";
   }
   if (validateJsonBackupBtn) {
@@ -12854,6 +12890,11 @@ document.querySelector("#refreshAppBtn").addEventListener("click", () => {
 if (chooseJsonBackupBtn) {
   chooseJsonBackupBtn.addEventListener("click", () => {
     chooseJsonBackupFile();
+  });
+}
+if (saveJsonBackupBtn) {
+  saveJsonBackupBtn.addEventListener("click", () => {
+    saveConfiguredJsonBackup();
   });
 }
 if (validateJsonBackupBtn) {
