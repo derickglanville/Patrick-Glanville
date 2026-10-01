@@ -58,6 +58,9 @@ assert.match(styles, /"selector observation observation observation"/);
 assert.match(styles, /minmax\(96px, \.58fr\)\s+minmax\(142px, \.82fr\)/);
 assert.match(source, /Expected Paid Off Date": "Estimate based on Current Balance, APR, and a fixed monthly Recommended amount/);
 assert.match(source, /function applyBillHeaderTooltips\(header\)/);
+assert.match(source, /getExpectedBillPayoff\(bill, getEffectiveBillAmount\(bill\), "Due Amt"\)/);
+assert.match(source, /bill-col-payoff-date-due/);
+assert.match(styles, /\.budget-bill-item input\.bill-payoff-date-due\[data-payoff-year\]/);
 
 const totalsContext = {
   normalizeMoney: value => Math.round((Number(value) || 0) * 100) / 100,

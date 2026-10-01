@@ -1965,6 +1965,7 @@ const BILL_HEADER_TOOLTIPS = {
   "Paid Amt": "Amount recorded as paid in the selected month. Click to view the column total.",
   "Recommended": "Calculated monthly payoff target. It is at least the scheduled Due Amt or estimated monthly interest, then allocates a weighted 36-month payoff amount. Click to view the column total.",
   "Expected Paid Off Date": "Estimate based on Current Balance, APR, and a fixed monthly Recommended amount with no new charges. Due Amt is not used directly, except that it helps set the Recommended amount. Taxes are recurring and display Ongoing.",
+  "With Due Amt": "Payoff estimate using Current Balance, APR, and the fixed monthly Due Amt with no new charges. This shows the payoff date if only the scheduled amount is paid. Taxes are recurring and display Ongoing.",
   "Tran #": "Payment transaction or confirmation number.",
   "Due": "Scheduled payment due date.",
   "Date Paid": "Date the payment was recorded as paid.",
@@ -4466,7 +4467,7 @@ function calculateRecommendedBillPayments(bills) {
   return recommendations;
 }
 
-function getExpectedBillPayoff(bill, recommendedPayment) {
+function getExpectedBillPayoff(bill, paymentAmount, paymentLabel = "Recommended amount") {
   // Property taxes are recurring obligations. A paid current installment is
   // not a paid-off debt and must never display a debt payoff date.
   if (String(bill?.type || "").trim() === "Taxes") {
@@ -4476,12 +4477,12 @@ function getExpectedBillPayoff(bill, recommendedPayment) {
     };
   }
   const balance = Math.max(0, getEffectiveBillCurrentBalance(bill));
-  const payment = normalizeMoney(recommendedPayment);
+  const payment = normalizeMoney(paymentAmount);
   const rate = parseAprNumber(bill.apr) / 1200;
-  const assumptions = "Estimate using the current balance, fixed monthly Recommended amount and APR, with no new charges. First payment is one month after the bill due date (or selected month end).";
+  const assumptions = `Estimate using the current balance, fixed monthly ${paymentLabel} and APR, with no new charges. First payment is one month after the bill due date (or selected month end).`;
   if (balance <= 0) return { label: deriveAutoTrackedBillStatus(bill) === "Paid Off" ? "Paid Off" : "N/A", title: "No outstanding balance to pay off." };
   if (payment <= 0 || payment <= balance * rate) {
-    return { label: "No payoff", title: "The Recommended amount does not exceed monthly interest or is zero." };
+    return { label: "No payoff", title: `The ${paymentLabel} does not exceed monthly interest or is zero.` };
   }
   const months = Math.ceil((rate > 0
     ? -Math.log1p(-balance * rate / payment) / Math.log1p(rate)
@@ -6883,6 +6884,7 @@ function renderBills() {
       <div class="budget-bill-total-cell bill-col-paid-amt">${escapeHtml(formatCurrency(totals.paidAmount))}</div>
       <div class="budget-bill-total-cell bill-col-recommended">${escapeHtml(formatCurrency(totals.recommended))}</div>
       <div class="budget-bill-total-cell bill-col-payoff-date">-</div>
+      <div class="budget-bill-total-cell bill-col-payoff-date-due">-</div>
       <div class="budget-bill-total-cell bill-col-tran">-</div>
       <div class="budget-bill-total-cell bill-col-due-date">-</div>
       <div class="budget-bill-total-cell bill-col-date-paid">-</div>
@@ -6902,6 +6904,7 @@ function renderBills() {
       : (creditRemainingPercent < 50 ? " is-low-credit" : " is-healthy-credit");
     const recommendedPayment = (hiddenMode ? hiddenRecommendedPayments : recommendedPayments).get(bill.id) ?? getEffectiveBillAmount(bill);
     const expectedPayoff = getExpectedBillPayoff(bill, recommendedPayment);
+    const expectedPayoffWithDueAmount = getExpectedBillPayoff(bill, getEffectiveBillAmount(bill), "Due Amt");
     const pastDue = isBillPastDue(bill);
     const dueSoon = !pastDue && isBillDueSoon(bill, 7);
     const effectivePreviousBalance = getEffectiveBillPreviousBalance(bill);
@@ -6970,6 +6973,10 @@ function renderBills() {
       <label class="budget-bill-field bill-col-payoff-date" title="${escapeAttribute(expectedPayoff.title)}">
         <span>Expected Paid Off Date</span>
         <input class="bill-payoff-date"${expectedPayoff.year ? ` data-payoff-year="${expectedPayoff.year}" style="--payoff-year-hue: ${((210 + (expectedPayoff.year - 2027) * 137.508) % 360 + 360) % 360}"` : ""} type="text" value="${escapeAttribute(expectedPayoff.label)}" aria-label="Expected Paid Off Date" readonly>
+      </label>
+      <label class="budget-bill-field bill-col-payoff-date-due" title="${escapeAttribute(expectedPayoffWithDueAmount.title)}">
+        <span>With Due Amt</span>
+        <input class="bill-payoff-date-due"${expectedPayoffWithDueAmount.year ? ` data-payoff-year="${expectedPayoffWithDueAmount.year}" style="--payoff-year-hue: ${((210 + (expectedPayoffWithDueAmount.year - 2027) * 137.508) % 360 + 360) % 360}"` : ""} type="text" value="${escapeAttribute(expectedPayoffWithDueAmount.label)}" aria-label="Expected Paid Off Date with Due Amount" readonly>
       </label>
       <label class="budget-bill-field bill-col-tran">
         <span>Tran #</span>
@@ -7124,6 +7131,12 @@ function renderBills() {
     billListHeader.innerHTML = usesSimpleBills
       ? "<span class=\"budget-bill-selector-header\"></span><span>Bill</span><span>Prev Bal</span><span>Current Bal</span><span>Amount</span><span>Due</span><span>Date Paid</span><span>Status</span><span>Notes</span><span>Actions</span>"
       : "<span class=\"budget-bill-selector-header bill-col-selector\"></span><span class=\"bill-col bill-col-name\">Bill</span><span class=\"bill-col bill-col-type\">Type</span><span class=\"bill-col bill-col-apr\">APR</span><span class=\"bill-col bill-col-interest-paid is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum interest paid column\">Interest Paid</span><span class=\"bill-col bill-col-prev-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum previous balance column\">Prev Bal</span><span class=\"bill-col bill-col-current-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum current balance column\">Current Bal</span><span class=\"bill-col bill-col-diff is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum difference column\">Diff</span><span class=\"bill-col bill-col-payment-priority\" title=\"Paid bills where interest consumes more than the principal portion\">Pay More</span><span class=\"bill-col bill-col-credit-line is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum credit line column\">Credit Line</span><span class=\"bill-col bill-col-due-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum due amount column\">Due Amt</span><span class=\"bill-col bill-col-paid-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum paid amount column\">Paid Amt</span><span class=\"bill-col bill-col-recommended is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum recommended payment column\">Recommended</span><span class=\"bill-col bill-col-payoff-date\">Expected Paid Off Date</span><span class=\"bill-col bill-col-tran\">Tran #</span><span class=\"bill-col bill-col-due-date\">Due</span><span class=\"bill-col bill-col-date-paid\">Date Paid</span><span class=\"bill-col bill-col-credit-percent\">% Credit</span><span class=\"bill-col bill-col-status\">Status</span><span class=\"bill-col bill-col-notes\">Notes</span><span class=\"bill-col bill-col-observation\">Observation</span><span class=\"bill-col bill-col-actions\">Actions</span>";
+    if (!usesSimpleBills) {
+      billListHeader.querySelector(".bill-col-payoff-date")?.insertAdjacentHTML(
+        "afterend",
+        '<span class="bill-col bill-col-payoff-date-due">With Due Amt</span>'
+      );
+    }
     applyBillHeaderTooltips(billListHeader);
     const hiddenHeader = document.querySelector("#hiddenBillListHeader");
     if (hiddenHeader) {

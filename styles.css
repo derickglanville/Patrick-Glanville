@@ -1111,6 +1111,7 @@ textarea {
     minmax(78px, .4fr)
     minmax(96px, .58fr)
     minmax(142px, .82fr)
+    minmax(142px, .82fr)
     minmax(68px, .38fr)
     minmax(108px, .68fr)
     minmax(108px, .68fr)
@@ -1232,6 +1233,7 @@ textarea {
     minmax(78px, .38fr)
     minmax(96px, .52fr)
     minmax(134px, .78fr)
+    minmax(134px, .78fr)
     minmax(62px, .38fr)
     minmax(98px, .62fr)
     minmax(98px, .62fr)
@@ -1258,6 +1260,7 @@ textarea {
     minmax(78px, .36fr)
     minmax(78px, .38fr)
     minmax(96px, .52fr)
+    minmax(134px, .78fr)
     minmax(134px, .78fr)
     minmax(62px, .38fr)
     minmax(98px, .62fr)
@@ -1329,6 +1332,7 @@ textarea {
 .budget-panel-admin-mini .bill-col-due-amt,
 .budget-panel-admin-mini .bill-col-recommended,
 .budget-panel-admin-mini .bill-col-payoff-date,
+.budget-panel-admin-mini .bill-col-payoff-date-due,
 .budget-panel-admin-mini .bill-col-notes,
 .budget-panel-admin-mini .bill-col-observation {
   display: none !important;
@@ -1368,6 +1372,7 @@ textarea {
     minmax(78px, .36fr)
     minmax(78px, .4fr)
     minmax(96px, .58fr)
+    minmax(142px, .82fr)
     minmax(142px, .82fr)
     minmax(68px, .38fr)
     minmax(108px, .68fr)
@@ -5074,6 +5079,7 @@ body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.
 body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-payment-priority,
 body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-credit-line,
 body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-recommended,
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-payoff-date-due,
 body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-tran,
 body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-credit-percent,
 body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-apr,
@@ -5082,6 +5088,7 @@ body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(
 body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-payment-priority,
 body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-credit-line,
 body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-recommended,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-payoff-date-due,
 body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-tran,
 body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-credit-percent {
   display: none;
@@ -5216,6 +5223,7 @@ body[data-device-layout="tablet"] #adminCreditCardFinderBtn {
 .budget-panel.is-admin-tablet-grid .bill-col-payment-priority,
 .budget-panel.is-admin-tablet-grid .bill-col-credit-line,
 .budget-panel.is-admin-tablet-grid .bill-col-due-amt,
+.budget-panel.is-admin-tablet-grid .bill-col-payoff-date-due,
 .budget-panel.is-admin-tablet-grid .bill-col-tran,
 .budget-panel.is-admin-tablet-grid .bill-col-due-date,
 .budget-panel.is-admin-tablet-grid .bill-col-date-paid,
@@ -5297,7 +5305,8 @@ body[data-device-layout="tablet"] #budgetPanel .budget-bill-list-admin .budget-b
 }
 
 /* Stable year colors also remain visible inside selected and hidden bill rows. */
-.budget-bill-item input.bill-payoff-date[data-payoff-year] {
+.budget-bill-item input.bill-payoff-date[data-payoff-year],
+.budget-bill-item input.bill-payoff-date-due[data-payoff-year] {
   background: hsl(var(--payoff-year-hue), 78%, 90%) !important;
   color: hsl(var(--payoff-year-hue), 65%, 22%) !important;
   border-color: hsl(var(--payoff-year-hue), 48%, 52%) !important;
