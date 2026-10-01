@@ -4093,7 +4093,8 @@ function getBillsDueWithinDays(bills, daysAhead = 7) {
     .filter(bill =>
       String(bill.due || "").trim() &&
       bill?.status !== "Paid" &&
-      bill?.status !== "Deferred"
+      bill?.status !== "Deferred" &&
+      !isBillPayoffComplete(bill)
     )
     .map(bill => {
       const dueDate = new Date(`${bill.due}T00:00:00`);

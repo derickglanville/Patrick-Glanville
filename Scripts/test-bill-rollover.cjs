@@ -74,6 +74,23 @@ const settledTotals = totalsContext.calculateBudgetTotals(5000, [
 ], 1000);
 assert.equal(settledTotals.totalBills, 3392.99);
 assert.equal(settledTotals.remainingBills, 0);
+class FixedDate extends Date {
+  constructor(...args) {
+    super(...(args.length ? args : ['2026-10-01T12:00:00']));
+  }
+}
+const upcomingContext = {
+  Date: FixedDate,
+  isBillPayoffComplete: bill => ['Paid Off', 'Fully Paid'].includes(bill.status),
+};
+vm.createContext(upcomingContext);
+vm.runInContext(extract('getBillsDueWithinDays'), upcomingContext);
+const upcomingBills = upcomingContext.getBillsDueWithinDays([
+  { name: "BJ's Club", due: '2026-10-02', status: 'Paid Off', currentBalance: 0 },
+  { name: 'Active bill', due: '2026-10-03', status: 'Unpaid', currentBalance: 80 },
+], 7);
+assert.equal(upcomingBills.length, 1);
+assert.equal(upcomingBills[0].bill.name, 'Active bill');
 assert.match(source, /const cardCharge = normalizeMoney\(Math\.max\(0, charge - cashAvailable\)\);/);
 assert.match(source, /calculateBudgetTotals\(state\.monthlyBudgetFund, state\.bills, getCurrentMonthlyCashUsed\(\)\)/);
 assert.match(source, /Scheduled bill amounts not yet marked Paid: \$\{formatCurrency\(remaining\)\}/);
