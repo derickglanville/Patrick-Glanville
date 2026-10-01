@@ -4369,6 +4369,14 @@ function calculateRecommendedBillPayments(bills) {
 }
 
 function getExpectedBillPayoff(bill, recommendedPayment) {
+  // Property taxes are recurring obligations. A paid current installment is
+  // not a paid-off debt and must never display a debt payoff date.
+  if (String(bill?.type || "").trim() === "Taxes") {
+    return {
+      label: "Ongoing",
+      title: "Recurring property-tax obligation. Payments remain due on the scheduled cycle and do not have an expected payoff date."
+    };
+  }
   const balance = Math.max(0, getEffectiveBillCurrentBalance(bill));
   const payment = normalizeMoney(recommendedPayment);
   const rate = parseAprNumber(bill.apr) / 1200;
