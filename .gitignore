@@ -10,5 +10,6 @@ Email/email-automation.json
 Email/smtp-settings.json
 Email/smtp-credential.clixml
 Scripts/__pycache__/
+Backups/
 Email/__pycache__/
 Scripts/send_daily_email-2.py
