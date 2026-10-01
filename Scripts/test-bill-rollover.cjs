@@ -57,4 +57,17 @@ const styles = fs.readFileSync('styles.css', 'utf8');
 assert.match(styles, /"selector observation observation observation"/);
 assert.match(styles, /minmax\(108px, \.58fr\)\s+minmax\(142px, \.82fr\)/);
 
-console.log('PASS: Admin future-month creation and Copy To Next Month use the prior closing balance for both balance fields, reset payment details, preserve observations, and render the Observation column.');
+const totalsContext = {
+  normalizeMoney: value => Math.round((Number(value) || 0) * 100) / 100,
+  getEffectiveBillAmount: bill => Number(bill.amount) || 0,
+  isBillPastDue: () => false,
+};
+vm.createContext(totalsContext);
+vm.runInContext(extract('calculateBudgetTotals'), totalsContext);
+const totals = totalsContext.calculateBudgetTotals(5000, [{ amount: 3472.99, status: 'Paid' }], 1000);
+assert.equal(totals.cashUsed, 1000);
+assert.equal(totals.cashFlow, 527.01);
+assert.match(source, /const cardCharge = normalizeMoney\(Math\.max\(0, charge - cashAvailable\)\);/);
+assert.match(source, /calculateBudgetTotals\(state\.monthlyBudgetFund, state\.bills, getCurrentMonthlyCashUsed\(\)\)/);
+
+console.log('PASS: Admin future-month creation and Copy To Next Month use the prior closing balance for both balance fields, reset payment details, preserve observations, render the Observation column, and account for monthly cash used in cash flow and Card Finder.');

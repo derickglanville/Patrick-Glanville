@@ -1750,6 +1750,7 @@ const billMBFDisplay = document.querySelector("#billMBFDisplay");
 const billList = document.querySelector("#billList");
 const billTotal = document.querySelector("#billTotal");
 const billPaid = document.querySelector("#billPaid");
+const billCashUsed = document.querySelector("#billCashUsed");
 const billRemaining = document.querySelector("#billRemaining");
 const billCashFlow = document.querySelector("#billCashFlow");
 const billCoverage = document.querySelector("#billCoverage");
@@ -3533,6 +3534,7 @@ function normalizeBudgetSnapshot(snapshot) {
     id: snapshot.id || crypto.randomUUID(),
     month,
     monthlyBudgetFund: normalizeMoney(snapshot.monthlyBudgetFund),
+    cashUsed: normalizeMoney(snapshot.cashUsed),
     totalBills: normalizeMoney(snapshot.totalBills),
     paidBills: normalizeMoney(snapshot.paidBills),
     remainingBills: normalizeMoney(snapshot.remainingBills),
@@ -3546,6 +3548,7 @@ function normalizeBudgetSnapshot(snapshot) {
 }
 
 const BUDGET_TRACKING_START_MONTH = "2026-07";
+const ADMIN_MONTHLY_CASH_USED = 1000;
 const FUTURE_BILL_DEFAULT_AMOUNTS = {
   "American Express": 180,
   "Phone / internet": 35
@@ -3648,6 +3651,7 @@ function buildDefaultMonthlyBudget(month, seed = getSeedData()) {
   return {
     month,
     monthlyBudgetFund: zeroAmounts ? 0 : normalizeMoney(seed.monthlyBudgetFund ?? 0),
+    monthlyCashUsed: zeroAmounts ? 0 : (isAdminClient() ? ADMIN_MONTHLY_CASH_USED : 0),
     bills: (seed.bills || [])
       .filter(bill => shouldIncludeAdminBillInMonth(bill?.name, month))
       .map(bill => buildBudgetBillTemplate(bill, { zeroAmounts, futureDefaults, month, assignSeedKey: true }))
@@ -3660,6 +3664,7 @@ function sanitizeFutureMonthlyBudgetEntry(entry, seed = getSeedData()) {
     return {
       ...entry,
       monthlyBudgetFund: normalizeMoney(entry.monthlyBudgetFund),
+      monthlyCashUsed: normalizeMoney(entry.monthlyCashUsed),
       bills: (entry.bills || []).map(bill => normalizeBill(bill))
     };
   }
@@ -3765,6 +3770,7 @@ function normalizeMonthlyBudgetEntry(entry, fallbackMonth = "", seed = getSeedDa
   const normalizedEntry = {
     month,
     monthlyBudgetFund: zeroAmounts ? 0 : normalizeMoney(entry?.monthlyBudgetFund ?? fallback.monthlyBudgetFund),
+    monthlyCashUsed: zeroAmounts ? 0 : normalizeMoney(entry?.monthlyCashUsed ?? fallback.monthlyCashUsed),
     bills: normalizedBills.filter(bill => shouldIncludeAdminBillInMonth(bill?.name, month)),
     copiedForwardFrom: entry?.copiedForwardFrom || "",
     deletedBillKeys,
@@ -3907,13 +3913,14 @@ function getRolloverDeletedBillNames() {
   return activeClientId === "patrick" ? ["eye glasses"] : [];
 }
 
-function calculateBudgetTotals(monthlyBudgetFund, bills) {
+function calculateBudgetTotals(monthlyBudgetFund, bills, monthlyCashUsed = 0) {
   const totalBills = bills.reduce((sum, bill) => sum + getEffectiveBillAmount(bill), 0);
   const paidBills = bills
     .filter(bill => bill.status === "Paid")
     .reduce((sum, bill) => sum + getEffectiveBillAmount(bill), 0);
   const remainingBills = Math.max(0, totalBills - paidBills);
-  const cashFlow = Math.round((normalizeMoney(monthlyBudgetFund) - totalBills) * 100) / 100;
+  const cashUsed = normalizeMoney(monthlyCashUsed);
+  const cashFlow = Math.round((normalizeMoney(monthlyBudgetFund) - totalBills - cashUsed) * 100) / 100;
   const covered = cashFlow >= 0;
   const fundingGap = covered ? 0 : Math.abs(cashFlow);
   const pastDueCount = bills.filter(bill => isBillPastDue(bill)).length;
@@ -3921,11 +3928,18 @@ function calculateBudgetTotals(monthlyBudgetFund, bills) {
     totalBills,
     paidBills,
     remainingBills,
+    cashUsed,
     cashFlow,
     covered,
     fundingGap,
     pastDueCount
   };
+}
+
+function getCurrentMonthlyCashUsed() {
+  const month = state.billMonth || defaultBillMonth();
+  const monthlyBudget = state.monthlyBudgets?.[month];
+  return normalizeMoney(monthlyBudget?.monthlyCashUsed ?? (isAdminClient() ? ADMIN_MONTHLY_CASH_USED : 0));
 }
 
 function ensureMonthlyBudgetState(month) {
@@ -3944,6 +3958,7 @@ function ensureMonthlyBudgetState(month) {
         // prior month's closing balance becomes both balances for the new
         // month until a new statement balance is entered.
         targetEntry.monthlyBudgetFund = normalizeMoney(sourceEntry.monthlyBudgetFund);
+        targetEntry.monthlyCashUsed = normalizeMoney(sourceEntry.monthlyCashUsed);
         targetEntry.bills = buildRolledForwardBills(sourceEntry.bills, targetMonth);
         targetEntry.copiedForwardFrom = sourceMonth;
         targetEntry.deletedBillNames = getRolloverDeletedBillNames();
@@ -3953,6 +3968,7 @@ function ensureMonthlyBudgetState(month) {
       const sourceEntry = state.monthlyBudgets[sourceMonth];
       if (sourceEntry) {
         targetEntry.monthlyBudgetFund = normalizeMoney(sourceEntry.monthlyBudgetFund);
+        targetEntry.monthlyCashUsed = normalizeMoney(sourceEntry.monthlyCashUsed);
         targetEntry.bills = buildRolledForwardBills(sourceEntry.bills, targetMonth);
         targetEntry.copiedForwardFrom = sourceMonth;
         targetEntry.deletedBillNames = getRolloverDeletedBillNames();
@@ -3965,11 +3981,12 @@ function ensureMonthlyBudgetState(month) {
 
 function syncBudgetSnapshotForMonth(month) {
   const monthlyBudget = ensureMonthlyBudgetState(month);
-  const totals = calculateBudgetTotals(monthlyBudget.monthlyBudgetFund, monthlyBudget.bills);
+  const totals = calculateBudgetTotals(monthlyBudget.monthlyBudgetFund, monthlyBudget.bills, monthlyBudget.monthlyCashUsed);
   const now = new Date().toISOString();
   const existing = (state.budgetSnapshots || []).find(entry => entry.month === monthlyBudget.month);
   if (existing) {
     existing.monthlyBudgetFund = monthlyBudget.monthlyBudgetFund;
+    existing.cashUsed = totals.cashUsed;
     existing.totalBills = totals.totalBills;
     existing.paidBills = totals.paidBills;
     existing.remainingBills = totals.remainingBills;
@@ -3983,6 +4000,7 @@ function syncBudgetSnapshotForMonth(month) {
       id: crypto.randomUUID(),
       month: monthlyBudget.month,
       monthlyBudgetFund: monthlyBudget.monthlyBudgetFund,
+      cashUsed: totals.cashUsed,
       totalBills: totals.totalBills,
       paidBills: totals.paidBills,
       remainingBills: totals.remainingBills,
@@ -4005,6 +4023,7 @@ function syncCurrentBudgetMonth(saveSnapshot = true) {
   state.monthlyBudgets[month] = normalizeMonthlyBudgetEntry({
     month,
     monthlyBudgetFund: state.monthlyBudgetFund,
+    monthlyCashUsed: existingMonthEntry.monthlyCashUsed,
     bills: state.bills,
     copiedForwardFrom: existingMonthEntry.copiedForwardFrom || "",
     deletedBillKeys: existingMonthEntry.deletedBillKeys || [],
@@ -7088,16 +7107,19 @@ function exitAdminBillSimulation() {
 
 function getAdminCreditCardCandidates(chargeAmount) {
   const charge = normalizeMoney(chargeAmount);
-  if (charge <= 0) return { charge, safetyCushion: 0, candidates: [], excludedCount: 0, splitRecommendation: null };
-  const safetyCushion = Math.max(100, normalizeMoney(charge * 0.1));
+  if (charge <= 0) return { charge, cardCharge: 0, cashAvailable: 0, safetyCushion: 0, candidates: [], excludedCount: 0, splitRecommendation: null };
+  const cashAvailable = Math.max(0, calculateBudgetTotals(state.monthlyBudgetFund, state.bills, getCurrentMonthlyCashUsed()).cashFlow);
+  const cardCharge = normalizeMoney(Math.max(0, charge - cashAvailable));
+  if (cardCharge <= 0) return { charge, cardCharge, cashAvailable, safetyCushion: 0, candidates: [], excludedCount: 0, splitRecommendation: null };
+  const safetyCushion = Math.max(100, normalizeMoney(cardCharge * 0.1));
   const recommendedPayments = calculateRecommendedBillPayments(state.bills);
   const creditCards = state.bills.filter(bill => bill.type === "Credit Card" && normalizeMoney(bill.creditLimit) > 0 && parseAprNumber(bill.apr) > 0);
   const allCards = creditCards.map(bill => {
     const currentBalance = Math.max(0, normalizeMoney(bill.currentBalance));
     const creditLimit = normalizeMoney(bill.creditLimit);
     const availableCredit = Math.max(0, creditLimit - currentBalance);
-    const remainingCredit = availableCredit - charge;
-    const projectedUtilization = creditLimit > 0 ? (currentBalance + charge) / creditLimit : 1;
+    const remainingCredit = availableCredit - cardCharge;
+    const projectedUtilization = creditLimit > 0 ? (currentBalance + cardCharge) / creditLimit : 1;
     const previousBalance = Math.max(0, normalizeMoney(bill.previousBalance ?? currentBalance));
     const payoffProgress = previousBalance > 0 ? Math.max(0, (previousBalance - currentBalance) / previousBalance) : 0;
     const apr = parseAprNumber(bill.apr);
@@ -7108,14 +7130,16 @@ function getAdminCreditCardCandidates(chargeAmount) {
     return { bill, apr, currentBalance, creditLimit, availableCredit, remainingCredit, projectedUtilization, payoffProgress, recommendedPayment: normalizeMoney(recommendedPayments.get(bill.id) ?? bill.amount), score: (aprScore * 55) + (capacityScore * 30) + (payoffProtectionScore * 15) };
   });
   const candidates = allCards
-    .filter(card => card.availableCredit >= charge + safetyCushion)
+    .filter(card => card.availableCredit >= cardCharge + safetyCushion)
     .sort((left, right) => right.score - left.score || left.apr - right.apr || right.remainingCredit - left.remainingCredit);
   return {
     charge,
+    cardCharge,
+    cashAvailable,
     safetyCushion,
     candidates,
     excludedCount: creditCards.length - candidates.length,
-    splitRecommendation: getAdminCreditCardSplitRecommendation(charge, safetyCushion, allCards, candidates[0])
+    splitRecommendation: getAdminCreditCardSplitRecommendation(cardCharge, safetyCushion, allCards, candidates[0])
   };
 }
 
@@ -7197,6 +7221,10 @@ function renderAdminCreditCardFinderResults(chargeAmount = 0) {
     adminCreditCardFinderBody.innerHTML = '<p class="admin-credit-card-finder-empty">Enter the amount of the planned charge to compare your eligible credit cards.</p>';
     return;
   }
+  if (result.cardCharge <= 0) {
+    adminCreditCardFinderBody.innerHTML = `<div class="admin-credit-card-finder-summary"><strong>Prefer liquid cash first</strong><span>${escapeHtml(`${formatCurrency(result.cashAvailable)} is available after scheduled bills and ${formatCurrency(getCurrentMonthlyCashUsed())} in monthly cash used, enough to cover this ${formatCurrency(result.charge)} charge without using a credit card.`)}</span></div>`;
+    return;
+  }
   if (!result.candidates.length) {
     if (result.splitRecommendation) {
       const split = result.splitRecommendation;
@@ -7207,14 +7235,11 @@ function renderAdminCreditCardFinderResults(chargeAmount = 0) {
     return;
   }
   const best = result.candidates[0];
-  const payoffImpact = getAdminCreditCardPayoffImpact(result.charge, best);
-  const budgetCashFlow = calculateBudgetTotals(state.monthlyBudgetFund, state.bills).cashFlow;
-  const cashAdvice = budgetCashFlow >= result.charge
-    ? `Prefer liquid cash when it is truly uncommitted: the current MBF view shows ${formatCurrency(budgetCashFlow)} left after scheduled bills, enough to cover this charge without adding card interest.`
-    : budgetCashFlow > 0
-      ? `Use any truly uncommitted liquid cash first. The current MBF view shows ${formatCurrency(budgetCashFlow)} after scheduled bills, leaving ${formatCurrency(result.charge - budgetCashFlow)} that would still need another source.`
+  const payoffImpact = getAdminCreditCardPayoffImpact(result.cardCharge, best);
+  const cashAdvice = result.cashAvailable > 0
+    ? `The MBF leaves ${formatCurrency(result.cashAvailable)} after scheduled bills and ${formatCurrency(getCurrentMonthlyCashUsed())} in monthly cash used. Apply that cash first; the remaining ${formatCurrency(result.cardCharge)} is the amount being compared across cards.`
       : "The current MBF does not show surplus cash after scheduled bills. If any separate liquid cash is available, use it first to avoid adding revolving debt.";
-  const payoffAdvice = `A ${formatCurrency(result.charge)} charge on ${best.bill.name} adds about ${formatCurrency(payoffImpact.monthlyInterestAdded)} in monthly interest at ${formatApr(best.apr)} and raises the combined Recommended credit-card target from ${formatCurrency(payoffImpact.currentTarget)} to ${formatCurrency(payoffImpact.projectedTarget)} for the current 36-month payoff goal${payoffImpact.targetIncrease > 0 ? ` (${formatCurrency(payoffImpact.targetIncrease)} more each month)` : ""}. If that higher target cannot be paid, the payoff goal is delayed.`;
+  const payoffAdvice = `A ${formatCurrency(result.cardCharge)} charge on ${best.bill.name} adds about ${formatCurrency(payoffImpact.monthlyInterestAdded)} in monthly interest at ${formatApr(best.apr)} and raises the combined Recommended credit-card target from ${formatCurrency(payoffImpact.currentTarget)} to ${formatCurrency(payoffImpact.projectedTarget)} for the current 36-month payoff goal${payoffImpact.targetIncrease > 0 ? ` (${formatCurrency(payoffImpact.targetIncrease)} more each month)` : ""}. If that higher target cannot be paid, the payoff goal is delayed.`;
   const splitAdvice = result.splitRecommendation
     ? `A two-card split is safer for this required charge: put ${formatCurrency(result.splitRecommendation.firstCharge)} on ${result.splitRecommendation.first.bill.name} and ${formatCurrency(result.splitRecommendation.secondCharge)} on ${result.splitRecommendation.second.bill.name}. This keeps the highest projected utilization at ${formatPercentLabel(result.splitRecommendation.maxUtilization * 100)} instead of ${formatPercentLabel(best.projectedUtilization * 100)} on one card.`
     : "";
@@ -7223,7 +7248,7 @@ function renderAdminCreditCardFinderResults(chargeAmount = 0) {
     const reason = describeAdminCreditCardFinderRank(card, best, index);
     return `<tr${index === 0 ? ' class="is-recommended-card"' : ""}><td>${index === 0 ? "Best choice" : `Option ${index + 1}`}</td><td>${escapeHtml(card.bill.name || "Untitled card")}</td><td>${escapeHtml(formatApr(card.apr))}</td><td>${escapeHtml(formatCurrency(card.creditLimit))}</td><td>${escapeHtml(formatCurrency(card.availableCredit))}</td><td>${escapeHtml(formatCurrency(card.remainingCredit))}</td><td>${escapeHtml(formatPercentLabel(card.projectedUtilization * 100))}</td><td>${escapeHtml(progress)}</td><td>${escapeHtml(reason)}</td></tr>`;
   }).join("");
-  adminCreditCardFinderBody.innerHTML = `<div class="admin-credit-card-finder-summary"><strong>${escapeHtml(budgetCashFlow >= result.charge ? "Prefer liquid cash first" : "If a credit card is the only option, use " + (best.bill.name || "this card"))}</strong><span>${escapeHtml(cashAdvice)}</span></div><div class="admin-credit-card-finder-payoff-advice"><strong>Protect the payoff goal</strong><p>${escapeHtml(payoffAdvice)}</p>${splitAdvice ? `<p><strong>Split recommendation:</strong> ${escapeHtml(splitAdvice)}</p>` : ""}</div><p class="admin-credit-card-finder-note"><strong>Order:</strong> best choice to least suitable choice. A ${escapeHtml(formatCurrency(result.safetyCushion))} cushion is reserved on every recommendation. The result is a planning aid based on the current Admin bill values; it does not make a purchase or change any card balance.</p><div class="admin-credit-card-finder-table-wrap"><table class="admin-credit-card-finder-table"><thead><tr><th>Rank<br><small>Best to worst</small></th><th>Card</th><th>APR</th><th>Card limit</th><th>Open credit</th><th>After charge</th><th>Projected use</th><th>Payoff progress</th><th>Why</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  adminCreditCardFinderBody.innerHTML = `<div class="admin-credit-card-finder-summary"><strong>${escapeHtml("If a credit card is needed, use " + (best.bill.name || "this card"))}</strong><span>${escapeHtml(cashAdvice)}</span></div><div class="admin-credit-card-finder-payoff-advice"><strong>Protect the payoff goal</strong><p>${escapeHtml(payoffAdvice)}</p>${splitAdvice ? `<p><strong>Split recommendation:</strong> ${escapeHtml(splitAdvice)}</p>` : ""}</div><p class="admin-credit-card-finder-note"><strong>Order:</strong> best choice to least suitable choice for the remaining ${escapeHtml(formatCurrency(result.cardCharge))} card charge. A ${escapeHtml(formatCurrency(result.safetyCushion))} cushion is reserved on every recommendation. The result is a planning aid based on the current Admin bill values; it does not make a purchase or change any card balance.</p><div class="admin-credit-card-finder-table-wrap"><table class="admin-credit-card-finder-table"><thead><tr><th>Rank<br><small>Best to worst</small></th><th>Card</th><th>APR</th><th>Card limit</th><th>Open credit</th><th>After charge</th><th>Projected use</th><th>Payoff progress</th><th>Why</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 function openAdminCreditCardFinder() {
@@ -7844,12 +7869,22 @@ function updateBillTotals() {
     covered,
     fundingGap,
     pastDueCount: pastDue
-  } = calculateBudgetTotals(monthlyBudgetFund, displayBills);
+  } = calculateBudgetTotals(monthlyBudgetFund, displayBills, getCurrentMonthlyCashUsed());
 
-  if (billMBFDisplay) billMBFDisplay.textContent = formatCurrency(monthlyBudgetFund);
+  if (billMBFDisplay) {
+    billMBFDisplay.textContent = formatCurrency(monthlyBudgetFund);
+    billMBFDisplay.parentElement?.setAttribute("title", `Monthly Budget Fund available for ${formatBudgetMonthLabel(state.billMonth || defaultBillMonth())}.`);
+  }
   billTotal.textContent = formatCurrency(total);
+  billTotal.parentElement?.setAttribute("title", `Total scheduled bill amounts for this month: ${formatCurrency(total)}.`);
   billPaid.textContent = formatCurrency(paid);
+  billPaid.parentElement?.setAttribute("title", `Scheduled bill amounts marked Paid: ${formatCurrency(paid)}.`);
+  if (billCashUsed) {
+    billCashUsed.textContent = formatCurrency(getCurrentMonthlyCashUsed());
+    billCashUsed.parentElement?.setAttribute("title", `Cash used for non-bill spending throughout this month: ${formatCurrency(getCurrentMonthlyCashUsed())}.`);
+  }
   billRemaining.textContent = formatCurrency(remaining);
+  billRemaining.parentElement?.setAttribute("title", `Scheduled bill amounts not yet marked Paid: ${formatCurrency(remaining)}.`);
   const totalBillsLabel = billTotal.parentElement?.querySelector("span");
   if (totalBillsLabel) totalBillsLabel.textContent = simulationActive ? "Projected bills" : "Total bills";
   const remainingBillsLabel = billRemaining.parentElement?.querySelector("span");
@@ -7863,8 +7898,8 @@ function updateBillTotals() {
     billCashFlow.parentElement?.setAttribute(
       "title",
       simulationActive
-        ? `MBF ${formatCurrency(monthlyBudgetFund)} minus projected bills ${formatCurrency(total)} equals ${formatSignedCurrency(cashFlow)}.`
-        : "MBF minus this month's scheduled bill amounts."
+        ? `MBF ${formatCurrency(monthlyBudgetFund)} minus projected bills ${formatCurrency(total)} and cash used ${formatCurrency(getCurrentMonthlyCashUsed())} equals ${formatSignedCurrency(cashFlow)}.`
+        : `MBF ${formatCurrency(monthlyBudgetFund)} minus scheduled bills ${formatCurrency(total)} and cash used ${formatCurrency(getCurrentMonthlyCashUsed())}.`
     );
   }
   if (billCoverage) {
@@ -7873,8 +7908,12 @@ function updateBillTotals() {
     billCoverage.parentElement?.classList.toggle("is-positive", covered);
     const coverageLabel = billCoverage.parentElement?.querySelector("span");
     if (coverageLabel) coverageLabel.textContent = simulationActive ? "Projected MBF coverage" : "MBF coverage";
+    billCoverage.parentElement?.setAttribute("title", covered
+      ? `MBF covers scheduled bills and ${formatCurrency(getCurrentMonthlyCashUsed())} cash used.`
+      : `MBF is short ${formatCurrency(fundingGap)} after scheduled bills and ${formatCurrency(getCurrentMonthlyCashUsed())} cash used.`);
   }
   billPastDue.textContent = pastDue;
+  billPastDue.parentElement?.setAttribute("title", `${pastDue} scheduled bill${pastDue === 1 ? " is" : "s are"} past due.`);
   if (budgetAlert) {
     if (covered) {
       budgetAlert.hidden = true;
@@ -7890,10 +7929,12 @@ function updateBillTotals() {
 
 function currentBudgetSnapshot() {
   const monthlyBudgetFund = normalizeMoney(state.monthlyBudgetFund);
-  const totals = calculateBudgetTotals(monthlyBudgetFund, state.bills);
+  const cashUsed = getCurrentMonthlyCashUsed();
+  const totals = calculateBudgetTotals(monthlyBudgetFund, state.bills, cashUsed);
   return {
     month: state.billMonth || defaultBillMonth(),
     monthlyBudgetFund,
+    cashUsed,
     totalBills: totals.totalBills,
     paidBills: totals.paidBills,
     remainingBills: totals.remainingBills,
@@ -7915,12 +7956,13 @@ function renderBudgetSnapshots() {
   );
   const snapshots = Object.values(normalizeMonthlyBudgetsMap(state.monthlyBudgets))
     .map(monthlyBudget => {
-      const totals = calculateBudgetTotals(monthlyBudget.monthlyBudgetFund, monthlyBudget.bills);
+      const totals = calculateBudgetTotals(monthlyBudget.monthlyBudgetFund, monthlyBudget.bills, monthlyBudget.monthlyCashUsed);
       const stored = storedSnapshots.get(monthlyBudget.month);
       return normalizeBudgetSnapshot({
         id: stored?.id || crypto.randomUUID(),
         month: monthlyBudget.month,
         monthlyBudgetFund: monthlyBudget.monthlyBudgetFund,
+        cashUsed: totals.cashUsed,
         totalBills: totals.totalBills,
         paidBills: totals.paidBills,
         remainingBills: totals.remainingBills,
@@ -8133,6 +8175,7 @@ function copyBillsToNextMonth() {
   const normalizedNextMonthBudget = normalizeMonthlyBudgetEntry({
     month: nextMonth,
     monthlyBudgetFund: state.monthlyBudgetFund,
+    monthlyCashUsed: currentMonthBudget.monthlyCashUsed,
     copiedForwardFrom: currentMonth,
     bills: copiedBills,
     deletedBillKeys: [],
@@ -10751,7 +10794,7 @@ function getMonthlyBillReportEntries() {
       const monthlyBudget = monthlyBudgets[month] || buildDefaultMonthlyBudget(month);
       const bills = (monthlyBudget.bills || []).map(normalizeBill);
       const recommendedPayments = calculateRecommendedBillPayments(bills);
-      const totals = calculateBudgetTotals(monthlyBudget.monthlyBudgetFund, bills);
+      const totals = calculateBudgetTotals(monthlyBudget.monthlyBudgetFund, bills, monthlyBudget.monthlyCashUsed);
       const currentDebt = bills.reduce((sum, bill) => sum + normalizeMoney(bill.currentBalance), 0);
       const previousDebt = bills.reduce((sum, bill) => sum + normalizeMoney(bill.previousBalance ?? bill.currentBalance), 0);
       const totalPaid = bills.reduce((sum, bill) => sum + normalizeMoney(bill.paidAmount), 0);
