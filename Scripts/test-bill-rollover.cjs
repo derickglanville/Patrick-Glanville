@@ -61,6 +61,10 @@ assert.match(source, /function applyBillHeaderTooltips\(header\)/);
 assert.match(source, /getExpectedBillPayoff\(bill, getEffectiveBillAmount\(bill\), "Due Amt"\)/);
 assert.match(source, /bill-col-payoff-date-due/);
 assert.match(styles, /\.budget-bill-item input\.bill-payoff-date-due\[data-payoff-year\]/);
+assert.match(fs.readFileSync('index.html', 'utf8'), /id="balanceProgressReportBtn"[^>]*>Balance Progress/);
+assert.match(source, /const ADMIN_BALANCE_PROGRESS_BILL_ORDER = \[/);
+assert.match(source, /getMonthlyBillReportEntries\(\)\s*\.filter\(entry => entry\.month <= selectedMonth\)\s*\.slice\(-4\)/);
+assert.match(source, /Start = 100/);
 
 const totalsContext = {
   normalizeMoney: value => Math.round((Number(value) || 0) * 100) / 100,

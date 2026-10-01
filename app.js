@@ -1743,6 +1743,7 @@ const exitAdminBillSimulationBtn = document.querySelector("#exitAdminBillSimulat
 const assignDueDatesBtn = document.querySelector("#assignDueDatesBtn");
 const undoCopyBillsToNextMonthBtn = document.querySelector("#undoCopyBillsToNextMonthBtn");
 const monthlyBillsReportBtn = document.querySelector("#monthlyBillsReportBtn");
+const balanceProgressReportBtn = document.querySelector("#balanceProgressReportBtn");
 const adminBillSmsControls = document.querySelector("#adminBillSmsControls");
 const toggleAdminBillSmsBtn = document.querySelector("#toggleAdminBillSmsBtn");
 const adminBillSmsContent = document.querySelector("#adminBillSmsContent");
@@ -11008,6 +11009,96 @@ function buildMonthlyBillsReportFileName() {
   return `${clientSlug}-monthly-bills-report-${month}.html`;
 }
 
+function buildAdminBalanceProgressReportFileName() {
+  return `admin-balance-progress-${(state.billMonth || defaultBillMonth())}.html`;
+}
+
+const ADMIN_BALANCE_PROGRESS_BILL_ORDER = [
+  "Bank of America", "Citi Simplicity", "Lowe's", "American Express",
+  "Barclay View (Uber)", "Amazon - Chase", "Citi Bank - Money", "Green Sky",
+  "Best Buy", "Amex Centurion", "Key Bank", "Wells Fargo Credit",
+  "Citizen Bank", "QuickSilver-CapOne", "CareCredit", "Apple Card"
+];
+
+function getAdminBalanceProgressSeries() {
+  const selectedMonth = state.billMonth || defaultBillMonth();
+  const months = getMonthlyBillReportEntries()
+    .filter(entry => entry.month <= selectedMonth)
+    .slice(-4);
+  if (months.length < 2) return { months, series: [] };
+  const latestBills = months.at(-1)?.bills || [];
+  const selectedBills = ADMIN_BALANCE_PROGRESS_BILL_ORDER
+    .map(name => latestBills.find(bill => String(bill.name || "").trim().toLowerCase() === name.toLowerCase())
+      || latestBills.find(bill => String(bill.name || "").trim().toLowerCase().startsWith(name.toLowerCase())))
+    .filter(Boolean);
+  const series = selectedBills.map((latestBill, index) => {
+    const name = latestBill.name || `Bill ${index + 1}`;
+    const values = months.map(entry => {
+      const match = entry.bills.find(bill => bill.id === latestBill.id)
+        || entry.bills.find(bill => String(bill.name || "").trim().toLowerCase() === name.trim().toLowerCase());
+      return match ? Math.max(0, normalizeMoney(match.currentBalance)) : null;
+    });
+    const startingBalance = values.find(value => value !== null && value > 0) || 0;
+    return {
+      name,
+      color: `hsl(${Math.round((index * 360) / Math.max(selectedBills.length, 1))}, 66%, 42%)`,
+      startingBalance,
+      currentBalance: values.at(-1) ?? 0,
+      values: values.map(value => value === null || !startingBalance ? null : Number(((value / startingBalance) * 100).toFixed(1)))
+    };
+  }).filter(item => item.startingBalance > 0);
+  return { months, series };
+}
+
+function buildAdminBalanceProgressReportHtml() {
+  const { months, series } = getAdminBalanceProgressSeries();
+  if (months.length < 2 || !series.length) {
+    return `<!doctype html><meta charset="utf-8"><title>Admin Balance Progress</title><main style="font:16px Arial;padding:32px"><h1>Admin Balance Progress</h1><p>At least two saved months with active credit-card balances are needed to create this report.</p></main>`;
+  }
+  const width = 1220;
+  const height = 560;
+  const margin = { top: 38, right: 38, bottom: 72, left: 78 };
+  const plotWidth = width - margin.left - margin.right;
+  const plotHeight = height - margin.top - margin.bottom;
+  const allValues = series.flatMap(item => item.values.filter(value => value !== null));
+  const maxIndex = Math.max(110, Math.ceil(Math.max(...allValues) / 25) * 25);
+  const x = index => margin.left + (months.length === 1 ? 0 : (plotWidth * index) / (months.length - 1));
+  const y = value => margin.top + plotHeight - ((value / maxIndex) * plotHeight);
+  const tickValues = Array.from({ length: 6 }, (_, index) => Math.round((maxIndex * index) / 5));
+  const grid = tickValues.map(value => `<g><line x1="${margin.left}" y1="${y(value)}" x2="${width - margin.right}" y2="${y(value)}" class="grid"/><text x="${margin.left - 14}" y="${y(value) + 5}" text-anchor="end" class="axis-label">${value}</text></g>`).join("");
+  const xLabels = months.map((entry, index) => `<g><line x1="${x(index)}" y1="${margin.top}" x2="${x(index)}" y2="${height - margin.bottom}" class="vertical-grid"/><text x="${x(index)}" y="${height - margin.bottom + 28}" text-anchor="middle" class="axis-label">${escapeHtml(entry.label)}</text></g>`).join("");
+  const lines = series.map(item => {
+    const points = item.values.map((value, index) => value === null ? "" : `${x(index)},${y(value)}`).filter(Boolean).join(" ");
+    const dots = item.values.map((value, index) => value === null ? "" : `<circle cx="${x(index)}" cy="${y(value)}" r="4.5" fill="${item.color}" class="point"><title>${escapeHtml(`${item.name} — ${months[index].label}: ${value}% of starting balance`)}</title></circle>`).join("");
+    return `<g class="series"><polyline points="${points}" stroke="${item.color}"><title>${escapeHtml(`${item.name}: ${item.values.at(-1)}% of starting balance`)}</title></polyline>${dots}</g>`;
+  }).join("");
+  const legend = series.map(item => `<div class="legend-item"><i style="background:${item.color}"></i><span>${escapeHtml(item.name)}</span><strong>${item.values.at(-1)}%</strong></div>`).join("");
+  const details = series.map(item => {
+    const latestIndex = item.values.at(-1);
+    const movement = latestIndex - 100;
+    return `<tr><td><i class="dot" style="background:${item.color}"></i>${escapeHtml(item.name)}</td><td>${escapeHtml(formatCurrency(item.startingBalance))}</td><td>${escapeHtml(formatCurrency(item.currentBalance))}</td><td class="${movement <= 0 ? "improved" : "increased"}">${movement <= 0 ? "" : "+"}${movement.toFixed(1)}%</td><td>${latestIndex.toFixed(1)}%</td></tr>`;
+  }).join("");
+  const improved = series.filter(item => (item.values.at(-1) || 0) < 100).length;
+  const averageIndex = series.reduce((sum, item) => sum + (item.values.at(-1) || 0), 0) / series.length;
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Admin Balance Progress</title><style>
+body{margin:0;background:#eef3f9;color:#152238;font-family:"Segoe UI",Arial,sans-serif}.wrap{max-width:1280px;margin:28px auto;background:#fff;box-shadow:0 18px 46px rgba(20,42,70,.14)}header{padding:32px 40px;background:linear-gradient(125deg,#102b46,#246397);color:#fff}.eyebrow{margin:0 0 7px;font:700 11px/1.2 Arial;letter-spacing:.14em;text-transform:uppercase;color:#b9d8f3}h1{margin:0;font-size:32px}header p{margin:9px 0 0;color:#e0effb}.content{padding:30px 40px 42px}.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:0 0 24px}.metric{border:1px solid #d8e3ef;border-radius:10px;padding:14px;background:#fbfdff}.metric strong{display:block;font-size:25px;color:#1d5c90}.metric span{font-size:13px;color:#607187}.chart-card{border:1px solid #d7e2ee;border-radius:12px;padding:18px;background:linear-gradient(180deg,#fcfdff,#f6faff)}h2{margin:0 0 6px;color:#173a5d;font-size:22px}.note{margin:0 0 14px;color:#607187;line-height:1.45}.chart-wrap{overflow-x:auto}svg{display:block;width:100%;min-width:900px;height:auto}.grid{stroke:#d8e3ef;stroke-width:1}.vertical-grid{stroke:#eef3f8;stroke-width:1}.axis-label{fill:#607187;font-size:12px;font-weight:600}.axis-title{fill:#365877;font-size:13px;font-weight:700}.baseline{stroke:#193f64;stroke-width:2;stroke-dasharray:7 5}.series polyline{fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;opacity:.9}.series:hover polyline{stroke-width:5;opacity:1}.point{stroke:#fff;stroke-width:2}.legend{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px 14px;margin:18px 0 8px}.legend-item{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:7px;align-items:center;padding:7px 8px;border-radius:7px;background:#fff;border:1px solid #e1e9f1;font-size:12px}.legend-item i,.dot{display:inline-block;width:10px;height:10px;border-radius:50%}.legend-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:650}.legend-item strong{color:#244e75}.section{margin-top:28px}table{width:100%;border-collapse:collapse;border:1px solid #d8e3ef;border-radius:10px;overflow:hidden}th{background:#edf4fb;color:#294e73;text-transform:uppercase;letter-spacing:.05em;font-size:11px;text-align:left;padding:11px}td{padding:11px;border-top:1px solid #e4ebf2;font-size:14px}tbody tr:nth-child(even){background:#fbfdff}.improved{color:#087443;font-weight:700}.increased{color:#b42318;font-weight:700}.dot{margin-right:8px;vertical-align:middle}@media(max-width:850px){.wrap{margin:0}.content,header{padding:22px}.metrics{grid-template-columns:1fr}.legend{grid-template-columns:repeat(2,minmax(0,1fr))}table{font-size:12px}th,td{padding:8px}}
+</style></head><body><main class="wrap"><header><p class="eyebrow">Admin monthly balance analysis</p><h1>Balance Progress</h1><p>Four-month indexed view. Every bill starts at 100 so its movement can be compared directly with every other bill.</p></header><section class="content"><div class="metrics"><article class="metric"><strong>${series.length}</strong><span>active bills charted</span></article><article class="metric"><strong>${improved} of ${series.length}</strong><span>balances lower than their starting point</span></article><article class="metric"><strong>${averageIndex.toFixed(1)}%</strong><span>average latest balance index</span></article></div><section class="chart-card"><h2>Balance index by month</h2><p class="note"><strong>Y-axis:</strong> balance index, where 100 equals that bill’s first recorded balance. Lower is progress. <strong>X-axis:</strong> saved monthly budget.</p><div class="chart-wrap"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Indexed balance progress for ${series.length} Admin bills"><defs><linearGradient id="chart-bg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#f5f9fd"/></linearGradient></defs><rect x="${margin.left}" y="${margin.top}" width="${plotWidth}" height="${plotHeight}" rx="8" fill="url(#chart-bg)"/>${grid}${xLabels}<line x1="${margin.left}" y1="${y(100)}" x2="${width - margin.right}" y2="${y(100)}" class="baseline"/><text x="${width - margin.right}" y="${y(100) - 9}" text-anchor="end" class="axis-title">Start = 100</text>${lines}<text x="${margin.left + (plotWidth / 2)}" y="${height - 15}" text-anchor="middle" class="axis-title">Month</text><text x="20" y="${margin.top + (plotHeight / 2)}" transform="rotate(-90 20 ${margin.top + (plotHeight / 2)})" text-anchor="middle" class="axis-title">Balance index</text></svg></div><div class="legend">${legend}</div></section><section class="section"><h2>Bill detail</h2><p class="note">The latest index compares the current month’s balance with that bill’s starting balance. Negative movement means the balance decreased.</p><table><thead><tr><th>Bill</th><th>Starting balance</th><th>Latest balance</th><th>Movement</th><th>Latest index</th></tr></thead><tbody>${details}</tbody></table></section></section></main></body></html>`;
+}
+
+function downloadAdminBalanceProgressReportHtml() {
+  if (activeClientId !== "admin") {
+    alert("Choose the Admin client before generating the balance progress report.");
+    return;
+  }
+  const blob = new Blob([buildAdminBalanceProgressReportHtml()], { type: "text/html" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = buildAdminBalanceProgressReportFileName();
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
 function getMonthlyBillReportEntries() {
   const monthlyBudgets = normalizeMonthlyBudgetsMap(state.monthlyBudgets);
   return Object.keys(monthlyBudgets)
@@ -12210,6 +12301,9 @@ if (exitAdminBillSimulationBtn) {
 }
 if (monthlyBillsReportBtn) {
   monthlyBillsReportBtn.addEventListener("click", downloadMonthlyBillsReportHtml);
+}
+if (balanceProgressReportBtn) {
+  balanceProgressReportBtn.addEventListener("click", downloadAdminBalanceProgressReportHtml);
 }
 if (toggleAdminBillSmsBtn) {
   toggleAdminBillSmsBtn.addEventListener("click", () => {
