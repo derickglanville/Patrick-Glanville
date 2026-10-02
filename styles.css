@@ -5416,3 +5416,62 @@ body[data-device-layout="tablet"] #budgetPanel .budget-bill-list-admin .budget-b
   border-left-width: 4px;
   font-weight: 800;
 }
+
+/* Give the touch spreadsheet generous type and touch targets. The intentionally
+   wider sheet keeps values legible; swipe sideways to reach later columns. */
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin,
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin {
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+}
+
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header:not(.is-simple),
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header:not(.is-simple),
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple),
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple),
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-total-row,
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-total-row {
+  grid-template-columns: 34px 250px 144px 84px 108px 120px 120px 106px 92px 118px 108px 108px 132px 178px 178px 92px 136px 136px 76px 88px 220px 220px 96px;
+  min-width: 3184px;
+}
+
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header:not(.is-simple),
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header:not(.is-simple) {
+  min-height: 42px;
+  font-size: .76rem;
+  line-height: 1.2;
+}
+
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple),
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple),
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-total-row,
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-total-row {
+  min-height: 46px;
+}
+
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) input,
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) select,
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) textarea,
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) input,
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) select,
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) textarea {
+  min-height: 42px;
+  height: 42px;
+  padding: 6px 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-notes-box textarea,
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-notes-box textarea {
+  min-height: 42px;
+  height: 42px;
+}
+
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header .bill-col-name,
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header .bill-col-name,
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-name,
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-name {
+  left: 34px;
+}
