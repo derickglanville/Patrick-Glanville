@@ -5192,6 +5192,109 @@ body[data-device-layout="tablet"] #adminCreditCardFinderBtn {
   color: #0d4e8d;
   font-weight: 800;
 }
+
+/* Admin Bills use the full spreadsheet on touch devices.  The sheet scrolls
+   horizontally instead of hiding financial fields or turning each bill into a
+   card, so an iPhone or iPad shows the same complete data model as desktop. */
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin,
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin {
+  overflow: auto;
+  overscroll-behavior: contain;
+  max-height: min(64vh, 620px);
+  padding: 0;
+  border-radius: 0 0 8px 8px;
+}
+
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header:not(.is-simple),
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header:not(.is-simple),
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple),
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple),
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-total-row,
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-total-row {
+  display: grid !important;
+  grid-template-columns: 28px 190px 108px 62px 88px 96px 96px 86px 76px 98px 88px 88px 108px 150px 150px 78px 116px 116px 64px 72px 180px 180px 84px;
+  grid-template-areas: none;
+  min-width: 2550px;
+  gap: 0;
+  padding: 0;
+  margin: 0;
+  border-radius: 0;
+  align-items: center;
+}
+
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header:not(.is-simple),
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header:not(.is-simple) {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  font-size: .66rem;
+}
+
+/* The reduced tablet sheet hid these cells. Restore every column in the
+   responsive sheet, including dates, notes, observations, and actions. */
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .bill-col,
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .bill-col,
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-field,
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-field {
+  display: grid !important;
+  grid-area: auto;
+}
+
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header .bill-col,
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header .bill-col {
+  display: block !important;
+}
+
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-field > span,
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-field > span {
+  display: none !important;
+}
+
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) input,
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) select,
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) textarea,
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) input,
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) select,
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) textarea {
+  min-height: 32px;
+  height: 32px;
+  padding: 3px 5px;
+  font-size: .86rem;
+}
+
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-notes-box textarea,
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-notes-box textarea {
+  min-height: 32px;
+  height: 32px;
+}
+
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-selector-box,
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-selector-box {
+  display: flex !important;
+  grid-area: auto;
+}
+
+/* Keep identity in view while the remaining fields scroll. */
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header .budget-bill-selector-header,
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header .budget-bill-selector-header,
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-selector-box,
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-selector-box {
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  background: inherit;
+}
+
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header .bill-col-name,
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header .bill-col-name,
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-name,
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-name {
+  position: sticky;
+  left: 28px;
+  z-index: 4;
+  background: inherit;
+  box-shadow: 2px 0 4px rgba(28, 57, 91, .12);
+}
 /* iPad sheet view keeps the useful payment columns in one readable spreadsheet row. */
 .budget-panel.is-admin-tablet-grid .budget-bill-list-admin {
   overflow: auto;

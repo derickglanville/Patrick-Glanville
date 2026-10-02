@@ -6774,9 +6774,8 @@ function setPanelCollapsed(panel, content, button, hidden, label) {
   button.setAttribute("aria-label", `${hidden ? "Show" : "Hide"} ${label}`);
 }
 
-function canUseAdminTabletGrid() {
-  const appleTablet = /iPad/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  return isAdminClient() && (appleTablet || (document.body.dataset.deviceLayout === "tablet" && window.innerWidth >= 768));
+function usesAdminResponsiveGrid() {
+  return isAdminClient() && ["phone", "tablet"].includes(document.body.dataset.deviceLayout);
 }
 function renderBills() {
   const usesSimpleBills = !clientUsesBillGrouping();
@@ -6796,7 +6795,7 @@ function renderBills() {
     budgetPanel.classList.toggle("budget-panel-compact-view", !usesSimpleBills && Boolean(state.billsCompactView));
     budgetPanel.classList.toggle("budget-panel-admin-mini", !usesSimpleBills && isAdminClient() && Boolean(state.billsCompactView));
     budgetPanel.classList.toggle("is-admin-bill-simulation", simulationActive);
-    budgetPanel.classList.toggle("is-admin-tablet-grid", canUseAdminTabletGrid() && Boolean(state.adminTabletGridView));
+    budgetPanel.classList.toggle("is-admin-tablet-grid", usesAdminResponsiveGrid());
   }
   if (toggleBillsCompactBtn) {
     toggleBillsCompactBtn.hidden = usesSimpleBills;
@@ -6813,10 +6812,7 @@ function renderBills() {
   }
   if (adminMonthlyExpendituresBtn) adminMonthlyExpendituresBtn.hidden = !isAdminClient();
   if (adminTabletGridViewBtn) {
-    const canUseTabletGrid = canUseAdminTabletGrid();
-    adminTabletGridViewBtn.hidden = !canUseTabletGrid;
-    adminTabletGridViewBtn.textContent = state.adminTabletGridView ? "Card View" : "iPad Grid View";
-    adminTabletGridViewBtn.setAttribute("aria-pressed", String(Boolean(state.adminTabletGridView)));
+    adminTabletGridViewBtn.hidden = true;
   }
   if (adminCreditCardFinderBtn) adminCreditCardFinderBtn.hidden = !isAdminClient();
   if (cellphoneBillingHistoryBtn) cellphoneBillingHistoryBtn.hidden = !isAdminClient();
