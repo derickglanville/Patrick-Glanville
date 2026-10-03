@@ -5469,7 +5469,7 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header:not(.is-simple),
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header:not(.is-simple) {
-  min-height: 21px;
+  min-height: 20px;
   font-size: .62rem;
   line-height: 1.2;
 }
@@ -5478,7 +5478,7 @@ body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple),
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-total-row,
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-total-row {
-  min-height: 23px;
+  min-height: 21px;
 }
 
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) input,
@@ -5487,9 +5487,9 @@ body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) input,
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) select,
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) textarea {
-  min-height: 21px;
-  height: 21px;
-  padding: 0 3px;
+  min-height: 19px;
+  height: 19px;
+  padding: 0 2px;
   font-size: .72rem;
   font-weight: 700;
   line-height: 1.25;
@@ -5497,8 +5497,8 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-notes-box textarea,
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-notes-box textarea {
-  min-height: 21px;
-  height: 21px;
+  min-height: 19px;
+  height: 19px;
 }
 
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header .bill-col-name,
@@ -5544,11 +5544,11 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-item > *,
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-item > * {
   box-sizing: border-box;
-  border-right: 1px solid #b9c9dc;
-  border-bottom: 1px solid #b9c9dc;
+  border-right: 2px solid #819bb8;
+  border-bottom: 2px solid #819bb8;
 }
 
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header > *,
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header > * {
-  border-bottom: 1px solid #91a9c5;
+  border-bottom: 2px solid #617e9f;
 }
