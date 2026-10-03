@@ -10,7 +10,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>3G Tracking and Notifications</title>
-  <link rel="stylesheet" href="styles.css?v=2026-10-03-admin-grid-scroll-002">
+  <link rel="stylesheet" href="styles.css?v=2026-10-03-admin-grid-scroll-003">
 </head>
 <body>
   <section class="collaboration-panel" aria-label="Collaboration access">
@@ -347,25 +347,27 @@
         </div>
         <p id="budgetAlert" class="budget-alert" hidden></p>
         <div class="budget-bill-group" aria-label="Monthly bills list">
-          <div class="budget-bill-list-header" aria-hidden="true">
-            <span>Bill</span>
-            <span>APR</span>
-            <span>Prev Bal</span>
-            <span>Current Bal</span>
-            <span>Diff</span>
-            <span>Credit Line</span>
-            <span>Amount</span>
-            <span>Paid Amt</span>
-            <span>Recommended</span>
-            <span>Tran #</span>
-            <span>Due</span>
-            <span>Date Paid</span>
-            <span>Status</span>
-            <span>Notes</span>
-            <span>Observation</span>
-            <span>Actions</span>
+          <div class="budget-bill-scroll-shell" aria-label="Swipe left or right to view all bill columns">
+            <div class="budget-bill-list-header" aria-hidden="true">
+              <span>Bill</span>
+              <span>APR</span>
+              <span>Prev Bal</span>
+              <span>Current Bal</span>
+              <span>Diff</span>
+              <span>Credit Line</span>
+              <span>Amount</span>
+              <span>Paid Amt</span>
+              <span>Recommended</span>
+              <span>Tran #</span>
+              <span>Due</span>
+              <span>Date Paid</span>
+              <span>Status</span>
+              <span>Notes</span>
+              <span>Observation</span>
+              <span>Actions</span>
+            </div>
+            <div id="billList" class="budget-bill-groups"></div>
           </div>
-          <div id="billList" class="budget-bill-groups"></div>
         </div>
         <section class="hidden-bills-panel" aria-label="Hidden monthly bills">
           <div class="hidden-bills-header">
