@@ -5512,9 +5512,13 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
    scrolling so one swipe moves every column together. */
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-group,
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-group {
+  display: block;
+  width: 100%;
+  min-width: 0;
   max-width: 100%;
-  overflow-x: auto;
+  overflow-x: scroll;
   overflow-y: visible;
+  overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x pan-y;
 }
@@ -5523,6 +5527,7 @@ body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-group > .budget-bill-list-header:not(.is-simple),
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid #billList,
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid #billList {
+  width: 3184px;
   min-width: 3184px;
 }
 
