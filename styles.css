@@ -5469,8 +5469,8 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header:not(.is-simple),
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header:not(.is-simple) {
-  min-height: 42px;
-  font-size: .76rem;
+  min-height: 30px;
+  font-size: .68rem;
   line-height: 1.2;
 }
 
@@ -5478,7 +5478,7 @@ body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple),
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-total-row,
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-total-row {
-  min-height: 46px;
+  min-height: 32px;
 }
 
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) input,
@@ -5487,18 +5487,18 @@ body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) input,
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) select,
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) textarea {
-  min-height: 42px;
-  height: 42px;
-  padding: 6px 8px;
-  font-size: 1rem;
+  min-height: 28px;
+  height: 28px;
+  padding: 2px 5px;
+  font-size: .84rem;
   font-weight: 700;
   line-height: 1.25;
 }
 
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-notes-box textarea,
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-notes-box textarea {
-  min-height: 42px;
-  height: 42px;
+  min-height: 28px;
+  height: 28px;
 }
 
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header .bill-col-name,
