@@ -5534,5 +5534,6 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid #billList {
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin,
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin {
   overflow-x: visible;
-  overflow-y: auto;
+  overflow-y: visible;
+  max-height: none;
 }
