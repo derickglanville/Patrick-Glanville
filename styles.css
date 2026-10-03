@@ -5507,3 +5507,27 @@ body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-name {
   left: 34px;
 }
+
+/* The header and the rows are siblings. Their shared wrapper owns horizontal
+   scrolling so one swipe moves every column together. */
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-group,
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-group {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+}
+
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-group > .budget-bill-list-header:not(.is-simple),
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-group > .budget-bill-list-header:not(.is-simple),
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid #billList,
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid #billList {
+  min-width: 3184px;
+}
+
+body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin,
+body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin {
+  overflow-x: visible;
+  overflow-y: auto;
+}
