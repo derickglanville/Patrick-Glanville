@@ -5516,9 +5516,9 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  overflow-x: scroll;
-  overflow-y: visible;
-  overscroll-behavior-x: contain;
+  max-height: min(64vh, 620px);
+  overflow: auto;
+  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x pan-y;
 }
