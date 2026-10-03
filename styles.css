@@ -3906,8 +3906,40 @@ body[data-device-layout="tablet"] .collaboration-panel {
 }
 
 body[data-device-layout="tablet"] .sync-panel {
-  grid-template-columns: repeat(2, minmax(0, 1fr)) repeat(2, auto);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "github build"
+    "store store"
+    "choose save"
+    "open validate"
+    "view audit"
+    "restore refresh"
+    "alert alert";
+  gap: 12px;
   padding: 12px 22px;
+}
+
+body[data-device-layout="tablet"] .sync-panel > div,
+body[data-device-layout="tablet"] .sync-panel > button {
+  min-width: 0;
+}
+
+body[data-device-layout="tablet"] .sync-panel > div:nth-child(1) { grid-area: github; }
+body[data-device-layout="tablet"] .sync-panel > div:nth-child(2) { grid-area: build; }
+body[data-device-layout="tablet"] .sync-panel > div:nth-child(3) { grid-area: store; }
+body[data-device-layout="tablet"] #chooseJsonBackupBtn { grid-area: choose; }
+body[data-device-layout="tablet"] #saveJsonBackupBtn { grid-area: save; }
+body[data-device-layout="tablet"] #openJsonBackupBtn { grid-area: open; }
+body[data-device-layout="tablet"] #validateJsonBackupBtn { grid-area: validate; }
+body[data-device-layout="tablet"] #viewJsonBackupBtn { grid-area: view; }
+body[data-device-layout="tablet"] #viewBillAuditBtn { grid-area: audit; }
+body[data-device-layout="tablet"] #restoreBillSnapshotBtn { grid-area: restore; }
+body[data-device-layout="tablet"] #refreshAppBtn { grid-area: refresh; }
+body[data-device-layout="tablet"] #billSyncAlertBanner { grid-area: alert; }
+
+body[data-device-layout="tablet"] .sync-panel span {
+  overflow-wrap: anywhere;
+  line-height: 1.35;
 }
 
 body[data-device-layout="tablet"] .header-actions {
