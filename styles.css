@@ -5463,14 +5463,14 @@ body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple),
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-total-row,
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-total-row {
-  grid-template-columns: 34px 250px 144px 84px 108px 120px 120px 106px 92px 118px 108px 108px 132px 178px 178px 92px 136px 136px 76px 88px 220px 220px 96px;
-  min-width: 3184px;
+  grid-template-columns: 24px 160px 96px 52px 82px 96px 96px 86px 74px 94px 86px 86px 100px 132px 132px 68px 108px 108px 56px 64px 128px 128px 70px;
+  min-width: 2126px;
 }
 
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header:not(.is-simple),
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header:not(.is-simple) {
-  min-height: 30px;
-  font-size: .68rem;
+  min-height: 24px;
+  font-size: .62rem;
   line-height: 1.2;
 }
 
@@ -5478,7 +5478,7 @@ body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple),
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-total-row,
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-total-row {
-  min-height: 32px;
+  min-height: 26px;
 }
 
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) input,
@@ -5487,25 +5487,25 @@ body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) input,
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) select,
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) textarea {
-  min-height: 28px;
-  height: 28px;
-  padding: 2px 5px;
-  font-size: .84rem;
+  min-height: 24px;
+  height: 24px;
+  padding: 1px 4px;
+  font-size: .76rem;
   font-weight: 700;
   line-height: 1.25;
 }
 
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-notes-box textarea,
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .budget-bill-notes-box textarea {
-  min-height: 28px;
-  height: 28px;
+  min-height: 24px;
+  height: 24px;
 }
 
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header .bill-col-name,
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header .bill-col-name,
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-name,
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-item:not(.budget-bill-item-simple) .bill-col-name {
-  left: 34px;
+  left: 24px;
 }
 
 /* The header and the rows are siblings. Their shared wrapper owns horizontal
@@ -5527,8 +5527,8 @@ body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-scroll-shell > .budget-bill-list-header:not(.is-simple),
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid #billList,
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid #billList {
-  width: 3184px;
-  min-width: 3184px;
+  width: 2126px;
+  min-width: 2126px;
 }
 
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin,
