@@ -600,6 +600,41 @@ textarea {
   font-weight: 700;
 }
 
+/* Give the Monthly Bills toolbar visual groups without sacrificing the compact
+   spreadsheet-like layout.  Stronger colors mark actions that change, fetch,
+   or report on budget data. */
+#budgetPanel .panel-actions > .ghost {
+  color: #183d67;
+  background: #e7f0fc;
+  border: 1px solid #b9d0ed;
+}
+
+#copyBillsToNextMonthBtn { color: #4c1d95 !important; background: #f1eafe !important; border-color: #cdb9ef !important; }
+#calculateBillsBtn { color: #075f42 !important; background: #ddf7e7 !important; border-color: #83cfa3 !important; }
+#pullLatestDevicesBtn { color: #075985 !important; background: #e0f2fe !important; border-color: #8bcaed !important; }
+#adminBillSimulationBtn { color: #5b217d !important; background: #f4e8ff !important; border-color: #d4afea !important; }
+#adminCreditCardFinderBtn { color: #0f5f62 !important; background: #ddf7f5 !important; border-color: #86d4ce !important; }
+#adminMonthlyExpendituresBtn { color: #3730a3 !important; background: #e8eaff !important; border-color: #b5baf3 !important; }
+#cellphoneBillingHistoryBtn { color: #6b277d !important; background: #f8e8fb !important; border-color: #e0b7e8 !important; }
+#assignDueDatesBtn { color: #854d0e !important; background: #fff1c7 !important; border-color: #e9c667 !important; }
+#undoCopyBillsToNextMonthBtn { color: #9f1239 !important; background: #ffe5eb !important; border-color: #f2aabd !important; }
+#toggleBillsCompactBtn, #toggleBillsPopoutBtn { color: #334155 !important; background: #eaf0f5 !important; border-color: #c3d0dc !important; }
+#monthlyBillsReportBtn { color: #6b21a8 !important; background: #f2e8ff !important; border-color: #d3afe8 !important; }
+#balanceProgressReportBtn { color: #0f5f43 !important; background: #dff6e8 !important; border-color: #91d0a8 !important; }
+#hideBillsBtn { color: #9f1239 !important; background: #fff0f3 !important; border-color: #f4bdc9 !important; }
+
+#budgetPanel .admin-bill-quick-controls > .ghost {
+  color: #183d67;
+  background: #e7f0fc;
+  border: 1px solid #b9d0ed;
+}
+
+#refreshAdminBillsBtn { color: #075f42 !important; background: #ddf7e7 !important; border-color: #83cfa3 !important; }
+#toggleAdminProposedPreviewBtn { color: #5b217d; background: #f1eafe; border-color: #cdb9ef; }
+#billGroupEarlyBtn { color: #075985 !important; background: #e0f2fe !important; border-color: #8bcaed !important; }
+#billGroupMidBtn { color: #854d0e !important; background: #fff1c7 !important; border-color: #e9c667 !important; }
+#billGroupLateBtn { color: #9f1239 !important; background: #ffe5eb !important; border-color: #f2aabd !important; }
+
 #budgetPanel .admin-bill-quick-controls > button,
 #budgetPanel .admin-bill-quick-controls .segmented-toggle button {
   font-size: .9rem;
