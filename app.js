@@ -6991,7 +6991,7 @@ function renderBills() {
       <label class="budget-bill-field bill-col-proposed">
         <span>Proposed</span>
         <select class="bill-proposed-amount" aria-label="Proposed cash reduction for ${escapeAttribute(bill.name || "bill")}"${isAdminProposedPreviewActive() ? "" : " disabled title=\"Turn on Preview Proposed Reductions to select a temporary cash reduction.\""}>
-          ${[0, 1000, 2000, 3000, 4000, 5000].map(amount => `<option value="${amount}"${normalizeMoney(bill.proposedAmount) === amount ? " selected" : ""}>${amount ? escapeHtml(formatCurrency(amount)) : "—"}</option>`).join("")}
+          ${[0, 500, 1000, 2000, 3000, 4000, 5000].map(amount => `<option value="${amount}"${normalizeMoney(bill.proposedAmount) === amount ? " selected" : ""}>${amount ? escapeHtml(formatCurrency(amount)) : "—"}</option>`).join("")}
         </select>
       </label>
       <label class="budget-bill-field bill-col-diff">
