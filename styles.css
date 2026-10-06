@@ -5464,6 +5464,13 @@ body[data-device-layout="tablet"] #budgetPanel .budget-bill-list-admin .budget-b
   font-weight: 800;
 }
 
+.bill-proposed-amount:disabled {
+  color: #657182;
+  border-color: #c4ccd6;
+  background: #f1f3f5;
+  cursor: not-allowed;
+}
+
 /* Give the touch spreadsheet generous type and touch targets. The intentionally
    wider sheet keeps values legible; swipe sideways to reach later columns. */
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin,

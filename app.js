@@ -1964,7 +1964,7 @@ const BILL_HEADER_TOOLTIPS = {
   "Interest Paid": "Estimated monthly interest: Previous Balance × APR ÷ 12. Click to view the column total.",
   "Prev Bal": "Balance carried into the selected month from the prior month’s closing balance. Click to view the column total.",
   "Current Bal": "Current recorded balance for the selected month. Click to view the column total.",
-  "Proposed": "Optional one-time cash reduction. Select an amount, then turn on Preview Proposed Reductions to temporarily subtract it from Current Bal and recalculate the grid. The saved actual balance is never changed.",
+  "Proposed": "Optional one-time cash reduction. Turn on Preview Proposed Reductions, then select an amount to temporarily subtract it from Current Bal and recalculate the grid. The saved actual balance is never changed.",
   "Diff": "Current Balance minus Previous Balance. A negative value shows the balance fell. Click to view the column total.",
   "Pay More": "Payment guidance. It identifies paid bills where estimated interest consumes more than the principal-reducing portion of the payment.",
   "Credit Line": "Credit limit or available credit line. Click to view the column total.",
@@ -6990,7 +6990,7 @@ function renderBills() {
       </label>
       <label class="budget-bill-field bill-col-proposed">
         <span>Proposed</span>
-        <select class="bill-proposed-amount" aria-label="Proposed cash reduction for ${escapeAttribute(bill.name || "bill")}">
+        <select class="bill-proposed-amount" aria-label="Proposed cash reduction for ${escapeAttribute(bill.name || "bill")}"${isAdminProposedPreviewActive() ? "" : " disabled title=\"Turn on Preview Proposed Reductions to select a temporary cash reduction.\""}>
           ${[0, 1000, 2000, 3000, 4000, 5000].map(amount => `<option value="${amount}"${normalizeMoney(bill.proposedAmount) === amount ? " selected" : ""}>${amount ? escapeHtml(formatCurrency(amount)) : "—"}</option>`).join("")}
         </select>
       </label>
