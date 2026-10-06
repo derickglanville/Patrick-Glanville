@@ -1919,7 +1919,7 @@ const BILL_COLUMN_SUM_CONFIG = {
   "bill-col-interest-paid": {
     label: "Interest paid",
     getValue: bill => calculateMonthlyInterestPortion(
-      getEffectiveBillPreviousBalance(bill),
+      getEffectiveBillInterestBalance(bill),
       bill.apr
     )
   },
@@ -1961,7 +1961,7 @@ const BILL_HEADER_TOOLTIPS = {
   "Bill": "Bill or account name.",
   "Type": "Bill category used for planning and payoff rules.",
   "APR": "Annual percentage rate. It is used to estimate monthly interest and the payoff date.",
-  "Interest Paid": "Estimated monthly interest: Previous Balance × APR ÷ 12. Click to view the column total.",
+  "Interest Paid": "Estimated monthly interest: Previous Balance × APR ÷ 12. During Preview Proposed Reductions, it uses the temporarily reduced Current Balance. Click to view the column total.",
   "Prev Bal": "Balance carried into the selected month from the prior month’s closing balance. Click to view the column total.",
   "Current Bal": "Current recorded balance for the selected month. Click to view the column total.",
   "Proposed": "Optional one-time cash reduction. Turn on Preview Proposed Reductions, then select an amount to temporarily subtract it from Current Bal and recalculate the grid. The saved actual balance is never changed.",
@@ -4307,6 +4307,13 @@ function getEffectiveBillPreviousBalance(bill) {
     return normalizeSignedMoney(bill.simulatedPreviousBalance);
   }
   return normalizeMoney(bill?.previousBalance ?? bill?.currentBalance);
+}
+
+function getEffectiveBillInterestBalance(bill) {
+  if (isAdminProposedPreviewActive() && bill && Object.hasOwn(bill, "proposedCurrentBalance")) {
+    return getEffectiveBillCurrentBalance(bill);
+  }
+  return getEffectiveBillPreviousBalance(bill);
 }
 
 function calculateSimulatedCurrentBalance(bill, projectedPreviousBalance) {
@@ -6889,7 +6896,7 @@ function renderBills() {
 
   const buildBillTotalsRow = billsForTotals => {
     const totals = billsForTotals.reduce((acc, bill) => {
-      acc.interestPaid += calculateMonthlyInterestPortion(getEffectiveBillPreviousBalance(bill), bill.apr);
+      acc.interestPaid += calculateMonthlyInterestPortion(getEffectiveBillInterestBalance(bill), bill.apr);
       acc.previousBalance += getEffectiveBillPreviousBalance(bill);
       acc.currentBalance += getEffectiveBillCurrentBalance(bill);
       acc.proposed += normalizeMoney(bill.proposedAmount);
@@ -6959,7 +6966,7 @@ function renderBills() {
     const dueSoon = !pastDue && isBillDueSoon(bill, 7);
     const effectivePreviousBalance = getEffectiveBillPreviousBalance(bill);
     const effectiveCurrentBalance = getEffectiveBillCurrentBalance(bill);
-    const interestPaid = calculateMonthlyInterestPortion(effectivePreviousBalance, bill.apr);
+    const interestPaid = calculateMonthlyInterestPortion(getEffectiveBillInterestBalance(bill), bill.apr);
     const interestPriority = getAdminInterestPriority(bill, interestPaid, recommendedPayment);
     const balanceDiff = effectiveCurrentBalance - effectivePreviousBalance;
     const notesDisplay = buildAdminPaidBillProgressNote(bill, interestPaid, recommendedPayment) || bill.notes || "";

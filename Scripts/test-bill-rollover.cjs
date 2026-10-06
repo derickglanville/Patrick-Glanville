@@ -125,7 +125,7 @@ const proposedPreviewContext = {
   isAdminBillSimulationActive: () => false,
   isAdminProposedPreviewActive: () => true,
   normalizeMoney: value => Math.round((Number(value) || 0) * 100) / 100,
-  getEffectiveBillCurrentBalance: bill => Number(bill.currentBalance) || 0,
+  getEffectiveBillCurrentBalance: bill => Number(bill.proposedCurrentBalance ?? bill.currentBalance) || 0,
 };
 vm.createContext(proposedPreviewContext);
 vm.runInContext(extract('getBillsForCurrentDisplay'), proposedPreviewContext);
@@ -134,6 +134,11 @@ assert.equal(proposedPreviewBill.proposedCurrentBalance, 2887.53);
 assert.equal(proposedPreviewBill.amount, 180, 'a proposed cash reduction must not reduce the scheduled Due Amt');
 assert.equal(proposedPreviewBill.proposedDueAmount, undefined);
 assert.match(source, /getBillsForCurrentDisplay\(\{ includeProposedPreview: false \}\)/);
+vm.runInContext([
+  extract('getEffectiveBillPreviousBalance'),
+  extract('getEffectiveBillInterestBalance'),
+].join('\n'), proposedPreviewContext);
+assert.equal(proposedPreviewContext.getEffectiveBillInterestBalance(proposedPreviewBill), 2887.53);
 
 const observationContext = {
   state: {
