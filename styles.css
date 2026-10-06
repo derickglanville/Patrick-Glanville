@@ -5415,8 +5415,8 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 }
 
 #hiddenBillsContent { overflow-x: auto; }
-body[data-device-layout="phone"] .budget-panel:not(.is-admin-tablet-grid) .bill-col-payoff-date,
-body[data-device-layout="tablet"] .budget-panel:not(.is-admin-tablet-grid) .bill-col-payoff-date {
+body[data-device-layout="phone"] .budget-panel:not(.is-admin-tablet-grid) .budget-bill-item:not(.budget-bill-item-simple) .bill-col-payoff-date,
+body[data-device-layout="tablet"] .budget-panel:not(.is-admin-tablet-grid) .budget-bill-item:not(.budget-bill-item-simple) .bill-col-payoff-date {
   grid-column: 2 / -1;
 }
 
@@ -5455,6 +5455,16 @@ body[data-device-layout="tablet"] #budgetPanel .budget-bill-list-admin .budget-b
 #budgetPanel .budget-bill-item:not(.budget-bill-item-simple),
 #budgetPanel .budget-bill-total-row {
   grid-template-columns: 24px minmax(148px, 1fr) minmax(88px, .55fr) 48px minmax(78px, .4fr) minmax(92px, .42fr) minmax(92px, .4fr) minmax(88px, .4fr) minmax(82px, .42fr) minmax(66px, .36fr) minmax(92px, .38fr) minmax(78px, .36fr) minmax(78px, .4fr) minmax(96px, .58fr) minmax(142px, .82fr) minmax(142px, .82fr) minmax(68px, .38fr) minmax(108px, .68fr) minmax(108px, .68fr) 56px 64px minmax(156px, .9fr) minmax(156px, .9fr) 78px;
+}
+
+#budgetPanel .budget-bill-list-header:not(.is-simple) .bill-col-recommended,
+#budgetPanel .budget-bill-list-header:not(.is-simple) .bill-col-payoff-date,
+#budgetPanel .budget-bill-list-header:not(.is-simple) .bill-col-payoff-date-due {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: center;
+  line-height: 1.1;
+  white-space: normal;
 }
 
 .bill-proposed-amount {
