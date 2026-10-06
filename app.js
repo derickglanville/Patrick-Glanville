@@ -4324,12 +4324,12 @@ function calculateSimulatedDueAmount(bill, simulatedCurrentBalance) {
 }
 
 function getEffectiveBillAmount(bill) {
-  if (bill && Object.hasOwn(bill, "proposedDueAmount")) return normalizeMoney(bill.proposedDueAmount);
   if (bill && Object.hasOwn(bill, "simulatedAmount")) return normalizeMoney(bill.simulatedAmount);
   return normalizeMoney(bill?.amount);
 }
 
-function getBillsForCurrentDisplay() {
+function getBillsForCurrentDisplay(options = {}) {
+  const includeProposedPreview = options.includeProposedPreview !== false;
   const projections = isAdminBillSimulationActive() ? getAdminBillSimulationProjectionMap() : null;
   const simulatedBills = !projections
     ? state.bills
@@ -4345,15 +4345,11 @@ function getBillsForCurrentDisplay() {
           simulatedAmount: calculateSimulatedDueAmount(bill, simulatedCurrentBalance)
         };
       });
-  if (!isAdminProposedPreviewActive()) return simulatedBills;
+  if (!includeProposedPreview || !isAdminProposedPreviewActive()) return simulatedBills;
   return simulatedBills.map(bill => {
     const baselineCurrentBalance = Math.max(0, getEffectiveBillCurrentBalance(bill));
     const proposedCurrentBalance = Math.max(0, baselineCurrentBalance - normalizeMoney(bill.proposedAmount));
-    const baselineDueAmount = getEffectiveBillAmount(bill);
-    const proposedDueAmount = baselineCurrentBalance > 0
-      ? Math.min(baselineDueAmount, Math.round((baselineDueAmount * (proposedCurrentBalance / baselineCurrentBalance)) * 100) / 100)
-      : 0;
-    return { ...bill, proposedCurrentBalance, proposedDueAmount };
+    return { ...bill, proposedCurrentBalance };
   });
 }
 
@@ -6868,8 +6864,20 @@ function renderBills() {
   const hiddenBills = usesSimpleBills
     ? []
     : displayBills.filter(bill => bill.hidden);
-  const recommendedPayments = calculateRecommendedBillPayments(visibleBills);
-  const hiddenRecommendedPayments = calculateRecommendedBillPayments(hiddenBills);
+  // A cash proposal is a one-time balance reduction. Keep the regular monthly
+  // due and recommended payments intact so the payoff date shows the actual
+  // acceleration from applying that cash, instead of reducing the payment too.
+  const paymentPlanBills = proposedPreviewActive
+    ? getBillsForCurrentDisplay({ includeProposedPreview: false })
+    : displayBills;
+  const paymentPlanVisibleBills = usesSimpleBills
+    ? paymentPlanBills
+    : paymentPlanBills.filter(bill => !bill.hidden);
+  const paymentPlanHiddenBills = usesSimpleBills
+    ? []
+    : paymentPlanBills.filter(bill => bill.hidden);
+  const recommendedPayments = calculateRecommendedBillPayments(paymentPlanVisibleBills);
+  const hiddenRecommendedPayments = calculateRecommendedBillPayments(paymentPlanHiddenBills);
   const billGroups = {
     early: visibleBills.filter(bill => getBillDueGroup(bill) === "early"),
     mid: visibleBills.filter(bill => getBillDueGroup(bill) === "mid"),

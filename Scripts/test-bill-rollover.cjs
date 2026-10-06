@@ -120,6 +120,21 @@ assert.match(source, /const toggleBillsBtn = document\.querySelector\("#hideBill
 assert.match(source, /const billPaidPercent = billTotals\.totalBills > 0/);
 assert.match(source, /progressFill"\)\.style\.width = `\$\{billPaidPercent\}%`/);
 
+const proposedPreviewContext = {
+  state: { bills: [{ id: 'citi-money', currentBalance: 3887.53, amount: 180, proposedAmount: 1000 }] },
+  isAdminBillSimulationActive: () => false,
+  isAdminProposedPreviewActive: () => true,
+  normalizeMoney: value => Math.round((Number(value) || 0) * 100) / 100,
+  getEffectiveBillCurrentBalance: bill => Number(bill.currentBalance) || 0,
+};
+vm.createContext(proposedPreviewContext);
+vm.runInContext(extract('getBillsForCurrentDisplay'), proposedPreviewContext);
+const [proposedPreviewBill] = proposedPreviewContext.getBillsForCurrentDisplay();
+assert.equal(proposedPreviewBill.proposedCurrentBalance, 2887.53);
+assert.equal(proposedPreviewBill.amount, 180, 'a proposed cash reduction must not reduce the scheduled Due Amt');
+assert.equal(proposedPreviewBill.proposedDueAmount, undefined);
+assert.match(source, /getBillsForCurrentDisplay\(\{ includeProposedPreview: false \}\)/);
+
 const observationContext = {
   state: {
     billMonth: '2026-09',
