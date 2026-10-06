@@ -134,6 +134,7 @@ assert.equal(proposedPreviewBill.proposedCurrentBalance, 2887.53);
 assert.equal(proposedPreviewBill.amount, 180, 'a proposed cash reduction must not reduce the scheduled Due Amt');
 assert.equal(proposedPreviewBill.proposedDueAmount, undefined);
 assert.match(source, /getBillsForCurrentDisplay\(\{ includeProposedPreview: false \}\)/);
+assert.match(source, /row\.addEventListener\("dblclick", event => \{/);
 vm.runInContext([
   extract('getEffectiveBillPreviousBalance'),
   extract('getEffectiveBillInterestBalance'),

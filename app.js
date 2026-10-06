@@ -7122,6 +7122,9 @@ function renderBills() {
     row.addEventListener("click", event => {
       if (event.target.closest("button")) return;
       selectOnlyBillRow(row, bill.id);
+    });
+    row.addEventListener("dblclick", event => {
+      if (event.target.closest("button, input, select, textarea")) return;
       if (isAdminClient() && !event.target.closest("input, select, textarea")) {
         openBillBalanceHistory(bill);
       }
