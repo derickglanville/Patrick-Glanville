@@ -1462,6 +1462,7 @@ function nextMomMedicationRefillDate(plan, referenceDate = new Date().toISOStrin
 let activeClientId = "";
 let currentJsonBackupPayload = null;
 let adminBillSimulationActive = false;
+let adminProposedPreviewActive = false;
 let activeBillBalanceHistoryKey = "";
 
 function currentClientConfig() {
@@ -1709,6 +1710,7 @@ const billNextMonthBtn = document.querySelector("#billNextMonthBtn");
 const copyBillsToNextMonthBtn = document.querySelector("#copyBillsToNextMonthBtn");
 const calculateBillsBtn = document.querySelector("#calculateBillsBtn");
 const refreshAdminBillsBtn = document.querySelector("#refreshAdminBillsBtn");
+const toggleAdminProposedPreviewBtn = document.querySelector("#toggleAdminProposedPreviewBtn");
 const adminBillSimulationBtn = document.querySelector("#adminBillSimulationBtn");
 const adminCreditCardFinderBtn = document.querySelector("#adminCreditCardFinderBtn");
 const adminCreditCardFinderDialog = document.querySelector("#adminCreditCardFinderDialog");
@@ -1929,6 +1931,10 @@ const BILL_COLUMN_SUM_CONFIG = {
     label: "Current balance",
     getValue: bill => getEffectiveBillCurrentBalance(bill)
   },
+  "bill-col-proposed": {
+    label: "Proposed reduction",
+    getValue: bill => normalizeMoney(bill.proposedAmount)
+  },
   "bill-col-diff": {
     label: "Difference",
     getValue: bill => getEffectiveBillCurrentBalance(bill) - getEffectiveBillPreviousBalance(bill)
@@ -1958,6 +1964,7 @@ const BILL_HEADER_TOOLTIPS = {
   "Interest Paid": "Estimated monthly interest: Previous Balance × APR ÷ 12. Click to view the column total.",
   "Prev Bal": "Balance carried into the selected month from the prior month’s closing balance. Click to view the column total.",
   "Current Bal": "Current recorded balance for the selected month. Click to view the column total.",
+  "Proposed": "Optional one-time cash reduction. Select an amount, then turn on Preview Proposed Reductions to temporarily subtract it from Current Bal and recalculate the grid. The saved actual balance is never changed.",
   "Diff": "Current Balance minus Previous Balance. A negative value shows the balance fell. Click to view the column total.",
   "Pay More": "Payment guidance. It identifies paid bills where estimated interest consumes more than the principal-reducing portion of the payment.",
   "Credit Line": "Credit limit or available credit line. Click to view the column total.",
@@ -3420,6 +3427,7 @@ function normalizeBill(bill) {
       ? normalizeMoney(legacyMetadata.creditLimit)
       : normalizeMoney(bill.creditLimit),
     paidAmount: normalizeMoney(bill.paidAmount),
+    proposedAmount: normalizeMoney(bill.proposedAmount),
     transactionNumber,
     paidDate,
     statusTracksPaidDate,
@@ -3963,6 +3971,9 @@ function buildRolledForwardBills(sourceBills, targetMonth) {
       currentBalance: normalizeMoney(currentBill.currentBalance),
       creditLimit: normalizeMoney(currentBill.creditLimit),
       amount: normalizeMoney(currentBill.amount),
+      // Proposed reductions are a one-time planning scenario for the current
+      // month. Do not silently carry a cash plan into the next month.
+      proposedAmount: 0,
       due: normalizeBillDateLike(currentBill.due)
         ? moveDateToTargetMonth(normalizeBillDateLike(currentBill.due), targetMonth)
         : "",
@@ -4273,11 +4284,18 @@ function isAdminBillSimulationActive() {
   return isAdminClient() && adminBillSimulationActive;
 }
 
+function isAdminProposedPreviewActive() {
+  return isAdminClient() && adminProposedPreviewActive;
+}
+
 function getAdminBillSimulationProjectionMap() {
   return new Map((state.adminBillSimulation?.projections || []).map(item => [item.key, item.projectedBalance]));
 }
 
 function getEffectiveBillCurrentBalance(bill) {
+  if (bill && Object.hasOwn(bill, "proposedCurrentBalance")) {
+    return normalizeMoney(bill.proposedCurrentBalance);
+  }
   if (bill && Object.hasOwn(bill, "simulatedCurrentBalance")) {
     return normalizeSignedMoney(bill.simulatedCurrentBalance);
   }
@@ -4306,24 +4324,36 @@ function calculateSimulatedDueAmount(bill, simulatedCurrentBalance) {
 }
 
 function getEffectiveBillAmount(bill) {
+  if (bill && Object.hasOwn(bill, "proposedDueAmount")) return normalizeMoney(bill.proposedDueAmount);
   if (bill && Object.hasOwn(bill, "simulatedAmount")) return normalizeMoney(bill.simulatedAmount);
   return normalizeMoney(bill?.amount);
 }
 
 function getBillsForCurrentDisplay() {
-  if (!isAdminBillSimulationActive()) return state.bills;
-  const projections = getAdminBillSimulationProjectionMap();
-  return state.bills.map(bill => {
-    const key = bill.templateKey || buildBudgetBillTemplateKey(bill.name);
-    if (!projections.has(key)) return bill;
-    const simulatedPreviousBalance = projections.get(key);
-    const simulatedCurrentBalance = calculateSimulatedCurrentBalance(bill, simulatedPreviousBalance);
-    return {
-      ...bill,
-      simulatedPreviousBalance,
-      simulatedCurrentBalance,
-      simulatedAmount: calculateSimulatedDueAmount(bill, simulatedCurrentBalance)
-    };
+  const projections = isAdminBillSimulationActive() ? getAdminBillSimulationProjectionMap() : null;
+  const simulatedBills = !projections
+    ? state.bills
+    : state.bills.map(bill => {
+        const key = bill.templateKey || buildBudgetBillTemplateKey(bill.name);
+        if (!projections.has(key)) return bill;
+        const simulatedPreviousBalance = projections.get(key);
+        const simulatedCurrentBalance = calculateSimulatedCurrentBalance(bill, simulatedPreviousBalance);
+        return {
+          ...bill,
+          simulatedPreviousBalance,
+          simulatedCurrentBalance,
+          simulatedAmount: calculateSimulatedDueAmount(bill, simulatedCurrentBalance)
+        };
+      });
+  if (!isAdminProposedPreviewActive()) return simulatedBills;
+  return simulatedBills.map(bill => {
+    const baselineCurrentBalance = Math.max(0, getEffectiveBillCurrentBalance(bill));
+    const proposedCurrentBalance = Math.max(0, baselineCurrentBalance - normalizeMoney(bill.proposedAmount));
+    const baselineDueAmount = getEffectiveBillAmount(bill);
+    const proposedDueAmount = baselineCurrentBalance > 0
+      ? Math.min(baselineDueAmount, Math.round((baselineDueAmount * (proposedCurrentBalance / baselineCurrentBalance)) * 100) / 100)
+      : 0;
+    return { ...bill, proposedCurrentBalance, proposedDueAmount };
   });
 }
 
@@ -6781,6 +6811,7 @@ function renderBills() {
   const usesSimpleBills = !clientUsesBillGrouping();
   const displayBills = getBillsForCurrentDisplay();
   const simulationActive = isAdminBillSimulationActive();
+  const proposedPreviewActive = isAdminProposedPreviewActive();
   renderAdminBillSmsControls();
   if (!["full", "early", "mid", "late"].includes(state.billGroupView)) {
     state.billGroupView = defaultBillGroupView(state.billMonth);
@@ -6809,6 +6840,17 @@ function renderBills() {
     adminBillSimulationBtn.hidden = !isAdminClient();
     adminBillSimulationBtn.textContent = simulationActive ? "Restore Simulation" : "Balance Simulation";
     adminBillSimulationBtn.setAttribute("aria-pressed", String(simulationActive));
+  }
+  if (toggleAdminProposedPreviewBtn) {
+    toggleAdminProposedPreviewBtn.hidden = !isAdminClient();
+    toggleAdminProposedPreviewBtn.textContent = proposedPreviewActive ? "Show Actual Current Bal" : "Preview Proposed Reductions";
+    toggleAdminProposedPreviewBtn.setAttribute("aria-pressed", String(proposedPreviewActive));
+  }
+  if (calculateBillsBtn) {
+    calculateBillsBtn.disabled = proposedPreviewActive;
+    calculateBillsBtn.title = proposedPreviewActive
+      ? "Turn off Preview Proposed Reductions before calculating and saving actual bill balances."
+      : "Calculate and save actual bill balances.";
   }
   if (adminMonthlyExpendituresBtn) adminMonthlyExpendituresBtn.hidden = !isAdminClient();
   if (adminTabletGridViewBtn) {
@@ -6842,6 +6884,7 @@ function renderBills() {
       acc.interestPaid += calculateMonthlyInterestPortion(getEffectiveBillPreviousBalance(bill), bill.apr);
       acc.previousBalance += getEffectiveBillPreviousBalance(bill);
       acc.currentBalance += getEffectiveBillCurrentBalance(bill);
+      acc.proposed += normalizeMoney(bill.proposedAmount);
       acc.balanceDiff += getEffectiveBillCurrentBalance(bill) - getEffectiveBillPreviousBalance(bill);
       acc.creditLimit += normalizeMoney(bill.creditLimit);
       acc.amount += getEffectiveBillAmount(bill);
@@ -6852,6 +6895,7 @@ function renderBills() {
       interestPaid: 0,
       previousBalance: 0,
       currentBalance: 0,
+      proposed: 0,
       balanceDiff: 0,
       creditLimit: 0,
       amount: 0,
@@ -6874,6 +6918,7 @@ function renderBills() {
       <div class="budget-bill-total-cell bill-col-interest-paid">${escapeHtml(formatCurrency(totals.interestPaid))}</div>
       <div class="budget-bill-total-cell bill-col-prev-bal">${escapeHtml(formatCurrency(totals.previousBalance))}</div>
       <div class="budget-bill-total-cell bill-col-current-bal">${escapeHtml(formatSignedCurrency(totals.currentBalance))}</div>
+      <div class="budget-bill-total-cell bill-col-proposed">${escapeHtml(formatCurrency(totals.proposed))}</div>
       <div class="budget-bill-total-cell bill-col-diff">${escapeHtml(formatSignedCurrency(totals.balanceDiff))}</div>
       <div class="budget-bill-total-cell bill-col-payment-priority">-</div>
       <div class="budget-bill-total-cell bill-col-credit-line">${escapeHtml(formatCurrency(totals.creditLimit))}</div>
@@ -6941,7 +6986,13 @@ function renderBills() {
       </label>
       <label class="budget-bill-field bill-col-current-bal">
         <span>Current balance</span>
-        <input class="bill-current-balance" type="text" inputmode="decimal" value="${escapeAttribute(formatBillCurrentBalanceForDisplay(bill))}" aria-label="Current balance">
+        <input class="bill-current-balance" type="text" inputmode="decimal" value="${escapeAttribute(formatBillCurrentBalanceForDisplay(bill))}" aria-label="Current balance"${isAdminProposedPreviewActive() ? " readonly title=\"Showing the Proposed preview; turn off Preview Proposed Reductions to edit the actual balance.\"" : ""}>
+      </label>
+      <label class="budget-bill-field bill-col-proposed">
+        <span>Proposed</span>
+        <select class="bill-proposed-amount" aria-label="Proposed cash reduction for ${escapeAttribute(bill.name || "bill")}">
+          ${[0, 1000, 2000, 3000, 4000, 5000].map(amount => `<option value="${amount}"${normalizeMoney(bill.proposedAmount) === amount ? " selected" : ""}>${amount ? escapeHtml(formatCurrency(amount)) : "—"}</option>`).join("")}
+        </select>
       </label>
       <label class="budget-bill-field bill-col-diff">
         <span>Difference</span>
@@ -7022,6 +7073,14 @@ function renderBills() {
     row.querySelector(".bill-type").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-previous-balance").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-current-balance").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
+    row.querySelector(".bill-proposed-amount").addEventListener("change", () => {
+      const storedBill = state.bills.find(item => item.id === row.dataset.billId);
+      if (!storedBill || !ensureCurrentUser("set a proposed bill reduction")) return;
+      storedBill.proposedAmount = normalizeMoney(row.querySelector(".bill-proposed-amount").value);
+      syncCurrentBudgetMonth(false);
+      saveState();
+      renderBills();
+    });
     row.querySelector(".bill-credit-limit").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-amount").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-paid-amount").addEventListener("input", () => {
@@ -7127,7 +7186,7 @@ function renderBills() {
     billListHeader.classList.toggle("is-simple", usesSimpleBills);
     billListHeader.innerHTML = usesSimpleBills
       ? "<span class=\"budget-bill-selector-header\"></span><span>Bill</span><span>Prev Bal</span><span>Current Bal</span><span>Amount</span><span>Due</span><span>Date Paid</span><span>Status</span><span>Notes</span><span>Actions</span>"
-      : "<span class=\"budget-bill-selector-header bill-col-selector\"></span><span class=\"bill-col bill-col-name\">Bill</span><span class=\"bill-col bill-col-type\">Type</span><span class=\"bill-col bill-col-apr\">APR</span><span class=\"bill-col bill-col-interest-paid is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum interest paid column\">Interest Paid</span><span class=\"bill-col bill-col-prev-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum previous balance column\">Prev Bal</span><span class=\"bill-col bill-col-current-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum current balance column\">Current Bal</span><span class=\"bill-col bill-col-diff is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum difference column\">Diff</span><span class=\"bill-col bill-col-payment-priority\" title=\"Paid bills where interest consumes more than the principal portion\">Pay More</span><span class=\"bill-col bill-col-credit-line is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum credit line column\">Credit Line</span><span class=\"bill-col bill-col-due-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum due amount column\">Due Amt</span><span class=\"bill-col bill-col-paid-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum paid amount column\">Paid Amt</span><span class=\"bill-col bill-col-recommended is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum recommended payment column\">Recommended</span><span class=\"bill-col bill-col-payoff-date\">Expected Paid Off Date</span><span class=\"bill-col bill-col-tran\">Tran #</span><span class=\"bill-col bill-col-due-date\">Due</span><span class=\"bill-col bill-col-date-paid\">Date Paid</span><span class=\"bill-col bill-col-credit-percent\">% Credit</span><span class=\"bill-col bill-col-status\">Status</span><span class=\"bill-col bill-col-notes\">Notes</span><span class=\"bill-col bill-col-observation\">Observation</span><span class=\"bill-col bill-col-actions\">Actions</span>";
+      : "<span class=\"budget-bill-selector-header bill-col-selector\"></span><span class=\"bill-col bill-col-name\">Bill</span><span class=\"bill-col bill-col-type\">Type</span><span class=\"bill-col bill-col-apr\">APR</span><span class=\"bill-col bill-col-interest-paid is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum interest paid column\">Interest Paid</span><span class=\"bill-col bill-col-prev-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum previous balance column\">Prev Bal</span><span class=\"bill-col bill-col-current-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum current balance column\">Current Bal</span><span class=\"bill-col bill-col-proposed is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum proposed reductions column\">Proposed</span><span class=\"bill-col bill-col-diff is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum difference column\">Diff</span><span class=\"bill-col bill-col-payment-priority\" title=\"Paid bills where interest consumes more than the principal portion\">Pay More</span><span class=\"bill-col bill-col-credit-line is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum credit line column\">Credit Line</span><span class=\"bill-col bill-col-due-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum due amount column\">Due Amt</span><span class=\"bill-col bill-col-paid-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum paid amount column\">Paid Amt</span><span class=\"bill-col bill-col-recommended is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum recommended payment column\">Recommended</span><span class=\"bill-col bill-col-payoff-date\">Expected Paid Off Date</span><span class=\"bill-col bill-col-tran\">Tran #</span><span class=\"bill-col bill-col-due-date\">Due</span><span class=\"bill-col bill-col-date-paid\">Date Paid</span><span class=\"bill-col bill-col-credit-percent\">% Credit</span><span class=\"bill-col bill-col-status\">Status</span><span class=\"bill-col bill-col-notes\">Notes</span><span class=\"bill-col bill-col-observation\">Observation</span><span class=\"bill-col bill-col-actions\">Actions</span>";
     if (!usesSimpleBills) {
       billListHeader.querySelector(".bill-col-payoff-date")?.insertAdjacentHTML(
         "afterend",
@@ -7881,7 +7940,7 @@ function updateBillFromRow(row, options = {}) {
   bill.previousBalance = getField(".bill-previous-balance")
     ? normalizeCurrencyCell(getField(".bill-previous-balance").value)
     : (bill.previousBalance ?? bill.currentBalance);
-  bill.currentBalance = getField(".bill-current-balance")
+  bill.currentBalance = getField(".bill-current-balance") && !isAdminProposedPreviewActive()
     ? normalizeCurrencyCell(getField(".bill-current-balance").value)
     : bill.currentBalance;
   bill.creditLimit = getField(".bill-credit-limit")
@@ -12253,6 +12312,13 @@ if (refreshAdminBillsBtn) {
 }
 if (adminBillSimulationBtn) {
   adminBillSimulationBtn.addEventListener("click", openAdminBillSimulation);
+}
+if (toggleAdminProposedPreviewBtn) {
+  toggleAdminProposedPreviewBtn.addEventListener("click", () => {
+    if (!isAdminClient()) return;
+    adminProposedPreviewActive = !adminProposedPreviewActive;
+    renderBills();
+  });
 }
 if (adminCreditCardFinderBtn) {
   adminCreditCardFinderBtn.addEventListener("click", openAdminCreditCardFinder);

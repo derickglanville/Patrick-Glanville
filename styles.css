@@ -5449,6 +5449,21 @@ body[data-device-layout="tablet"] #budgetPanel .budget-bill-list-admin .budget-b
   font-weight: 800;
 }
 
+/* Proposed cash reductions appear immediately after Current Bal in every
+   Admin spreadsheet view. */
+#budgetPanel .budget-bill-list-header:not(.is-simple),
+#budgetPanel .budget-bill-item:not(.budget-bill-item-simple),
+#budgetPanel .budget-bill-total-row {
+  grid-template-columns: 24px minmax(148px, 1fr) minmax(88px, .55fr) 48px minmax(78px, .4fr) minmax(92px, .42fr) minmax(92px, .4fr) minmax(88px, .4fr) minmax(82px, .42fr) minmax(66px, .36fr) minmax(92px, .38fr) minmax(78px, .36fr) minmax(78px, .4fr) minmax(96px, .58fr) minmax(142px, .82fr) minmax(142px, .82fr) minmax(68px, .38fr) minmax(108px, .68fr) minmax(108px, .68fr) 56px 64px minmax(156px, .9fr) minmax(156px, .9fr) 78px;
+}
+
+.bill-proposed-amount {
+  color: #173a63;
+  border-color: #6d94bf;
+  background: #eef6ff;
+  font-weight: 800;
+}
+
 /* Give the touch spreadsheet generous type and touch targets. The intentionally
    wider sheet keeps values legible; swipe sideways to reach later columns. */
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin,
@@ -5463,8 +5478,8 @@ body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple),
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-total-row,
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-total-row {
-  grid-template-columns: 24px 160px 96px 52px 82px 96px 96px 86px 74px 94px 86px 86px 100px 132px 132px 68px 108px 108px 56px 64px 128px 128px 70px;
-  min-width: 2126px;
+  grid-template-columns: 24px 160px 96px 52px 82px 96px 96px 88px 86px 74px 94px 86px 86px 100px 132px 132px 68px 108px 108px 56px 64px 128px 128px 70px;
+  min-width: 2214px;
 }
 
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header:not(.is-simple),
@@ -5527,8 +5542,8 @@ body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-scroll-shell > .budget-bill-list-header:not(.is-simple),
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid #billList,
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid #billList {
-  width: 2126px;
-  min-width: 2126px;
+  width: 2214px;
+  min-width: 2214px;
 }
 
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin,

@@ -35,6 +35,7 @@ const sourceBill = {
   due: '2026-08-31',
   status: 'Paid',
   paidAmount: 250,
+  proposedAmount: 2000,
   paidDate: '2026-08-30',
   transactionNumber: 'abc',
   observation: 'Statement balance verified',
@@ -44,6 +45,7 @@ assert.equal(nextBill.previousBalance, 4348.88);
 assert.equal(nextBill.currentBalance, 4348.88);
 assert.equal(nextBill.status, 'Unpaid');
 assert.equal(nextBill.paidAmount, 0);
+assert.equal(nextBill.proposedAmount, 0);
 assert.equal(nextBill.paidDate, '');
 assert.equal(nextBill.transactionNumber, '');
 assert.equal(nextBill.due, '2026-09-31');
