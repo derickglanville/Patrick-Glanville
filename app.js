@@ -6918,7 +6918,7 @@ function renderBills() {
       <div class="budget-bill-total-cell bill-col-interest-paid">${escapeHtml(formatCurrency(totals.interestPaid))}</div>
       <div class="budget-bill-total-cell bill-col-prev-bal">${escapeHtml(formatCurrency(totals.previousBalance))}</div>
       <div class="budget-bill-total-cell bill-col-current-bal">${escapeHtml(formatSignedCurrency(totals.currentBalance))}</div>
-      <div class="budget-bill-total-cell bill-col-proposed">${escapeHtml(formatCurrency(totals.proposed))}</div>
+      <div class="budget-bill-total-cell bill-col-proposed">${isAdminProposedPreviewActive() ? escapeHtml(formatCurrency(totals.proposed)) : "—"}</div>
       <div class="budget-bill-total-cell bill-col-diff">${escapeHtml(formatSignedCurrency(totals.balanceDiff))}</div>
       <div class="budget-bill-total-cell bill-col-payment-priority">-</div>
       <div class="budget-bill-total-cell bill-col-credit-line">${escapeHtml(formatCurrency(totals.creditLimit))}</div>
@@ -6957,6 +6957,9 @@ function renderBills() {
     const notesDisplay = buildAdminPaidBillProgressNote(bill, interestPaid, recommendedPayment) || bill.notes || "";
     const balanceObservation = getBillCurrentBalanceObservation(bill);
     const paymentPriorityDisplay = getAdminPaymentPriorityDisplay(interestPriority);
+    const visibleProposedAmount = isAdminProposedPreviewActive()
+      ? normalizeMoney(bill.proposedAmount)
+      : 0;
     const row = document.createElement("article");
     row.className = `budget-bill-item${pastDue ? " is-past-due" : ""}${dueSoon ? " is-due-soon" : ""}${bill.status === "Paid" ? " is-paid" : ""}${isAdminClient() && bill.status === "Paid" ? " is-admin-paid" : ""}${bill.hidden && bill.status === "Paid Off" ? " is-hidden-paid-off" : ""}`;
     row.dataset.billId = bill.id;
@@ -6991,7 +6994,7 @@ function renderBills() {
       <label class="budget-bill-field bill-col-proposed">
         <span>Proposed</span>
         <select class="bill-proposed-amount" aria-label="Proposed cash reduction for ${escapeAttribute(bill.name || "bill")}"${isAdminProposedPreviewActive() ? "" : " disabled title=\"Turn on Preview Proposed Reductions to select a temporary cash reduction.\""}>
-          ${[0, 500, 1000, 2000, 3000, 4000, 5000].map(amount => `<option value="${amount}"${normalizeMoney(bill.proposedAmount) === amount ? " selected" : ""}>${amount ? escapeHtml(formatCurrency(amount)) : "—"}</option>`).join("")}
+          ${[0, 500, 1000, 2000, 3000, 4000, 5000].map(amount => `<option value="${amount}"${visibleProposedAmount === amount ? " selected" : ""}>${amount ? escapeHtml(formatCurrency(amount)) : "—"}</option>`).join("")}
         </select>
       </label>
       <label class="budget-bill-field bill-col-diff">
