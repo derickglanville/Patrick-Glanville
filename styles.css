@@ -630,7 +630,13 @@ textarea {
 }
 
 #refreshAdminBillsBtn { color: #075f42 !important; background: #ddf7e7 !important; border-color: #83cfa3 !important; }
-#toggleAdminProposedPreviewBtn { color: #5b217d; background: #f1eafe; border-color: #cdb9ef; }
+#toggleAdminProposedPreviewBtn {
+  color: #5b217d;
+  background: #f1eafe;
+  border-color: #cdb9ef;
+  font-size: 1rem !important;
+  font-weight: 800 !important;
+}
 #billGroupEarlyBtn { color: #075985 !important; background: #e0f2fe !important; border-color: #8bcaed !important; }
 #billGroupMidBtn { color: #854d0e !important; background: #fff1c7 !important; border-color: #e9c667 !important; }
 #billGroupLateBtn { color: #9f1239 !important; background: #ffe5eb !important; border-color: #f2aabd !important; }
