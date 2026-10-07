@@ -135,6 +135,13 @@ assert.equal(proposedPreviewBill.amount, 180, 'a proposed cash reduction must no
 assert.equal(proposedPreviewBill.proposedDueAmount, undefined);
 assert.match(source, /getBillsForCurrentDisplay\(\{ includeProposedPreview: false \}\)/);
 assert.match(source, /row\.addEventListener\("dblclick", event => \{/);
+vm.runInContext(extract('getAppliedProposedReductionSummary'), proposedPreviewContext);
+const proposedSummary = proposedPreviewContext.getAppliedProposedReductionSummary([
+  proposedPreviewBill,
+  { currentBalance: 400, proposedAmount: 500 },
+]);
+assert.equal(proposedSummary.total, 1400);
+assert.equal(proposedSummary.count, 2);
 vm.runInContext([
   extract('getEffectiveBillPreviousBalance'),
   extract('getEffectiveBillInterestBalance'),

@@ -1761,6 +1761,7 @@ const billRemaining = document.querySelector("#billRemaining");
 const billCashFlow = document.querySelector("#billCashFlow");
 const billCoverage = document.querySelector("#billCoverage");
 const billPastDue = document.querySelector("#billPastDue");
+const adminProposedPreviewStatus = document.querySelector("#adminProposedPreviewStatus");
 const budgetAlert = document.querySelector("#budgetAlert");
 const upcomingBillsBanner = document.querySelector("#upcomingBillsBanner");
 const billGroupFullBtn = document.querySelector("#billGroupFullBtn");
@@ -4358,6 +4359,18 @@ function getBillsForCurrentDisplay(options = {}) {
     const proposedCurrentBalance = Math.max(0, baselineCurrentBalance - normalizeMoney(bill.proposedAmount));
     return { ...bill, proposedCurrentBalance };
   });
+}
+
+function getAppliedProposedReductionSummary(bills) {
+  return (bills || []).reduce((summary, bill) => {
+    const proposed = normalizeMoney(bill?.proposedAmount);
+    const availableBalance = Math.max(0, normalizeMoney(bill?.currentBalance));
+    const appliedReduction = Math.min(proposed, availableBalance);
+    if (appliedReduction <= 0) return summary;
+    summary.total += appliedReduction;
+    summary.count += 1;
+    return summary;
+  }, { total: 0, count: 0 });
 }
 
 function formatBillCurrentBalanceForDisplay(bill) {
@@ -8146,22 +8159,31 @@ function updateBillTotals() {
   const monthlyBudgetFund = normalizeMoney(state.monthlyBudgetFund);
   const displayBills = getBillsForCurrentDisplay();
   const simulationActive = isAdminBillSimulationActive();
+  const proposedPreviewActive = isAdminProposedPreviewActive();
   const {
-    totalBills: total,
+    totalBills: scheduledTotal,
     paidBills: paid,
-    remainingBills: remaining,
-    cashFlow,
-    covered,
-    fundingGap,
+    remainingBills: scheduledRemaining,
+    cashFlow: scheduledCashFlow,
     pastDueCount: pastDue
   } = calculateBudgetTotals(monthlyBudgetFund, displayBills, getCurrentMonthlyCashUsed());
+  const proposedSummary = proposedPreviewActive
+    ? getAppliedProposedReductionSummary(displayBills)
+    : { total: 0, count: 0 };
+  const total = scheduledTotal + proposedSummary.total;
+  const remaining = scheduledRemaining + proposedSummary.total;
+  const cashFlow = scheduledCashFlow - proposedSummary.total;
+  const covered = cashFlow >= 0;
+  const fundingGap = Math.max(0, -cashFlow);
 
   if (billMBFDisplay) {
     billMBFDisplay.textContent = formatCurrency(monthlyBudgetFund);
     billMBFDisplay.parentElement?.setAttribute("title", `Monthly Budget Fund available for ${formatBudgetMonthLabel(state.billMonth || defaultBillMonth())}.`);
   }
   billTotal.textContent = formatCurrency(total);
-  billTotal.parentElement?.setAttribute("title", `Total scheduled bill amounts for this month: ${formatCurrency(total)}.`);
+  billTotal.parentElement?.setAttribute("title", proposedPreviewActive
+    ? `Scheduled bills ${formatCurrency(scheduledTotal)} plus temporary proposed reductions ${formatCurrency(proposedSummary.total)} equals planned bill outflow ${formatCurrency(total)}. Actual data is unchanged.`
+    : `Total scheduled bill amounts for this month: ${formatCurrency(total)}.`);
   billPaid.textContent = formatCurrency(paid);
   billPaid.parentElement?.setAttribute("title", `Scheduled bill amounts marked Paid: ${formatCurrency(paid)}.`);
   if (billCashUsed) {
@@ -8174,23 +8196,27 @@ function updateBillTotals() {
     .map(bill => `${bill.name || "Untitled bill"}: ${formatCurrency(getEffectiveBillAmount(bill))} (${bill.status || "Unpaid"})`);
   billRemaining.parentElement?.setAttribute(
     "title",
-    unpaidScheduledBills.length
+    proposedPreviewActive
+      ? `Planned outflow remaining: scheduled unpaid bills ${formatCurrency(scheduledRemaining)} plus temporary proposed reductions ${formatCurrency(proposedSummary.total)}. Actual data is unchanged.`
+      : unpaidScheduledBills.length
       ? `Scheduled bill amounts not yet marked Paid: ${formatCurrency(remaining)}.\n${unpaidScheduledBills.join("\n")}`
       : "All scheduled bill amounts are marked Paid."
   );
   const totalBillsLabel = billTotal.parentElement?.querySelector("span");
-  if (totalBillsLabel) totalBillsLabel.textContent = simulationActive ? "Projected bills" : "Total bills";
+  if (totalBillsLabel) totalBillsLabel.textContent = proposedPreviewActive ? "Planned bill outflow" : (simulationActive ? "Projected bills" : "Total bills");
   const remainingBillsLabel = billRemaining.parentElement?.querySelector("span");
-  if (remainingBillsLabel) remainingBillsLabel.textContent = simulationActive ? "Projected not marked Paid" : "Not marked Paid";
+  if (remainingBillsLabel) remainingBillsLabel.textContent = proposedPreviewActive ? "Planned outflow remaining" : (simulationActive ? "Projected not marked Paid" : "Not marked Paid");
   if (billCashFlow) {
     billCashFlow.textContent = formatSignedCurrency(cashFlow);
     billCashFlow.parentElement?.classList.toggle("is-negative", !covered);
     billCashFlow.parentElement?.classList.toggle("is-positive", covered && cashFlow > 0);
     const cashFlowLabel = billCashFlow.parentElement?.querySelector("span");
-    if (cashFlowLabel) cashFlowLabel.textContent = simulationActive ? "Projected cash flow" : "Cash flow";
+    if (cashFlowLabel) cashFlowLabel.textContent = proposedPreviewActive ? "Preview cash flow" : (simulationActive ? "Projected cash flow" : "Cash flow");
     billCashFlow.parentElement?.setAttribute(
       "title",
-      simulationActive
+      proposedPreviewActive
+        ? `MBF ${formatCurrency(monthlyBudgetFund)} minus scheduled bills ${formatCurrency(scheduledTotal)}, temporary proposed reductions ${formatCurrency(proposedSummary.total)}, and cash used ${formatCurrency(getCurrentMonthlyCashUsed())} equals preview cash flow ${formatSignedCurrency(cashFlow)}. Actual data is unchanged.`
+        : simulationActive
         ? `MBF ${formatCurrency(monthlyBudgetFund)} minus projected bills ${formatCurrency(total)} and cash used ${formatCurrency(getCurrentMonthlyCashUsed())} equals ${formatSignedCurrency(cashFlow)}.`
         : `MBF ${formatCurrency(monthlyBudgetFund)} minus scheduled bills ${formatCurrency(total)} and cash used ${formatCurrency(getCurrentMonthlyCashUsed())}.`
     );
@@ -8200,20 +8226,32 @@ function updateBillTotals() {
     billCoverage.parentElement?.classList.toggle("is-negative", !covered);
     billCoverage.parentElement?.classList.toggle("is-positive", covered);
     const coverageLabel = billCoverage.parentElement?.querySelector("span");
-    if (coverageLabel) coverageLabel.textContent = simulationActive ? "Projected MBF coverage" : "MBF coverage";
+    if (coverageLabel) coverageLabel.textContent = proposedPreviewActive ? "Preview MBF coverage" : (simulationActive ? "Projected MBF coverage" : "MBF coverage");
     billCoverage.parentElement?.setAttribute("title", covered
-      ? `MBF covers scheduled bills and ${formatCurrency(getCurrentMonthlyCashUsed())} cash used.`
-      : `MBF is short ${formatCurrency(fundingGap)} after scheduled bills and ${formatCurrency(getCurrentMonthlyCashUsed())} cash used.`);
+      ? proposedPreviewActive
+        ? `MBF covers scheduled bills, temporary proposed reductions, and ${formatCurrency(getCurrentMonthlyCashUsed())} cash used. Actual data is unchanged.`
+        : `MBF covers scheduled bills and ${formatCurrency(getCurrentMonthlyCashUsed())} cash used.`
+      : proposedPreviewActive
+        ? `MBF is temporarily short ${formatCurrency(fundingGap)} after scheduled bills, proposed reductions, and ${formatCurrency(getCurrentMonthlyCashUsed())} cash used. Actual data is unchanged.`
+        : `MBF is short ${formatCurrency(fundingGap)} after scheduled bills and ${formatCurrency(getCurrentMonthlyCashUsed())} cash used.`);
   }
   billPastDue.textContent = pastDue;
   billPastDue.parentElement?.setAttribute("title", `${pastDue} scheduled bill${pastDue === 1 ? " is" : "s are"} past due.`);
+  if (adminProposedPreviewStatus) {
+    adminProposedPreviewStatus.hidden = !proposedPreviewActive;
+    adminProposedPreviewStatus.textContent = proposedSummary.count
+      ? `Preview: ${formatCurrency(proposedSummary.total)} proposed across ${proposedSummary.count} bill${proposedSummary.count === 1 ? "" : "s"}. Actual data is unchanged.`
+      : "Preview active: select Proposed reductions to see the temporary budget impact. Actual data is unchanged.";
+  }
   if (budgetAlert) {
     if (covered) {
       budgetAlert.hidden = true;
       budgetAlert.textContent = "";
     } else {
       budgetAlert.hidden = false;
-      budgetAlert.textContent = simulationActive
+      budgetAlert.textContent = proposedPreviewActive
+        ? `Preview only: Monthly Budget Fund is short ${formatCurrency(fundingGap)} after proposed reductions. Actual data is unchanged.`
+        : simulationActive
         ? `Monthly Budget Fund does not cover projected bills. Additional funding needed: ${formatCurrency(fundingGap)}.`
         : `Monthly Budget Fund does not cover this month's bills. Additional funding needed: ${formatCurrency(fundingGap)}.`;
     }

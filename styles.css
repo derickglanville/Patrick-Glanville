@@ -889,6 +889,16 @@ textarea {
   font-weight: 700;
 }
 
+.admin-proposed-preview-status {
+  color: #713f12;
+  background: #fef3c7;
+  border: 1px solid #eab308;
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: .78rem;
+  font-weight: 800;
+}
+
 .budget-panel.is-admin-bill-simulation {
   box-shadow: 0 0 0 2px #e0b754, var(--shadow);
 }
