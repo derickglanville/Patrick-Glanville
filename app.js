@@ -1485,6 +1485,8 @@ let currentJsonBackupPayload = null;
 let adminBillSimulationActive = false;
 let adminProposedPreviewActive = false;
 let selectedVerizonBillingMonth = "";
+let selectedVerizonPdfFile = null;
+let selectedVerizonPdfMonth = "";
 let activeBillBalanceHistoryKey = "";
 
 function currentClientConfig() {
@@ -7911,7 +7913,8 @@ function renderCellphoneBillingHistoryDialog() {
         </label>
         <button type="button" class="ghost cellphone-bill-nav" data-verizon-month-step="1"${selectedIndex === VERIZON_BILL_HISTORY.length - 1 ? " disabled" : ""}>Next</button>
         <input id="selectedCellphoneBillPdf" type="file" accept="application/pdf" hidden>
-        <button type="button" class="ghost cellphone-open-pdf" id="openSelectedCellphoneBillPdf" title="Choose and open ${escapeAttribute(selectedBill.pdfFile)}">Open PDF</button>
+        <button type="button" class="ghost cellphone-open-pdf" id="chooseSelectedCellphoneBillPdf" title="Choose ${escapeAttribute(selectedBill.pdfFile)} from your Verizon Cellphone Bills folder">Choose PDF</button>
+        <button type="button" class="ghost cellphone-open-pdf" id="openSelectedCellphoneBillPdf"${selectedVerizonPdfFile && selectedVerizonPdfMonth === selectedBill.month ? "" : " disabled"}>Open selected PDF</button>
       </div>
     </section>
     <section class="cellphone-review-metrics" aria-label="${escapeAttribute(selectedMonthLabel)} bill summary">
@@ -7945,6 +7948,8 @@ function renderCellphoneBillingHistoryDialog() {
 
   cellphoneBillingHistoryBody.querySelector("#cellphoneBillSelect")?.addEventListener("change", event => {
     selectedVerizonBillingMonth = event.target.value;
+    selectedVerizonPdfFile = null;
+    selectedVerizonPdfMonth = "";
     renderCellphoneBillingHistoryDialog();
   });
   cellphoneBillingHistoryBody.querySelectorAll("[data-verizon-month-step]").forEach(button => {
@@ -7952,12 +7957,16 @@ function renderCellphoneBillingHistoryDialog() {
       const next = selectedIndex + Number(button.dataset.verizonMonthStep);
       if (!VERIZON_BILL_HISTORY[next]) return;
       selectedVerizonBillingMonth = VERIZON_BILL_HISTORY[next].month;
+      selectedVerizonPdfFile = null;
+      selectedVerizonPdfMonth = "";
       renderCellphoneBillingHistoryDialog();
     });
   });
   cellphoneBillingHistoryBody.querySelectorAll("[data-verizon-bill-month]").forEach(row => {
     const selectBill = () => {
       selectedVerizonBillingMonth = row.dataset.verizonBillMonth;
+      selectedVerizonPdfFile = null;
+      selectedVerizonPdfMonth = "";
       renderCellphoneBillingHistoryDialog();
     };
     row.addEventListener("click", selectBill);
@@ -7966,7 +7975,7 @@ function renderCellphoneBillingHistoryDialog() {
     });
   });
   const selectedPdfInput = cellphoneBillingHistoryBody.querySelector("#selectedCellphoneBillPdf");
-  cellphoneBillingHistoryBody.querySelector("#openSelectedCellphoneBillPdf")?.addEventListener("click", () => selectedPdfInput?.click());
+  cellphoneBillingHistoryBody.querySelector("#chooseSelectedCellphoneBillPdf")?.addEventListener("click", () => selectedPdfInput?.click());
   selectedPdfInput?.addEventListener("change", () => {
     const selectedFile = selectedPdfInput.files?.[0];
     if (!selectedFile) return;
@@ -7975,14 +7984,22 @@ function renderCellphoneBillingHistoryDialog() {
       selectedPdfInput.value = "";
       return;
     }
-    const pdfUrl = URL.createObjectURL(selectedFile);
+    selectedVerizonPdfFile = selectedFile;
+    selectedVerizonPdfMonth = selectedBill.month;
+    selectedPdfInput.value = "";
+    renderCellphoneBillingHistoryDialog();
+  });
+  cellphoneBillingHistoryBody.querySelector("#openSelectedCellphoneBillPdf")?.addEventListener("click", () => {
+    if (!selectedVerizonPdfFile || selectedVerizonPdfMonth !== selectedBill.month) return;
+    const pdfUrl = URL.createObjectURL(selectedVerizonPdfFile);
     const link = document.createElement("a");
     link.href = pdfUrl;
     link.target = "_blank";
     link.rel = "noopener";
+    document.body.appendChild(link);
     link.click();
+    link.remove();
     setTimeout(() => URL.revokeObjectURL(pdfUrl), 60000);
-    selectedPdfInput.value = "";
   });
   cellphoneBillingHistoryBody.querySelector("#downloadAttCancellationLetterBtn")?.addEventListener("click", downloadAttCancellationLetterHtml);
 }
