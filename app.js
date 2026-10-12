@@ -7910,6 +7910,8 @@ function renderCellphoneBillingHistoryDialog() {
           <select id="cellphoneBillSelect">${VERIZON_BILL_HISTORY.map(bill => `<option value="${escapeAttribute(bill.month)}"${bill.month === selectedBill.month ? " selected" : ""}>${escapeHtml(formatBudgetMonthLabel(bill.month))} - ${escapeHtml(formatCurrency(bill.total))}</option>`).join("")}</select>
         </label>
         <button type="button" class="ghost cellphone-bill-nav" data-verizon-month-step="1"${selectedIndex === VERIZON_BILL_HISTORY.length - 1 ? " disabled" : ""}>Next</button>
+        <input id="selectedCellphoneBillPdf" type="file" accept="application/pdf" hidden>
+        <button type="button" class="ghost cellphone-open-pdf" id="openSelectedCellphoneBillPdf" title="Choose and open ${escapeAttribute(selectedBill.pdfFile)}">Open PDF</button>
       </div>
     </section>
     <section class="cellphone-review-metrics" aria-label="${escapeAttribute(selectedMonthLabel)} bill summary">
@@ -7962,6 +7964,25 @@ function renderCellphoneBillingHistoryDialog() {
     row.addEventListener("keydown", event => {
       if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectBill(); }
     });
+  });
+  const selectedPdfInput = cellphoneBillingHistoryBody.querySelector("#selectedCellphoneBillPdf");
+  cellphoneBillingHistoryBody.querySelector("#openSelectedCellphoneBillPdf")?.addEventListener("click", () => selectedPdfInput?.click());
+  selectedPdfInput?.addEventListener("change", () => {
+    const selectedFile = selectedPdfInput.files?.[0];
+    if (!selectedFile) return;
+    if (selectedFile.name !== selectedBill.pdfFile) {
+      alert(`Choose ${selectedBill.pdfFile} for the selected ${selectedMonthLabel} statement. You chose ${selectedFile.name}.`);
+      selectedPdfInput.value = "";
+      return;
+    }
+    const pdfUrl = URL.createObjectURL(selectedFile);
+    const link = document.createElement("a");
+    link.href = pdfUrl;
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(pdfUrl), 60000);
+    selectedPdfInput.value = "";
   });
   cellphoneBillingHistoryBody.querySelector("#downloadAttCancellationLetterBtn")?.addEventListener("click", downloadAttCancellationLetterHtml);
 }

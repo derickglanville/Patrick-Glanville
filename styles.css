@@ -4837,6 +4837,7 @@ body[data-device-layout="compact"] .budget-panel-popout .budget-bill-list-simple
 }
 
 .cellphone-review-controls button { min-height: 34px; padding: 0 10px; font-weight: 800; }
+.cellphone-review-controls .cellphone-open-pdf { color: #0f5a36; border-color: #78b994; background: #ecfbf1; }
 .cellphone-review-controls label { display: grid; gap: 3px; color: #284b73; font-size: .74rem; font-weight: 800; }
 .cellphone-review-controls select { min-width: 190px; min-height: 34px; color: #173a63; border-color: #9ebcdd; background: #fff; font-weight: 700; }
 
