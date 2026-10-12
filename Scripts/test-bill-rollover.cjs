@@ -146,6 +146,9 @@ assert.match(source, /ATT_SWITCH_VALIDATION\.monthlyWireless/);
 assert.match(source, /buildAttCancellationLetterHtml/);
 assert.match(source, /stop all device shipments, stop all number ports/);
 assert.match(source, /downloadAttCancellationLetterBtn/);
+assert.match(source, /disputedShippingHold: 208\.35/);
+assert.match(source, /immediately release or refund/);
+assert.match(source, /salesTaxToday \+ ATT_SWITCH_VALIDATION\.disputedShippingHold/);
 assert.match(source, /https:\/\/www\.att\.com\/wireless\/try-and-switch\//);
 vm.runInContext(extract('getAppliedProposedReductionSummary'), proposedPreviewContext);
 const proposedSummary = proposedPreviewContext.getAppliedProposedReductionSummary([
