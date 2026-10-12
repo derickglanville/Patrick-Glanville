@@ -143,6 +143,9 @@ assert.match(source, /const ATT_SWITCH_VALIDATION = \{/);
 assert.match(source, /Potential AT&amp;T switch validation/);
 assert.match(source, /SARA_TC277528219\.pdf/);
 assert.match(source, /ATT_SWITCH_VALIDATION\.monthlyWireless/);
+assert.match(source, /buildAttCancellationLetterHtml/);
+assert.match(source, /stop all device shipments, stop all number ports/);
+assert.match(source, /downloadAttCancellationLetterBtn/);
 assert.match(source, /https:\/\/www\.att\.com\/wireless\/try-and-switch\//);
 vm.runInContext(extract('getAppliedProposedReductionSummary'), proposedPreviewContext);
 const proposedSummary = proposedPreviewContext.getAppliedProposedReductionSummary([

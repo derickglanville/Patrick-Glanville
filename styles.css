@@ -4920,6 +4920,12 @@ body[data-device-layout="compact"] .budget-panel-popout .budget-bill-list-simple
 .cellphone-switch-links a:hover { background: #e1f0ff; }
 .cellphone-switch-email { display: flex; gap: 9px; margin-top: 13px; padding: 9px 11px; border-radius: 7px; color: #526981; background: #edf3fa; font-size: .81rem; line-height: 1.4; }
 .cellphone-switch-email strong { flex: 0 0 auto; color: #234a72; }
+.att-cancellation-letter { margin-top: 14px; padding: 14px; border: 1px solid #a8c8e6; border-radius: 8px; background: #fff; color: #334e68; }
+.att-cancellation-letter-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.att-cancellation-letter-head span { display: block; color: #2563a6; font-size: .7rem; font-weight: 900; letter-spacing: .07em; text-transform: uppercase; }
+.att-cancellation-letter h4 { margin: 2px 0 0; color: #173a63; font-size: .98rem; }
+.att-cancellation-letter p { margin: 0 0 9px; font-size: .84rem; line-height: 1.45; }
+.att-cancellation-letter p:last-child { margin-bottom: 0; }
 
 .history-line-chart {
   display: block;
@@ -5045,7 +5051,8 @@ body[data-device-layout="compact"] .budget-panel-popout .budget-bill-list-simple
   .cellphone-billing-table td { padding: 6px; font-size: .8rem; }
   .cellphone-switch-analysis { padding: 12px; }
   .cellphone-switch-analysis-head,
-  .cellphone-switch-email { align-items: flex-start; flex-direction: column; }
+  .cellphone-switch-email,
+  .att-cancellation-letter-head { align-items: flex-start; flex-direction: column; }
   .cellphone-switch-facts,
   .cellphone-switch-grid { grid-template-columns: 1fr; }
   .cellphone-switch-pending { align-self: flex-start; }
