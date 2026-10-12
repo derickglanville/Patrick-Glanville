@@ -4897,6 +4897,20 @@ body[data-device-layout="compact"] .budget-panel-popout .budget-bill-list-simple
 .cellphone-review-details[open] > summary { border-bottom: 1px solid #cbd8e8; }
 .cellphone-review-details > section { margin: 14px; }
 
+.verizon-discount-reminders { margin: 16px 0; padding: 15px; border: 1px solid #b8d6c3; border-radius: 10px; background: linear-gradient(135deg, #f5fcf7 0%, #f8fbff 100%); }
+.verizon-discount-reminders-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.verizon-discount-reminders-head span { display: block; color: #087443; font-size: .72rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.verizon-discount-reminders-head h3 { margin: 3px 0 5px; color: #166534; font-size: 1.1rem; }
+.verizon-discount-reminders-head p { max-width: 680px; margin: 0; color: #526981; font-size: .86rem; line-height: 1.4; }
+.verizon-discount-reminders-head > strong { padding: 5px 9px; border-radius: 999px; color: #166534; background: #dff5e6; font-size: .76rem; }
+.verizon-payment-targets { display: grid; grid-template-columns: repeat(2, minmax(180px, 1fr)); gap: 10px; margin: 12px 0; }
+.verizon-payment-targets article { padding: 10px 12px; border: 1px solid #b8d6c3; border-radius: 8px; background: #fff; }
+.verizon-payment-targets span, .verizon-payment-targets small { display: block; color: #62738b; font-size: .73rem; font-weight: 700; }
+.verizon-payment-targets span { letter-spacing: .03em; text-transform: uppercase; }
+.verizon-payment-targets strong { display: block; margin: 3px 0; color: #166534; font-size: 1.2rem; }
+.verizon-discount-table a { color: #155e9a; font-weight: 800; white-space: nowrap; }
+.verizon-discount-reminder-note { margin: 11px 0 0; color: #31566e; font-size: .82rem; line-height: 1.45; }
+
 .cellphone-switch-analysis { margin: 16px 0; padding: 16px; border: 1px solid #b9d2ec; border-radius: 10px; background: linear-gradient(135deg, #f8fbff 0%, #fffdf5 100%); }
 .cellphone-switch-analysis-head { display: flex; align-items: start; justify-content: space-between; gap: 14px; }
 .cellphone-switch-analysis-head span { display: block; color: #2563a6; font-size: .72rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
@@ -5056,7 +5070,8 @@ body[data-device-layout="compact"] .budget-panel-popout .budget-bill-list-simple
   .cellphone-switch-email,
   .att-cancellation-letter-head { align-items: flex-start; flex-direction: column; }
   .cellphone-switch-facts,
-  .cellphone-switch-grid { grid-template-columns: 1fr; }
+  .cellphone-switch-grid,
+  .verizon-payment-targets { grid-template-columns: 1fr; }
   .cellphone-switch-pending { align-self: flex-start; }
 }
 /* Clear emphasis for Verizon cost-reduction and eligibility guidance. */
