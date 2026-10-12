@@ -221,14 +221,15 @@ const ADMIN_BILL_SIMULATION_SEED = [
   key: buildBudgetBillTemplateKey(name), name, projectedBalance
 }));
 const VERIZON_BILL_HISTORY = [
-  { month: "2026-02", total: 194.24, note: "Baseline bill before Theodore, Georgette, and Patrick were added." },
-  { month: "2026-03", total: 184.24, note: "Down $10.00 from February; still the pre-added-line baseline." },
-  { month: "2026-04", total: 318.95, note: "Up $134.71. Theodore and Georgette first appear as new plan/device lines ($68.39 and $85.29); other plan changes and credits offset part of their impact." },
-  { month: "2026-05", total: 310.17, note: "Down $8.78, but the added Theodore and Georgette lines remained on the account." },
-  { month: "2026-06", total: 268.88, note: "Down $41.29; this is the last statement before Patrick first appears as an added line." },
-  { month: "2026-07", total: 332.56, note: "Up $63.68. Patrick's line first appears on this statement after a June addition; plan/device changes also occurred." },
-  { month: "2026-08", total: 566.22, note: "Up $233.66. The bill includes high surcharges and remaining line/device changes; this is not a clean recurring baseline." },
-  { month: "2026-09", total: 385.34, note: "Down $180.88. The statement reports $333.81 in one-time credits, so this decrease is not all recurring savings." }
+  { month: "2026-02", total: 194.24, currentCharges: 194.24, previousBalance: 0, billingPeriod: "Jan 8 - Feb 7, 2026", dueDate: "Feb 27, 2026", autoPayDate: "Feb 27, 2026", pdfFile: "MyBill_02.07.2026.pdf", note: "Baseline bill before Theodore, Georgette, and Patrick were added." },
+  { month: "2026-03", total: 184.24, currentCharges: 184.24, previousBalance: 0, billingPeriod: "Feb 8 - Mar 7, 2026", dueDate: "Mar 30, 2026", autoPayDate: "Mar 27, 2026", pdfFile: "MyBill_03.07.2026.pdf", note: "Down $10.00 from February; still the pre-added-line baseline." },
+  { month: "2026-04", total: 318.95, currentCharges: 318.95, previousBalance: 0, billingPeriod: "Mar 8 - Apr 7, 2026", dueDate: "Apr 29, 2026", autoPayDate: "Apr 27, 2026", pdfFile: "MyBill_04.07.2026.pdf", note: "Up $134.71. Theodore and Georgette first appear as new plan/device lines ($68.39 and $85.29); other plan changes and credits offset part of their impact." },
+  { month: "2026-05", total: 310.17, currentCharges: 310.17, previousBalance: 0, billingPeriod: "Apr 8 - May 7, 2026", dueDate: "May 30, 2026", autoPayDate: "May 27, 2026", pdfFile: "MyBill_05.07.2026.pdf", note: "Down $8.78, but the added Theodore and Georgette lines remained on the account." },
+  { month: "2026-06", total: 268.88, currentCharges: 268.88, previousBalance: 0, billingPeriod: "May 8 - Jun 7, 2026", dueDate: "Jun 29, 2026", autoPayDate: "Jun 27, 2026", pdfFile: "MyBill_06.07.2026.pdf", note: "Down $41.29; this is the last statement before Patrick first appears as an added line." },
+  { month: "2026-07", total: 332.56, currentCharges: 352.56, previousBalance: -20, billingPeriod: "Jun 8 - Jul 7, 2026", dueDate: "Jul 30, 2026", autoPayDate: "Jul 27, 2026", pdfFile: "MyBill_07.07.2026.pdf", note: "Up $63.68. Patrick's line first appears on this statement after a June addition; plan/device changes also occurred." },
+  { month: "2026-08", total: 566.22, currentCharges: 566.22, previousBalance: 0, billingPeriod: "Jul 8 - Aug 7, 2026", dueDate: "Aug 30, 2026", autoPayDate: "Aug 27, 2026", pdfFile: "MyBill_08.07.2026.pdf", note: "Up $233.66. The bill includes high surcharges and remaining line/device changes; this is not a clean recurring baseline." },
+  { month: "2026-09", total: 385.34, currentCharges: 444.04, previousBalance: -58.70, billingPeriod: "Aug 8 - Sep 7, 2026", dueDate: "Sep 29, 2026", autoPayDate: "Sep 27, 2026", pdfFile: "MyBill_09.07.2026.pdf", note: "Down $180.88. The statement reports $333.81 in one-time credits, so this decrease is not all recurring savings." },
+  { month: "2026-10", total: 471.99, currentCharges: 471.99, previousBalance: 0, billingPeriod: "Sep 8 - Oct 7, 2026", dueDate: "Oct 30, 2026", autoPayDate: "Oct 27, 2026", pdfFile: "MyBill_10.07.2026.pdf", note: "Up $86.65 from September after the prior statement's one-time credits ended. Review plan, device, and account-level charges before treating this as a stable recurring amount." }
 ];
 const VERIZON_CURRENT_LINE_COSTS = [
   { name: "Shanelle", number: "914-409-5940", plan: "Unlimited Ultimate", amount: 74.35, note: "Highest standard plan cost; compare Unlimited Welcome only if its data features are not needed." },
@@ -1463,6 +1464,7 @@ let activeClientId = "";
 let currentJsonBackupPayload = null;
 let adminBillSimulationActive = false;
 let adminProposedPreviewActive = false;
+let selectedVerizonBillingMonth = "";
 let activeBillBalanceHistoryKey = "";
 
 function currentClientConfig() {
@@ -7855,13 +7857,19 @@ function openBillBalanceHistory(bill) {
 
 function renderCellphoneBillingHistoryDialog() {
   if (!cellphoneBillingHistoryBody) return;
-  const latest = VERIZON_BILL_HISTORY[VERIZON_BILL_HISTORY.length - 1];
-  const previous = VERIZON_BILL_HISTORY[VERIZON_BILL_HISTORY.length - 2];
-  const change = latest.total - previous.total;
-  const targetGap = latest.total - 300;
+  const selectedMatchIndex = VERIZON_BILL_HISTORY.findIndex(bill => bill.month === selectedVerizonBillingMonth);
+  const selectedIndex = selectedMatchIndex >= 0 ? selectedMatchIndex : VERIZON_BILL_HISTORY.length - 1;
+  const selectedBill = VERIZON_BILL_HISTORY[selectedIndex] || VERIZON_BILL_HISTORY[VERIZON_BILL_HISTORY.length - 1];
+  selectedVerizonBillingMonth = selectedBill.month;
+  const previousBill = selectedIndex > 0 ? VERIZON_BILL_HISTORY[selectedIndex - 1] : null;
+  const change = previousBill ? selectedBill.total - previousBill.total : 0;
+  const chargeChange = previousBill ? selectedBill.currentCharges - previousBill.currentCharges : 0;
+  const changePercent = previousBill?.total ? (change / previousBill.total) * 100 : 0;
+  const changeDirection = change > 0 ? "increased" : (change < 0 ? "decreased" : "held steady");
+  const changeTone = change > 0 ? "is-increase" : (change < 0 ? "is-decrease" : "is-neutral");
+  const targetGap = selectedBill.total - 300;
   const lineTotal = VERIZON_CURRENT_LINE_COSTS.reduce((sum, line) => sum + line.amount, 0);
-  const highestLine = VERIZON_CURRENT_LINE_COSTS.filter(line => line.amount > 0).sort((left, right) => right.amount - left.amount)[0];
-  const unassigned = latest.total - lineTotal;
+  const unassigned = selectedBill.total - lineTotal;
   const sharedChargeShare = Math.max(0, unassigned) / 4;
   const contributionStatus = new Map(VERIZON_LINE_ADDITION_HISTORY.map(item => [item.person, item.contributionStatus]));
   const contributorNames = ["Georgette", "Patrick", "Theodore", "Shanelle"];
@@ -7871,16 +7879,62 @@ function renderCellphoneBillingHistoryDialog() {
     return { name, directCost, sharedChargeShare, suggestedContribution: directCost + sharedChargeShare, status: contributionStatus.get(name) || "Not currently contributing" };
   });
   const optionalSavings = 21.75 + 14 + 11.58 + 25 + 31.84;
+  const selectedMonthLabel = formatBudgetMonthLabel(selectedBill.month);
+  const previousMonthLabel = previousBill ? formatBudgetMonthLabel(previousBill.month) : "No earlier bill";
   cellphoneBillingHistoryBody.innerHTML = `
-    <div class="cellphone-billing-summary"><span>Latest PDF total</span><strong>${escapeHtml(formatCurrency(latest.total))}</strong><span>${escapeHtml(formatSignedCurrency(change))} from August</span><small>${escapeHtml(latest.note)}</small></div>
+    <section class="cellphone-review-header">
+      <div><span class="cellphone-review-kicker">Monthly bill review</span><h3>${escapeHtml(selectedMonthLabel)} Verizon statement</h3><p>Review a local PDF bill, compare it with the prior statement, and identify what needs follow-up.</p></div>
+      <div class="cellphone-review-controls" aria-label="Choose Verizon bill">
+        <button type="button" class="ghost cellphone-bill-nav" data-verizon-month-step="-1"${selectedIndex === 0 ? " disabled" : ""}>Previous</button>
+        <label for="cellphoneBillSelect">Bill
+          <select id="cellphoneBillSelect">${VERIZON_BILL_HISTORY.map(bill => `<option value="${escapeAttribute(bill.month)}"${bill.month === selectedBill.month ? " selected" : ""}>${escapeHtml(formatBudgetMonthLabel(bill.month))} - ${escapeHtml(formatCurrency(bill.total))}</option>`).join("")}</select>
+        </label>
+        <button type="button" class="ghost cellphone-bill-nav" data-verizon-month-step="1"${selectedIndex === VERIZON_BILL_HISTORY.length - 1 ? " disabled" : ""}>Next</button>
+      </div>
+    </section>
+    <section class="cellphone-review-metrics" aria-label="${escapeAttribute(selectedMonthLabel)} bill summary">
+      <article><span>Total due</span><strong>${escapeHtml(formatCurrency(selectedBill.total))}</strong><small>Auto Pay ${escapeHtml(selectedBill.autoPayDate)}</small></article>
+      <article class="${changeTone}"><span>Change from ${escapeHtml(previousMonthLabel)}</span><strong>${previousBill ? escapeHtml(formatSignedCurrency(change)) : "Baseline"}</strong><small>${previousBill ? `${changePercent >= 0 ? "+" : ""}${changePercent.toFixed(1)}%` : "First saved bill"}</small></article>
+      <article><span>This month's charges</span><strong>${escapeHtml(formatCurrency(selectedBill.currentCharges))}</strong><small>Prior balance / credits: ${escapeHtml(formatSignedCurrency(selectedBill.previousBalance))}</small></article>
+      <article><span>Bill target</span><strong>${escapeHtml(formatSignedCurrency(targetGap))}</strong><small>${targetGap > 0 ? "above the $300 target" : "at or below the $300 target"}</small></article>
+    </section>
+    <section class="cellphone-review-comparison">
+      <div class="cellphone-review-section-head"><div><span>Month-to-month comparison</span><h3>${escapeHtml(previousMonthLabel)} to ${escapeHtml(selectedMonthLabel)}</h3></div><strong class="${changeTone}">${previousBill ? `${escapeHtml(formatCurrency(Math.abs(change)))} ${escapeHtml(changeDirection)}` : "Starting point"}</strong></div>
+      <div class="cellphone-review-compare-grid">
+        <div><span>Previous total due</span><strong>${previousBill ? escapeHtml(formatCurrency(previousBill.total)) : "-"}</strong></div>
+        <div><span>Selected total due</span><strong>${escapeHtml(formatCurrency(selectedBill.total))}</strong></div>
+        <div><span>Charges change</span><strong class="${chargeChange > 0 ? "is-increase" : (chargeChange < 0 ? "is-decrease" : "")}">${previousBill ? escapeHtml(formatSignedCurrency(chargeChange)) : "-"}</strong></div>
+        <div><span>Review finding</span><strong>${escapeHtml(selectedBill.note)}</strong></div>
+      </div>
+      <div class="cellphone-review-facts"><span><strong>Billing period:</strong> ${escapeHtml(selectedBill.billingPeriod)}</span><span><strong>Due:</strong> ${escapeHtml(selectedBill.dueDate)}</span><span><strong>Auto Pay:</strong> ${escapeHtml(selectedBill.autoPayDate)}</span><span><strong>Local PDF:</strong> ${escapeHtml(selectedBill.pdfFile)}</span></div>
+    </section>
     ${buildHistoryLineChart(VERIZON_BILL_HISTORY.map(point => ({ label: formatBudgetMonthLabel(point.month).slice(0, 3), value: point.total })), "Verizon monthly bill history")}
-    <section class="cellphone-billing-insight"><h3>Why the monthly bill grew</h3><p>The pre-added-line baseline was about ${escapeHtml(formatCurrency(184.24))} to ${escapeHtml(formatCurrency(194.24))} in February and March. Theodore and Georgette were added in April, when the bill rose ${escapeHtml(formatCurrency(134.71))}; their first listed charges were ${escapeHtml(formatCurrency(68.39))} and ${escapeHtml(formatCurrency(85.29))}. Patrick was added in June and first appeared on the July statement at ${escapeHtml(formatCurrency(49.88))}, while the total rose ${escapeHtml(formatCurrency(63.68))}. The bill later includes plan, device, credit, and surcharge changes, so not every monthly difference is a new recurring charge.</p></section>
-    <div class="cellphone-billing-table-wrap"><table class="cellphone-billing-table"><thead><tr><th>Bill month</th><th>Total due</th><th>Change</th><th>Why it changed</th></tr></thead><tbody>${VERIZON_BILL_HISTORY.map((point, index) => `<tr><td>${escapeHtml(formatBudgetMonthLabel(point.month))}</td><td>${escapeHtml(formatCurrency(point.total))}</td><td>${index ? escapeHtml(formatSignedCurrency(point.total - VERIZON_BILL_HISTORY[index - 1].total)) : "-"}</td><td>${escapeHtml(point.note)}</td></tr>`).join("")}</tbody></table></div>
-    <section class="cellphone-current-lines"><h3>Added-line timeline and contribution status</h3><div class="cellphone-billing-table-wrap"><table class="cellphone-billing-table"><thead><tr><th>Person</th><th>Added</th><th>First bill charge</th><th>Latest PDF charge</th><th>Contribution</th><th>Context</th></tr></thead><tbody>${VERIZON_LINE_ADDITION_HISTORY.map(item => `<tr><td>${escapeHtml(item.person)}</td><td>${escapeHtml(item.added)}</td><td>${escapeHtml(formatCurrency(item.firstCharge))}</td><td>${escapeHtml(formatSignedCurrency(item.latestPdfCharge))}</td><td>${escapeHtml(item.contributionStatus)}</td><td>${escapeHtml(item.effect)}</td></tr>`).join("")}</tbody></table></div></section>
-    <section class="cellphone-billing-insight"><h3>Fair monthly contributions</h3><p>A standalone Verizon account could cost more because family-plan, loyalty, Auto Pay, device-promotion, and shared-fee benefits may be lost. As a fair shared-account contribution, the direct planning cost plus an equal ${escapeHtml(formatCurrency(sharedChargeShare))} share of the current ${escapeHtml(formatCurrency(unassigned))} non-line difference gives a practical floor, not a Verizon quote.</p><div class="cellphone-billing-table-wrap"><table class="cellphone-billing-table"><thead><tr><th>Person</th><th>Direct planning cost</th><th>Shared fees/charges share</th><th>Suggested contribution</th><th>Current status</th></tr></thead><tbody>${contributionRows.map(item => `<tr><td>${escapeHtml(item.name)}</td><td>${escapeHtml(formatCurrency(item.directCost))}</td><td>${escapeHtml(formatCurrency(item.sharedChargeShare))}</td><td><strong>${escapeHtml(formatCurrency(item.suggestedContribution))}</strong></td><td>${escapeHtml(item.status)}</td></tr>`).join("")}</tbody></table></div><p class="cellphone-billing-note">Based on the current planning amounts: Georgette and Patrick already contribute; Theodore and Shanelle do not. Asking Theodore and Shanelle to cover their suggested shares makes the responsibility consistent without claiming this is their exact standalone-account price.</p></section>
-    <section class="cellphone-current-lines"><h3>Current line-cost planning view</h3><p>Listed lines total ${escapeHtml(formatCurrency(lineTotal))}. The difference from the latest PDF total is ${escapeHtml(formatCurrency(unassigned))}, which can include taxes, surcharges, account charges, credits, or bill-cycle timing.</p><div class="cellphone-billing-table-wrap"><table class="cellphone-billing-table"><thead><tr><th>Line or item</th><th>Number</th><th>Plan</th><th>Monthly cost</th><th>Review</th></tr></thead><tbody>${VERIZON_CURRENT_LINE_COSTS.map(line => `<tr><td>${escapeHtml(line.name)}</td><td>${escapeHtml(line.number)}</td><td>${escapeHtml(line.plan)}</td><td>${escapeHtml(formatSignedCurrency(line.amount))}</td><td>${escapeHtml(line.note)}</td></tr>`).join("")}</tbody></table></div></section>
-    <section class="cellphone-billing-insight"><h3>Path toward $300</h3><p>The latest total is ${escapeHtml(formatCurrency(targetGap))} above $300. Conditional opportunities are: remove the second number (${escapeHtml(formatCurrency(21.75))}) if unnecessary; remove an unused watch (${escapeHtml(formatCurrency(14))}) and iPad line (${escapeHtml(formatCurrency(11.58))}); move an Unlimited Ultimate line to Welcome only if the reduced features work (the latest PDF's plan-rate difference is about ${escapeHtml(formatCurrency(25))}); and prevent recurring international mobile charges such as September's ${escapeHtml(formatCurrency(31.84))}. Together these potential reductions total about ${escapeHtml(formatCurrency(optionalSavings))}, enough to cross the $300 goal only if the services and feature changes are appropriate.</p></section>
-    <section class="cellphone-discount-review"><h3>Discounts and senior-plan review</h3><ul><li>The September PDF shows a $20 55+ loyalty discount for 4+ phones and a $25 55+ loyalty adjustment/removal; keep the currently active loyalty credit and ask Verizon why the amount changed.</li><li>The PDF advertises Auto Pay and paper-free savings up to $50 per month. Confirm every eligible phone line and payment method receives the intended discount.</li><li>Device promotional credits appear on several lines. Do not transfer, cancel, or change a line without confirming whether its device credits continue.</li><li>Verizon's current 55+ mobile discount is an Account Owner benefit, not a separate discount for each line. Verizon states it requires the Account Owner to be 55+, a Florida billing address, and 1 or 2 Unlimited Welcome phone lines. This New York, multi-line account does not appear to meet those current Florida-offer conditions, and the PDFs alone cannot establish whether you or Georgette qualifies for another senior offer. Ask Verizon to audit account-specific loyalty, employer, military, teacher, first-responder, and income-based Lifeline eligibility before changing plans. <a href="https://www.verizon.com/support/55-plus-unlimited-plan/" target="_blank" rel="noreferrer">Review Verizon 55+ eligibility</a>.</li></ul></section>`;
+    <section class="cellphone-billing-insight"><h3>Selected-bill review</h3><p>${escapeHtml(selectedBill.note)}</p><p class="cellphone-billing-note">This is a comparison workspace. The selected statement data is read from the local PDF record and does not change the Admin bill budget.</p></section>
+    <div class="cellphone-billing-table-wrap"><table class="cellphone-billing-table cellphone-history-selector-table"><thead><tr><th>Bill month</th><th>Total due</th><th>Change</th><th>Review summary</th><th>Source</th></tr></thead><tbody>${VERIZON_BILL_HISTORY.map((point, index) => `<tr data-verizon-bill-month="${escapeAttribute(point.month)}" class="${point.month === selectedBill.month ? "is-selected" : ""}" tabindex="0"><td>${escapeHtml(formatBudgetMonthLabel(point.month))}</td><td>${escapeHtml(formatCurrency(point.total))}</td><td>${index ? escapeHtml(formatSignedCurrency(point.total - VERIZON_BILL_HISTORY[index - 1].total)) : "-"}</td><td>${escapeHtml(point.note)}</td><td>${escapeHtml(point.pdfFile)}</td></tr>`).join("")}</tbody></table></div>
+    <details class="cellphone-review-details"><summary>Account planning and contribution review</summary><section class="cellphone-current-lines"><h3>Added-line timeline and contribution status</h3><div class="cellphone-billing-table-wrap"><table class="cellphone-billing-table"><thead><tr><th>Person</th><th>Added</th><th>First bill charge</th><th>Latest PDF charge</th><th>Contribution</th><th>Context</th></tr></thead><tbody>${VERIZON_LINE_ADDITION_HISTORY.map(item => `<tr><td>${escapeHtml(item.person)}</td><td>${escapeHtml(item.added)}</td><td>${escapeHtml(formatCurrency(item.firstCharge))}</td><td>${escapeHtml(formatSignedCurrency(item.latestPdfCharge))}</td><td>${escapeHtml(item.contributionStatus)}</td><td>${escapeHtml(item.effect)}</td></tr>`).join("")}</tbody></table></div></section><section class="cellphone-billing-insight"><h3>Fair monthly contributions</h3><p>A standalone Verizon account could cost more because family-plan, loyalty, Auto Pay, device-promotion, and shared-fee benefits may be lost. As a fair shared-account contribution, the direct planning cost plus an equal ${escapeHtml(formatCurrency(sharedChargeShare))} share of the current ${escapeHtml(formatCurrency(unassigned))} non-line difference gives a practical floor, not a Verizon quote.</p><div class="cellphone-billing-table-wrap"><table class="cellphone-billing-table"><thead><tr><th>Person</th><th>Direct planning cost</th><th>Shared fees/charges share</th><th>Suggested contribution</th><th>Current status</th></tr></thead><tbody>${contributionRows.map(item => `<tr><td>${escapeHtml(item.name)}</td><td>${escapeHtml(formatCurrency(item.directCost))}</td><td>${escapeHtml(formatCurrency(item.sharedChargeShare))}</td><td><strong>${escapeHtml(formatCurrency(item.suggestedContribution))}</strong></td><td>${escapeHtml(item.status)}</td></tr>`).join("")}</tbody></table></div><p class="cellphone-billing-note">Based on the current planning amounts: Georgette and Patrick already contribute; Theodore and Shanelle do not. Asking Theodore and Shanelle to cover their suggested shares makes the responsibility consistent without claiming this is their exact standalone-account price.</p></section><section class="cellphone-current-lines"><h3>Current line-cost planning view</h3><p>Listed lines total ${escapeHtml(formatCurrency(lineTotal))}. The difference from the selected PDF total is ${escapeHtml(formatCurrency(unassigned))}, which can include taxes, surcharges, account charges, credits, or bill-cycle timing.</p><div class="cellphone-billing-table-wrap"><table class="cellphone-billing-table"><thead><tr><th>Line or item</th><th>Number</th><th>Plan</th><th>Monthly cost</th><th>Review</th></tr></thead><tbody>${VERIZON_CURRENT_LINE_COSTS.map(line => `<tr><td>${escapeHtml(line.name)}</td><td>${escapeHtml(line.number)}</td><td>${escapeHtml(line.plan)}</td><td>${escapeHtml(formatSignedCurrency(line.amount))}</td><td>${escapeHtml(line.note)}</td></tr>`).join("")}</tbody></table></div></section><section class="cellphone-billing-insight"><h3>Path toward $300</h3><p>The selected total is ${escapeHtml(formatCurrency(targetGap))} above $300. Conditional opportunities are: remove the second number (${escapeHtml(formatCurrency(21.75))}) if unnecessary; remove an unused watch (${escapeHtml(formatCurrency(14))}) and iPad line (${escapeHtml(formatCurrency(11.58))}); move an Unlimited Ultimate line to Welcome only if the reduced features work (the latest PDF's plan-rate difference is about ${escapeHtml(formatCurrency(25))}); and prevent recurring international mobile charges such as September's ${escapeHtml(formatCurrency(31.84))}. Together these potential reductions total about ${escapeHtml(formatCurrency(optionalSavings))}, enough to cross the $300 goal only if the services and feature changes are appropriate.</p></section><section class="cellphone-discount-review"><h3>Discount and eligibility review</h3><ul><li>Keep the currently active loyalty credit and ask Verizon why its amount changed.</li><li>Confirm every eligible phone line and payment method receives the intended Auto Pay and paper-free discount.</li><li>Do not transfer, cancel, or change a line without confirming whether device credits continue.</li><li>Ask Verizon to audit account-specific loyalty, employer, military, teacher, first-responder, and income-based Lifeline eligibility before changing plans.</li></ul></section></details>`;
+
+  cellphoneBillingHistoryBody.querySelector("#cellphoneBillSelect")?.addEventListener("change", event => {
+    selectedVerizonBillingMonth = event.target.value;
+    renderCellphoneBillingHistoryDialog();
+  });
+  cellphoneBillingHistoryBody.querySelectorAll("[data-verizon-month-step]").forEach(button => {
+    button.addEventListener("click", () => {
+      const next = selectedIndex + Number(button.dataset.verizonMonthStep);
+      if (!VERIZON_BILL_HISTORY[next]) return;
+      selectedVerizonBillingMonth = VERIZON_BILL_HISTORY[next].month;
+      renderCellphoneBillingHistoryDialog();
+    });
+  });
+  cellphoneBillingHistoryBody.querySelectorAll("[data-verizon-bill-month]").forEach(row => {
+    const selectBill = () => {
+      selectedVerizonBillingMonth = row.dataset.verizonBillMonth;
+      renderCellphoneBillingHistoryDialog();
+    };
+    row.addEventListener("click", selectBill);
+    row.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectBill(); }
+    });
+  });
 }
 
 function openCellphoneBillingHistory() {

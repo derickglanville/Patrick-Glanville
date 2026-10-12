@@ -4792,6 +4792,109 @@ body[data-device-layout="compact"] .budget-panel-popout .budget-bill-list-simple
   font-weight: 700;
 }
 
+.cellphone-review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 10px 0 14px;
+  padding: 14px 16px;
+  border: 1px solid #bdd2eb;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #eef6ff 0%, #f9fcff 55%, #e9f8f0 100%);
+}
+
+.cellphone-review-kicker,
+.cellphone-review-section-head > div > span {
+  display: block;
+  color: #2563a6;
+  font-size: .72rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.cellphone-review-header h3,
+.cellphone-review-section-head h3 {
+  margin: 3px 0 4px;
+  color: #173a63;
+  font-size: 1.15rem;
+}
+
+.cellphone-review-header p {
+  max-width: 570px;
+  margin: 0;
+  color: #526981;
+  font-size: .9rem;
+  line-height: 1.4;
+}
+
+.cellphone-review-controls {
+  display: flex;
+  align-items: end;
+  gap: 7px;
+  flex: 0 0 auto;
+}
+
+.cellphone-review-controls button { min-height: 34px; padding: 0 10px; font-weight: 800; }
+.cellphone-review-controls label { display: grid; gap: 3px; color: #284b73; font-size: .74rem; font-weight: 800; }
+.cellphone-review-controls select { min-width: 190px; min-height: 34px; color: #173a63; border-color: #9ebcdd; background: #fff; font-weight: 700; }
+
+.cellphone-review-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.cellphone-review-metrics article,
+.cellphone-review-compare-grid > div {
+  padding: 10px 12px;
+  border: 1px solid #d4dfec;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.cellphone-review-metrics span,
+.cellphone-review-compare-grid span {
+  display: block;
+  color: #62738b;
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+
+.cellphone-review-metrics strong { display: block; margin-top: 3px; color: #183d67; font-size: 1.22rem; }
+.cellphone-review-metrics small { display: block; margin-top: 3px; color: #62738b; font-size: .76rem; font-weight: 700; }
+.cellphone-review-metrics .is-increase strong, .cellphone-review-comparison .is-increase { color: #b42318; }
+.cellphone-review-metrics .is-decrease strong, .cellphone-review-comparison .is-decrease { color: #087443; }
+.cellphone-review-metrics .is-neutral strong, .cellphone-review-comparison .is-neutral { color: #526981; }
+
+.cellphone-review-comparison {
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid #b9d2ec;
+  border-radius: 10px;
+  background: #f7fbff;
+}
+
+.cellphone-review-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cellphone-review-section-head > strong { padding: 5px 9px; border-radius: 999px; background: #e9eff6; font-size: .82rem; }
+.cellphone-review-compare-grid { display: grid; grid-template-columns: 1fr 1fr 1fr minmax(260px, 2fr); gap: 8px; margin-top: 10px; }
+.cellphone-review-compare-grid strong { display: block; margin-top: 4px; color: #183d67; line-height: 1.35; }
+.cellphone-review-facts { display: flex; flex-wrap: wrap; gap: 7px 14px; margin-top: 12px; color: #526981; font-size: .82rem; }
+.cellphone-review-facts strong { color: #234a72; }
+
+.cellphone-history-selector-table tbody tr { cursor: pointer; }
+.cellphone-history-selector-table tbody tr.is-selected { background: #ddecff !important; box-shadow: inset 4px 0 0 #1d6fb8; }
+.cellphone-history-selector-table tbody tr:focus-visible { outline: 2px solid #1d6fb8; outline-offset: -2px; }
+
+.cellphone-review-details { margin-top: 16px; border: 1px solid #cbd8e8; border-radius: 9px; background: #fff; overflow: hidden; }
+.cellphone-review-details > summary { padding: 11px 13px; color: #173a63; background: #edf5ff; cursor: pointer; font-weight: 800; }
+.cellphone-review-details[open] > summary { border-bottom: 1px solid #cbd8e8; }
+.cellphone-review-details > section { margin: 14px; }
+
 .history-line-chart {
   display: block;
   width: 100%;
