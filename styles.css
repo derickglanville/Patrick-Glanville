@@ -4895,6 +4895,32 @@ body[data-device-layout="compact"] .budget-panel-popout .budget-bill-list-simple
 .cellphone-review-details[open] > summary { border-bottom: 1px solid #cbd8e8; }
 .cellphone-review-details > section { margin: 14px; }
 
+.cellphone-switch-analysis { margin: 16px 0; padding: 16px; border: 1px solid #b9d2ec; border-radius: 10px; background: linear-gradient(135deg, #f8fbff 0%, #fffdf5 100%); }
+.cellphone-switch-analysis-head { display: flex; align-items: start; justify-content: space-between; gap: 14px; }
+.cellphone-switch-analysis-head span { display: block; color: #2563a6; font-size: .72rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.cellphone-switch-analysis h3 { margin: 3px 0 5px; color: #173a63; font-size: 1.12rem; }
+.cellphone-switch-analysis h4 { margin: 0 0 8px; color: #173a63; font-size: .92rem; }
+.cellphone-switch-analysis-head p { max-width: 720px; margin: 0; color: #526981; font-size: .86rem; line-height: 1.4; }
+.cellphone-switch-pending { flex: 0 0 auto; padding: 6px 9px; border: 1px solid #e2ac35; border-radius: 999px; color: #855600; background: #fff4cf; font-size: .76rem; }
+.cellphone-switch-assessment { margin: 12px 0; padding: 10px 12px; border-left: 4px solid #d79520; border-radius: 5px; background: #fff8e5; color: #684c15; }
+.cellphone-switch-assessment strong { display: block; color: #704900; font-size: .82rem; text-transform: uppercase; letter-spacing: .04em; }
+.cellphone-switch-assessment p { margin: 4px 0 0; font-size: .87rem; line-height: 1.4; }
+.cellphone-switch-facts { display: grid; grid-template-columns: repeat(3, minmax(155px, 1fr)); gap: 9px; }
+.cellphone-switch-facts article { padding: 10px 11px; border: 1px solid #d4dfec; border-radius: 8px; background: #fff; }
+.cellphone-switch-facts span, .cellphone-switch-facts small { display: block; color: #62738b; font-size: .72rem; font-weight: 700; line-height: 1.35; }
+.cellphone-switch-facts span { text-transform: uppercase; letter-spacing: .03em; }
+.cellphone-switch-facts strong { display: block; margin: 3px 0; color: #183d67; font-size: 1.06rem; }
+.cellphone-switch-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 14px; margin-top: 14px; }
+.cellphone-switch-grid > div { padding: 12px; border: 1px solid #d4dfec; border-radius: 8px; background: rgba(255, 255, 255, .82); }
+.cellphone-switch-grid ol { margin: 0; padding-left: 20px; color: #40566f; font-size: .83rem; line-height: 1.4; }
+.cellphone-switch-grid li + li { margin-top: 6px; }
+.cellphone-switch-grid p { margin: 0 0 9px; color: #40566f; font-size: .83rem; line-height: 1.43; }
+.cellphone-switch-links { display: flex; flex-wrap: wrap; gap: 7px; }
+.cellphone-switch-links a { padding: 5px 7px; border: 1px solid #9ebcdd; border-radius: 5px; color: #155e9a; background: #f4f9ff; font-size: .75rem; font-weight: 800; text-decoration: none; }
+.cellphone-switch-links a:hover { background: #e1f0ff; }
+.cellphone-switch-email { display: flex; gap: 9px; margin-top: 13px; padding: 9px 11px; border-radius: 7px; color: #526981; background: #edf3fa; font-size: .81rem; line-height: 1.4; }
+.cellphone-switch-email strong { flex: 0 0 auto; color: #234a72; }
+
 .history-line-chart {
   display: block;
   width: 100%;
@@ -5017,6 +5043,12 @@ body[data-device-layout="compact"] .budget-panel-popout .budget-bill-list-simple
   .bill-history-table td,
   .cellphone-billing-table th,
   .cellphone-billing-table td { padding: 6px; font-size: .8rem; }
+  .cellphone-switch-analysis { padding: 12px; }
+  .cellphone-switch-analysis-head,
+  .cellphone-switch-email { align-items: flex-start; flex-direction: column; }
+  .cellphone-switch-facts,
+  .cellphone-switch-grid { grid-template-columns: 1fr; }
+  .cellphone-switch-pending { align-self: flex-start; }
 }
 /* Clear emphasis for Verizon cost-reduction and eligibility guidance. */
 .cellphone-billing-note {

@@ -139,6 +139,10 @@ assert.equal(proposedPreviewBill.amount, 180, 'a proposed cash reduction must no
 assert.equal(proposedPreviewBill.proposedDueAmount, undefined);
 assert.match(source, /getBillsForCurrentDisplay\(\{ includeProposedPreview: false \}\)/);
 assert.match(source, /row\.addEventListener\("dblclick", event => \{/);
+assert.match(source, /const ATT_SWITCH_VALIDATION = \{/);
+assert.match(source, /Potential AT&amp;T switch validation/);
+assert.match(source, /This app cannot read Gmail/);
+assert.match(source, /https:\/\/www\.att\.com\/wireless\/try-and-switch\//);
 vm.runInContext(extract('getAppliedProposedReductionSummary'), proposedPreviewContext);
 const proposedSummary = proposedPreviewContext.getAppliedProposedReductionSummary([
   proposedPreviewBill,
