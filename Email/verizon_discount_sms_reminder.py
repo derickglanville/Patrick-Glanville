@@ -49,7 +49,8 @@ def reminder_messages(today: date) -> List[str]:
     days_remaining = (LOYALTY_EXPIRATION - today).days
     if days_remaining in LOYALTY_REMINDER_DAYS:
         suffix = "day" if days_remaining == 1 else "days"
-        messages.append(f"Verizon reminder: the $52 loyalty credit expires in {days_remaining} {suffix} ({LOYALTY_EXPIRATION:%b %-d, %Y}). Contact Verizon to renew or replace it.")
+        expiration_label = f"{LOYALTY_EXPIRATION.strftime('%b')} {LOYALTY_EXPIRATION.day}, {LOYALTY_EXPIRATION.year}"
+        messages.append(f"Verizon reminder: the $52 loyalty credit expires in {days_remaining} {suffix} ({expiration_label}). Contact Verizon to renew or replace it.")
     if today.day == PAPER_FREE_CHECK_DAY:
         messages.append("Verizon reminder: confirm the $10-per-eligible-line paper-free billing and Auto Pay discount is on this month's bill.")
     return messages
