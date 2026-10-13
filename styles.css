@@ -4955,6 +4955,12 @@ body[data-device-layout="compact"] .budget-panel-popout .budget-bill-list-simple
 .att-cancellation-notes tfoot th { color: #6c4b08; background: #fff3c7; }
 .att-cancellation-note-details { margin-top: 10px; color: #5e5646; font-size: .84rem; }
 .att-cancellation-note-details p { margin: 4px 0; }
+.verizon-notes-2 { margin-top: 12px; padding: 13px; border: 1px solid #b8cbe0; border-radius: 8px; background: #f8fbff; }
+.verizon-notes-2-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.verizon-notes-2-head span { display: block; color: #2563a6; font-size: .7rem; font-weight: 900; letter-spacing: .07em; text-transform: uppercase; }
+.verizon-notes-2 h4 { margin: 2px 0 0; color: #173a63; font-size: .98rem; }
+.verizon-notes-2 textarea { width: 100%; min-height: 230px; box-sizing: border-box; resize: vertical; color: #243b53; border-color: #9ebcdd; background: #fff; font: .84rem/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.verizon-notes-2-status { margin: 7px 0 0; color: #526981; font-size: .78rem; }
 
 .history-line-chart {
   display: block;
@@ -5081,7 +5087,8 @@ body[data-device-layout="compact"] .budget-panel-popout .budget-bill-list-simple
   .cellphone-switch-analysis { padding: 12px; }
   .cellphone-switch-analysis-head,
   .cellphone-switch-email,
-  .att-cancellation-letter-head { align-items: flex-start; flex-direction: column; }
+  .att-cancellation-letter-head,
+  .verizon-notes-2-head { align-items: flex-start; flex-direction: column; }
   .cellphone-switch-facts,
   .cellphone-switch-grid,
   .verizon-payment-targets { grid-template-columns: 1fr; }
