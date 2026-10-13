@@ -4942,6 +4942,13 @@ body[data-device-layout="compact"] .budget-panel-popout .budget-bill-list-simple
 .att-cancellation-letter h4 { margin: 2px 0 0; color: #173a63; font-size: .98rem; }
 .att-cancellation-letter p { margin: 0 0 9px; font-size: .84rem; line-height: 1.45; }
 .att-cancellation-letter p:last-child { margin-bottom: 0; }
+.att-cancellation-notes { margin-top: 12px; padding: 13px; border: 1px solid #e3c678; border-radius: 8px; background: #fffdf5; }
+.att-cancellation-notes > div:first-child span { display: block; color: #8a5b00; font-size: .7rem; font-weight: 900; letter-spacing: .07em; text-transform: uppercase; }
+.att-cancellation-notes h4 { margin: 2px 0 0; color: #6c4b08; font-size: .98rem; }
+.att-cancellation-notes .cellphone-billing-table-wrap { margin-top: 10px; }
+.att-cancellation-notes tfoot th { color: #6c4b08; background: #fff3c7; }
+.att-cancellation-note-details { margin-top: 10px; color: #5e5646; font-size: .84rem; }
+.att-cancellation-note-details p { margin: 4px 0; }
 
 .history-line-chart {
   display: block;
