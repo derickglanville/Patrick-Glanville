@@ -141,6 +141,10 @@ assert.match(source, /getBillsForCurrentDisplay\(\{ includeProposedPreview: fals
 assert.match(source, /row\.addEventListener\("dblclick", event => \{/);
 assert.match(source, /const ATT_SWITCH_VALIDATION = \{/);
 assert.match(source, /const VERIZON_DISCOUNT_REMINDERS = \{/);
+assert.match(source, /let selectedVerizonReviewTab = "monthly"/);
+assert.match(source, /data-cellphone-review-tab="\$\{id\}"/);
+assert.match(source, /data-cellphone-review-tab-panel="planning"/);
+assert.match(source, /selectedVerizonReviewTab = button\.dataset\.cellphoneReviewTab/);
 assert.match(source, /Verizon Discounts &amp; Reminders/);
 assert.match(source, /currentPayment: 346/);
 assert.match(source, /https:\/\/www\.id\.me\//);

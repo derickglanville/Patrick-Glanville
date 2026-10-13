@@ -4842,6 +4842,12 @@ body[data-device-layout="compact"] .budget-panel-popout .budget-bill-list-simple
 .cellphone-review-controls label { display: grid; gap: 3px; color: #284b73; font-size: .74rem; font-weight: 800; }
 .cellphone-review-controls select { min-width: 190px; min-height: 34px; color: #173a63; border-color: #9ebcdd; background: #fff; font-weight: 700; }
 
+.cellphone-review-tabs { display: flex; gap: 6px; margin: 0 0 12px; padding: 5px; overflow-x: auto; border: 1px solid #cbd8e8; border-radius: 8px; background: #eef4fa; }
+.cellphone-review-tab { flex: 0 0 auto; min-height: 34px; padding: 0 12px; border: 1px solid transparent; border-radius: 6px; color: #355a82; background: transparent; font-size: .82rem; font-weight: 800; }
+.cellphone-review-tab[aria-selected="true"] { color: #fff; border-color: #1d6fb8; background: #1d6fb8; box-shadow: 0 1px 2px rgba(21, 94, 154, .2); }
+.cellphone-review-tab:hover:not([aria-selected="true"]) { border-color: #9ebcdd; background: #fff; }
+.cellphone-review-tab-panel[hidden] { display: none; }
+
 .cellphone-review-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(150px, 1fr));
