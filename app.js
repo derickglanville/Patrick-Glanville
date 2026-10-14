@@ -145,7 +145,6 @@ let refreshSignalListenerId = "";
 let lastSeenRefreshSignalAt = "";
 let sharedSaveInFlight = null;
 let selectedBillIds = new Set();
-let clientSwitchInFlight = false;
 const DEVICE_SESSION_ID = `session-${Math.random().toString(36).slice(2)}-${Date.now()}`;
 let jsonBackupHandle = null;
 let jsonBackupSaveTimer = null;
@@ -10479,6 +10478,7 @@ function updateTopClientPinVisibility() {
   topClientPin.hidden = !needsPin;
   if (topClientOpenBtn) {
     topClientOpenBtn.hidden = !needsPin;
+    topClientOpenBtn.disabled = false;
     topClientOpenBtn.textContent = needsPin ? `Open ${clientAccessLabel(topClientSelect?.value)}` : "Open Client";
   }
   if (topClientAccessStatus) topClientAccessStatus.textContent = needsPin ? "Enter the access code, then select Open." : "";
@@ -10654,7 +10654,6 @@ function requestUserSwitch(email) {
 }
 
 async function switchClient(clientId, pin = "") {
-  if (clientSwitchInFlight) return false;
   const nextClient = clientConfigs[clientId];
   if (!nextClient) {
     clientGateError.textContent = "Select a client to continue.";
@@ -10673,10 +10672,8 @@ async function switchClient(clientId, pin = "") {
     validatedProtectedClientIds.add(nextClient.id);
   }
 
-  clientSwitchInFlight = true;
   if (topClientOpenBtn) {
-    topClientOpenBtn.disabled = true;
-    topClientOpenBtn.textContent = "Opening...";
+    topClientOpenBtn.disabled = false;
   }
   if (topClientAccessStatus) topClientAccessStatus.textContent = `Opening ${clientAccessLabel(nextClient.id)}...`;
 
@@ -10718,11 +10715,7 @@ async function switchClient(clientId, pin = "") {
     }
     return false;
   } finally {
-    clientSwitchInFlight = false;
-    if (topClientOpenBtn) {
-      topClientOpenBtn.disabled = false;
-      updateTopClientPinVisibility();
-    }
+    if (topClientOpenBtn) updateTopClientPinVisibility();
   }
 }
 

@@ -175,7 +175,6 @@ assert.match(source, /state\.adminNotesReminders\.unshift/);
 assert.match(source, /state\.adminNotesReminders = state\.adminNotesReminders\.filter/);
 assert.match(source, /dueDate:/);
 assert.match(source, /admin-note-due-date/);
-assert.match(source, /let clientSwitchInFlight = false/);
 assert.match(source, /function openTopClientWithAccessCode\(\)/);
 assert.match(source, /loadConfiguredJsonBackupForActiveClient\(\)\.catch/);
 assert.match(source, /AT&amp;T cancellation record/);
