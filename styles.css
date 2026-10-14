@@ -6009,6 +6009,37 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .oil-efficiency-season div { padding: 9px; background: #fff; border: 1px solid #c7d9e4; border-radius: 7px; }
 .oil-efficiency-season span { display: block; color: #5d7788; font-size: .7rem; }
 .oil-efficiency-season strong { display: block; margin-top: 3px; color: #174766; font-size: .9rem; }
+.oil-investment { display: grid; gap: 12px; }
+.oil-investment-hero { display: flex; justify-content: space-between; align-items: center; gap: 18px; background: linear-gradient(120deg,#edf7fb,#f8fcff); }
+.oil-investment-hero h3 { font-size: 1.3rem; margin: 4px 0 7px; }
+.oil-investment-hero p { margin: 0; max-width: 700px; }
+.oil-investment-hero small { color: #5b788c; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.oil-investment-badge { flex: 0 0 185px; padding: 13px; border-radius: 9px; background: #e7f3eb; color: #205c3e; font-size: 1.1rem; font-weight: 800; text-align: center; }
+.oil-investment-badge small { display: block; margin-top: 5px; color: #476f5a; text-transform: none; letter-spacing: 0; }
+.oil-investment-metrics { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; }
+.oil-investment-metrics article { border: 1px solid #c5d9e7; border-radius: 8px; background: #fff; padding: 11px; }
+.oil-investment-metrics small,.oil-investment-metrics span { display: block; color: #5f798b; font-size: .73rem; }
+.oil-investment-metrics strong { display: block; margin: 4px 0; color: #164b6a; font-size: 1.18rem; }
+.oil-investment-metrics.compact { margin-bottom: 8px; }
+.oil-investment-table { min-width: 1020px; }
+.oil-investment-table td:last-child,.oil-investment-cooling td:last-child { display: table-cell; }
+.oil-investment-cooling { min-width: 670px; }
+.oil-investment-form { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+.oil-investment-form label { display: grid; gap: 3px; color: #355a70; font-size: .73rem; font-weight: 700; }
+.oil-investment-form input,.oil-investment-form select { width: 100%; min-width: 0; margin: 0; }
+.oil-investment-form button { align-self: end; }
+.oil-investment-chart { max-width: 900px; margin: 12px auto 4px; }
+.oil-investment-chart svg { display: block; width: 100%; height: auto; background: #f7fbfd; border: 1px solid #d3e2ec; border-radius: 8px; }
+.oil-investment-chart svg text { fill: #607889; font-size: 11px; }
+.oil-investment-chart .grid { stroke: #d6e5ee; stroke-width: 1; }
+.oil-investment-chart .target { stroke: #ae7738; stroke-width: 2; stroke-dasharray: 7 5; }
+.oil-investment-chart .savings { fill: none; stroke: #18799c; stroke-width: 3; }
+.oil-investment-chart .dot { fill: #18799c; }
+.oil-investment-key { display: flex; justify-content: center; gap: 20px; padding: 5px; color: #49697e; font-size: .75rem; }
+.oil-investment-key i { display: inline-block; width: 18px; vertical-align: middle; margin-right: 4px; border-top: 3px solid #18799c; }
+.oil-investment-key i.dash { border-top: 2px dashed #ae7738; }
+@media (max-width: 720px) { .oil-investment-hero { flex-direction: column; align-items: stretch; }.oil-investment-badge { flex: auto; }.oil-investment-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 490px) { .oil-investment-form,.oil-investment-metrics { grid-template-columns: 1fr; } }
 @media (max-width: 720px) { .oil-efficiency-kpis, .oil-efficiency-season { grid-template-columns: 1fr; } }
 @media (max-width: 720px) { .oil-kpis, .oil-two-col, .oil-savings { grid-template-columns: 1fr 1fr; }.oil-editor-fields { grid-template-columns: 1fr 1fr; }.oil-annual-bars > div { grid-template-columns: 58px 1fr 105px; } }
 @media (max-width: 490px) { .oil-kpis, .oil-two-col, .oil-savings { grid-template-columns: 1fr; }.oil-editor-fields { grid-template-columns: 1fr; }.home-oil-dialog { padding: 13px; }.oil-chart-bars { gap: 2px; }.oil-chart-month { font-size: .56rem; } }
