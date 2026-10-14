@@ -72,10 +72,10 @@ button:hover,
 }
 
 .app-header {
-  min-height: 270px;
-  padding: 34px clamp(18px, 4vw, 56px);
+  min-height: 148px;
+  padding: 18px clamp(18px, 2.5vw, 42px);
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 28px;
   background:
@@ -85,11 +85,12 @@ button:hover,
 }
 
 .app-header h1 {
-  margin: 6px 0 10px;
-  max-width: 780px;
-  font-size: clamp(2rem, 5vw, 4.8rem);
-  line-height: .98;
+  margin: 4px 0 6px;
+  max-width: none;
+  font-size: clamp(1.45rem, 2.3vw, 2.6rem);
+  line-height: 1.08;
   letter-spacing: 0;
+  white-space: nowrap;
 }
 
 .eyebrow {
@@ -103,7 +104,7 @@ button:hover,
 .lede {
   max-width: 690px;
   margin: 0;
-  font-size: 1.05rem;
+  font-size: .88rem;
   color: rgba(255, 255, 255, .88);
 }
 
@@ -112,6 +113,10 @@ button:hover,
   flex-wrap: wrap;
   gap: 10px;
   justify-content: flex-end;
+}
+
+@media (max-width: 640px) {
+  .app-header h1 { white-space: normal; }
 }
 
 .device-view-control {
