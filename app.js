@@ -10742,8 +10742,11 @@ function maybeSubmitTopClientPin() {
   if (!topClientSelect || !topClientPin) return;
   if (!clientNeedsAccessPin(topClientSelect.value)) return;
   const pin = topClientPin.value.trim();
-  if (pin.length < clientAccessPin(topClientSelect.value).length) return;
-  switchClient(topClientSelect.value, pin);
+  if (topClientAccessStatus) {
+    topClientAccessStatus.textContent = pin.length >= clientAccessPin(topClientSelect.value).length
+      ? "Access code entered. Select Open to continue."
+      : "Enter the access code, then select Open.";
+  }
 }
 
 function openTopClientWithAccessCode() {
@@ -10762,17 +10765,15 @@ function handleTopClientPinKeyboardSubmit(event) {
   if (!clientNeedsAccessPin(topClientSelect.value)) return;
   if (event.key !== "Enter" && event.key !== "Go" && event.key !== "Done") return;
   event.preventDefault();
-  const pin = topClientPin.value.trim();
-  if (!pin) return;
-  switchClient(topClientSelect.value, pin);
+  openTopClientWithAccessCode();
 }
 
 function handleTopClientPinCommit() {
   if (!topClientSelect || !topClientPin) return;
   if (!clientNeedsAccessPin(topClientSelect.value)) return;
   const pin = topClientPin.value.trim();
-  if (!pin || pin.length < clientAccessPin(topClientSelect.value).length) return;
-  switchClient(topClientSelect.value, pin);
+  if (!pin) return;
+  maybeSubmitTopClientPin();
 }
 
 function handleClientGateSelection() {
