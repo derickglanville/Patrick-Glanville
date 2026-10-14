@@ -6125,12 +6125,7 @@ function updateClientChrome() {
   if (clientSwitchBtn) clientSwitchBtn.textContent = client ? `Client: ${client.shortName}` : "Choose Client";
   if (topClientSwitchBtn) topClientSwitchBtn.hidden = true;
   if (topClientSelect) topClientSelect.value = client?.id || "";
-  if (topClientPin) {
-    const needsPin = topClientSelectionNeedsAccessPin();
-    if (topClientPinWrapInline) topClientPinWrapInline.hidden = !needsPin;
-    topClientPin.hidden = !needsPin;
-    if (topClientPin.hidden) topClientPin.value = "";
-  }
+  updateTopClientPinVisibility();
   if (userSelect) {
     userSelect.disabled = !client;
     if (userSelect.options.length) {

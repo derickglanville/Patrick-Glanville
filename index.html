@@ -13,7 +13,7 @@
   <meta http-equiv="Expires" content="0">
   <title>3G Budget and Notifications</title>
   <link rel="manifest" href="app.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=2026-10-13-access-fix-001">
+    <link rel="stylesheet" href="styles.css?v=2026-10-13-access-fallback-001">
 </head>
 <body>
   <section class="collaboration-panel" aria-label="Collaboration access">
@@ -24,7 +24,7 @@
       <div class="collaboration-client-switch">
         <button id="topClientSwitchBtn" type="button" class="ghost client-switch-shortcut" title="Switch between client dashboards" aria-label="Change active client" hidden>Change Client</button>
         <label for="topClientSelect">Client
-          <select id="topClientSelect" aria-label="Choose client dashboard">
+          <select id="topClientSelect" aria-label="Choose client dashboard" onchange="handleTopClientSelection()">
             <option value="">Select client...</option>
             <option value="patrick">Patrick Glanville</option>
             <option value="theodore">Derick Glanville</option>
@@ -34,7 +34,7 @@
         <label for="topClientPin" id="topClientPinWrapInline" hidden>Access code
           <input id="topClientPin" type="password" inputmode="numeric" autocomplete="off" placeholder="Client access code" hidden>
         </label>
-        <button id="topClientOpenBtn" type="button" class="ghost" hidden>Open Client</button>
+        <button id="topClientOpenBtn" type="button" class="ghost" hidden onclick="openTopClientWithAccessCode()">Open Client</button>
         <span id="topClientAccessStatus" class="top-client-access-status" role="status" aria-live="polite"></span>
       </div>
     <div class="current-user-panel">
