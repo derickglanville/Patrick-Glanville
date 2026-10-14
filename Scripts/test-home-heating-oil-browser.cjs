@@ -1,0 +1,43 @@
+const fs = require('node:fs');
+const assert = require('node:assert/strict');
+const path = require('node:path');
+const { pathToFileURL } = require('node:url');
+const { chromium } = require('C:/Users/deric/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+
+const root = path.resolve(__dirname, '..');
+const source = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+const pin = source.match(/const ADMIN_CLIENT_ACCESS_PIN = "([^"]+)"/)?.[1];
+if (!pin) throw new Error('Admin access code not found');
+
+(async () => {
+  const browser = await chromium.launch({ channel: 'msedge', headless: true });
+  try {
+    const page = await browser.newPage();
+    const errors = [];
+    page.on('pageerror', e => errors.push(e.message));
+    await page.goto(pathToFileURL(path.join(root, 'index.html')).href, { waitUntil: 'domcontentloaded' });
+    await page.locator('#topClientSelect').selectOption('admin');
+    await page.locator('#topClientPin').fill(pin);
+    await page.waitForTimeout(800);
+    assert.equal(await page.locator('#homeHeatingOilBtn').isVisible(), true);
+    await page.locator('#homeHeatingOilBtn').click();
+    assert.match(await page.locator('#homeHeatingOilBody').innerText(), /270 gal/);
+    if (process.env.OIL_SCREENSHOT) await page.locator('#homeHeatingOilDialog').screenshot({ path: process.env.OIL_SCREENSHOT });
+    await page.locator('[data-oil-tab="deliveries"]').click();
+    assert.equal(await page.locator('.oil-table tbody tr').count(), 60);
+    await page.locator('#oilAddDelivery').click();
+    await page.locator('#oilDeliveryForm [name="date"]').fill('2026-10-14');
+    await page.locator('#oilDeliveryForm [name="gallons"]').fill('100');
+    await page.locator('#oilDeliveryForm [name="price"]').fill('3.25');
+    await page.locator('#oilDeliveryForm [name="company"]').fill('Test Fuel');
+    await page.locator('#oilDeliveryForm button[type="submit"]').click();
+    assert.equal(await page.locator('.oil-table tbody tr').count(), 61);
+    await page.locator('[data-oil-tab="readings"]').click();
+    await page.locator('#oilReadingForm [name="percent"]').selectOption('25');
+    await page.locator('#oilReadingForm button[type="submit"]').click();
+    await page.locator('[data-oil-tab="overview"]').click();
+    assert.match(await page.locator('#homeHeatingOilBody').innerText(), /67.5|68 gal/);
+    assert.deepEqual(errors, []);
+    process.stdout.write('PASS: Admin oil tracker imports 60 deliveries, adds a delivery, saves a reading, and renders an outlook.\n');
+  } finally { await browser.close(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });

@@ -1284,6 +1284,7 @@ function buildAdminSeedData() {
     notes: "",
     runningNotes: [],
     adminNotesReminders: structuredClone(ADMIN_NOTES_REMINDERS_SEED),
+    homeHeatingOil: { capacity: 270, deliveries: structuredClone(window.HOME_HEATING_OIL_HISTORY || []), readings: [] },
     documents: [],
     history: [],
     lastSavedAt: "",
@@ -2095,6 +2096,7 @@ function loadState() {
       verizonCellphoneNotes2: typeof parsed.verizonCellphoneNotes2 === "string" ? parsed.verizonCellphoneNotes2 : DEFAULT_VERIZON_CELLPHONE_NOTES_2,
       runningNotes: Array.isArray(parsed.runningNotes) ? parsed.runningNotes : [],
       adminNotesReminders: Array.isArray(parsed.adminNotesReminders) ? parsed.adminNotesReminders : structuredClone(seedData.adminNotesReminders || []),
+      homeHeatingOil: parsed.homeHeatingOil || structuredClone(seedData.homeHeatingOil || { capacity: 270, deliveries: [], readings: [] }),
       documents: Array.isArray(parsed.documents) ? parsed.documents : [],
       collapsedTaskGroupsVersion: Number(parsed.collapsedTaskGroupsVersion) || 0,
       currentUser: parsed.currentUser || PATRICK_EMAIL,
@@ -3088,6 +3090,7 @@ function initializeState(loaded) {
   loaded.adminNotesReminders = Array.isArray(loaded.adminNotesReminders)
     ? loaded.adminNotesReminders.map(normalizeAdminNotesReminder).filter(Boolean)
     : structuredClone(seedData.adminNotesReminders || []).map(normalizeAdminNotesReminder).filter(Boolean);
+  loaded.homeHeatingOil = normalizeHomeHeatingOil(loaded.homeHeatingOil, seedData.homeHeatingOil);
   loaded.tasks = loaded.tasks.map(task => normalizeTaskState({
     percent: statusToPercent(task.status),
     comments: [],
@@ -6968,6 +6971,8 @@ function renderBills() {
   if (adminCreditCardFinderBtn) adminCreditCardFinderBtn.hidden = !isAdminClient();
   if (cellphoneBillingHistoryBtn) cellphoneBillingHistoryBtn.hidden = !isAdminClient();
   if (adminNotesRemindersBtn) adminNotesRemindersBtn.hidden = !isAdminClient();
+  const oilButton = document.querySelector("#homeHeatingOilBtn");
+  if (oilButton) oilButton.hidden = !isAdminClient();
   if (adminBillSimulationStatus) adminBillSimulationStatus.hidden = !simulationActive;
   billList.innerHTML = "";
   if (hiddenBillList) hiddenBillList.innerHTML = "";
