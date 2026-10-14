@@ -1742,8 +1742,6 @@ const mobileDashboardNav = document.querySelector("#mobileDashboardNav");
 const mobileDashboardNavButtons = [...document.querySelectorAll("#mobileDashboardNav [data-mobile-section]")];
 const topClientSwitchBtn = document.querySelector("#topClientSwitchBtn");
 const topClientSelect = document.querySelector("#topClientSelect");
-const topClientOpenBtn = document.querySelector("#topClientOpenBtn");
-const topClientAccessStatus = document.querySelector("#topClientAccessStatus");
 const pullLatestDevicesBtn = document.querySelector("#pullLatestDevicesBtn");
 const topClientPinWrapInline = document.querySelector("#topClientPinWrapInline");
 const topClientPin = document.querySelector("#topClientPin");
@@ -6124,7 +6122,12 @@ function updateClientChrome() {
   if (clientSwitchBtn) clientSwitchBtn.textContent = client ? `Client: ${client.shortName}` : "Choose Client";
   if (topClientSwitchBtn) topClientSwitchBtn.hidden = true;
   if (topClientSelect) topClientSelect.value = client?.id || "";
-  updateTopClientPinVisibility();
+  if (topClientPin) {
+    const needsPin = topClientSelectionNeedsAccessPin();
+    if (topClientPinWrapInline) topClientPinWrapInline.hidden = !needsPin;
+    topClientPin.hidden = !needsPin;
+    if (topClientPin.hidden) topClientPin.value = "";
+  }
   if (userSelect) {
     userSelect.disabled = !client;
     if (userSelect.options.length) {
@@ -10476,12 +10479,6 @@ function updateTopClientPinVisibility() {
   const needsPin = topClientSelectionNeedsAccessPin();
   if (topClientPinWrapInline) topClientPinWrapInline.hidden = !needsPin;
   topClientPin.hidden = !needsPin;
-  if (topClientOpenBtn) {
-    topClientOpenBtn.hidden = !needsPin;
-    topClientOpenBtn.disabled = false;
-    topClientOpenBtn.textContent = needsPin ? `Open ${clientAccessLabel(topClientSelect?.value)}` : "Open Client";
-  }
-  if (topClientAccessStatus) topClientAccessStatus.textContent = needsPin ? "Enter the access code, then select Open." : "";
   if (!needsPin) topClientPin.value = "";
 }
 
@@ -10665,11 +10662,6 @@ async function switchClient(clientId, pin = "") {
   if (nextClient.requiresAccessPin && !isClientAccessValidated(nextClient.id) && pin !== requiredPin) {
     clientGateError.textContent = `The access code for ${clientAccessLabel(nextClient.id)} is incorrect.`;
     clientGateError.hidden = false;
-    if (topClientAccessStatus) topClientAccessStatus.textContent = "That access code is incorrect. Please try again.";
-    if (topClientPin) {
-      topClientPin.focus();
-      topClientPin.select();
-    }
     return false;
   }
 
@@ -10677,62 +10669,34 @@ async function switchClient(clientId, pin = "") {
     validatedProtectedClientIds.add(nextClient.id);
   }
 
-  if (topClientOpenBtn) {
-    topClientOpenBtn.disabled = false;
+  if (supabaseEnabled && !applyingRemoteState && pendingLocalSharedSaveAt) {
+    window.clearTimeout(supabaseSaveTimer);
+    await saveSharedStateNow();
   }
-  if (topClientAccessStatus) topClientAccessStatus.textContent = `Opening ${clientAccessLabel(nextClient.id)}...`;
 
-  const priorClientId = activeClientId;
-  const priorState = state;
-  let switchStage = "loading account data";
-  try {
-    if (supabaseEnabled && !applyingRemoteState && pendingLocalSharedSaveAt) {
-      window.clearTimeout(supabaseSaveTimer);
-      saveSharedStateNow().catch(error => console.warn("Could not finish the prior client save before switching.", error));
-    }
+  stopSharedStateSync();
 
-    stopSharedStateSync();
+  activeClientId = nextClient.id;
+  remoteUpdatedAt = readCachedRemoteUpdatedAt();
+  state = loadState();
+  pendingLocalSharedSaveAt = localStorage.getItem(`${getStorageKey()}:pending-save`) || "";
+  await loadConfiguredJsonBackupForActiveClient();
+  loadBudgetMonth(defaultBillMonth(), { syncSnapshot: false });
+  patrickWatchState = loadPatrickWatchState();
+  taskViewMode = loadTaskViewMode();
+  updateTopClientPinVisibility();
 
-    activeClientId = nextClient.id;
-    remoteUpdatedAt = readCachedRemoteUpdatedAt();
-    state = loadState();
-    switchStage = "loading the current bill month";
-    pendingLocalSharedSaveAt = localStorage.getItem(`${getStorageKey()}:pending-save`) || "";
-    loadBudgetMonth(defaultBillMonth(), { syncSnapshot: false });
-    switchStage = "preparing the dashboard";
-    patrickWatchState = loadPatrickWatchState();
-    taskViewMode = loadTaskViewMode();
-    updateTopClientPinVisibility();
-
-    closeClientGateDialog();
-    updateSyncStatus();
-    switchStage = "rendering the dashboard";
+  closeClientGateDialog();
+  if (supabaseEnabled) {
+    forceCurrentBillMonthOnNextRemoteApply = true;
+    supabaseStatus = `Connecting to Firebase Firestore shared storage for ${nextClient.shortName}`;
+    updateDataStoreStatus();
     render();
-    if (topClientAccessStatus) topClientAccessStatus.textContent = "";
-    loadConfiguredJsonBackupForActiveClient().catch(error => console.warn("Backup initialization did not complete.", error));
-    if (supabaseEnabled) {
-      forceCurrentBillMonthOnNextRemoteApply = true;
-      supabaseStatus = `Connecting to Firebase Firestore shared storage for ${nextClient.shortName}`;
-      updateDataStoreStatus();
-      subscribeToSharedState().catch(error => console.warn("Firebase listener did not start.", error));
-    }
-    return true;
-  } catch (error) {
-    console.error("Could not open the selected client.", error);
-    activeClientId = priorClientId;
-    state = priorState;
-    if (topClientSelect) topClientSelect.value = clientId;
-    updateTopClientPinVisibility();
-    const detail = String(error?.message || "unknown error").replace(/\s+/g, " ").slice(0, 180);
-    if (topClientAccessStatus) topClientAccessStatus.textContent = `Could not open Admin while ${switchStage}: ${detail}`;
-    if (clientGateError) {
-      clientGateError.textContent = "Could not open this account. Refresh the page and try again.";
-      clientGateError.hidden = false;
-    }
-    return false;
-  } finally {
-    if (topClientOpenBtn) updateTopClientPinVisibility();
+    await subscribeToSharedState();
   }
+  updateSyncStatus();
+  render();
+  return true;
 }
 
 function handleTopClientSelection() {
@@ -10751,21 +10715,7 @@ function maybeSubmitTopClientPin() {
   if (!topClientSelect || !topClientPin) return;
   if (!clientNeedsAccessPin(topClientSelect.value)) return;
   const pin = topClientPin.value.trim();
-  if (topClientAccessStatus) {
-    topClientAccessStatus.textContent = pin.length >= clientAccessPin(topClientSelect.value).length
-      ? "Access code entered. Select Open to continue."
-      : "Enter the access code, then select Open.";
-  }
-}
-
-function openTopClientWithAccessCode() {
-  if (!topClientSelect || !topClientPin || !clientNeedsAccessPin(topClientSelect.value)) return;
-  const pin = topClientPin.value.trim();
-  if (!pin) {
-    if (topClientAccessStatus) topClientAccessStatus.textContent = "Enter the access code first.";
-    topClientPin.focus();
-    return;
-  }
+  if (pin.length < clientAccessPin(topClientSelect.value).length) return;
   switchClient(topClientSelect.value, pin);
 }
 
@@ -10774,15 +10724,17 @@ function handleTopClientPinKeyboardSubmit(event) {
   if (!clientNeedsAccessPin(topClientSelect.value)) return;
   if (event.key !== "Enter" && event.key !== "Go" && event.key !== "Done") return;
   event.preventDefault();
-  openTopClientWithAccessCode();
+  const pin = topClientPin.value.trim();
+  if (!pin) return;
+  switchClient(topClientSelect.value, pin);
 }
 
 function handleTopClientPinCommit() {
   if (!topClientSelect || !topClientPin) return;
   if (!clientNeedsAccessPin(topClientSelect.value)) return;
   const pin = topClientPin.value.trim();
-  if (!pin) return;
-  maybeSubmitTopClientPin();
+  if (!pin || pin.length < clientAccessPin(topClientSelect.value).length) return;
+  switchClient(topClientSelect.value, pin);
 }
 
 function handleClientGateSelection() {
@@ -13369,9 +13321,6 @@ if (topClientSwitchBtn) {
 if (topClientSelect) {
   topClientSelect.addEventListener("change", handleTopClientSelection);
   topClientSelect.addEventListener("input", handleTopClientSelection);
-}
-if (topClientOpenBtn) {
-  topClientOpenBtn.addEventListener("click", openTopClientWithAccessCode);
 }
 if (topClientPin) {
   topClientPin.addEventListener("input", maybeSubmitTopClientPin);

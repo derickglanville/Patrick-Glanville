@@ -13,7 +13,7 @@
   <meta http-equiv="Expires" content="0">
   <title>3G Budget and Notifications</title>
   <link rel="manifest" href="app.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=2026-10-13-access-feedback-001">
+    <link rel="stylesheet" href="styles.css?v=2026-10-13-notes-reminders-sms-001">
 </head>
 <body>
   <section class="collaboration-panel" aria-label="Collaboration access">
@@ -24,7 +24,7 @@
       <div class="collaboration-client-switch">
         <button id="topClientSwitchBtn" type="button" class="ghost client-switch-shortcut" title="Switch between client dashboards" aria-label="Change active client" hidden>Change Client</button>
         <label for="topClientSelect">Client
-          <select id="topClientSelect" aria-label="Choose client dashboard" onchange="handleTopClientSelection()">
+          <select id="topClientSelect" aria-label="Choose client dashboard">
             <option value="">Select client...</option>
             <option value="patrick">Patrick Glanville</option>
             <option value="theodore">Derick Glanville</option>
@@ -34,8 +34,6 @@
         <label for="topClientPin" id="topClientPinWrapInline" hidden>Access code
           <input id="topClientPin" type="password" inputmode="numeric" autocomplete="off" placeholder="Client access code" hidden>
         </label>
-        <button id="topClientOpenBtn" type="button" class="ghost" hidden onclick="openTopClientWithAccessCode()">Open Client</button>
-        <span id="topClientAccessStatus" class="top-client-access-status" role="status" aria-live="polite"></span>
       </div>
     <div class="current-user-panel">
       <div class="current-user-header">
@@ -818,6 +816,6 @@
     onerror="window.__firebaseConfigLoadError = 'firebase-config.js failed to load';"
   ></script>
   <script src="firebase-init.js?v=2026-07-08-003"></script>
-  <script src="app.js?v=2026-10-13-admin-access-diagnostics-001"></script>
+  <script src="app.js?v=2026-09-25-ipad-sheet-clean-001"></script>
   </body>
   </html>
