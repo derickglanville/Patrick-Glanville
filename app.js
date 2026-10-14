@@ -1527,6 +1527,8 @@ let adminProposedPreviewActive = false;
 let selectedVerizonBillingMonth = "";
 let adminNotesReminderSearch = "";
 let adminNotesReminderStatus = "All";
+let adminNotesReminderView = "overview";
+let adminNotesReminderSelectedId = "";
 let selectedVerizonPdfFile = null;
 let selectedVerizonPdfMonth = "";
 let selectedVerizonReviewTab = "monthly";
@@ -4642,7 +4644,7 @@ function normalizeAdminNotesReminder(entry = {}) {
     title: String(entry.title || "").trim(),
     category: String(entry.category || "General").trim() || "General",
     date: /^\d{4}-\d{2}-\d{2}$/.test(String(entry.date || "")) ? entry.date : "",
-    dueDate: /^\d{4}-\d{2}-\d{2}$/.test(String(entry.dueDate || entry.date || "")) ? (entry.dueDate || entry.date) : "",
+    dueDate: /^\d{4}-\d{2}-\d{2}$/.test(String(Object.hasOwn(entry, "dueDate") ? entry.dueDate : entry.date || "")) ? (Object.hasOwn(entry, "dueDate") ? entry.dueDate : entry.date) : "",
     status: statuses.includes(entry.status) ? entry.status : "Open",
     priority: priorities.includes(entry.priority) ? entry.priority : "Normal",
     representative: String(entry.representative || "").trim(),
@@ -8134,89 +8136,12 @@ function openCellphoneBillingHistory() {
   cellphoneBillingHistoryDialog.showModal();
 }
 
-function renderAdminNotesRemindersDialog() {
-  if (!adminNotesRemindersBody) return;
-  const entries = [...(state.adminNotesReminders || [])]
-    .filter(entry => adminNotesReminderStatus === "All" || entry.status === adminNotesReminderStatus)
-    .filter(entry => `${entry.title} ${entry.category} ${entry.representative} ${entry.objective} ${entry.reminder}`.toLowerCase().includes(adminNotesReminderSearch.toLowerCase()))
-    .sort((a, b) => `${a.dueDate || a.date || "9999-12-31"}`.localeCompare(`${b.dueDate || b.date || "9999-12-31"}`));
-  const openCount = (state.adminNotesReminders || []).filter(entry => !["Done", "Closed"].includes(entry.status)).length;
-  const dueSoonCount = (state.adminNotesReminders || []).filter(entry => entry.dueDate && !["Done", "Closed"].includes(entry.status) && entry.dueDate <= getLocalIsoDate(new Date(Date.now() + 7 * 86400000))).length;
-  const statuses = ["All", "Open", "In progress", "Waiting", "Done", "Closed"];
-  adminNotesRemindersBody.innerHTML = `
-    <div class="admin-notes-summary">
-      <article><strong>${openCount}</strong><span>open follow-ups</span></article>
-      <article><strong>${dueSoonCount}</strong><span>due within 7 days</span></article>
-      <article><strong>${state.adminNotesReminders.length}</strong><span>total records</span></article>
-    </div>
-    <div class="admin-notes-toolbar">
-      <label>Find a note<input id="adminNotesReminderSearch" type="search" value="${escapeAttribute(adminNotesReminderSearch)}" placeholder="Case ID, company, objective, or representative"></label>
-      <label>Status<select id="adminNotesReminderStatus">${statuses.map(status => `<option value="${escapeAttribute(status)}"${status === adminNotesReminderStatus ? " selected" : ""}>${escapeHtml(status)}</option>`).join("")}</select></label>
-      <button type="button" id="addAdminNotesReminderBtn">Add New</button>
-    </div>
-    <p class="admin-notes-help">Each update is saved to your Admin data, local JSON backup, and shared sync. Mark completed items Done or Closed to keep active follow-ups focused.</p>
-    <div class="admin-notes-list">${entries.length ? entries.map(entry => `
-      <article class="admin-note-card" data-admin-note-id="${escapeAttribute(entry.id)}">
-        <div class="admin-note-card-head"><div><span class="admin-note-category">${escapeHtml(entry.category)}</span><h3>${escapeHtml(entry.title || "Untitled note")}</h3></div><div class="admin-note-badges"><span class="admin-note-status status-${escapeAttribute(entry.status.toLowerCase().replace(/\s+/g, "-"))}">${escapeHtml(entry.status)}</span><span class="admin-note-priority priority-${escapeAttribute(entry.priority.toLowerCase())}">${escapeHtml(entry.priority)}</span></div></div>
-        <div class="admin-note-fields">
-          <label>Title<input class="admin-note-title" value="${escapeAttribute(entry.title)}" placeholder="Case, meeting, or follow-up"></label>
-          <label>Category<input class="admin-note-category-input" value="${escapeAttribute(entry.category)}" placeholder="Financial case"></label>
-          <label>Record date<input class="admin-note-date" type="date" value="${escapeAttribute(entry.date)}"></label>
-          <label>Due date<input class="admin-note-due-date" type="date" value="${escapeAttribute(entry.dueDate)}" title="Sends a text to 914-672-2393 on this date when the local reminder task runs."></label>
-          <label>Status<select class="admin-note-status-input">${statuses.slice(1).map(status => `<option${status === entry.status ? " selected" : ""}>${escapeHtml(status)}</option>`).join("")}</select></label>
-          <label>Priority<select class="admin-note-priority-input">${["Low", "Normal", "High", "Urgent"].map(priority => `<option${priority === entry.priority ? " selected" : ""}>${priority}</option>`).join("")}</select></label>
-          <label>Representative / contact<input class="admin-note-representative" value="${escapeAttribute(entry.representative)}" placeholder="Name or contact"></label>
-        </div>
-        <label>Objective<textarea class="admin-note-objective" rows="2" placeholder="What needs to be decided or resolved?">${escapeHtml(entry.objective)}</textarea></label>
-        <label>Reminder / next action<textarea class="admin-note-reminder" rows="2" placeholder="What should happen next and when?">${escapeHtml(entry.reminder)}</textarea></label>
-        <footer><small>${entry.updatedAt ? `Last saved ${escapeHtml(formatDateTime(entry.updatedAt))}` : "Not yet edited"}</small><div><button type="button" class="ghost save-admin-note">Update</button><button type="button" class="ghost delete-admin-note">Delete</button></div></footer>
-      </article>`).join("") : '<p class="documents-note">No matching notes or reminders. Add a new record to begin tracking it.</p>'}</div>`;
-  adminNotesRemindersBody.querySelector("#adminNotesReminderSearch")?.addEventListener("input", event => { adminNotesReminderSearch = event.target.value; renderAdminNotesRemindersDialog(); });
-  adminNotesRemindersBody.querySelector("#adminNotesReminderStatus")?.addEventListener("change", event => { adminNotesReminderStatus = event.target.value; renderAdminNotesRemindersDialog(); });
-  adminNotesRemindersBody.querySelector("#addAdminNotesReminderBtn")?.addEventListener("click", () => {
-    if (!ensureCurrentUser("add a note or reminder")) return;
-    state.adminNotesReminders.unshift(normalizeAdminNotesReminder({ id: crypto.randomUUID(), title: "New note or reminder", status: "Open", priority: "Normal", updatedAt: new Date().toISOString() }));
-    saveState();
-    adminNotesReminderSearch = "";
-    adminNotesReminderStatus = "All";
-    renderAdminNotesRemindersDialog();
-    adminNotesRemindersBody.querySelector(".admin-note-title")?.focus();
-  });
-  adminNotesRemindersBody.querySelectorAll(".admin-note-card").forEach(card => {
-    card.querySelector(".save-admin-note")?.addEventListener("click", () => {
-      if (!ensureCurrentUser("update a note or reminder")) return;
-      const entry = state.adminNotesReminders.find(item => item.id === card.dataset.adminNoteId);
-      if (!entry) return;
-      Object.assign(entry, normalizeAdminNotesReminder({
-        ...entry,
-        title: card.querySelector(".admin-note-title").value,
-        category: card.querySelector(".admin-note-category-input").value,
-        date: card.querySelector(".admin-note-date").value,
-        dueDate: card.querySelector(".admin-note-due-date").value,
-        status: card.querySelector(".admin-note-status-input").value,
-        priority: card.querySelector(".admin-note-priority-input").value,
-        representative: card.querySelector(".admin-note-representative").value,
-        objective: card.querySelector(".admin-note-objective").value,
-        reminder: card.querySelector(".admin-note-reminder").value,
-        updatedAt: new Date().toISOString()
-      }));
-      saveState();
-      renderAdminNotesRemindersDialog();
-    });
-    card.querySelector(".delete-admin-note")?.addEventListener("click", () => {
-      const entry = state.adminNotesReminders.find(item => item.id === card.dataset.adminNoteId);
-      if (!entry || !ensureCurrentUser("delete a note or reminder") || !confirm(`Delete \"${entry.title || "this note"}\"?`)) return;
-      state.adminNotesReminders = state.adminNotesReminders.filter(item => item.id !== entry.id);
-      saveState();
-      renderAdminNotesRemindersDialog();
-    });
-  });
-}
-
 function openAdminNotesReminders() {
   if (!isAdminClient() || !adminNotesRemindersDialog) return;
   adminNotesReminderSearch = "";
   adminNotesReminderStatus = "All";
+  adminNotesReminderView = "overview";
+  adminNotesReminderSelectedId = "";
   renderAdminNotesRemindersDialog();
   adminNotesRemindersDialog.showModal();
 }

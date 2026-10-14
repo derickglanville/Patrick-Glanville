@@ -3,6 +3,7 @@ const vm = require('node:vm');
 const assert = require('node:assert/strict');
 
 const source = fs.readFileSync('app.js', 'utf8');
+const notesSource = fs.readFileSync('notes-dialog.js', 'utf8');
 
 function extract(name) {
   const start = source.search(new RegExp(`function ${name}\\(`));
@@ -172,11 +173,11 @@ assert.match(source, /adminNotesReminders:/);
 assert.match(source, /Amex case GC-01CT4S9/);
 assert.match(source, /Meeting with Vanguard/);
 assert.match(source, /const adminNotesRemindersBtn = document\.querySelector\("#adminNotesRemindersBtn"\)/);
-assert.match(source, /function renderAdminNotesRemindersDialog\(\)/);
-assert.match(source, /state\.adminNotesReminders\.unshift/);
-assert.match(source, /state\.adminNotesReminders = state\.adminNotesReminders\.filter/);
+assert.match(notesSource, /function renderAdminNotesRemindersDialog\(\)/);
+assert.match(notesSource, /state\.adminNotesReminders\.unshift/);
+assert.match(notesSource, /state\.adminNotesReminders = state\.adminNotesReminders\.filter/);
 assert.match(source, /dueDate:/);
-assert.match(source, /admin-note-due-date/);
+assert.match(notesSource, /admin-note-due-date/);
 assert.match(source, /AT&amp;T cancellation record/);
 assert.match(source, /referenceNumber: "995 8718"/);
 assert.match(source, /transactions\.reduce/);
