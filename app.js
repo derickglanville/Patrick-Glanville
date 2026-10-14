@@ -566,6 +566,11 @@ function buildAdminSeedBills() {
   ].map(buildAdminBillFromTable);
 }
 
+const ADMIN_NOTES_REMINDERS_SEED = [
+  { id: crypto.randomUUID(), title: "Amex case GC-01CT4S9", category: "Financial case", date: "2026-10-19", dueDate: "2026-10-19", status: "Open", priority: "High", representative: "Calvin", objective: "Payment made to the wrong credit; obtain a correction and refund of late charges.", reminder: "Follow up with Amex if the payment correction or late-charge refund is not confirmed." },
+  { id: crypto.randomUUID(), title: "Meeting with Vanguard", category: "Financial planning", date: "2026-10-16", dueDate: "2026-10-16", status: "Open", priority: "Normal", representative: "", objective: "Determine whether paying $16 per $10,000 makes sense or whether to continue self-managing investments.", reminder: "Compare the advisory fee, services, and expected value before deciding." }
+];
+
 const seedData = {
   dataVersion: DATA_VERSION,
   notes: "",
@@ -580,10 +585,6 @@ const seedData = {
     adminBillSms: true
   },
   runningNotes: [],
-  adminNotesReminders: [
-    { id: crypto.randomUUID(), title: "Amex case GC-01CT4S9", category: "Financial case", date: "2026-10-19", dueDate: "2026-10-19", status: "Open", priority: "High", representative: "Calvin", objective: "Payment made to the wrong credit; obtain a correction and refund of late charges.", reminder: "Follow up with Amex if the payment correction or late-charge refund is not confirmed." },
-    { id: crypto.randomUUID(), title: "Meeting with Vanguard", category: "Financial planning", date: "2026-10-16", dueDate: "2026-10-16", status: "Open", priority: "Normal", representative: "", objective: "Determine whether paying $16 per $10,000 makes sense or whether to continue self-managing investments.", reminder: "Compare the advisory fee, services, and expected value before deciding." }
-  ],
   documents: [],
   collapsedTaskGroupsVersion: TASK_GROUP_COLLAPSE_VERSION,
   collapsedTaskGroups: {},
@@ -1282,6 +1283,7 @@ function buildAdminSeedData() {
     dataVersion: DATA_VERSION,
     notes: "",
     runningNotes: [],
+    adminNotesReminders: structuredClone(ADMIN_NOTES_REMINDERS_SEED),
     documents: [],
     history: [],
     lastSavedAt: "",
@@ -2092,7 +2094,7 @@ function loadState() {
       notes: parsed.notes || "",
       verizonCellphoneNotes2: typeof parsed.verizonCellphoneNotes2 === "string" ? parsed.verizonCellphoneNotes2 : DEFAULT_VERIZON_CELLPHONE_NOTES_2,
       runningNotes: Array.isArray(parsed.runningNotes) ? parsed.runningNotes : [],
-      adminNotesReminders: Array.isArray(parsed.adminNotesReminders) ? parsed.adminNotesReminders : structuredClone(seedData.adminNotesReminders),
+      adminNotesReminders: Array.isArray(parsed.adminNotesReminders) ? parsed.adminNotesReminders : structuredClone(seedData.adminNotesReminders || []),
       documents: Array.isArray(parsed.documents) ? parsed.documents : [],
       collapsedTaskGroupsVersion: Number(parsed.collapsedTaskGroupsVersion) || 0,
       currentUser: parsed.currentUser || PATRICK_EMAIL,
@@ -3085,7 +3087,7 @@ function initializeState(loaded) {
     : structuredClone(seedData.lifeAdminNotes).map(normalizeLifeAdminNote);
   loaded.adminNotesReminders = Array.isArray(loaded.adminNotesReminders)
     ? loaded.adminNotesReminders.map(normalizeAdminNotesReminder).filter(Boolean)
-    : structuredClone(seedData.adminNotesReminders).map(normalizeAdminNotesReminder).filter(Boolean);
+    : structuredClone(seedData.adminNotesReminders || []).map(normalizeAdminNotesReminder).filter(Boolean);
   loaded.tasks = loaded.tasks.map(task => normalizeTaskState({
     percent: statusToPercent(task.status),
     comments: [],
