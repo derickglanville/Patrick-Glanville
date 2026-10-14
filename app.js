@@ -10682,6 +10682,9 @@ async function switchClient(clientId, pin = "") {
   }
   if (topClientAccessStatus) topClientAccessStatus.textContent = `Opening ${clientAccessLabel(nextClient.id)}...`;
 
+  const priorClientId = activeClientId;
+  const priorState = state;
+  let switchStage = "loading account data";
   try {
     if (supabaseEnabled && !applyingRemoteState && pendingLocalSharedSaveAt) {
       window.clearTimeout(supabaseSaveTimer);
@@ -10693,14 +10696,17 @@ async function switchClient(clientId, pin = "") {
     activeClientId = nextClient.id;
     remoteUpdatedAt = readCachedRemoteUpdatedAt();
     state = loadState();
+    switchStage = "loading the current bill month";
     pendingLocalSharedSaveAt = localStorage.getItem(`${getStorageKey()}:pending-save`) || "";
     loadBudgetMonth(defaultBillMonth(), { syncSnapshot: false });
+    switchStage = "preparing the dashboard";
     patrickWatchState = loadPatrickWatchState();
     taskViewMode = loadTaskViewMode();
     updateTopClientPinVisibility();
 
     closeClientGateDialog();
     updateSyncStatus();
+    switchStage = "rendering the dashboard";
     render();
     if (topClientAccessStatus) topClientAccessStatus.textContent = "";
     loadConfiguredJsonBackupForActiveClient().catch(error => console.warn("Backup initialization did not complete.", error));
@@ -10713,7 +10719,12 @@ async function switchClient(clientId, pin = "") {
     return true;
   } catch (error) {
     console.error("Could not open the selected client.", error);
-    if (topClientAccessStatus) topClientAccessStatus.textContent = "Could not open this account. Refresh the page and try again.";
+    activeClientId = priorClientId;
+    state = priorState;
+    if (topClientSelect) topClientSelect.value = clientId;
+    updateTopClientPinVisibility();
+    const detail = String(error?.message || "unknown error").replace(/\s+/g, " ").slice(0, 180);
+    if (topClientAccessStatus) topClientAccessStatus.textContent = `Could not open Admin while ${switchStage}: ${detail}`;
     if (clientGateError) {
       clientGateError.textContent = "Could not open this account. Refresh the page and try again.";
       clientGateError.hidden = false;
