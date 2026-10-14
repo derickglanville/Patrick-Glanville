@@ -254,19 +254,53 @@ const ATT_SWITCH_VALIDATION = {
 const ATT_CANCELLATION_NOTES = {
   date: "Updated Oct 14, 2026",
   transactions: [
-    { date: "10/13/2026", amount: 102.90 },
-    { date: "10/13/2026", amount: 128.60 },
-    { date: "10/13/2026", amount: 208.35 },
-    { date: "10/13/2026", amount: 542.74 },
-    { date: "10/14/2026", amount: 208.35 },
-    { date: "10/14/2026", amount: 102.90 },
-    { date: "10/14/2026", amount: 102.89 }
+    { id: "att-20261014-1", date: "2026-10-14", description: "PURCHASE AT&T DEVICE/ DALLAS TX CARD1300", type: "charge", amount: 208.35 },
+    { id: "att-20261014-2", date: "2026-10-14", description: "PURCHASE AT&T DEVICE/ DALLAS TX CARD1300", type: "charge", amount: 102.90 },
+    { id: "att-20261014-3", date: "2026-10-14", description: "PURCHASE AT&T DEVICE/ DALLAS TX CARD1300", type: "charge", amount: 102.89 },
+    { id: "att-20261014-4", date: "2026-10-14", description: "PROVISIONAL CREDIT FOR CLAIM-REF #2610110019914", type: "credit", amount: 208.35 }
   ],
   cancellationNumber: "855-762-7987",
   referenceNumber: "995 8718",
-  deliveryExpectation: "All five phones are expected by Friday.",
-  returnPlan: "Reject all phone deliveries; AT&T advised the money should be refunded in about 15 days."
+  deliveryExpectation: "Three phone packages were rejected; two phones are still expected.",
+  returnPlan: "Record FedEx return scans and AT&T refund confirmation as they become available."
 };
+const ATT_PHONE_RETURNS_DEFAULT = {
+  callDate: "2026-10-14",
+  reference: "9979-153",
+  callNotes: "Spoke with AT&T about three rejected phone packages and two phones still awaited.",
+  phones: [
+    { id: "att-phone-1", label: "Phone package 1", status: "Rejected at delivery", shipmentTracking: "878520416564", returnTracking: "", evidence: "ATT_Return_Phone_1.jpeg", notes: "" },
+    { id: "att-phone-2", label: "Phone package 2", status: "Rejected at delivery", shipmentTracking: "878603662650", returnTracking: "", evidence: "ATT_Return_Phone_2.jpeg", notes: "" },
+    { id: "att-phone-3", label: "Phone package 3", status: "Rejected at delivery", shipmentTracking: "878562350368", returnTracking: "", evidence: "ATT_Return_Phone_3.jpeg", notes: "" },
+    { id: "att-phone-4", label: "Phone package 4", status: "Awaiting delivery", shipmentTracking: "", returnTracking: "", evidence: "", notes: "" },
+    { id: "att-phone-5", label: "Phone package 5", status: "Awaiting delivery", shipmentTracking: "", returnTracking: "", evidence: "", notes: "" }
+  ]
+};
+let editingAttCancellationTransactionId = "";
+
+function getAttPhoneReturns() {
+  return state.attPhoneReturns && Array.isArray(state.attPhoneReturns.phones)
+    ? state.attPhoneReturns
+    : ATT_PHONE_RETURNS_DEFAULT;
+}
+
+function getAttCancellationTransactions() {
+  return Array.isArray(state.attCancellationTransactions)
+    ? state.attCancellationTransactions
+    : ATT_CANCELLATION_NOTES.transactions;
+}
+
+function getAttCancellationTotals() {
+  const transactions = getAttCancellationTransactions();
+  const charges = transactions.filter(item => item.type === "charge").reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const credits = transactions.filter(item => item.type === "credit").reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  return { charges, credits, net: charges - credits };
+}
+
+function formatAttTransactionDate(value) {
+  const [year, month, day] = String(value || "").split("-");
+  return year && month && day ? `${month}/${day}/${year}` : String(value || "");
+}
 const DEFAULT_VERIZON_CELLPHONE_NOTES_2 = `10/13/2026
 New Ref #: 996-8143 - Cancel the 2393 number that is showing as active
 
@@ -2104,6 +2138,8 @@ function loadState() {
       dataVersion: Number(parsed.dataVersion) || 0,
       notes: parsed.notes || "",
       verizonCellphoneNotes2: typeof parsed.verizonCellphoneNotes2 === "string" ? parsed.verizonCellphoneNotes2 : DEFAULT_VERIZON_CELLPHONE_NOTES_2,
+      attCancellationTransactions: Array.isArray(parsed.attCancellationTransactions) ? parsed.attCancellationTransactions : structuredClone(ATT_CANCELLATION_NOTES.transactions),
+      attPhoneReturns: parsed.attPhoneReturns && typeof parsed.attPhoneReturns === "object" ? parsed.attPhoneReturns : structuredClone(ATT_PHONE_RETURNS_DEFAULT),
       runningNotes: Array.isArray(parsed.runningNotes) ? parsed.runningNotes : [],
       adminNotesReminders: Array.isArray(parsed.adminNotesReminders) ? parsed.adminNotesReminders : structuredClone(seedData.adminNotesReminders || []),
       homeHeatingOil: parsed.homeHeatingOil || structuredClone(seedData.homeHeatingOil || { capacity: 270, deliveries: [], readings: [] }),
@@ -2970,6 +3006,12 @@ function initializeState(loaded) {
   const seedData = getSeedData();
   loaded = loaded && typeof loaded === "object" ? loaded : structuredClone(seedData);
   loaded.notes = loaded.notes || "";
+  loaded.attCancellationTransactions = Array.isArray(loaded.attCancellationTransactions)
+    ? loaded.attCancellationTransactions.filter(item => item && typeof item.id === "string" && /^\d{4}-\d{2}-\d{2}$/.test(item.date) && typeof item.description === "string" && ["charge", "credit"].includes(item.type) && Number.isFinite(Number(item.amount)) && Number(item.amount) > 0)
+    : structuredClone(ATT_CANCELLATION_NOTES.transactions);
+  loaded.attPhoneReturns = loaded.attPhoneReturns && Array.isArray(loaded.attPhoneReturns.phones)
+    ? loaded.attPhoneReturns
+    : structuredClone(ATT_PHONE_RETURNS_DEFAULT);
   loaded.tasks = Array.isArray(loaded.tasks) ? loaded.tasks : structuredClone(seedData.tasks);
   let stateAdjusted = assignSeedKeys(loaded.tasks);
   stateAdjusted = addMissingSeedTasks(loaded) || stateAdjusted;
@@ -7992,6 +8034,11 @@ function renderCellphoneBillingHistoryDialog() {
   const optionalSavings = 21.75 + 14 + 11.58 + 25 + 31.84;
   const selectedMonthLabel = formatBudgetMonthLabel(selectedBill.month);
   const previousMonthLabel = previousBill ? formatBudgetMonthLabel(previousBill.month) : "No earlier bill";
+  const attTransactions = getAttCancellationTransactions();
+  const attTotals = getAttCancellationTotals();
+  const attPhoneReturns = getAttPhoneReturns();
+  const rejectedPhoneCount = attPhoneReturns.phones.filter(phone => phone.status === "Rejected at delivery").length;
+  const awaitingPhoneCount = attPhoneReturns.phones.filter(phone => phone.status === "Awaiting delivery").length;
   cellphoneBillingHistoryBody.innerHTML = `
     <section class="cellphone-review-header">
       <div><span class="cellphone-review-kicker">Monthly bill review</span><h3>${escapeHtml(selectedMonthLabel)} Verizon statement</h3><p>Review a local PDF bill, compare it with the prior statement, and identify what needs follow-up.</p></div>
@@ -8039,8 +8086,20 @@ function renderCellphoneBillingHistoryDialog() {
       <div class="cellphone-switch-facts"><article><span>Latest Verizon statement</span><strong>${escapeHtml(formatCurrency(VERIZON_BILL_HISTORY[VERIZON_BILL_HISTORY.length - 1].total))}</strong><small>October total; verify recurring charges before comparing.</small></article><article><span>AT&amp;T projected monthly</span><strong>${escapeHtml(formatCurrency(ATT_SWITCH_VALIDATION.monthlyWireless))}</strong><small>${escapeHtml(ATT_SWITCH_VALIDATION.monthlyExclusions)}</small></article><article><span>Monthly difference</span><strong>${escapeHtml(formatCurrency(VERIZON_BILL_HISTORY[VERIZON_BILL_HISTORY.length - 1].total - ATT_SWITCH_VALIDATION.monthlyWireless))}</strong><small>Lower than October before AT&amp;T taxes and surcharges.</small></article></div>
       <div class="cellphone-switch-grid"><div><h4>Validate before you finish switching</h4><ol>${ATT_SWITCH_VALIDATION.checks.map(check => `<li>${escapeHtml(check)}</li>`).join("")}</ol></div><div><h4>What the signed order shows</h4><p>Five lines are porting with new devices on 36-month, 0% installment plans and Next Up Anytime. The order shows ${escapeHtml(formatCurrency(ATT_SWITCH_VALIDATION.salesTaxToday))} in sales tax due today and ${escapeHtml(formatCurrency(ATT_SWITCH_VALIDATION.firstBillActivation))} in activation fees on the first bill.</p><p>It lists a $250 BJ's reward-card offer and an AT&amp;T Visa Switcher offer of up to $800 for each eligible ported line. The device trade-in credits are shown as monthly credits for 36 months, starting in 2–3 billing cycles.</p><p>Pressure to decide quickly is a reason to verify the paperwork. It does not by itself prove the representative or offer was improper.</p><h4>Official AT&amp;T references</h4><p class="cellphone-switch-links"><a href="https://www.att.com/wireless/byod/" target="_blank" rel="noopener noreferrer">Bring your own device offers</a><a href="https://www.att.com/wireless/switch-and-save/" target="_blank" rel="noopener noreferrer">Switch-and-save terms</a><a href="https://www.att.com/wireless/try-and-switch/" target="_blank" rel="noopener noreferrer">Try AT&amp;T coverage</a></p></div></div>
       <div class="cellphone-switch-email"><strong>Order evidence reviewed</strong><span>${escapeHtml(ATT_SWITCH_VALIDATION.orderStatus)}. Submit each trade-in within 30 days, upload the prior-carrier bill within 60 days for the Switcher reward, and keep the AT&amp;T lines active for 12 months to avoid a reward-card chargeback.</span></div>
-      <article class="att-cancellation-letter" aria-labelledby="attCancellationLetterTitle"><div class="att-cancellation-letter-head"><div><span>Sendable cancellation request</span><h4 id="attCancellationLetterTitle">Request to cancel AT&amp;T order ${escapeHtml(ATT_SWITCH_VALIDATION.orderNumber)}</h4></div><button type="button" class="ghost" id="downloadAttCancellationLetterBtn">Download letter</button></div><p>After reviewing the order, I have decided not to switch from Verizon to AT&amp;T. The estimated AT&amp;T wireless charge is ${escapeHtml(formatCurrency(ATT_SWITCH_VALIDATION.monthlyWireless))} per month, which is about $300 before variable taxes and surcharges. The order also includes carrier administrative and regulatory recovery charges and a $10 Next Up Anytime feature per line.</p><p>I was charged ${escapeHtml(formatCurrency(ATT_SWITCH_VALIDATION.salesTaxToday))} for sales tax and an additional ${escapeHtml(formatCurrency(ATT_SWITCH_VALIDATION.disputedShippingHold))} that I did not authorize. I was told the ${escapeHtml(formatCurrency(ATT_SWITCH_VALIDATION.disputedShippingHold))} was only a shipping authorization hold and would be automatically reimbursed when the phones arrive. Because I am cancelling, please immediately release or refund both amounts to the original payment method: ${escapeHtml(formatCurrency(ATT_SWITCH_VALIDATION.salesTaxToday + ATT_SWITCH_VALIDATION.disputedShippingHold))} total.</p><p>I recently added lines to my Verizon account and already paid related taxes, activation, and other upfront charges. Recovering those costs while waiting for conditional AT&amp;T device credits and Switcher rewards to pay Verizon is too uncertain and does not make financial sense for me. I did not have enough time to complete a full analysis before the switch was initiated.</p><p>Please cancel this order, stop all device shipments, stop all number ports, and confirm in writing that no activation, service, device, return, or cancellation charges will apply. I will notify Verizon that I am no longer switching.</p></article>
-      <section class="att-cancellation-notes" aria-labelledby="attCancellationNotesTitle"><div><span>Notes</span><h4 id="attCancellationNotesTitle">AT&amp;T cancellation record — ${escapeHtml(ATT_CANCELLATION_NOTES.date)}</h4></div><div class="cellphone-billing-table-wrap"><table class="cellphone-billing-table"><thead><tr><th>Date</th><th>Transaction</th><th>Deduct</th></tr></thead><tbody>${ATT_CANCELLATION_NOTES.transactions.map(transaction => `<tr><td>${escapeHtml(transaction.date)}</td><td>PURCHASE AT&amp;T DEVICE / DALLAS TX CARD1300</td><td>${escapeHtml(formatCurrency(transaction.amount))}</td></tr>`).join("")}</tbody><tfoot><tr><th colspan="2">Total charged</th><th>${escapeHtml(formatCurrency(ATT_CANCELLATION_NOTES.transactions.reduce((total, transaction) => total + transaction.amount, 0)))}</th></tr></tfoot></table></div><div class="att-cancellation-note-details"><p><strong>AT&amp;T cancellation:</strong> ${escapeHtml(ATT_CANCELLATION_NOTES.cancellationNumber)}</p><p><strong>Reference number:</strong> ${escapeHtml(ATT_CANCELLATION_NOTES.referenceNumber)}</p><p>${escapeHtml(ATT_CANCELLATION_NOTES.deliveryExpectation)}</p><p>${escapeHtml(ATT_CANCELLATION_NOTES.returnPlan)}</p></div></section>
+      <article class="att-cancellation-letter" aria-labelledby="attCancellationLetterTitle"><div class="att-cancellation-letter-head"><div><span>Sendable cancellation request</span><h4 id="attCancellationLetterTitle">Request to cancel AT&amp;T order ${escapeHtml(ATT_SWITCH_VALIDATION.orderNumber)}</h4></div><button type="button" class="ghost" id="downloadAttCancellationLetterBtn">Download letter</button></div><p>After reviewing the order, I have decided not to switch from Verizon to AT&amp;T. The estimated AT&amp;T wireless charge is ${escapeHtml(formatCurrency(ATT_SWITCH_VALIDATION.monthlyWireless))} per month, which is about $300 before variable taxes and surcharges. The order also includes carrier administrative and regulatory recovery charges and a $10 Next Up Anytime feature per line.</p><p>My current bank record shows ${escapeHtml(formatCurrency(attTotals.charges))} in AT&amp;T charges and ${escapeHtml(formatCurrency(attTotals.credits))} in provisional credits, leaving ${escapeHtml(formatCurrency(attTotals.net))} net charged at present. Please confirm that all remaining charges are reversed or refunded to the original payment method, and provide written confirmation when the provisional credit becomes final.</p><p>I recently added lines to my Verizon account and already paid related taxes, activation, and other upfront charges. Recovering those costs while waiting for conditional AT&amp;T device credits and Switcher rewards to pay Verizon is too uncertain and does not make financial sense for me. I did not have enough time to complete a full analysis before the switch was initiated.</p><p>Please cancel this order, stop all device shipments, stop all number ports, and confirm in writing that no activation, service, device, return, or cancellation charges will apply. I will notify Verizon that I am no longer switching.</p></article>
+      <section class="att-cancellation-notes" aria-labelledby="attCancellationNotesTitle">
+        <div class="att-cancellation-notes-head"><div><span>Notes · Bank transaction record</span><h4 id="attCancellationNotesTitle">AT&amp;T cancellation record</h4><p>Current bank entries only. A provisional credit may change until the bank finalizes the claim.</p></div><button type="button" class="ghost" id="addAttCancellationTransactionBtn">Add transaction</button></div>
+        <div class="att-cancellation-summary"><div><span>Charges</span><strong>${escapeHtml(formatCurrency(attTotals.charges))}</strong></div><div><span>Provisional credits</span><strong>${escapeHtml(formatCurrency(attTotals.credits))}</strong></div><div><span>Net currently charged</span><strong>${escapeHtml(formatCurrency(attTotals.net))}</strong></div></div>
+        <div class="cellphone-billing-table-wrap"><table class="cellphone-billing-table"><thead><tr><th>Date</th><th>Bank description</th><th>Charge</th><th>Credit</th><th>Actions</th></tr></thead><tbody>${attTransactions.length ? attTransactions.map(transaction => `<tr><td>${escapeHtml(formatAttTransactionDate(transaction.date))}</td><td>${escapeHtml(transaction.description)}</td><td>${transaction.type === "charge" ? escapeHtml(formatCurrency(transaction.amount)) : "—"}</td><td>${transaction.type === "credit" ? escapeHtml(formatCurrency(transaction.amount)) : "—"}</td><td class="att-cancellation-actions"><button type="button" class="ghost" data-att-transaction-edit="${escapeAttribute(transaction.id)}">Edit</button><button type="button" class="ghost" data-att-transaction-delete="${escapeAttribute(transaction.id)}">Delete</button></td></tr>`).join("") : '<tr><td colspan="5">No transactions recorded. Add a charge or credit above.</td></tr>'}</tbody></table></div>
+        <form id="attCancellationTransactionForm" class="att-cancellation-form" hidden><h5 id="attTransactionFormTitle">Add transaction</h5><div class="att-cancellation-form-grid"><label>Date<input id="attTransactionDate" type="date" required></label><label>Type<select id="attTransactionType"><option value="charge">Charge</option><option value="credit">Credit</option></select></label><label>Amount ($)<input id="attTransactionAmount" type="number" min="0.01" step="0.01" required></label><label class="att-cancellation-description">Bank description<input id="attTransactionDescription" type="text" maxlength="180" required></label></div><div class="att-cancellation-form-actions"><button type="submit" class="primary">Save transaction</button><button type="button" class="ghost" id="cancelAttTransactionEditBtn">Cancel</button></div></form>
+        <div class="att-cancellation-note-details"><p><strong>AT&amp;T cancellation:</strong> ${escapeHtml(ATT_CANCELLATION_NOTES.cancellationNumber)}</p><p><strong>Reference number:</strong> ${escapeHtml(ATT_CANCELLATION_NOTES.referenceNumber)}</p><p>${escapeHtml(ATT_CANCELLATION_NOTES.deliveryExpectation)}</p><p>${escapeHtml(ATT_CANCELLATION_NOTES.returnPlan)}</p></div>
+      </section>
+      <section class="att-phone-returns" aria-labelledby="attPhoneReturnsTitle">
+        <div class="att-phone-returns-head"><div><span>FedEx return tracking</span><h4 id="attPhoneReturnsTitle">AT&amp;T phone returns · ${rejectedPhoneCount} rejected / ${awaitingPhoneCount} awaiting</h4><p>Original package numbers come from the three FedEx label photos. Rejection is recorded from your report; return tracking and AT&amp;T receipt remain unconfirmed until you enter them.</p></div><strong>5 phone packages</strong></div>
+        <div class="att-phone-call"><label>AT&amp;T call date<input id="attPhoneCallDate" type="date" value="${escapeAttribute(attPhoneReturns.callDate || "")}"></label><label>AT&amp;T reference #<input id="attPhoneCallReference" type="text" value="${escapeAttribute(attPhoneReturns.reference || "")}"></label><label class="att-phone-call-notes">Call notes<input id="attPhoneCallNotes" type="text" value="${escapeAttribute(attPhoneReturns.callNotes || "")}"></label></div>
+        <div class="cellphone-billing-table-wrap"><table class="cellphone-billing-table att-phone-returns-table"><thead><tr><th>Package</th><th>Status</th><th>Original FedEx tracking</th><th>Return tracking / confirmation</th><th>Label photo</th><th>Follow-up notes</th></tr></thead><tbody>${attPhoneReturns.phones.map(phone => `<tr data-att-phone-id="${escapeAttribute(phone.id)}"><td><strong>${escapeHtml(phone.label)}</strong></td><td><select class="att-phone-status" aria-label="${escapeAttribute(phone.label)} status">${["Awaiting delivery", "Rejected at delivery", "Return in transit", "Received by AT&T", "Refund confirmed"].map(status => `<option value="${escapeAttribute(status)}"${phone.status === status ? " selected" : ""}>${escapeHtml(status)}</option>`).join("")}</select></td><td><input class="att-phone-shipment" type="text" inputmode="numeric" value="${escapeAttribute(phone.shipmentTracking || "")}" aria-label="${escapeAttribute(phone.label)} original FedEx tracking"></td><td><input class="att-phone-return" type="text" value="${escapeAttribute(phone.returnTracking || "")}" placeholder="Pending FedEx scan" aria-label="${escapeAttribute(phone.label)} return tracking"></td><td>${phone.evidence ? escapeHtml(phone.evidence) : "—"}</td><td><input class="att-phone-notes" type="text" value="${escapeAttribute(phone.notes || "")}" placeholder="Add an update" aria-label="${escapeAttribute(phone.label)} follow-up notes"></td></tr>`).join("")}</tbody></table></div>
+        <div class="att-phone-returns-footer"><span>Label photos are stored locally in Downloads → Test; they are not included in the app.</span><button type="button" class="primary" id="saveAttPhoneReturnsBtn">Save phone tracking</button></div><p id="attPhoneReturnsStatus" class="att-phone-returns-status" aria-live="polite"></p>
+      </section>
       <section class="verizon-notes-2" aria-labelledby="verizonNotes2Title"><div class="verizon-notes-2-head"><div><span>Notes 2</span><h4 id="verizonNotes2Title">Editable Verizon / AT&amp;T follow-up notes</h4></div><button type="button" class="ghost" id="saveVerizonNotes2Btn">Save Notes 2</button></div><textarea id="verizonNotes2Input" rows="14" aria-label="Notes 2">${escapeHtml(state.verizonCellphoneNotes2 || DEFAULT_VERIZON_CELLPHONE_NOTES_2)}</textarea><p id="verizonNotes2Status" class="verizon-notes-2-status" aria-live="polite">Saved with your Admin data.</p></section>
     </section>
     <div class="cellphone-review-tab-panel" data-cellphone-review-tab-panel="monthly"${selectedVerizonReviewTab === "monthly" ? "" : " hidden"}><div class="cellphone-billing-table-wrap"><table class="cellphone-billing-table cellphone-history-selector-table"><thead><tr><th>Bill month</th><th>Total due</th><th>Change</th><th>Review summary</th><th>Source</th></tr></thead><tbody>${VERIZON_BILL_HISTORY.map((point, index) => `<tr data-verizon-bill-month="${escapeAttribute(point.month)}" class="${point.month === selectedBill.month ? "is-selected" : ""}" tabindex="0"><td>${escapeHtml(formatBudgetMonthLabel(point.month))}</td><td>${escapeHtml(formatCurrency(point.total))}</td><td>${index ? escapeHtml(formatSignedCurrency(point.total - VERIZON_BILL_HISTORY[index - 1].total)) : "-"}</td><td>${escapeHtml(point.note)}</td><td>${escapeHtml(point.pdfFile)}</td></tr>`).join("")}</tbody></table></div></div>
@@ -8108,6 +8167,78 @@ function renderCellphoneBillingHistoryDialog() {
     setTimeout(() => URL.revokeObjectURL(pdfUrl), 60000);
   });
   cellphoneBillingHistoryBody.querySelector("#downloadAttCancellationLetterBtn")?.addEventListener("click", downloadAttCancellationLetterHtml);
+  cellphoneBillingHistoryBody.querySelector("#saveAttPhoneReturnsBtn")?.addEventListener("click", () => {
+    const root = cellphoneBillingHistoryBody.querySelector(".att-phone-returns");
+    const previous = getAttPhoneReturns();
+    state.attPhoneReturns = {
+      callDate: root.querySelector("#attPhoneCallDate").value,
+      reference: root.querySelector("#attPhoneCallReference").value.trim(),
+      callNotes: root.querySelector("#attPhoneCallNotes").value.trim(),
+      phones: [...root.querySelectorAll("[data-att-phone-id]")].map(row => {
+        const prior = previous.phones.find(phone => phone.id === row.dataset.attPhoneId);
+        return {
+          id: row.dataset.attPhoneId,
+          label: prior?.label || "Phone package",
+          status: row.querySelector(".att-phone-status").value,
+          shipmentTracking: row.querySelector(".att-phone-shipment").value.trim(),
+          returnTracking: row.querySelector(".att-phone-return").value.trim(),
+          evidence: prior?.evidence || "",
+          notes: row.querySelector(".att-phone-notes").value.trim()
+        };
+      })
+    };
+    saveState();
+    renderCellphoneBillingHistoryDialog();
+    const status = cellphoneBillingHistoryBody.querySelector("#attPhoneReturnsStatus");
+    if (status) status.textContent = "Phone tracking saved with your Admin data.";
+  });
+  const attForm = cellphoneBillingHistoryBody.querySelector("#attCancellationTransactionForm");
+  const showAttForm = transaction => {
+    editingAttCancellationTransactionId = transaction?.id || "";
+    attForm.hidden = false;
+    attForm.querySelector("#attTransactionFormTitle").textContent = transaction ? "Update transaction" : "Add transaction";
+    const today = new Date();
+    attForm.querySelector("#attTransactionDate").value = transaction?.date || `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    attForm.querySelector("#attTransactionType").value = transaction?.type || "charge";
+    attForm.querySelector("#attTransactionAmount").value = transaction?.amount ?? "";
+    attForm.querySelector("#attTransactionDescription").value = transaction?.description || "";
+    attForm.scrollIntoView({ block: "nearest" });
+    attForm.querySelector("#attTransactionDescription").focus();
+  };
+  cellphoneBillingHistoryBody.querySelector("#addAttCancellationTransactionBtn")?.addEventListener("click", () => showAttForm(null));
+  cellphoneBillingHistoryBody.querySelectorAll("[data-att-transaction-edit]").forEach(button => button.addEventListener("click", () => {
+    const transaction = getAttCancellationTransactions().find(item => item.id === button.dataset.attTransactionEdit);
+    if (transaction) showAttForm(transaction);
+  }));
+  cellphoneBillingHistoryBody.querySelectorAll("[data-att-transaction-delete]").forEach(button => button.addEventListener("click", () => {
+    const transaction = getAttCancellationTransactions().find(item => item.id === button.dataset.attTransactionDelete);
+    if (!transaction || !confirm(`Delete the ${formatCurrency(transaction.amount)} ${transaction.type} dated ${formatAttTransactionDate(transaction.date)}?`)) return;
+    state.attCancellationTransactions = getAttCancellationTransactions().filter(item => item.id !== transaction.id);
+    editingAttCancellationTransactionId = "";
+    saveState();
+    renderCellphoneBillingHistoryDialog();
+  }));
+  attForm?.querySelector("#cancelAttTransactionEditBtn")?.addEventListener("click", () => {
+    editingAttCancellationTransactionId = "";
+    attForm.hidden = true;
+  });
+  attForm?.addEventListener("submit", event => {
+    event.preventDefault();
+    const date = attForm.querySelector("#attTransactionDate").value;
+    const type = attForm.querySelector("#attTransactionType").value;
+    const amount = Number(attForm.querySelector("#attTransactionAmount").value);
+    const description = attForm.querySelector("#attTransactionDescription").value.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !["charge", "credit"].includes(type) || !Number.isFinite(amount) || amount <= 0 || !description) return;
+    const transactions = structuredClone(getAttCancellationTransactions());
+    const existing = transactions.find(item => item.id === editingAttCancellationTransactionId);
+    const record = { id: existing?.id || (crypto.randomUUID?.() || `att-${Date.now()}`), date, type, amount: Math.round(amount * 100) / 100, description };
+    if (existing) Object.assign(existing, record);
+    else transactions.push(record);
+    state.attCancellationTransactions = transactions;
+    editingAttCancellationTransactionId = "";
+    saveState();
+    renderCellphoneBillingHistoryDialog();
+  });
   cellphoneBillingHistoryBody.querySelector("#saveVerizonNotes2Btn")?.addEventListener("click", () => {
     const notesInput = cellphoneBillingHistoryBody.querySelector("#verizonNotes2Input");
     if (!notesInput) return;
@@ -8121,11 +8252,11 @@ function renderCellphoneBillingHistoryDialog() {
 function buildAttCancellationLetterHtml() {
   const generatedOn = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
   const monthly = formatCurrency(ATT_SWITCH_VALIDATION.monthlyWireless);
-  const salesTax = formatCurrency(ATT_SWITCH_VALIDATION.salesTaxToday);
-  const shippingHold = formatCurrency(ATT_SWITCH_VALIDATION.disputedShippingHold);
-  const refundTotal = formatCurrency(ATT_SWITCH_VALIDATION.salesTaxToday + ATT_SWITCH_VALIDATION.disputedShippingHold);
-  const activation = formatCurrency(ATT_SWITCH_VALIDATION.firstBillActivation);
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AT&T Order Cancellation Request</title><style>body{max-width:760px;margin:0 auto;padding:42px 30px;color:#18283a;font:16px/1.55 Arial,sans-serif}header{border-bottom:3px solid #1d6fb8;padding-bottom:16px;margin-bottom:28px}h1{margin:0;color:#173a63;font-size:27px}h2{margin:5px 0 0;color:#526981;font-size:16px;font-weight:400}.meta{margin:22px 0;padding:14px 16px;background:#f4f8fc;border-left:4px solid #1d6fb8}.meta strong{color:#173a63}p{margin:0 0 16px}.request{padding:15px 17px;border:1px solid #9ec4e8;border-radius:7px;background:#f3f9ff}.request strong{color:#173a63}@media print{body{padding:0}}</style></head><body><header><h1>AT&amp;T Order Cancellation Request</h1><h2>Request to stop shipments, cancel the pending switch, and refund funds</h2></header><p>${escapeHtml(generatedOn)}</p><p>AT&amp;T Customer Care</p><div class="meta"><strong>Order:</strong> ${escapeHtml(ATT_SWITCH_VALIDATION.orderNumber)}<br><strong>Subject:</strong> Cancellation and immediate refund request — stop shipments and ports</div><p>After reviewing the order, I have decided not to switch from Verizon to AT&amp;T.</p><p>The estimated AT&amp;T wireless charge is ${escapeHtml(monthly)} per month, which is about $300 before variable taxes and surcharges. The order also includes carrier administrative and regulatory recovery charges and a $10 Next Up Anytime feature per line.</p><p>I was charged ${escapeHtml(salesTax)} for sales tax and an additional ${escapeHtml(shippingHold)} that I did not authorize. When I asked about the ${escapeHtml(shippingHold)} charge, I was told it was only a shipping authorization hold and would be automatically reimbursed when the phones arrived.</p><div class="request"><strong>Because I am cancelling, please immediately release or refund ${escapeHtml(refundTotal)} to the original payment method and confirm the release or refund in writing.</strong></div><p>I recently added lines to my Verizon account and already paid related taxes, activation, and other upfront charges. Recovering those costs while waiting for conditional AT&amp;T device credits and Switcher rewards to pay Verizon is too uncertain and does not make financial sense for me. I did not have enough time to complete a full analysis before the switch was initiated.</p><div class="request"><strong>Please cancel this order immediately, stop all device shipments, stop all number ports, and confirm in writing that no activation, service, device, return, or cancellation charges will apply.</strong></div><p>I will notify Verizon that I am no longer switching.</p><p>Sincerely,<br>Derick Glanville</p></body></html>`;
+  const attTotals = getAttCancellationTotals();
+  const charges = formatCurrency(attTotals.charges);
+  const credits = formatCurrency(attTotals.credits);
+  const net = formatCurrency(attTotals.net);
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AT&T Order Cancellation Request</title><style>body{max-width:760px;margin:0 auto;padding:42px 30px;color:#18283a;font:16px/1.55 Arial,sans-serif}header{border-bottom:3px solid #1d6fb8;padding-bottom:16px;margin-bottom:28px}h1{margin:0;color:#173a63;font-size:27px}h2{margin:5px 0 0;color:#526981;font-size:16px;font-weight:400}.meta{margin:22px 0;padding:14px 16px;background:#f4f8fc;border-left:4px solid #1d6fb8}.meta strong{color:#173a63}p{margin:0 0 16px}.request{padding:15px 17px;border:1px solid #9ec4e8;border-radius:7px;background:#f3f9ff}.request strong{color:#173a63}@media print{body{padding:0}}</style></head><body><header><h1>AT&amp;T Order Cancellation Request</h1><h2>Request to stop shipments, cancel the pending switch, and refund funds</h2></header><p>${escapeHtml(generatedOn)}</p><p>AT&amp;T Customer Care</p><div class="meta"><strong>Order:</strong> ${escapeHtml(ATT_SWITCH_VALIDATION.orderNumber)}<br><strong>Subject:</strong> Cancellation and immediate refund request — stop shipments and ports</div><p>After reviewing the order, I have decided not to switch from Verizon to AT&amp;T.</p><p>The estimated AT&amp;T wireless charge is ${escapeHtml(monthly)} per month, which is about $300 before variable taxes and surcharges. The order also includes carrier administrative and regulatory recovery charges and a $10 Next Up Anytime feature per line.</p><p>My current bank record shows ${escapeHtml(charges)} in AT&amp;T charges and ${escapeHtml(credits)} in provisional credits, leaving ${escapeHtml(net)} net charged at present. The credit is provisional until the bank finalizes it.</p><div class="request"><strong>Please reverse or refund all remaining AT&amp;T charges to the original payment method and confirm in writing when the provisional credit is final.</strong></div><p>I recently added lines to my Verizon account and already paid related taxes, activation, and other upfront charges. Recovering those costs while waiting for conditional AT&amp;T device credits and Switcher rewards to pay Verizon is too uncertain and does not make financial sense for me. I did not have enough time to complete a full analysis before the switch was initiated.</p><div class="request"><strong>Please cancel this order immediately, stop all device shipments, stop all number ports, and confirm in writing that no activation, service, device, return, or cancellation charges will apply.</strong></div><p>I will notify Verizon that I am no longer switching.</p><p>Sincerely,<br>Derick Glanville</p></body></html>`;
 }
 
 function downloadAttCancellationLetterHtml() {

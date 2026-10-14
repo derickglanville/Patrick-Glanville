@@ -5060,8 +5060,40 @@ body[data-device-layout="compact"] .budget-panel-popout .budget-bill-list-simple
 .att-cancellation-notes h4 { margin: 2px 0 0; color: #6c4b08; font-size: .98rem; }
 .att-cancellation-notes .cellphone-billing-table-wrap { margin-top: 10px; }
 .att-cancellation-notes tfoot th { color: #6c4b08; background: #fff3c7; }
+.att-cancellation-notes-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.att-cancellation-notes-head p { margin: 5px 0 0; color: #6b6250; font-size: .8rem; }
+.att-cancellation-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.att-cancellation-summary > div { padding: 9px 11px; border: 1px solid #e6d7a7; border-radius: 7px; background: #fff; }
+.att-cancellation-summary span { display: block; color: #6b6250; font-size: .72rem; }
+.att-cancellation-summary strong { display: block; margin-top: 3px; color: #503b10; font-size: 1.05rem; }
+.att-cancellation-actions { white-space: nowrap; }
+.att-cancellation-actions button { padding: 4px 8px; margin-right: 4px; }
+.att-cancellation-form { margin-top: 12px; padding: 12px; border: 1px solid #d8bd72; border-radius: 8px; background: #fff8e5; }
+.att-cancellation-form[hidden] { display: none; }
+.att-cancellation-form h5 { margin: 0 0 9px; color: #5d430a; font-size: .9rem; }
+.att-cancellation-form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 9px; }
+.att-cancellation-form-grid label { display: grid; gap: 4px; color: #5b4c2d; font-size: .75rem; font-weight: 700; }
+.att-cancellation-form-grid input, .att-cancellation-form-grid select { width: 100%; box-sizing: border-box; padding: 7px; background: #fff; }
+.att-cancellation-description { grid-column: 1 / -1; }
+.att-cancellation-form-actions { display: flex; gap: 8px; margin-top: 10px; }
+@media (max-width: 650px) { .att-cancellation-summary { grid-template-columns: 1fr; } .att-cancellation-form-grid { grid-template-columns: 1fr; } }
 .att-cancellation-note-details { margin-top: 10px; color: #5e5646; font-size: .84rem; }
 .att-cancellation-note-details p { margin: 4px 0; }
+.att-phone-returns { margin-top: 12px; padding: 14px; border: 1px solid #a9c9da; border-radius: 8px; background: #f6fbfe; }
+.att-phone-returns-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.att-phone-returns-head span { display: block; color: #246280; font-size: .7rem; font-weight: 900; letter-spacing: .07em; text-transform: uppercase; }
+.att-phone-returns-head h4 { margin: 3px 0; color: #173e56; font-size: 1rem; }
+.att-phone-returns-head p { margin: 4px 0 0; color: #526b79; font-size: .8rem; }
+.att-phone-returns-head > strong { flex: 0 0 auto; color: #246280; font-size: .8rem; }
+.att-phone-call { display: grid; grid-template-columns: 155px 170px minmax(250px, 1fr); gap: 8px; margin-top: 13px; }
+.att-phone-call label { display: grid; gap: 4px; color: #385669; font-size: .74rem; font-weight: 700; }
+.att-phone-call input, .att-phone-returns-table input, .att-phone-returns-table select { width: 100%; box-sizing: border-box; padding: 6px; background: #fff; }
+.att-phone-returns-table { min-width: 910px; }
+.att-phone-returns-table th, .att-phone-returns-table td { vertical-align: middle; }
+.att-phone-returns-table td:nth-child(5) { overflow-wrap: anywhere; font-size: .75rem; }
+.att-phone-returns-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; color: #526b79; font-size: .76rem; }
+.att-phone-returns-status { min-height: 1em; margin: 5px 0 0; color: #126235; font-size: .77rem; }
+@media (max-width: 700px) { .att-phone-call { grid-template-columns: 1fr 1fr; } .att-phone-call-notes { grid-column: 1 / -1; } .att-phone-returns-head, .att-phone-returns-footer { flex-wrap: wrap; } }
 .verizon-notes-2 { margin-top: 12px; padding: 13px; border: 1px solid #b8cbe0; border-radius: 8px; background: #f8fbff; }
 .verizon-notes-2-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .verizon-notes-2-head span { display: block; color: #2563a6; font-size: .7rem; font-weight: 900; letter-spacing: .07em; text-transform: uppercase; }

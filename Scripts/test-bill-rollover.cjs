@@ -180,9 +180,10 @@ assert.match(source, /dueDate:/);
 assert.match(notesSource, /admin-note-due-date/);
 assert.match(source, /AT&amp;T cancellation record/);
 assert.match(source, /referenceNumber: "995 8718"/);
-assert.match(source, /transactions\.reduce/);
-assert.match(source, /immediately release or refund/);
-assert.match(source, /salesTaxToday \+ ATT_SWITCH_VALIDATION\.disputedShippingHold/);
+assert.match(source, /getAttCancellationTotals\(\)/);
+assert.match(source, /id="attCancellationTransactionForm"/);
+assert.match(source, /state\.attCancellationTransactions = transactions/);
+assert.match(source, /PROVISIONAL CREDIT FOR CLAIM-REF #2610110019914/);
 assert.match(source, /https:\/\/www\.att\.com\/wireless\/try-and-switch\//);
 vm.runInContext(extract('getAppliedProposedReductionSummary'), proposedPreviewContext);
 const proposedSummary = proposedPreviewContext.getAppliedProposedReductionSummary([
