@@ -248,6 +248,13 @@ main {
   max-width: 190px;
 }
 
+#topClientOpenBtn:not([hidden]) {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+  font-weight: 800;
+}
+
 .current-user-panel {
   display: grid;
   gap: 8px;

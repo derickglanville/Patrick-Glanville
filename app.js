@@ -10665,6 +10665,11 @@ async function switchClient(clientId, pin = "") {
   if (nextClient.requiresAccessPin && !isClientAccessValidated(nextClient.id) && pin !== requiredPin) {
     clientGateError.textContent = `The access code for ${clientAccessLabel(nextClient.id)} is incorrect.`;
     clientGateError.hidden = false;
+    if (topClientAccessStatus) topClientAccessStatus.textContent = "That access code is incorrect. Please try again.";
+    if (topClientPin) {
+      topClientPin.focus();
+      topClientPin.select();
+    }
     return false;
   }
 

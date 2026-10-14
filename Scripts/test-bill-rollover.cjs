@@ -177,6 +177,7 @@ assert.match(source, /dueDate:/);
 assert.match(source, /admin-note-due-date/);
 assert.match(source, /function openTopClientWithAccessCode\(\)/);
 assert.match(source, /loadConfiguredJsonBackupForActiveClient\(\)\.catch/);
+assert.match(source, /That access code is incorrect\. Please try again\./);
 assert.match(source, /AT&amp;T cancellation record/);
 assert.match(source, /referenceNumber: "995 8718"/);
 assert.match(source, /transactions\.reduce/);
