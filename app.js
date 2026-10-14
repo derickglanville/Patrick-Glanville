@@ -10671,7 +10671,7 @@ async function switchClient(clientId, pin = "") {
 
   if (supabaseEnabled && !applyingRemoteState && pendingLocalSharedSaveAt) {
     window.clearTimeout(supabaseSaveTimer);
-    await saveSharedStateNow();
+    saveSharedStateNow().catch(error => console.warn("Could not finish the prior client save before switching.", error));
   }
 
   stopSharedStateSync();
@@ -10680,22 +10680,21 @@ async function switchClient(clientId, pin = "") {
   remoteUpdatedAt = readCachedRemoteUpdatedAt();
   state = loadState();
   pendingLocalSharedSaveAt = localStorage.getItem(`${getStorageKey()}:pending-save`) || "";
-  await loadConfiguredJsonBackupForActiveClient();
   loadBudgetMonth(defaultBillMonth(), { syncSnapshot: false });
   patrickWatchState = loadPatrickWatchState();
   taskViewMode = loadTaskViewMode();
   updateTopClientPinVisibility();
 
   closeClientGateDialog();
+  updateSyncStatus();
+  render();
+  loadConfiguredJsonBackupForActiveClient().catch(error => console.warn("Backup initialization did not complete.", error));
   if (supabaseEnabled) {
     forceCurrentBillMonthOnNextRemoteApply = true;
     supabaseStatus = `Connecting to Firebase Firestore shared storage for ${nextClient.shortName}`;
     updateDataStoreStatus();
-    render();
-    await subscribeToSharedState();
+    subscribeToSharedState().catch(error => console.warn("Firebase listener did not start.", error));
   }
-  updateSyncStatus();
-  render();
   return true;
 }
 

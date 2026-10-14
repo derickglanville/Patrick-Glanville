@@ -166,6 +166,8 @@ assert.match(source, /id="verizonNotes2Input"/);
 assert.match(source, /id="saveVerizonNotes2Btn"/);
 assert.match(source, /state\.verizonCellphoneNotes2 = notesInput\.value\.trim\(\)/);
 assert.match(source, /New Ref #: 996-8143/);
+assert.match(source, /loadConfiguredJsonBackupForActiveClient\(\)\.catch/);
+assert.match(source, /subscribeToSharedState\(\)\.catch/);
 assert.match(source, /adminNotesReminders:/);
 assert.match(source, /Amex case GC-01CT4S9/);
 assert.match(source, /Meeting with Vanguard/);
