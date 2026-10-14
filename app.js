@@ -3090,7 +3090,11 @@ function initializeState(loaded) {
   loaded.adminNotesReminders = Array.isArray(loaded.adminNotesReminders)
     ? loaded.adminNotesReminders.map(normalizeAdminNotesReminder).filter(Boolean)
     : structuredClone(seedData.adminNotesReminders || []).map(normalizeAdminNotesReminder).filter(Boolean);
-  loaded.homeHeatingOil = normalizeHomeHeatingOil(loaded.homeHeatingOil, seedData.homeHeatingOil);
+  if (activeClientId === "admin") {
+    const oilBeforeNormalization = JSON.stringify(loaded.homeHeatingOil || null);
+    loaded.homeHeatingOil = normalizeHomeHeatingOil(loaded.homeHeatingOil, seedData.homeHeatingOil);
+    if (JSON.stringify(loaded.homeHeatingOil) !== oilBeforeNormalization) stateAdjusted = true;
+  }
   loaded.tasks = loaded.tasks.map(task => normalizeTaskState({
     percent: statusToPercent(task.status),
     comments: [],

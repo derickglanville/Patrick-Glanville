@@ -37,7 +37,7 @@ def seasonal_rates(rows):
 
 
 def forecast(data, today):
-    readings = sorted((r for r in data.get("readings", []) if str(r.get("date", "")) <= today.isoformat()), key=lambda r: r["date"], reverse=True)
+    readings = sorted((r for r in data.get("readings", []) if str(r.get("date", "")) <= today.isoformat()), key=lambda r: (r["date"], str(r.get("time") or "")), reverse=True)
     if not readings:
         return None
     reading = readings[0]

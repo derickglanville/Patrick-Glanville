@@ -1,6 +1,7 @@
 "use strict";
 
 const OIL_TANK_CAPACITY = 270;
+const OIL_INITIAL_READING = { id: "oil-reading-20261014-0930", date: "2026-10-14", time: "09:30", percent: 50, note: "Physical gauge: half a tank" };
 let oilTab = "overview";
 let oilEditingId = "";
 let oilEditingReadingId = "";
@@ -17,15 +18,21 @@ function normalizeHomeHeatingOil(value, fallback = {}) {
     paidBy: String(item.paidBy || ""), company: String(item.company || ""),
     levelNote: String(item.levelNote || ""), notes: String(item.notes || "")
   });
+  const readings = (Array.isArray(source.readings) ? source.readings : []).map(item => ({
+    id: String(item.id || crypto.randomUUID()),
+    date: /^\d{4}-\d{2}-\d{2}$/.test(item.date || "") ? item.date : "",
+    time: /^\d{2}:\d{2}$/.test(item.time || "") ? item.time : "",
+    percent: Math.min(100, Math.max(0, Number(item.percent) || 0)),
+    note: String(item.note || "")
+  })).filter(item => item.date);
+  if (Number(source.seedVersion || 0) < 1 && !readings.some(item => item.id === OIL_INITIAL_READING.id || item.date === OIL_INITIAL_READING.date && item.time === OIL_INITIAL_READING.time)) {
+    readings.push({ ...OIL_INITIAL_READING });
+  }
   return {
+    seedVersion: 1,
     capacity: OIL_TANK_CAPACITY,
     deliveries: (Array.isArray(source.deliveries) ? source.deliveries : fallback.deliveries || []).map(cleanDelivery).filter(item => item.date && item.gallons > 0),
-    readings: (Array.isArray(source.readings) ? source.readings : []).map(item => ({
-      id: String(item.id || crypto.randomUUID()),
-      date: /^\d{4}-\d{2}-\d{2}$/.test(item.date || "") ? item.date : "",
-      percent: Math.min(100, Math.max(0, Number(item.percent) || 0)),
-      note: String(item.note || "")
-    })).filter(item => item.date)
+    readings
   };
 }
 
@@ -59,7 +66,7 @@ function oilSeasonalRates(deliveries) {
 }
 
 function oilProjection(data, today = oilIsoToday()) {
-  const latest = [...data.readings].filter(item => item.date <= today).sort((a, b) => b.date.localeCompare(a.date))[0];
+  const latest = [...data.readings].filter(item => item.date <= today).sort((a, b) => `${b.date}T${b.time || "00:00"}`.localeCompare(`${a.date}T${a.time || "00:00"}`))[0];
   if (!latest) return { status: "missing" };
   const age = Math.round((oilDate(today) - oilDate(latest.date)) / 86400000);
   if (age > 30 || age < 0) return { status: "stale", latest, age };
@@ -114,6 +121,16 @@ function renderHomeHeatingOil() {
   ${oilTab === "deliveries" ? `<div class="oil-toolbar"><label>Search deliveries<input id="oilSearch" type="search" value="${escapeAttribute(oilSearch)}" placeholder="Company, payer, notes, date"></label><button id="oilAddDelivery" type="button">Add Delivery</button></div><div id="oilEditor"></div><div class="oil-table-wrap"><table class="oil-table"><thead><tr><th>Date</th><th>Gallons</th><th>Price / gal</th><th>Amount</th><th>Company</th><th>Paid by</th><th>Gauge note</th><th>Notes</th><th>Actions</th></tr></thead><tbody>${rows.filter(row => `${row.date} ${row.company} ${row.paidBy} ${row.notes}`.toLowerCase().includes(oilSearch.toLowerCase())).map(row => `<tr><td>${escapeHtml(row.date)}</td><td>${oilNumber(row.gallons,1)}</td><td>${oilMoney(row.price)}</td><td>${row.amount == null ? "—" : oilMoney(row.amount)}</td><td>${escapeHtml(row.company)}</td><td>${escapeHtml(row.paidBy)}</td><td>${escapeHtml(row.levelNote)}</td><td>${escapeHtml(row.notes)}</td><td><button type="button" class="ghost oil-edit" data-id="${escapeAttribute(row.id)}">Edit</button><button type="button" class="ghost oil-delete" data-id="${escapeAttribute(row.id)}">Delete</button></td></tr>`).join("")}</tbody></table></div><p class="oil-footnote">Source: Home Heating Oil.xlsx. Blank invoice amounts stay blank; historic gauge notes are preserved as written where recognizable.</p>` : ""}
   ${oilTab === "readings" ? `<section class="oil-card"><h3>${editingReading ? "Update tank gauge" : "Record tank gauge"}</h3><p>Read the physical gauge and enter its percentage. The forecast and text alert use the newest reading only when it is at most 30 days old. A daily check on this computer attempts a text to 914-672-2393 when the 25% reserve is within 14 days; Verizon's legacy email-to-text delivery is not guaranteed.</p><form id="oilReadingForm" class="oil-reading-form"><label>Date<input name="date" type="date" value="${editingReading?.date || oilIsoToday()}" max="${oilIsoToday()}" required></label><label>Tank level<select name="percent">${[100,87.5,75,62.5,50,37.5,25,12.5,0].map(p => `<option value="${p}"${editingReading?.percent === p ? " selected" : ""}>${p}% · ${oilNumber(data.capacity*p/100)} gal</option>`).join("")}</select></label><label>Note<input name="note" value="${escapeAttribute(editingReading?.note || "")}" placeholder="Gauge check or service note"></label><button type="submit">${editingReading ? "Update Reading" : "Save Reading"}</button>${editingReading ? '<button type="button" id="oilCancelReading" class="ghost">Cancel</button>' : ""}</form></section><div class="oil-table-wrap"><table class="oil-table"><thead><tr><th>Date</th><th>Gauge</th><th>Approx. gallons</th><th>Note</th><th>Actions</th></tr></thead><tbody>${[...data.readings].sort((a,b)=>b.date.localeCompare(a.date)).map(row=>`<tr><td>${row.date}</td><td>${row.percent}%</td><td>${oilNumber(data.capacity*row.percent/100)}</td><td>${escapeHtml(row.note)}</td><td><button type="button" class="ghost oil-edit-reading" data-id="${escapeAttribute(row.id)}">Edit</button><button type="button" class="ghost oil-delete-reading" data-id="${escapeAttribute(row.id)}">Delete</button></td></tr>`).join("")}</tbody></table></div>` : ""}
   ${oilTab === "savings" ? `<div class="oil-savings"><article><h3>Set a comfortable schedule</h3><p>Lower the thermostat when asleep or away, then restore comfort before the home is occupied. Avoid turning it down so far that pipes could freeze.</p></article><article><h3>Service the heating system</h3><p>Schedule annual burner/boiler service, replace filters as recommended, and address short cycling or unusual shutdowns promptly.</p></article><article><h3>Keep heat inside</h3><p>Seal drafts around doors and windows, insulate accessible hot-water pipes, and check attic insulation and weatherstripping.</p></article><article><h3>Compare delivery costs</h3><p>Track dollars per gallon and supplier differences here. Confirm total invoice charges before assuming the quoted unit price is the full cost.</p></article></div>` : ""}`;
+  if (oilTab === "readings") {
+    const form = root.querySelector("#oilReadingForm");
+    const timeLabel = document.createElement("label");
+    timeLabel.innerHTML = `Time<input name="time" type="time" value="${editingReading?.time || "09:30"}" required>`;
+    form?.insertBefore(timeLabel, form.querySelector("[name='percent']")?.closest("label"));
+    const displayRows = [...data.readings].sort((a, b) => `${b.date}T${b.time || "00:00"}`.localeCompare(`${a.date}T${a.time || "00:00"}`));
+    root.querySelectorAll(".oil-table tbody tr").forEach((tr, index) => {
+      if (displayRows[index]) tr.cells[0].textContent = `${displayRows[index].date} ${displayRows[index].time || ""}`.trim();
+    });
+  }
   root.querySelectorAll("[data-oil-tab]").forEach(button => button.addEventListener("click", () => { oilTab = button.dataset.oilTab; oilEditingId = ""; renderHomeHeatingOil(); }));
   root.querySelector("#oilSearch")?.addEventListener("input", event => { oilSearch = event.target.value; renderHomeHeatingOil(); root.querySelector("#oilSearch")?.focus(); });
   root.querySelector("#oilAddDelivery")?.addEventListener("click", () => { oilEditingId = "new"; renderOilEditor(); });
@@ -122,7 +139,7 @@ function renderHomeHeatingOil() {
   root.querySelectorAll(".oil-delete-reading").forEach(button => button.addEventListener("click", () => { if (!ensureCurrentUser("delete a tank reading") || !confirm("Delete this tank reading?")) return; data.readings = data.readings.filter(item => item.id !== button.dataset.id); saveState(); renderHomeHeatingOil(); }));
   root.querySelectorAll(".oil-edit-reading").forEach(button => button.addEventListener("click", () => { oilEditingReadingId = button.dataset.id; renderHomeHeatingOil(); root.querySelector("#oilReadingForm [name='date']")?.focus(); }));
   root.querySelector("#oilCancelReading")?.addEventListener("click", () => { oilEditingReadingId = ""; renderHomeHeatingOil(); });
-  root.querySelector("#oilReadingForm")?.addEventListener("submit", event => { event.preventDefault(); if (!ensureCurrentUser("save a tank reading")) return; const form = event.currentTarget; const record = { id: oilEditingReadingId || crypto.randomUUID(), date: form.elements.date.value, percent: Number(form.elements.percent.value), note: form.elements.note.value.trim() }; if (oilEditingReadingId) { const index = data.readings.findIndex(item => item.id === oilEditingReadingId); if (index >= 0) data.readings[index] = record; } else data.readings.push(record); oilEditingReadingId = ""; saveState(); renderHomeHeatingOil(); });
+  root.querySelector("#oilReadingForm")?.addEventListener("submit", event => { event.preventDefault(); if (!ensureCurrentUser("save a tank reading")) return; const form = event.currentTarget; const record = { id: oilEditingReadingId || crypto.randomUUID(), date: form.elements.date.value, time: form.elements.time.value, percent: Number(form.elements.percent.value), note: form.elements.note.value.trim() }; if (oilEditingReadingId) { const index = data.readings.findIndex(item => item.id === oilEditingReadingId); if (index >= 0) data.readings[index] = record; } else data.readings.push(record); oilEditingReadingId = ""; saveState(); renderHomeHeatingOil(); });
 }
 
 function renderOilEditor() {

@@ -13,6 +13,7 @@ if (!pin) throw new Error('Admin access code not found');
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   try {
     const page = await browser.newPage();
+    await page.route(/^https?:\/\//, route => route.abort()); // Browser test must never write to live Firebase.
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
     await page.goto(pathToFileURL(path.join(root, 'index.html')).href, { waitUntil: 'domcontentloaded' });
@@ -22,6 +23,7 @@ if (!pin) throw new Error('Admin access code not found');
     assert.equal(await page.locator('#homeHeatingOilBtn').isVisible(), true);
     await page.locator('#homeHeatingOilBtn').click();
     assert.match(await page.locator('#homeHeatingOilBody').innerText(), /270 gal/);
+    assert.match(await page.locator('#homeHeatingOilBody').innerText(), /135 gal/);
     if (process.env.OIL_SCREENSHOT) await page.locator('#homeHeatingOilDialog').screenshot({ path: process.env.OIL_SCREENSHOT });
     await page.locator('[data-oil-tab="deliveries"]').click();
     assert.equal(await page.locator('.oil-table tbody tr').count(), 60);
@@ -33,6 +35,8 @@ if (!pin) throw new Error('Admin access code not found');
     await page.locator('#oilDeliveryForm button[type="submit"]').click();
     assert.equal(await page.locator('.oil-table tbody tr').count(), 61);
     await page.locator('[data-oil-tab="readings"]').click();
+    assert.match(await page.locator('.oil-table tbody').innerText(), /2026-10-14 09:30/);
+    await page.locator('.oil-edit-reading').first().click();
     await page.locator('#oilReadingForm [name="percent"]').selectOption('25');
     await page.locator('#oilReadingForm button[type="submit"]').click();
     await page.locator('[data-oil-tab="overview"]').click();
