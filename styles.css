@@ -5990,5 +5990,25 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .oil-toolbar input, .oil-reading-form input, .oil-reading-form select, .oil-editor input { min-width: 0; margin: 0; }
 .oil-table-wrap { overflow: auto; max-height: 49vh; border: 1px solid #c6d6e3; border-radius: 8px; }.oil-table { border-collapse: collapse; width: 100%; min-width: 850px; font-size: .79rem; }.oil-table th { position: sticky; top: 0; background: #dcebf5; color: #173f60; text-align: left; z-index: 1; }.oil-table td, .oil-table th { border: 1px solid #bdcedc; padding: 6px 8px; white-space: nowrap; }.oil-table tbody tr:nth-child(even) { background: #f4f9fc; }.oil-table td:last-child { display: flex; gap: 4px; }.oil-table button { padding: 4px 7px; font-size: .72rem; }
 .oil-editor { border: 1px solid #91bacb; border-radius: 9px; background: #ecf8fb; padding: 13px; margin-bottom: 12px; }.oil-editor h3 { margin: 0 0 10px; }.oil-editor-fields { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 9px; }.oil-form-actions { display: flex; gap: 7px; margin-top: 10px; }.oil-savings { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }.oil-savings h3 { color: #174d69; margin: 0 0 5px; }.oil-savings p { margin: 0; line-height: 1.5; }
+.oil-efficiency { display: grid; gap: 12px; }
+.oil-efficiency-intro p { margin: 0 0 12px; }
+.oil-efficiency-kpis { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 9px; }
+.oil-efficiency-kpis article { padding: 11px; background: #fff; border: 1px solid #c7d9e4; border-radius: 8px; }
+.oil-efficiency-kpis small, .oil-efficiency-kpis span { display: block; color: #637b8a; font-size: .75rem; }
+.oil-efficiency-kpis strong { display: block; margin: 4px 0; color: #174766; font-size: 1.18rem; }
+.oil-efficiency-kpis .oil-efficiency-lower { background: #edf8f1; border-color: #9bcbae; }
+.oil-efficiency-kpis .oil-efficiency-lower strong { color: #17623c; }
+.oil-efficiency-bars { display: grid; gap: 6px; }
+.oil-efficiency-bar { display: grid; grid-template-columns: 38px minmax(0,1fr) 70px; gap: 8px; align-items: center; font-size: .75rem; }
+.oil-efficiency-bar i { display: block; height: 13px; background: #e8eff3; border-radius: 4px; overflow: hidden; }
+.oil-efficiency-bar b { display: block; height: 100%; background: #2a80ac; border-radius: 4px; }
+.oil-efficiency-bar.is-transition b { background: #cf9d32; }
+.oil-efficiency-bar.is-after b { background: #3d9a6a; }
+.oil-efficiency-bar strong { text-align: right; color: #254c61; }
+.oil-efficiency-season { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 7px; margin-bottom: 10px; }
+.oil-efficiency-season div { padding: 9px; background: #fff; border: 1px solid #c7d9e4; border-radius: 7px; }
+.oil-efficiency-season span { display: block; color: #5d7788; font-size: .7rem; }
+.oil-efficiency-season strong { display: block; margin-top: 3px; color: #174766; font-size: .9rem; }
+@media (max-width: 720px) { .oil-efficiency-kpis, .oil-efficiency-season { grid-template-columns: 1fr; } }
 @media (max-width: 720px) { .oil-kpis, .oil-two-col, .oil-savings { grid-template-columns: 1fr 1fr; }.oil-editor-fields { grid-template-columns: 1fr 1fr; }.oil-annual-bars > div { grid-template-columns: 58px 1fr 105px; } }
 @media (max-width: 490px) { .oil-kpis, .oil-two-col, .oil-savings { grid-template-columns: 1fr; }.oil-editor-fields { grid-template-columns: 1fr; }.home-oil-dialog { padding: 13px; }.oil-chart-bars { gap: 2px; }.oil-chart-month { font-size: .56rem; } }
