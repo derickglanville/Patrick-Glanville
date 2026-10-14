@@ -3928,6 +3928,14 @@ dialog::backdrop {
 }
 
 @media (max-width: 620px) {
+  .admin-notes-summary,
+  .admin-notes-toolbar,
+  .admin-note-fields { grid-template-columns: 1fr; }
+  .admin-note-card-head,
+  .admin-note-card footer { flex-direction: column; }
+  .admin-note-badges { justify-content: flex-start; }
+  #adminNotesRemindersDialog .admin-notes-reminders-dialog { padding: 12px; }
+
   .overview,
   .task-grid,
   .budget-metrics,
@@ -4747,6 +4755,45 @@ body[data-device-layout="compact"] .budget-panel-popout .budget-bill-list-simple
     min-height: 260px;
   }
 }
+/* Admin Notes & Reminders keeps follow-ups structured without leaving the bill workspace. */
+#adminNotesRemindersDialog {
+  width: min(1080px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 24px);
+  padding: 0;
+}
+
+#adminNotesRemindersDialog .admin-notes-reminders-dialog {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  max-height: calc(100vh - 24px);
+  overflow: auto;
+  padding: 18px;
+}
+
+.admin-notes-reminders-dialog .dialog-head p { margin: 4px 0 0; color: #60748a; font-size: .86rem; }
+.admin-notes-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin: 14px 0 10px; }
+.admin-notes-summary article { padding: 10px 12px; border: 1px solid #bfd2e8; border-radius: 8px; background: #f7fbff; }
+.admin-notes-summary strong { display: block; color: #173a63; font-size: 1.14rem; }
+.admin-notes-summary span { color: #526981; font-size: .76rem; }
+.admin-notes-toolbar { display: grid; grid-template-columns: minmax(230px, 1fr) 150px auto; align-items: end; gap: 10px; padding: 11px; border: 1px solid #d2deea; border-radius: 8px; background: #f9fbfd; }
+.admin-notes-toolbar label, .admin-note-fields label, .admin-note-card > label { display: grid; gap: 4px; color: #34506e; font-size: .76rem; font-weight: 800; }
+.admin-notes-toolbar input, .admin-notes-toolbar select, .admin-note-fields input, .admin-note-fields select, .admin-note-card textarea { min-width: 0; margin: 0; }
+.admin-notes-help { margin: 9px 0; color: #60748a; font-size: .78rem; }
+.admin-notes-list { display: grid; gap: 10px; }
+.admin-note-card { border: 1px solid #c7d6e6; border-left: 4px solid #2d6fae; border-radius: 8px; padding: 12px; background: #fff; }
+.admin-note-card-head, .admin-note-card footer { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.admin-note-card h3 { margin: 2px 0 9px; color: #162f4d; font-size: 1rem; }
+.admin-note-category { color: #2c6ca9; font-size: .68rem; font-weight: 900; letter-spacing: .07em; text-transform: uppercase; }
+.admin-note-badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
+.admin-note-status, .admin-note-priority { border-radius: 999px; padding: 3px 7px; font-size: .68rem; font-weight: 900; white-space: nowrap; }
+.admin-note-status { background: #e3f2e8; color: #216342; }.admin-note-status.status-waiting { background: #fff3d6; color: #8b6100; }.admin-note-status.status-done, .admin-note-status.status-closed { background: #e8edf3; color: #526981; }
+.admin-note-priority { background: #e8f0fa; color: #285d94; }.admin-note-priority.priority-high, .admin-note-priority.priority-urgent { background: #fde8e7; color: #a63832; }
+.admin-note-fields { display: grid; grid-template-columns: 1.45fr 1fr repeat(4, minmax(105px, .62fr)) 1fr; gap: 8px; margin-bottom: 8px; }
+.admin-note-card > label { margin-top: 8px; }.admin-note-card textarea { resize: vertical; line-height: 1.35; }
+.admin-note-card footer { align-items: center; margin-top: 10px; }.admin-note-card footer small { color: #6c7f92; }.admin-note-card footer div { display: flex; gap: 7px; }
+
 /* Historical Admin bill and Verizon billing analysis dialogs. */
 #billBalanceHistoryDialog,
 #cellphoneBillingHistoryDialog {

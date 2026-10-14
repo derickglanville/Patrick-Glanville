@@ -13,7 +13,7 @@
   <meta http-equiv="Expires" content="0">
   <title>3G Budget and Notifications</title>
   <link rel="manifest" href="app.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=2026-10-13-verizon-notes-2-001">
+    <link rel="stylesheet" href="styles.css?v=2026-10-13-notes-reminders-sms-001">
 </head>
 <body>
   <section class="collaboration-panel" aria-label="Collaboration access">
@@ -302,6 +302,7 @@
           <button id="adminCreditCardFinderBtn" type="button" class="ghost" hidden>Card Finder</button>
           <button id="adminMonthlyExpendituresBtn" type="button" class="ghost" hidden>Monthly Expenditures</button>
           <button id="cellphoneBillingHistoryBtn" type="button" class="ghost" hidden>Cellphone History</button>
+          <button id="adminNotesRemindersBtn" type="button" class="ghost" hidden>Notes &amp; Reminders</button>
           <button id="assignDueDatesBtn" type="button" class="ghost">Assign Due Dates</button>
           <button id="undoCopyBillsToNextMonthBtn" type="button" class="ghost">Undo Next Month Copy</button>
           <button id="toggleBillsCompactBtn" type="button" class="ghost" aria-pressed="false">Compact View</button>
@@ -756,6 +757,15 @@
       </div>
       <p class="documents-note">Select a local Verizon PDF bill to review its summary and compare it with the previous month. Planning views do not change the Admin bill budget.</p>
       <div id="cellphoneBillingHistoryBody"></div>
+    </div>
+  </dialog>
+  <dialog id="adminNotesRemindersDialog">
+    <div class="report-dialog admin-notes-reminders-dialog">
+      <div class="dialog-head">
+        <div><h2>Notes &amp; Reminders</h2><p>Keep important cases, meetings, follow-ups, and deadlines in one editable record.</p></div>
+        <button type="button" id="closeAdminNotesRemindersDialog" class="icon-button" aria-label="Close">x</button>
+      </div>
+      <div id="adminNotesRemindersBody"></div>
     </div>
   </dialog>
   <dialog id="billAuditDialog">
