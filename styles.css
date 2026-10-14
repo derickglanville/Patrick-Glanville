@@ -242,6 +242,12 @@ main {
   min-width: 160px;
 }
 
+.top-client-access-status {
+  color: #526981;
+  font-size: .76rem;
+  max-width: 190px;
+}
+
 .current-user-panel {
   display: grid;
   gap: 8px;

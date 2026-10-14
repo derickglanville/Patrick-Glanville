@@ -13,7 +13,7 @@
   <meta http-equiv="Expires" content="0">
   <title>3G Budget and Notifications</title>
   <link rel="manifest" href="app.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=2026-10-13-notes-reminders-sms-001">
+    <link rel="stylesheet" href="styles.css?v=2026-10-13-access-fix-001">
 </head>
 <body>
   <section class="collaboration-panel" aria-label="Collaboration access">
@@ -34,6 +34,8 @@
         <label for="topClientPin" id="topClientPinWrapInline" hidden>Access code
           <input id="topClientPin" type="password" inputmode="numeric" autocomplete="off" placeholder="Client access code" hidden>
         </label>
+        <button id="topClientOpenBtn" type="button" class="ghost" hidden>Open Client</button>
+        <span id="topClientAccessStatus" class="top-client-access-status" role="status" aria-live="polite"></span>
       </div>
     <div class="current-user-panel">
       <div class="current-user-header">
