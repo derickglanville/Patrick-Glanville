@@ -6048,3 +6048,7 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 @media (max-width: 720px) { .oil-efficiency-kpis, .oil-efficiency-season { grid-template-columns: 1fr; } }
 @media (max-width: 720px) { .oil-kpis, .oil-two-col, .oil-savings { grid-template-columns: 1fr 1fr; }.oil-editor-fields { grid-template-columns: 1fr 1fr; }.oil-annual-bars > div { grid-template-columns: 58px 1fr 105px; } }
 @media (max-width: 490px) { .oil-kpis, .oil-two-col, .oil-savings { grid-template-columns: 1fr; }.oil-editor-fields { grid-template-columns: 1fr; }.home-oil-dialog { padding: 13px; }.oil-chart-bars { gap: 2px; }.oil-chart-month { font-size: .56rem; } }
+
+.verizon-notes-2 .save-notes-2 { background: #2563a6; color: #fff; font-weight: 800; }
+.verizon-notes-2 .save-notes-2:hover { background: #1d4f86; }
+.verizon-notes-2 .save-notes-2:disabled { cursor: wait; opacity: .72; }
