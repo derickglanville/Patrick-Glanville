@@ -7013,6 +7013,13 @@ function renderMobileBillGrid() {
     : '<tr><td colspan="3">No bills for this month.</td></tr>';
 }
 
+function openMobileBillGrid() {
+  const dialog = document.querySelector("#mobileBillGridDialog");
+  renderMobileBillGrid();
+  dialog.querySelector(".mobile-bill-grid-scroll").scrollTop = 0;
+  if (!dialog.open) dialog.showModal();
+}
+
 function updateMobileBillNavigator() {
   const navigator = document.querySelector("#mobileBillNavigator");
   if (!navigator) return;
@@ -7061,8 +7068,9 @@ function updateMobileBillNavigator() {
   navigator.dataset.bound = "true";
   navigator.querySelectorAll("[data-mobile-bill-filter]").forEach(button => button.addEventListener("click", () => {
     mobileBillView.filter = button.dataset.mobileBillFilter;
-    mobileBillView.billId = null;
+    if (mobileBillView.filter !== "all") mobileBillView.billId = null;
     updateMobileBillNavigator();
+    if (mobileBillView.filter === "all") openMobileBillGrid();
   }));
   select.addEventListener("change", () => {
     mobileBillView.billId = select.value;
@@ -7071,11 +7079,7 @@ function updateMobileBillNavigator() {
   navigator.querySelector("#mobileBillPreviousBtn").addEventListener("click", () => moveMobileBill(-1));
   navigator.querySelector("#mobileBillNextBtn").addEventListener("click", () => moveMobileBill(1));
   const gridDialog = document.querySelector("#mobileBillGridDialog");
-  navigator.querySelector("#mobileBillGridBtn").addEventListener("click", () => {
-    renderMobileBillGrid();
-    gridDialog.querySelector(".mobile-bill-grid-scroll").scrollTop = 0;
-    gridDialog.showModal();
-  });
+  navigator.querySelector("#mobileBillGridBtn").addEventListener("click", openMobileBillGrid);
   gridDialog.querySelector("#closeMobileBillGridBtn").addEventListener("click", () => gridDialog.close());
   gridDialog.querySelector("#mobileBillGridBody").addEventListener("click", event => {
     const billButton = event.target.closest("[data-mobile-grid-bill-id]");
