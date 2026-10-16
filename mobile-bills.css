@@ -349,6 +349,12 @@
     color: #123b5d;
     font-weight: 800;
   }
+
+  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .bill-observation {
+    min-height: 42px;
+    padding: 7px 8px;
+    font-size: .88rem;
+  }
 }
 
 #mobileBillGridDialog {

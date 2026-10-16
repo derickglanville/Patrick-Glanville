@@ -7403,10 +7403,10 @@ function renderBills() {
         </label>
       </div>
       <div class="budget-bill-notes-box bill-col-observation">
-        <label class="budget-bill-field" title="${escapeAttribute(balanceObservation.title)}">
-          <span>Observation</span>
-          <input class="bill-observation" type="text" value="${escapeAttribute(balanceObservation.value)}" aria-label="Last three current balances" readonly>
-        </label>
+        <div class="budget-bill-field" title="${escapeAttribute(balanceObservation.title)}">
+          <span>Saved balances</span>
+          <button type="button" class="bill-observation" aria-label="View saved balance history for ${escapeAttribute(bill.name || "bill")}">${escapeHtml(balanceObservation.value || "No saved balances")}</button>
+        </div>
       </div>
       <button type="button" class="ghost mobile-bill-details-toggle" aria-expanded="false">Show all fields</button>
       <div class="budget-bill-actions bill-col-actions">
@@ -7454,6 +7454,7 @@ function renderBills() {
       event.currentTarget.setAttribute("aria-expanded", String(expanded));
       event.currentTarget.textContent = expanded ? "Hide extra fields" : "Show all fields";
     });
+    row.querySelector(".bill-observation").addEventListener("click", () => openBillBalanceHistory(bill));
     row.addEventListener("click", event => {
       if (event.target.closest("button")) return;
       selectOnlyBillRow(row, bill.id);
@@ -7543,7 +7544,7 @@ function renderBills() {
     billListHeader.classList.toggle("is-simple", usesSimpleBills);
     billListHeader.innerHTML = usesSimpleBills
       ? "<span class=\"budget-bill-selector-header\"></span><span>Bill</span><span>Prev Bal</span><span>Current Bal</span><span>Amount</span><span>Due</span><span>Date Paid</span><span>Status</span><span>Notes</span><span>Actions</span>"
-      : "<span class=\"budget-bill-selector-header bill-col-selector\"></span><span class=\"bill-col bill-col-name\">Bill</span><span class=\"bill-col bill-col-type\">Type</span><span class=\"bill-col bill-col-apr\">APR</span><span class=\"bill-col bill-col-interest-paid is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum interest paid column\">Interest Paid</span><span class=\"bill-col bill-col-prev-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum previous balance column\">Prev Bal</span><span class=\"bill-col bill-col-current-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum current balance column\">Current Bal</span><span class=\"bill-col bill-col-proposed is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum proposed reductions column\">Proposed</span><span class=\"bill-col bill-col-diff is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum difference column\">Diff</span><span class=\"bill-col bill-col-payment-priority\" title=\"Paid bills where interest consumes more than the principal portion\">Pay More</span><span class=\"bill-col bill-col-credit-line is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum credit line column\">Credit Line</span><span class=\"bill-col bill-col-due-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum due amount column\">Due Amt</span><span class=\"bill-col bill-col-paid-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum paid amount column\">Paid Amt</span><span class=\"bill-col bill-col-recommended is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum recommended payment column\">Recommended</span><span class=\"bill-col bill-col-payoff-date\">Expected Paid Off Date</span><span class=\"bill-col bill-col-tran\">Tran #</span><span class=\"bill-col bill-col-due-date\">Due</span><span class=\"bill-col bill-col-date-paid\">Date Paid</span><span class=\"bill-col bill-col-credit-percent\">% Credit</span><span class=\"bill-col bill-col-status\">Status</span><span class=\"bill-col bill-col-notes\">Notes</span><span class=\"bill-col bill-col-observation\">Observation</span><span class=\"bill-col bill-col-actions\">Actions</span>";
+      : "<span class=\"budget-bill-selector-header bill-col-selector\"></span><span class=\"bill-col bill-col-name\">Bill</span><span class=\"bill-col bill-col-type\">Type</span><span class=\"bill-col bill-col-apr\">APR</span><span class=\"bill-col bill-col-interest-paid is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum interest paid column\">Interest Paid</span><span class=\"bill-col bill-col-prev-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum previous balance column\">Prev Bal</span><span class=\"bill-col bill-col-current-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum current balance column\">Current Bal</span><span class=\"bill-col bill-col-proposed is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum proposed reductions column\">Proposed</span><span class=\"bill-col bill-col-diff is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum difference column\">Diff</span><span class=\"bill-col bill-col-payment-priority\" title=\"Paid bills where interest consumes more than the principal portion\">Pay More</span><span class=\"bill-col bill-col-credit-line is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum credit line column\">Credit Line</span><span class=\"bill-col bill-col-due-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum due amount column\">Due Amt</span><span class=\"bill-col bill-col-paid-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum paid amount column\">Paid Amt</span><span class=\"bill-col bill-col-recommended is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum recommended payment column\">Recommended</span><span class=\"bill-col bill-col-payoff-date\">Expected Paid Off Date</span><span class=\"bill-col bill-col-tran\">Tran #</span><span class=\"bill-col bill-col-due-date\">Due</span><span class=\"bill-col bill-col-date-paid\">Date Paid</span><span class=\"bill-col bill-col-credit-percent\">% Credit</span><span class=\"bill-col bill-col-status\">Status</span><span class=\"bill-col bill-col-notes\">Notes</span><span class=\"bill-col bill-col-observation\">Saved Balances</span><span class=\"bill-col bill-col-actions\">Actions</span>";
     if (!usesSimpleBills) {
       billListHeader.querySelector(".bill-col-payoff-date")?.insertAdjacentHTML(
         "afterend",
@@ -8119,10 +8120,10 @@ function getBillCurrentBalanceObservation(bill, targetMonth = state.billMonth ||
     .filter(Boolean)
     .slice(0, 3);
   return {
-    value: balances.map(entry => formatCurrency(entry.balance)).join(" / "),
+    value: balances.map(entry => `${formatBudgetMonthLabel(entry.month).slice(0, 3)} ${formatCurrency(entry.balance)}`).join(" · "),
     title: balances.length
-      ? `${bill.name || "This bill"} — current balances, newest first:\n${balances.map(entry => `${formatBudgetMonthLabel(entry.month)}: ${formatCurrency(entry.balance)}`).join("\n")}`
-      : `${bill.name || "This bill"} — no validated current-balance history is available.`
+      ? `${bill.name || "This bill"} — saved current balances, newest first:\n${balances.map(entry => `${formatBudgetMonthLabel(entry.month)}: ${formatCurrency(entry.balance)}`).join("\n")}\nTap to open full balance history. These balances do not indicate payment status.`
+      : `${bill.name || "This bill"} — no saved current-balance history is available.`
   };
 }
 
