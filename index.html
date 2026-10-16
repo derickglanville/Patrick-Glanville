@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="icons/budget-notifications-180.png?v=2026-10-16">
   <link rel="manifest" href="app.webmanifest?v=2026-10-16">
     <link rel="stylesheet" href="styles.css?v=2026-10-16-att-net-001">
-    <link rel="stylesheet" href="mobile-bills.css?v=2026-10-16-001">
+    <link rel="stylesheet" href="mobile-bills.css?v=2026-10-16-002">
 </head>
 <body>
   <section class="collaboration-panel" aria-label="Collaboration access">
@@ -358,7 +358,10 @@
         <div id="mobileBillNavigator" class="mobile-bill-navigator" aria-label="Browse monthly bills" hidden>
           <div class="mobile-bill-navigator-heading">
             <strong>Browse bills</strong>
-            <span id="mobileBillPosition" aria-live="polite"></span>
+            <div class="mobile-bill-heading-actions">
+              <span id="mobileBillPosition" aria-live="polite"></span>
+              <button id="mobileBillGridBtn" type="button" aria-haspopup="dialog" aria-controls="mobileBillGridDialog">All bills</button>
+            </div>
           </div>
           <div class="mobile-bill-filters" role="group" aria-label="Filter monthly bills">
             <button type="button" data-mobile-bill-filter="all">All</button>
@@ -568,6 +571,26 @@
         <button type="submit">Save task</button>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="mobileBillGridDialog" aria-labelledby="mobileBillGridTitle">
+    <div class="mobile-bill-grid-dialog">
+      <div class="mobile-bill-grid-head">
+        <div>
+          <h2 id="mobileBillGridTitle">Monthly bills</h2>
+          <p id="mobileBillGridSummary"></p>
+        </div>
+        <button id="closeMobileBillGridBtn" type="button" class="ghost" aria-label="Close bill grid">Close</button>
+      </div>
+      <div class="mobile-bill-grid-scroll">
+        <table class="mobile-bill-grid-table">
+          <thead><tr><th scope="col">Bill</th><th scope="col">Amount</th><th scope="col">Due date</th></tr></thead>
+          <tbody id="mobileBillGridBody"></tbody>
+          <tfoot><tr><th scope="row">Total</th><td id="mobileBillGridTotal"></td><td></td></tr></tfoot>
+        </table>
+      </div>
+      <p class="mobile-bill-grid-hint">Tap a bill to open its card. The grid shows every bill in this month, regardless of the card filter.</p>
+    </div>
   </dialog>
 
   <dialog id="historyDialog">
@@ -848,6 +871,6 @@
   <script src="oil-investment.js?v=2026-10-14-001"></script>
   <script src="oil-tracker.js?v=2026-10-14-investment-001"></script>
   <script src="notes-dialog.js?v=2026-10-16-notes-grid-001"></script>
-  <script src="app.js?v=2026-10-16-mobile-bill-cards-001"></script>
+  <script src="app.js?v=2026-10-16-mobile-bill-grid-001"></script>
   </body>
   </html>

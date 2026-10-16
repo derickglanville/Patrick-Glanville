@@ -6999,6 +6999,20 @@ function moveMobileBill(step) {
   updateMobileBillNavigator();
 }
 
+function renderMobileBillGrid() {
+  const dialog = document.querySelector("#mobileBillGridDialog");
+  if (!dialog) return;
+  const bills = getBillsForCurrentDisplay();
+  const month = formatBudgetMonthLabel(state.billMonth || defaultBillMonth());
+  const total = bills.reduce((sum, bill) => sum + normalizeMoney(bill.amount), 0);
+  dialog.querySelector("#mobileBillGridTitle").textContent = `${month} bills`;
+  dialog.querySelector("#mobileBillGridSummary").textContent = `${bills.length} bill${bills.length === 1 ? "" : "s"} · ${formatCurrency(total)} total`;
+  dialog.querySelector("#mobileBillGridTotal").textContent = formatCurrency(total);
+  dialog.querySelector("#mobileBillGridBody").innerHTML = bills.length
+    ? bills.map(bill => `<tr${isBillPastDue(bill) ? ' class="is-past-due"' : ""}><td><button type="button" data-mobile-grid-bill-id="${escapeAttribute(bill.id)}">${escapeHtml(bill.name || "Untitled bill")}</button></td><td>${escapeHtml(formatCurrency(bill.amount))}</td><td>${bill.due ? escapeHtml(formatShortDate(bill.due)) : "—"}</td></tr>`).join("")
+    : '<tr><td colspan="3">No bills for this month.</td></tr>';
+}
+
 function updateMobileBillNavigator() {
   const navigator = document.querySelector("#mobileBillNavigator");
   if (!navigator) return;
@@ -7056,6 +7070,22 @@ function updateMobileBillNavigator() {
   });
   navigator.querySelector("#mobileBillPreviousBtn").addEventListener("click", () => moveMobileBill(-1));
   navigator.querySelector("#mobileBillNextBtn").addEventListener("click", () => moveMobileBill(1));
+  const gridDialog = document.querySelector("#mobileBillGridDialog");
+  navigator.querySelector("#mobileBillGridBtn").addEventListener("click", () => {
+    renderMobileBillGrid();
+    gridDialog.querySelector(".mobile-bill-grid-scroll").scrollTop = 0;
+    gridDialog.showModal();
+  });
+  gridDialog.querySelector("#closeMobileBillGridBtn").addEventListener("click", () => gridDialog.close());
+  gridDialog.querySelector("#mobileBillGridBody").addEventListener("click", event => {
+    const billButton = event.target.closest("[data-mobile-grid-bill-id]");
+    if (!billButton) return;
+    mobileBillView.filter = "all";
+    mobileBillView.billId = billButton.dataset.mobileGridBillId;
+    gridDialog.close();
+    updateMobileBillNavigator();
+    billList.querySelector('.budget-bill-item-simple:not([hidden])')?.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
   billList.addEventListener("change", event => {
     if (event.target.closest(".budget-bill-item-simple")) updateMobileBillNavigator();
   });

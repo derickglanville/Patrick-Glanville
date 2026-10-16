@@ -26,6 +26,23 @@
   body[data-device-layout="phone"] .mobile-bill-navigator-heading strong { font-size: 1.05rem; }
   body[data-device-layout="phone"] .mobile-bill-navigator-heading span { font-size: .82rem; font-weight: 800; }
 
+  body[data-device-layout="phone"] .mobile-bill-heading-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  body[data-device-layout="phone"] #mobileBillGridBtn {
+    min-height: 36px;
+    padding: 5px 9px;
+    border: 1px solid #1768b6;
+    border-radius: 8px;
+    background: #1768b6;
+    color: #fff;
+    font-size: .78rem !important;
+    font-weight: 800;
+  }
+
   body[data-device-layout="phone"] .mobile-bill-filters {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -158,4 +175,44 @@
   }
 
   body[data-device-layout="phone"] .budget-bill-item-simple .budget-bill-actions { justify-content: flex-end; }
+}
+
+#mobileBillGridDialog {
+  width: min(560px, calc(100vw - 20px));
+  max-width: calc(100vw - 20px);
+  max-height: min(86vh, 760px);
+  padding: 0;
+  border: 1px solid #aec8df;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.mobile-bill-grid-dialog { display: flex; flex-direction: column; max-height: min(86vh, 760px); }
+.mobile-bill-grid-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 16px; background: #eef6fd; border-bottom: 1px solid #c6d8e8; }
+.mobile-bill-grid-head h2 { margin: 0; color: #173a5d; font-size: 1.15rem; }
+.mobile-bill-grid-head p { margin: 4px 0 0; color: #52647d; font-size: .83rem; }
+.mobile-bill-grid-head button { flex: 0 0 auto; min-height: 38px; }
+.mobile-bill-grid-scroll { overflow: auto; min-height: 0; }
+.mobile-bill-grid-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: .84rem; }
+.mobile-bill-grid-table th,
+.mobile-bill-grid-table td { padding: 9px 7px; border-bottom: 1px solid #d9e4ed; text-align: left; vertical-align: middle; }
+.mobile-bill-grid-table th:first-child,
+.mobile-bill-grid-table td:first-child { width: 47%; }
+.mobile-bill-grid-table th:nth-child(2),
+.mobile-bill-grid-table td:nth-child(2) { width: 25%; text-align: right; white-space: nowrap; }
+.mobile-bill-grid-table th:nth-child(3),
+.mobile-bill-grid-table td:nth-child(3) { width: 28%; white-space: nowrap; }
+.mobile-bill-grid-table thead th { position: sticky; top: 0; z-index: 1; background: #e9f2fa; color: #31536f; font-size: .72rem; text-transform: uppercase; }
+.mobile-bill-grid-table tbody tr:nth-child(even) { background: #f8fbfe; }
+.mobile-bill-grid-table tbody tr.is-past-due td:last-child { color: #b42318; font-weight: 800; }
+.mobile-bill-grid-table td button { width: 100%; padding: 4px 0; border: 0; background: transparent; color: #155c9c; font-weight: 800; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.mobile-bill-grid-table tfoot { position: sticky; bottom: 0; background: #e9f3fb; font-weight: 800; }
+.mobile-bill-grid-hint { margin: 0; padding: 10px 16px 14px; border-top: 1px solid #d9e4ed; color: #52647d; font-size: .77rem; line-height: 1.35; }
+
+@media (max-width: 420px) {
+  .mobile-bill-grid-head { padding: 12px; }
+  .mobile-bill-grid-table { font-size: .77rem; }
+  .mobile-bill-grid-table th,
+  .mobile-bill-grid-table td { padding: 8px 5px; }
+  .mobile-bill-grid-table thead th { font-size: .66rem; }
 }
