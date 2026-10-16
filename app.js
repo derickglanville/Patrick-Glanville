@@ -3643,6 +3643,13 @@ function normalizeBillNotes(notes, status) {
   if (trimmedNotes === "Pending" || trimmedNotes === "This bill is paid") {
     return defaultBillNoteForStatus(status);
   }
+  // Payment analysis generated for an earlier month must not claim an unpaid
+  // bill is paid after its payment date has been cleared or the month copied.
+  if (!["Paid", "Paid Off", "Fully Paid"].includes(status)
+      && /^This bill is paid\. (?:Of the |The \$|\$)/.test(trimmedNotes)
+      && trimmedNotes.includes("Recommended payment:")) {
+    return defaultBillNoteForStatus(status);
+  }
   return trimmedNotes;
 }
 
@@ -7288,7 +7295,9 @@ function renderBills() {
     const interestPaid = calculateMonthlyInterestPortion(getEffectiveBillInterestBalance(bill), bill.apr);
     const interestPriority = getAdminInterestPriority(bill, interestPaid, recommendedPayment);
     const balanceDiff = effectiveCurrentBalance - effectivePreviousBalance;
-    const notesDisplay = buildAdminPaidBillProgressNote(bill, interestPaid, recommendedPayment) || bill.notes || "";
+    const notesDisplay = bill.status === "Paid"
+      ? buildAdminPaidBillProgressNote(bill, interestPaid, recommendedPayment)
+      : normalizeBillNotes(bill.notes, bill.status);
     const balanceObservation = getBillCurrentBalanceObservation(bill);
     const paymentPriorityDisplay = getAdminPaymentPriorityDisplay(interestPriority);
     const visibleProposedAmount = isAdminProposedPreviewActive()
