@@ -6976,7 +6976,14 @@ function usesAdminResponsiveGrid() {
   return isAdminClient() && ["phone", "tablet"].includes(document.body.dataset.deviceLayout);
 }
 
-const mobileBillView = { filter: "all", billId: null };
+const mobileBillView = { filter: "all", billId: null, context: "" };
+
+function getMobileNavigableBills() {
+  const bills = getBillsForCurrentDisplay();
+  return clientUsesBillGrouping()
+    ? bills.filter(bill => !bill.hidden).sort(compareBillsByDueDate)
+    : bills;
+}
 
 function isMobileBillPaid(bill) {
   return ["Paid", "Paid Off", "Fully Paid"].includes(bill.status);
@@ -6992,7 +6999,7 @@ function mobileBillMatchesFilter(bill) {
 }
 
 function moveMobileBill(step) {
-  const bills = getBillsForCurrentDisplay().filter(mobileBillMatchesFilter);
+  const bills = getMobileNavigableBills().filter(mobileBillMatchesFilter);
   if (!bills.length) return;
   const current = Math.max(0, bills.findIndex(bill => bill.id === mobileBillView.billId));
   mobileBillView.billId = bills[(current + step + bills.length) % bills.length].id;
@@ -7002,14 +7009,14 @@ function moveMobileBill(step) {
 function renderMobileBillGrid() {
   const dialog = document.querySelector("#mobileBillGridDialog");
   if (!dialog) return;
-  const bills = getBillsForCurrentDisplay();
+  const bills = getMobileNavigableBills();
   const month = formatBudgetMonthLabel(state.billMonth || defaultBillMonth());
-  const total = bills.reduce((sum, bill) => sum + normalizeMoney(bill.amount), 0);
+  const total = bills.reduce((sum, bill) => sum + getEffectiveBillAmount(bill), 0);
   dialog.querySelector("#mobileBillGridTitle").textContent = `${month} bills`;
-  dialog.querySelector("#mobileBillGridSummary").textContent = `${bills.length} bill${bills.length === 1 ? "" : "s"} · ${formatCurrency(total)} total`;
+  dialog.querySelector("#mobileBillGridSummary").textContent = `${bills.length} visible bill${bills.length === 1 ? "" : "s"} · ${formatCurrency(total)} total`;
   dialog.querySelector("#mobileBillGridTotal").textContent = formatCurrency(total);
   dialog.querySelector("#mobileBillGridBody").innerHTML = bills.length
-    ? bills.map(bill => `<tr${isBillPastDue(bill) ? ' class="is-past-due"' : ""}><td><button type="button" data-mobile-grid-bill-id="${escapeAttribute(bill.id)}">${escapeHtml(bill.name || "Untitled bill")}</button></td><td>${escapeHtml(formatCurrency(bill.amount))}</td><td>${bill.due ? escapeHtml(formatShortDate(bill.due)) : "—"}</td></tr>`).join("")
+    ? bills.map(bill => `<tr${isBillPastDue(bill) ? ' class="is-past-due"' : ""}><td><button type="button" data-mobile-grid-bill-id="${escapeAttribute(bill.id)}">${escapeHtml(bill.name || "Untitled bill")}</button></td><td>${escapeHtml(formatCurrency(getEffectiveBillAmount(bill)))}</td><td>${bill.due ? escapeHtml(formatShortDate(bill.due)) : "—"}</td></tr>`).join("")
     : '<tr><td colspan="3">No bills for this month.</td></tr>';
 }
 
@@ -7023,16 +7030,22 @@ function openMobileBillGrid() {
 function updateMobileBillNavigator() {
   const navigator = document.querySelector("#mobileBillNavigator");
   if (!navigator) return;
-  const active = document.body.dataset.deviceLayout === "phone" && !clientUsesBillGrouping();
+  const active = document.body.dataset.deviceLayout === "phone";
   navigator.hidden = !active;
   billList.closest(".budget-bill-scroll-shell")?.setAttribute("aria-label", active
     ? "Selected monthly bill card"
     : "Swipe left or right to view all bill columns");
   if (!active) {
-    billList.querySelectorAll(".budget-bill-item-simple[hidden]").forEach(row => { row.hidden = false; });
+    billList.querySelectorAll(".budget-bill-item[data-bill-id][hidden]").forEach(row => { row.hidden = false; });
     return;
   }
-  const bills = getBillsForCurrentDisplay();
+  const context = `${activeClientId}|${state.billMonth || defaultBillMonth()}`;
+  if (mobileBillView.context !== context) {
+    mobileBillView.filter = "all";
+    mobileBillView.billId = null;
+    mobileBillView.context = context;
+  }
+  const bills = getMobileNavigableBills();
   const filtered = bills.filter(mobileBillMatchesFilter);
   if (!filtered.some(bill => bill.id === mobileBillView.billId)) {
     mobileBillView.billId = filtered[0]?.id || null;
@@ -7057,11 +7070,11 @@ function updateMobileBillNavigator() {
   if (mobileBillView.billId) select.value = mobileBillView.billId;
   navigator.querySelector("#mobileBillPreviousBtn").disabled = filtered.length < 2;
   navigator.querySelector("#mobileBillNextBtn").disabled = filtered.length < 2;
-  const categoryTotal = filtered.reduce((sum, bill) => sum + normalizeMoney(bill.amount), 0);
+  const categoryTotal = filtered.reduce((sum, bill) => sum + getEffectiveBillAmount(bill), 0);
   navigator.querySelector("#mobileBillScope").textContent = filtered.length
-    ? `${formatCurrency(categoryTotal)} in this category. Month totals above include all ${bills.length} bills.`
-    : "No bills in this category. Month totals above still include every bill.";
-  billList.querySelectorAll(".budget-bill-item-simple[data-bill-id]").forEach(row => {
+    ? `${formatCurrency(categoryTotal)} in this category. Month totals above are not filtered.`
+    : "No bills in this category. Month totals above are not filtered.";
+  billList.querySelectorAll(".budget-bill-item[data-bill-id]").forEach(row => {
     row.hidden = row.dataset.billId !== mobileBillView.billId;
   });
   if (navigator.dataset.bound) return;
@@ -7088,10 +7101,10 @@ function updateMobileBillNavigator() {
     mobileBillView.billId = billButton.dataset.mobileGridBillId;
     gridDialog.close();
     updateMobileBillNavigator();
-    billList.querySelector('.budget-bill-item-simple:not([hidden])')?.scrollIntoView({ behavior: "smooth", block: "center" });
+    billList.querySelector('.budget-bill-item[data-bill-id]:not([hidden])')?.scrollIntoView({ behavior: "smooth", block: "center" });
   });
   billList.addEventListener("change", event => {
-    if (event.target.closest(".budget-bill-item-simple")) updateMobileBillNavigator();
+    if (event.target.closest(".budget-bill-item[data-bill-id]")) updateMobileBillNavigator();
   });
   let touchStart = null;
   billList.addEventListener("touchstart", event => {
@@ -7111,6 +7124,7 @@ function updateMobileBillNavigator() {
 
 function renderBills() {
   const usesSimpleBills = !clientUsesBillGrouping();
+  const mobileAdminCards = !usesSimpleBills && document.body.dataset.deviceLayout === "phone";
   const displayBills = getBillsForCurrentDisplay();
   const simulationActive = isAdminBillSimulationActive();
   const proposedPreviewActive = isAdminProposedPreviewActive();
@@ -7125,13 +7139,14 @@ function renderBills() {
   if (billMBFInput) billMBFInput.value = normalizeMoney(state.monthlyBudgetFund);
   if (budgetPanel) {
     // Patrick uses a simpler list; the Admin compact grid has different columns.
-    budgetPanel.classList.toggle("budget-panel-compact-view", !usesSimpleBills && Boolean(state.billsCompactView));
-    budgetPanel.classList.toggle("budget-panel-admin-mini", !usesSimpleBills && isAdminClient() && Boolean(state.billsCompactView));
+    budgetPanel.classList.toggle("budget-panel-compact-view", !usesSimpleBills && !mobileAdminCards && Boolean(state.billsCompactView));
+    budgetPanel.classList.toggle("budget-panel-admin-mini", !usesSimpleBills && !mobileAdminCards && isAdminClient() && Boolean(state.billsCompactView));
     budgetPanel.classList.toggle("is-admin-bill-simulation", simulationActive);
-    budgetPanel.classList.toggle("is-admin-tablet-grid", usesAdminResponsiveGrid());
+    budgetPanel.classList.toggle("is-admin-tablet-grid", usesAdminResponsiveGrid() && !mobileAdminCards);
+    budgetPanel.classList.toggle("is-mobile-admin-cards", mobileAdminCards);
   }
   if (toggleBillsCompactBtn) {
-    toggleBillsCompactBtn.hidden = usesSimpleBills;
+    toggleBillsCompactBtn.hidden = usesSimpleBills || mobileAdminCards;
     toggleBillsCompactBtn.textContent = !usesSimpleBills && isAdminClient()
       ? (state.billsCompactView ? "Full View" : "Mini View")
       : (state.billsCompactView ? "Standard View" : "Compact View");
@@ -7194,7 +7209,7 @@ function renderBills() {
   };
   const filteredBills = usesSimpleBills
     ? []
-    : (state.billGroupView === "full" ? visibleBills : (billGroups[state.billGroupView] || []));
+    : (mobileAdminCards || state.billGroupView === "full" ? visibleBills : (billGroups[state.billGroupView] || []));
 
   const buildBillTotalsRow = billsForTotals => {
     const totals = billsForTotals.reduce((acc, bill) => {
@@ -7382,6 +7397,7 @@ function renderBills() {
           <input class="bill-observation" type="text" value="${escapeAttribute(balanceObservation.value)}" aria-label="Last three current balances" readonly>
         </label>
       </div>
+      <button type="button" class="ghost mobile-bill-details-toggle" aria-expanded="false">Show all fields</button>
       <div class="budget-bill-actions bill-col-actions">
         <button type="button" class="toggle-bill-hidden" aria-label="${bill.hidden ? "Unhide" : "Hide"} bill">${bill.hidden ? "Unhide" : "Hide"}</button>
         <button type="button" class="delete-bill-button" aria-label="Delete bill" title="Delete bill">${usesSimpleBills ? "Delete" : "Del"}</button>
@@ -7421,6 +7437,12 @@ function renderBills() {
     row.querySelector(".bill-status").addEventListener("change", () => updateBillFromRow(row, { showPaymentInsight: true }));
     row.querySelector(".bill-notes").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-notes").addEventListener("blur", () => updateBillFromRow(row));
+    row.querySelector(".mobile-bill-details-toggle").addEventListener("click", event => {
+      event.stopPropagation();
+      const expanded = row.classList.toggle("mobile-bill-details-open");
+      event.currentTarget.setAttribute("aria-expanded", String(expanded));
+      event.currentTarget.textContent = expanded ? "Hide extra fields" : "Show all fields";
+    });
     row.addEventListener("click", event => {
       if (event.target.closest("button")) return;
       selectOnlyBillRow(row, bill.id);
@@ -7448,7 +7470,7 @@ function renderBills() {
       });
     }
     if (simulationActive) {
-      row.querySelectorAll("input, textarea, select, button").forEach(control => {
+      row.querySelectorAll("input, textarea, select, button:not(.mobile-bill-details-toggle)").forEach(control => {
         control.disabled = true;
       });
     }
@@ -7470,7 +7492,7 @@ function renderBills() {
   } else {
     const list = document.createElement("div");
     list.className = "budget-bill-list budget-bill-list-admin";
-    const filteredBills = state.billGroupView === "full"
+    const filteredBills = mobileAdminCards || state.billGroupView === "full"
       ? visibleBills
       : billGroups[state.billGroupView] || [];
     list.appendChild(buildBillTotalsRow(filteredBills));
@@ -7503,7 +7525,7 @@ function renderBills() {
 
   const billGroupToolbar = document.querySelector(".budget-group-toolbar");
   if (billGroupToolbar) {
-    billGroupToolbar.hidden = usesSimpleBills;
+    billGroupToolbar.hidden = usesSimpleBills || mobileAdminCards;
   }
   const billListHeader = document.querySelector(".budget-bill-list-header");
   if (billListHeader) {
@@ -13149,7 +13171,7 @@ document.querySelector("#addBillBtn").addEventListener("click", () => {
   deletedBillNames.delete("");
   state.monthlyBudgets[month].deletedBillNames = Array.from(deletedBillNames);
   state.bills.push(newBill);
-  if (!clientUsesBillGrouping()) {
+  if (document.body.dataset.deviceLayout === "phone") {
     mobileBillView.filter = "all";
     mobileBillView.billId = newBill.id;
   }
@@ -13478,6 +13500,7 @@ function getDeviceLayoutMode() {
 function applyDeviceLayout() {
   const selectedMode = getDeviceLayoutMode();
   const layout = selectedMode === "auto" ? detectDeviceLayout() : selectedMode;
+  const previousLayout = document.body.dataset.deviceLayout;
   document.body.dataset.deviceLayout = layout;
   document.body.dataset.deviceLayoutMode = selectedMode;
   // Remove the retired iPhone-only override; the selector now supports all device views.
@@ -13488,7 +13511,10 @@ function applyDeviceLayout() {
     const label = `${layout.charAt(0).toUpperCase()}${layout.slice(1)}`;
     deviceLayoutIndicator.textContent = selectedMode === "auto" ? `${label} layout` : `${label} view`;
   }
-  if (billList?.children.length) updateMobileBillNavigator();
+  if (billList?.children.length) {
+    if (previousLayout !== layout) renderBills();
+    else updateMobileBillNavigator();
+  }
 }
 
 function getMobileSectionTarget(section) {
