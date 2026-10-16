@@ -7541,8 +7541,8 @@ function getAdminCreditCardCandidates(chargeAmount) {
   const charge = normalizeMoney(chargeAmount);
   if (charge <= 0) return { charge, cardCharge: 0, cashAvailable: 0, safetyCushion: 0, candidates: [], excludedCount: 0, splitRecommendation: null };
   const cashAvailable = Math.max(0, calculateBudgetTotals(state.monthlyBudgetFund, state.bills, getCurrentMonthlyCashUsed()).cashFlow);
-  const cardCharge = normalizeMoney(Math.max(0, charge - cashAvailable));
-  if (cardCharge <= 0) return { charge, cardCharge, cashAvailable, safetyCushion: 0, candidates: [], excludedCount: 0, splitRecommendation: null };
+  // Compare the full purchase on credit, even when cash could cover it.
+  const cardCharge = charge;
   const safetyCushion = Math.max(100, normalizeMoney(cardCharge * 0.1));
   const recommendedPayments = calculateRecommendedBillPayments(state.bills);
   const creditCards = state.bills.filter(bill => bill.type === "Credit Card" && normalizeMoney(bill.creditLimit) > 0 && parseAprNumber(bill.apr) > 0);
@@ -7653,14 +7653,10 @@ function renderAdminCreditCardFinderResults(chargeAmount = 0) {
     adminCreditCardFinderBody.innerHTML = '<p class="admin-credit-card-finder-empty">Enter the amount of the planned charge to compare your eligible credit cards.</p>';
     return;
   }
-  if (result.cardCharge <= 0) {
-    adminCreditCardFinderBody.innerHTML = `<div class="admin-credit-card-finder-summary"><strong>Prefer liquid cash first</strong><span>${escapeHtml(`${formatCurrency(result.cashAvailable)} is available after scheduled bills and ${formatCurrency(getCurrentMonthlyCashUsed())} in monthly cash used, enough to cover this ${formatCurrency(result.charge)} charge without using a credit card.`)}</span></div>`;
-    return;
-  }
   if (!result.candidates.length) {
     if (result.splitRecommendation) {
       const split = result.splitRecommendation;
-      adminCreditCardFinderBody.innerHTML = `<div class="admin-credit-card-finder-payoff-advice"><strong>Use a two-card split only if credit is the only option</strong><p>No single card can safely carry ${escapeHtml(formatCurrency(result.charge))} while keeping the ${escapeHtml(formatCurrency(result.safetyCushion))} cushion. Put ${escapeHtml(formatCurrency(split.firstCharge))} on ${escapeHtml(split.first.bill.name)} and ${escapeHtml(formatCurrency(split.secondCharge))} on ${escapeHtml(split.second.bill.name)}. This keeps the highest projected utilization at ${escapeHtml(formatPercentLabel(split.maxUtilization * 100))}.</p></div>`;
+      adminCreditCardFinderBody.innerHTML = `<div class="admin-credit-card-finder-payoff-advice"><strong>If you prefer credit, consider a two-card split</strong><p>No single card can safely carry ${escapeHtml(formatCurrency(result.charge))} while keeping the ${escapeHtml(formatCurrency(result.safetyCushion))} cushion. Put ${escapeHtml(formatCurrency(split.firstCharge))} on ${escapeHtml(split.first.bill.name)} and ${escapeHtml(formatCurrency(split.secondCharge))} on ${escapeHtml(split.second.bill.name)}. This keeps the highest projected utilization at ${escapeHtml(formatPercentLabel(split.maxUtilization * 100))}.</p></div>`;
       return;
     }
     adminCreditCardFinderBody.innerHTML = `<p class="admin-credit-card-finder-empty">No card, or safe two-card split, has enough available credit for ${escapeHtml(formatCurrency(result.charge))} while keeping the ${escapeHtml(formatCurrency(result.safetyCushion))} cushion. Prefer liquid cash or another payment method.</p>`;
@@ -7669,9 +7665,9 @@ function renderAdminCreditCardFinderResults(chargeAmount = 0) {
   const best = result.candidates[0];
   const payoffImpact = getAdminCreditCardPayoffImpact(result.cardCharge, best);
   const cashAdvice = result.cashAvailable > 0
-    ? `The MBF leaves ${formatCurrency(result.cashAvailable)} after scheduled bills and ${formatCurrency(getCurrentMonthlyCashUsed())} in monthly cash used. Apply that cash first; the remaining ${formatCurrency(result.cardCharge)} is the amount being compared across cards.`
-      : "The current MBF does not show surplus cash after scheduled bills. If any separate liquid cash is available, use it first to avoid adding revolving debt.";
-  const payoffAdvice = `A ${formatCurrency(result.cardCharge)} charge on ${best.bill.name} adds about ${formatCurrency(payoffImpact.monthlyInterestAdded)} in monthly interest at ${formatApr(best.apr)} and raises the combined Recommended credit-card target from ${formatCurrency(payoffImpact.currentTarget)} to ${formatCurrency(payoffImpact.projectedTarget)} for the current 36-month payoff goal${payoffImpact.targetIncrease > 0 ? ` (${formatCurrency(payoffImpact.targetIncrease)} more each month)` : ""}. If that higher target cannot be paid, the payoff goal is delayed.`;
+    ? `Cash alternative: ${formatCurrency(result.cashAvailable)} is available after scheduled bills and ${formatCurrency(getCurrentMonthlyCashUsed())} in monthly cash used. ${result.cashAvailable >= result.charge ? "That covers this charge in full." : `${formatCurrency(result.charge - result.cashAvailable)} would remain if you used all available cash.`} The cards below assume you keep that cash and put the full ${formatCurrency(result.charge)} charge on credit.`
+    : `No surplus cash is shown after scheduled bills. The cards below are compared for the full ${formatCurrency(result.charge)} charge.`;
+  const payoffAdvice = `If a ${formatCurrency(result.cardCharge)} charge on ${best.bill.name} remains unpaid, it could add about ${formatCurrency(payoffImpact.monthlyInterestAdded)} in one month at ${formatApr(best.apr)}. The planning model raises the combined Recommended credit-card target from ${formatCurrency(payoffImpact.currentTarget)} to ${formatCurrency(payoffImpact.projectedTarget)} for the current 36-month payoff goal${payoffImpact.targetIncrease > 0 ? ` (${formatCurrency(payoffImpact.targetIncrease)} more each month)` : ""}. If that higher target cannot be paid, the payoff goal is delayed.`;
   const splitAdvice = result.splitRecommendation
     ? `A two-card split is safer for this required charge: put ${formatCurrency(result.splitRecommendation.firstCharge)} on ${result.splitRecommendation.first.bill.name} and ${formatCurrency(result.splitRecommendation.secondCharge)} on ${result.splitRecommendation.second.bill.name}. This keeps the highest projected utilization at ${formatPercentLabel(result.splitRecommendation.maxUtilization * 100)} instead of ${formatPercentLabel(best.projectedUtilization * 100)} on one card.`
     : "";
@@ -7680,7 +7676,7 @@ function renderAdminCreditCardFinderResults(chargeAmount = 0) {
     const reason = describeAdminCreditCardFinderRank(card, best, index);
     return `<tr${index === 0 ? ' class="is-recommended-card"' : ""}><td>${index === 0 ? "Best choice" : `Option ${index + 1}`}</td><td>${escapeHtml(card.bill.name || "Untitled card")}</td><td>${escapeHtml(formatApr(card.apr))}</td><td>${escapeHtml(formatCurrency(card.creditLimit))}</td><td>${escapeHtml(formatCurrency(card.availableCredit))}</td><td>${escapeHtml(formatCurrency(card.remainingCredit))}</td><td>${escapeHtml(formatPercentLabel(card.projectedUtilization * 100))}</td><td>${escapeHtml(progress)}</td><td>${escapeHtml(reason)}</td></tr>`;
   }).join("");
-  adminCreditCardFinderBody.innerHTML = `<div class="admin-credit-card-finder-summary"><strong>${escapeHtml("If a credit card is needed, use " + (best.bill.name || "this card"))}</strong><span>${escapeHtml(cashAdvice)}</span></div><div class="admin-credit-card-finder-payoff-advice"><strong>Protect the payoff goal</strong><p>${escapeHtml(payoffAdvice)}</p>${splitAdvice ? `<p><strong>Split recommendation:</strong> ${escapeHtml(splitAdvice)}</p>` : ""}</div><p class="admin-credit-card-finder-note"><strong>Order:</strong> best choice to least suitable choice for the remaining ${escapeHtml(formatCurrency(result.cardCharge))} card charge. A ${escapeHtml(formatCurrency(result.safetyCushion))} cushion is reserved on every recommendation. The result is a planning aid based on the current Admin bill values; it does not make a purchase or change any card balance.</p><div class="admin-credit-card-finder-table-wrap"><table class="admin-credit-card-finder-table"><thead><tr><th>Rank<br><small>Best to worst</small></th><th>Card</th><th>APR</th><th>Card limit</th><th>Open credit</th><th>After charge</th><th>Projected use</th><th>Payoff progress</th><th>Why</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  adminCreditCardFinderBody.innerHTML = `<div class="admin-credit-card-finder-summary"><strong>${escapeHtml("Best credit option: " + (best.bill.name || "this card"))}</strong><span>${escapeHtml(cashAdvice)}</span></div><div class="admin-credit-card-finder-payoff-advice"><strong>Protect the payoff goal</strong><p>${escapeHtml(payoffAdvice)}</p>${splitAdvice ? `<p><strong>Split recommendation:</strong> ${escapeHtml(splitAdvice)}</p>` : ""}</div><p class="admin-credit-card-finder-note"><strong>Order:</strong> best choice to least suitable choice for the full ${escapeHtml(formatCurrency(result.cardCharge))} card charge. A ${escapeHtml(formatCurrency(result.safetyCushion))} cushion is reserved on every recommendation. The result is a planning aid based on the current Admin bill values; it does not make a purchase or change any card balance.</p><div class="admin-credit-card-finder-table-wrap"><table class="admin-credit-card-finder-table"><thead><tr><th>Rank<br><small>Best to worst</small></th><th>Card</th><th>APR</th><th>Card limit</th><th>Open credit</th><th>After charge</th><th>Projected use</th><th>Payoff progress</th><th>Why</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 function openAdminCreditCardFinder() {
