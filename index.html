@@ -15,6 +15,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="icons/budget-notifications-180.png?v=2026-10-16">
   <link rel="manifest" href="app.webmanifest?v=2026-10-16">
     <link rel="stylesheet" href="styles.css?v=2026-10-16-att-net-001">
+    <link rel="stylesheet" href="mobile-bills.css?v=2026-10-16-001">
 </head>
 <body>
   <section class="collaboration-panel" aria-label="Collaboration access">
@@ -354,6 +355,24 @@
           <article><strong id="billPastDue">0</strong><span>Past due</span></article>
         </div>
         <p id="budgetAlert" class="budget-alert" hidden></p>
+        <div id="mobileBillNavigator" class="mobile-bill-navigator" aria-label="Browse monthly bills" hidden>
+          <div class="mobile-bill-navigator-heading">
+            <strong>Browse bills</strong>
+            <span id="mobileBillPosition" aria-live="polite"></span>
+          </div>
+          <div class="mobile-bill-filters" role="group" aria-label="Filter monthly bills">
+            <button type="button" data-mobile-bill-filter="all">All</button>
+            <button type="button" data-mobile-bill-filter="due">Due soon</button>
+            <button type="button" data-mobile-bill-filter="unpaid">Unpaid</button>
+            <button type="button" data-mobile-bill-filter="paid">Paid</button>
+          </div>
+          <div class="mobile-bill-picker">
+            <button id="mobileBillPreviousBtn" type="button" class="ghost" aria-label="Previous bill">Previous</button>
+            <label for="mobileBillSelect"><span>Choose bill</span><select id="mobileBillSelect" aria-label="Choose monthly bill"></select></label>
+            <button id="mobileBillNextBtn" type="button" class="ghost" aria-label="Next bill">Next</button>
+          </div>
+          <p id="mobileBillScope" class="mobile-bill-scope"></p>
+        </div>
         <div class="budget-bill-group" aria-label="Monthly bills list">
           <div class="budget-bill-scroll-shell" aria-label="Swipe left or right to view all bill columns">
             <div class="budget-bill-list-header" aria-hidden="true">
@@ -829,6 +848,6 @@
   <script src="oil-investment.js?v=2026-10-14-001"></script>
   <script src="oil-tracker.js?v=2026-10-14-investment-001"></script>
   <script src="notes-dialog.js?v=2026-10-16-notes-grid-001"></script>
-  <script src="app.js?v=2026-10-16-ios-app-name-001"></script>
+  <script src="app.js?v=2026-10-16-mobile-bill-cards-001"></script>
   </body>
   </html>

@@ -1,0 +1,161 @@
+/* Phone budget navigation is limited to Patrick's simpler bill view. */
+.mobile-bill-navigator,
+.mobile-bill-details-toggle {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  body[data-device-layout="phone"] .mobile-bill-navigator:not([hidden]) {
+    display: grid;
+    gap: 10px;
+    margin: 12px 0 10px;
+    padding: 12px;
+    border: 1px solid #bed3e8;
+    border-radius: 14px;
+    background: #f2f8ff;
+  }
+
+  body[data-device-layout="phone"] .mobile-bill-navigator-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    color: #173a5d;
+  }
+
+  body[data-device-layout="phone"] .mobile-bill-navigator-heading strong { font-size: 1.05rem; }
+  body[data-device-layout="phone"] .mobile-bill-navigator-heading span { font-size: .82rem; font-weight: 800; }
+
+  body[data-device-layout="phone"] .mobile-bill-filters {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  body[data-device-layout="phone"] .mobile-bill-filters button {
+    min-width: 0;
+    min-height: 38px;
+    padding: 5px 2px;
+    border: 1px solid #b8cde1;
+    border-radius: 8px;
+    background: #fff;
+    color: #31536f;
+    font-size: .72rem !important;
+    font-weight: 800;
+    line-height: 1.1;
+  }
+
+  body[data-device-layout="phone"] .mobile-bill-filters button[aria-pressed="true"] {
+    border-color: #1768b6;
+    background: #1768b6;
+    color: #fff;
+  }
+
+  body[data-device-layout="phone"] .mobile-bill-picker {
+    display: grid;
+    grid-template-columns: 76px minmax(0, 1fr) 58px;
+    align-items: end;
+    gap: 6px;
+  }
+
+  body[data-device-layout="phone"] .mobile-bill-picker label {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+    color: #52647d;
+    font-size: .69rem;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  body[data-device-layout="phone"] .mobile-bill-picker select {
+    width: 100%;
+    min-width: 0;
+    height: 44px;
+    padding: 5px;
+    border: 1px solid #a9c6e1;
+    border-radius: 8px;
+    background: #fff;
+    color: #173a5d;
+    font-weight: 700;
+  }
+
+  body[data-device-layout="phone"] .mobile-bill-picker button {
+    min-height: 44px;
+    padding: 4px;
+    font-size: .74rem !important;
+    font-weight: 800;
+  }
+
+  body[data-device-layout="phone"] .mobile-bill-scope {
+    margin: 0;
+    color: #4b6279;
+    font-size: .77rem;
+    line-height: 1.3;
+  }
+
+  body[data-device-layout="phone"] .budget-bill-item-simple[hidden] { display: none !important; }
+  body[data-device-layout="phone"] .budget-bill-list-simple { display: block; }
+
+  body[data-device-layout="phone"] .budget-bill-item-simple {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "bill bill"
+      "amount due"
+      "status paid-date"
+      "details details"
+      "actions actions";
+    gap: 9px;
+    padding: 14px;
+    border: 1px solid #aac8e3;
+    border-top: 4px solid #1768b6;
+    border-radius: 14px;
+    box-shadow: 0 5px 16px rgba(20, 65, 105, .08);
+  }
+
+  body[data-device-layout="phone"] .budget-bill-item-simple.mobile-bill-details-open {
+    grid-template-areas:
+      "bill bill"
+      "amount due"
+      "status paid-date"
+      "details details"
+      "previous current"
+      "notes notes"
+      "actions actions";
+  }
+
+  body[data-device-layout="phone"] .budget-bill-item-simple .budget-bill-selector-box,
+  body[data-device-layout="phone"] .budget-bill-item-simple .bill-field-previous-balance,
+  body[data-device-layout="phone"] .budget-bill-item-simple .bill-field-current-balance,
+  body[data-device-layout="phone"] .budget-bill-item-simple .bill-field-notes { display: none; }
+
+  body[data-device-layout="phone"] .budget-bill-item-simple.mobile-bill-details-open .bill-field-previous-balance,
+  body[data-device-layout="phone"] .budget-bill-item-simple.mobile-bill-details-open .bill-field-current-balance,
+  body[data-device-layout="phone"] .budget-bill-item-simple.mobile-bill-details-open .bill-field-notes { display: block; }
+
+  body[data-device-layout="phone"] .budget-bill-item-simple .mobile-bill-details-toggle {
+    display: block;
+    grid-area: details;
+    width: 100%;
+    min-height: 38px;
+    border-color: #c7d8e7;
+    background: #eef5fb;
+    color: #174d79;
+    font-size: .83rem !important;
+    font-weight: 800;
+  }
+
+  body[data-device-layout="phone"] .budget-bill-item-simple .bill-field-name input {
+    font-size: 1rem;
+    font-weight: 800;
+  }
+
+  body[data-device-layout="phone"] .budget-bill-item-simple .bill-field-amount input {
+    border-color: #8fbae0;
+    background: #f5faff;
+    color: #123b5d;
+    font-weight: 800;
+  }
+
+  body[data-device-layout="phone"] .budget-bill-item-simple .budget-bill-actions { justify-content: flex-end; }
+}
