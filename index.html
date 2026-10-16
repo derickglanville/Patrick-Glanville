@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="icons/budget-notifications-180.png?v=2026-10-16">
   <link rel="manifest" href="app.webmanifest?v=2026-10-16">
     <link rel="stylesheet" href="styles.css?v=2026-10-16-att-net-001">
-    <link rel="stylesheet" href="mobile-bills.css?v=2026-10-16-admin-cards-001">
+    <link rel="stylesheet" href="mobile-bills.css?v=2026-10-16-mobile-balances-001">
 </head>
 <body>
   <section class="collaboration-panel" aria-label="Collaboration access">
@@ -584,9 +584,9 @@
       </div>
       <div class="mobile-bill-grid-scroll">
         <table class="mobile-bill-grid-table">
-          <thead><tr><th scope="col">Bill</th><th scope="col">Amount</th><th scope="col">Due date</th></tr></thead>
+          <thead><tr><th scope="col">Bill</th><th scope="col">Current balance</th><th scope="col">Amount</th><th scope="col">Due date</th></tr></thead>
           <tbody id="mobileBillGridBody"></tbody>
-          <tfoot><tr><th scope="row">Visible total</th><td id="mobileBillGridTotal"></td><td></td></tr></tfoot>
+          <tfoot><tr><th scope="row">Visible total</th><td id="mobileBillGridBalanceTotal"></td><td id="mobileBillGridTotal"></td><td></td></tr></tfoot>
         </table>
       </div>
       <p class="mobile-bill-grid-hint">Tap a bill to open its card. The grid shows every visible bill in this month, regardless of the card filter.</p>
@@ -871,6 +871,6 @@
   <script src="oil-investment.js?v=2026-10-14-001"></script>
   <script src="oil-tracker.js?v=2026-10-14-investment-001"></script>
   <script src="notes-dialog.js?v=2026-10-16-notes-grid-001"></script>
-  <script src="app.js?v=2026-10-16-admin-cards-001"></script>
+  <script src="app.js?v=2026-10-16-mobile-balances-001"></script>
   </body>
   </html>

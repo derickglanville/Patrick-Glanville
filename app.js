@@ -7012,12 +7012,14 @@ function renderMobileBillGrid() {
   const bills = getMobileNavigableBills();
   const month = formatBudgetMonthLabel(state.billMonth || defaultBillMonth());
   const total = bills.reduce((sum, bill) => sum + getEffectiveBillAmount(bill), 0);
+  const balanceTotal = bills.reduce((sum, bill) => sum + getEffectiveBillCurrentBalance(bill), 0);
   dialog.querySelector("#mobileBillGridTitle").textContent = `${month} bills`;
   dialog.querySelector("#mobileBillGridSummary").textContent = `${bills.length} visible bill${bills.length === 1 ? "" : "s"} · ${formatCurrency(total)} total`;
   dialog.querySelector("#mobileBillGridTotal").textContent = formatCurrency(total);
+  dialog.querySelector("#mobileBillGridBalanceTotal").textContent = formatCurrency(balanceTotal);
   dialog.querySelector("#mobileBillGridBody").innerHTML = bills.length
-    ? bills.map(bill => `<tr${isBillPastDue(bill) ? ' class="is-past-due"' : ""}><td><button type="button" data-mobile-grid-bill-id="${escapeAttribute(bill.id)}">${escapeHtml(bill.name || "Untitled bill")}</button></td><td>${escapeHtml(formatCurrency(getEffectiveBillAmount(bill)))}</td><td>${bill.due ? escapeHtml(formatShortDate(bill.due)) : "—"}</td></tr>`).join("")
-    : '<tr><td colspan="3">No bills for this month.</td></tr>';
+    ? bills.map(bill => `<tr${isBillPastDue(bill) ? ' class="is-past-due"' : ""}><td><button type="button" data-mobile-grid-bill-id="${escapeAttribute(bill.id)}">${escapeHtml(bill.name || "Untitled bill")}</button></td><td>${escapeHtml(formatBillCurrentBalanceForDisplay(bill))}</td><td>${escapeHtml(formatCurrency(getEffectiveBillAmount(bill)))}</td><td>${bill.due ? escapeHtml(formatShortDate(bill.due)) : "—"}</td></tr>`).join("")
+    : '<tr><td colspan="4">No bills for this month.</td></tr>';
 }
 
 function openMobileBillGrid() {
