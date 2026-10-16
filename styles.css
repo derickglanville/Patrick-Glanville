@@ -5087,7 +5087,9 @@ body[data-device-layout="compact"] .budget-panel-popout .budget-bill-list-simple
 .att-cancellation-notes tfoot td { color: #5d430a; background: #fff3c7; font-weight: 800; border-top: 2px solid #d3ab50; }
 .att-cancellation-notes tfoot th { position: static; }
 .att-cancellation-notes tfoot td:nth-child(2),
-.att-cancellation-notes tfoot td:nth-child(3) { white-space: nowrap; }
+.att-cancellation-notes tfoot td:nth-child(3),
+.att-cancellation-notes tfoot .att-cancellation-net { white-space: nowrap; }
+.att-cancellation-notes tfoot .att-cancellation-net { font-size: .82rem; }
 .att-cancellation-notes-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .att-cancellation-notes-head p { margin: 5px 0 0; color: #6b6250; font-size: .8rem; }
 .att-cancellation-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
