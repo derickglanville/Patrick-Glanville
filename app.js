@@ -60,7 +60,7 @@ const clientConfigs = {
     shortName: "Patrick",
     fullName: "Patrick Glanville",
     title: "3G Budget and Notifications",
-    browserTitle: "3G Budget and Notifications",
+    browserTitle: "Budget & Notifications",
     lede: "Tracking dashboard for transportation, income, benefits, family communication, and home-safety tasks.",
     storageKey: PATRICK_STORAGE_KEY,
     watchKey: PATRICK_WATCH_STORAGE_KEY,
@@ -82,7 +82,7 @@ const clientConfigs = {
     shortName: "Derick",
     fullName: "Derick Glanville",
     title: "3G Budget and Notifications",
-    browserTitle: "3G Budget and Notifications",
+    browserTitle: "Budget & Notifications",
     lede: "A focused dashboard for tracking work, expenses, and daily follow-through.",
     storageKey: THEODORE_STORAGE_KEY,
     watchKey: THEODORE_WATCH_STORAGE_KEY,
@@ -104,7 +104,7 @@ const clientConfigs = {
     shortName: "Admin",
     fullName: "Admin",
     title: "3G Budget and Notifications",
-    browserTitle: "3G Budget and Notifications",
+    browserTitle: "Budget & Notifications",
     lede: "An administrative dashboard for managing monthly bills, follow-through, and shared household financial actions.",
     storageKey: ADMIN_STORAGE_KEY,
     watchKey: ADMIN_WATCH_STORAGE_KEY,
@@ -6254,7 +6254,7 @@ function updateClientChrome() {
     ? client.lede
     : "Choose a client to load their separate dashboard, notes, reports, and saved history.";
   if (appEyebrow) appEyebrow.textContent = client ? `Client workspace: ${client.fullName}` : "Multi-client tracking workspace";
-  document.title = client ? client.browserTitle : "3G Tracking and Notifications";
+  document.title = client ? client.browserTitle : "Budget & Notifications";
   if (processGuideBtn) processGuideBtn.hidden = !client?.supportsReports;
   if (urgencyReportBtn) urgencyReportBtn.hidden = !client?.supportsReports;
   if (patrickChangeReportBtn) patrickChangeReportBtn.hidden = !client?.supportsReports;

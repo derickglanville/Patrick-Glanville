@@ -1,8 +1,12 @@
 {
-  "name": "3G Budget and Notifications",
-  "short_name": "3G Budget",
+  "name": "Budget & Notifications",
+  "short_name": "Budget & Notifications",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#123b5d"
+  "theme_color": "#123b5d",
+  "icons": [
+    { "src": "icons/budget-notifications-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/budget-notifications-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
 }
