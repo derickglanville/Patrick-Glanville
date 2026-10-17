@@ -8,9 +8,56 @@ let oilEditingReadingId = "";
 let oilSearch = "";
 let oilUsageYear = "";
 const OIL_REGIONAL_PRICE_API = "https://data.ny.gov/resource/rc94-5y2u.json?$select=date,lower_hudson_average_gal&$order=date%20DESC&$limit=1";
+const OIL_PRICE_HISTORY_API = "https://data.ny.gov/resource/rc94-5y2u.json?$select=date,lower_hudson_average_gal&$where=lower_hudson_average_gal%20IS%20NOT%20NULL&$order=date%20DESC&$limit=52";
 const OIL_REGIONAL_PRICE_SOURCE = "https://www.nyserda.ny.gov/energy-prices/home-heating-oil/average-home-heating-oil-prices";
 const OIL_YORKTOWN_PRICE_SOURCE = "https://www.gethomeheat.com/prices/ny/yorktown-heights";
 let oilRegionalPrice = { status: "idle", price: null, date: "", checkedAt: 0, error: "" };
+let oilPriceHistory = { status: "idle", rows: [], checkedAt: 0, error: "" };
+
+async function checkOilPriceHistory(force = false) {
+  if (oilPriceHistory.status === "loading") return;
+  if (!force && oilPriceHistory.checkedAt && Date.now() - oilPriceHistory.checkedAt < 6 * 60 * 60 * 1000) return;
+  oilPriceHistory.status = "loading";
+  if (oilTab === "priceHistory") renderHomeHeatingOil();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+  try {
+    const response = await fetch(OIL_PRICE_HISTORY_API, { cache: "no-store", signal: controller.signal });
+    if (!response.ok) throw new Error(`Price service returned ${response.status}`);
+    const result = await response.json();
+    if (!Array.isArray(result)) throw new Error("Invalid price history");
+    const rows = result.map(row => ({ date: String(row.date || "").slice(0, 10), price: Number(row.lower_hudson_average_gal) }))
+      .filter(row => /^\d{4}-\d{2}-\d{2}$/.test(row.date) && Number.isFinite(row.price) && row.price > 0 && row.price <= 30)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    if (rows.length < 2) throw new Error("Not enough price observations");
+    oilPriceHistory = { status: "ready", rows, checkedAt: Date.now(), error: "" };
+  } catch (error) {
+    oilPriceHistory = { ...oilPriceHistory, status: "error", checkedAt: Date.now(), error: error?.name === "AbortError" ? "The history check timed out." : "Price history is unavailable right now." };
+  } finally {
+    clearTimeout(timeout);
+    if (oilTab === "priceHistory") renderHomeHeatingOil();
+  }
+}
+
+function oilPriceHistoryView() {
+  const rows = oilPriceHistory.rows;
+  const latest = rows.at(-1), previous = rows.at(-2);
+  const change = latest && previous ? latest.price - previous.price : null;
+  const chartRows = rows.slice(-26);
+  const low = Math.min(...chartRows.map(row => row.price));
+  const high = Math.max(...chartRows.map(row => row.price));
+  const width = 800, height = 220, pad = 28;
+  const firstTime = oilDate(chartRows[0]?.date || oilIsoToday()).getTime();
+  const lastTime = oilDate(chartRows.at(-1)?.date || oilIsoToday()).getTime();
+  const x = index => pad + (oilDate(chartRows[index].date).getTime() - firstTime) * (width - 2 * pad) / Math.max(1, lastTime - firstTime);
+  const y = price => height - pad - (price - low) * (height - 2 * pad) / Math.max(.01, high - low);
+  const path = chartRows.map((row, index) => `${index ? "L" : "M"}${x(index).toFixed(1)} ${y(row.price).toFixed(1)}`).join(" ");
+  return `<div class="oil-price-view"><section class="oil-card oil-price-hero"><div><small>Lower Hudson · #2 heating oil</small><h3>Price changes over time</h3><p>Actual NYSERDA survey dates are plotted. Prices are surveyed weekly during heating season and less often outside it; there is no daily observed price for dates between surveys.</p></div><button id="oilRefreshHistory" type="button" ${oilPriceHistory.status === "loading" ? "disabled" : ""}>${oilPriceHistory.status === "loading" ? "Checking…" : "Refresh history"}</button></section>
+    ${oilPriceHistory.error ? `<p class="oil-price-error" role="status">${escapeHtml(oilPriceHistory.error)}${rows.length ? " Showing the last fetched history." : ""}</p>` : ""}
+    ${latest ? `<div class="oil-price-grid"><section class="oil-card oil-price-metric"><small>Latest surveyed average</small><strong>${oilMoney(latest.price)} / gal</strong><span>${escapeHtml(latest.date)}</span></section><section class="oil-card oil-price-metric"><small>Change since previous survey</small><strong class="${change > 0 ? "oil-price-up" : change < 0 ? "oil-price-down" : ""}">${change > 0 ? "+" : change < 0 ? "−" : ""}${oilMoney(Math.abs(change))} / gal</strong><span>From ${escapeHtml(previous.date)} to ${escapeHtml(latest.date)}</span></section></div>
+    <section class="oil-card"><h3>Price trend <small>last ${chartRows.length} surveys</small></h3><div class="oil-history-chart" role="img" aria-label="Lower Hudson surveyed oil price from ${escapeAttribute(chartRows[0].date)} at ${oilMoney(chartRows[0].price)} per gallon to ${escapeAttribute(latest.date)} at ${oilMoney(latest.price)} per gallon"><svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none"><line x1="${pad}" y1="${pad}" x2="${width-pad}" y2="${pad}"/><line x1="${pad}" y1="${height-pad}" x2="${width-pad}" y2="${height-pad}"/><path d="${path}"/>${chartRows.map((row, index) => `<circle cx="${x(index).toFixed(1)}" cy="${y(row.price).toFixed(1)}" r="3"><title>${escapeHtml(row.date)}: ${oilMoney(row.price)} / gal</title></circle>`).join("")}</svg></div><div class="oil-history-axis"><span>${escapeHtml(chartRows[0].date)} · ${oilMoney(chartRows[0].price)}</span><span>${escapeHtml(latest.date)} · ${oilMoney(latest.price)}</span></div><p>Range: ${oilMoney(low)}–${oilMoney(high)} per gallon. Points show survey observations, not estimated daily prices.</p></section>
+    <section class="oil-card"><h3>Dated changes</h3><div class="oil-table-wrap"><table class="oil-table oil-history-table"><thead><tr><th>Survey date</th><th>Average / gal</th><th>Change from prior survey</th><th>Days since prior survey</th></tr></thead><tbody>${rows.slice().reverse().map((row, index, descending) => { const prior = descending[index + 1], diff = prior ? row.price - prior.price : null; const days = prior ? Math.round((oilDate(row.date) - oilDate(prior.date)) / 86400000) : null; return `<tr><td>${escapeHtml(row.date)}</td><td>${oilMoney(row.price)}</td><td class="${diff > 0 ? "oil-price-up" : diff < 0 ? "oil-price-down" : ""}">${diff == null ? "—" : `${diff > 0 ? "+" : diff < 0 ? "−" : ""}${oilMoney(Math.abs(diff))}`}</td><td>${days ?? "—"}</td></tr>`; }).join("")}</tbody></table></div><p><a href="${OIL_REGIONAL_PRICE_SOURCE}" target="_blank" rel="noopener noreferrer">NYSERDA source and methodology</a>. Lower Hudson includes Westchester; this is a regional posted credit average, not a Yorktown dealer quote.</p></section>` : `<section class="oil-card"><p>${oilPriceHistory.status === "loading" ? "Loading dated price observations…" : "Select Refresh history to load price observations."}</p></section>`}</div>`;
+}
 
 async function checkOilRegionalPrice(force = false) {
   if (oilRegionalPrice.status === "loading") return;
@@ -220,11 +267,12 @@ function renderHomeHeatingOil() {
   if (!usageYears.includes(oilUsageYear) && oilUsageYear !== "average") oilUsageYear = usageYears.filter(value => value < year).at(-1) || usageYears.at(-1) || "average";
   const usageYearIndex = usageYears.indexOf(oilUsageYear);
   const rate = oilUsageYear === "average" ? oilSeasonalRates(rows) : oilMonthlyUsageForYear(rows, oilUsageYear);
-  root.innerHTML = `<div class="oil-tabs" role="tablist">${[["overview","Overview"],["prices","Local Prices"],["efficiency","Efficiency Review"],["investment","Siding Investment"],["deliveries","Deliveries"],["readings","Tank Readings"],["savings","Save Energy"]].map(([key,label]) => `<button type="button" data-oil-tab="${key}" class="${oilTab === key ? "active" : "ghost"}" aria-selected="${oilTab === key}">${label}</button>`).join("")}</div>
+  root.innerHTML = `<div class="oil-tabs" role="tablist">${[["overview","Overview"],["prices","Local Prices"],["priceHistory","Price Changes"],["efficiency","Efficiency Review"],["investment","Siding Investment"],["deliveries","Deliveries"],["readings","Tank Readings"],["savings","Save Energy"]].map(([key,label]) => `<button type="button" data-oil-tab="${key}" class="${oilTab === key ? "active" : "ghost"}" aria-selected="${oilTab === key}">${label}</button>`).join("")}</div>
   <div class="oil-kpis"><article><small>Tank capacity</small><strong>270 gal</strong></article><article><small>Latest delivery</small><strong>${latest ? `${oilNumber(latest.gallons)} gal` : "—"}</strong><span>${latest?.date || "No deliveries"}</span></article><article><small>${year} delivered</small><strong>${oilNumber(yearRows.reduce((n,r)=>n+r.gallons,0))} gal</strong><span>${oilMoney(yearRows.reduce((n,r)=>n+(r.amount ?? r.gallons*r.price),0))}</span></article><article class="${projection.status === "ready" && projection.daysToRefill <= 14 ? "oil-alert" : ""}"><small>Refill outlook</small><strong>${projection.status === "ready" ? `${oilNumber(projection.current)} gal` : "Reading needed"}</strong><span>${projection.status === "ready" ? `${Math.round(projection.percent)}% estimated · 25% around ${projection.refillDate || "later"}` : projection.status === "stale" ? `Last reading ${projection.age} days old` : "Record a recent tank gauge reading"}</span></article></div>
   ${oilTab === "overview" ? `<div class="oil-two-col"><section class="oil-card"><div class="oil-chart-heading"><h3>Monthly use estimate <small>gal / day</small></h3><div class="oil-year-controls"><button type="button" id="oilPrevYear" class="ghost" aria-label="Previous year" ${usageYearIndex <= 0 && oilUsageYear !== "average" ? "disabled" : ""}>←</button><select id="oilUsageYear" aria-label="Usage chart year"><option value="average" ${oilUsageYear === "average" ? "selected" : ""}>2022–present average</option>${usageYears.map(value => `<option value="${value}" ${oilUsageYear === value ? "selected" : ""}>${value}</option>`).join("")}</select><button type="button" id="oilNextYear" class="ghost" aria-label="Next year" ${usageYearIndex >= usageYears.length - 1 || oilUsageYear === "average" ? "disabled" : ""}>→</button></div></div>${oilBarChart(rate, oilUsageYear === "average" ? "2022–present average" : oilUsageYear)}<p>${oilUsageYear === "average" ? "Seasonal average from 2022–present delivery intervals." : `${oilUsageYear} estimate from delivery-to-delivery intervals. A dash means fewer than 14 covered days for that month.`} Delivery amounts approximate use; actual consumption can vary.</p></section><section class="oil-card"><h3>Annual deliveries <small>completed years · scroll for earlier years</small></h3>${oilAnnualChart(rows)}<p>Cost uses recorded invoice totals when available; otherwise gallons × entered unit price.</p></section></div><div class="oil-info">${projection.status === "ready" ? `Based on the ${projection.latest.date} reading, approximately <b>${oilNumber(projection.current)} gallons</b> remain. Plan to order by <b>${projection.refillDate || "your next gauge check"}</b> (25% reserve). ${projection.daysToRefill <= 14 ? "The tank is within the 14-day refill window." : "Recheck the gauge weekly."}` : "A current gauge reading is required for a reliable low-oil forecast and text alert. Old workbook gauge notes are not treated as today's level."}</div>` : ""}
   ${oilTab === "efficiency" ? oilEfficiencyView(rows) : ""}
   ${oilTab === "prices" ? oilPriceView(data) : ""}
+  ${oilTab === "priceHistory" ? oilPriceHistoryView() : ""}
   ${oilTab === "investment" ? oilInvestmentView(data) : ""}
   ${oilTab === "deliveries" ? `<div class="oil-toolbar"><label>Search deliveries<input id="oilSearch" type="search" value="${escapeAttribute(oilSearch)}" placeholder="Company, payer, notes, date"></label><button id="oilAddDelivery" type="button">Add Delivery</button></div><div id="oilEditor"></div><div class="oil-table-wrap"><table class="oil-table"><thead><tr><th>Date</th><th>Gallons</th><th>Price / gal</th><th>Amount</th><th>Company</th><th>Paid by</th><th>Gauge note</th><th>Notes</th><th>Actions</th></tr></thead><tbody>${rows.filter(row => `${row.date} ${row.company} ${row.paidBy} ${row.notes}`.toLowerCase().includes(oilSearch.toLowerCase())).map(row => `<tr><td>${escapeHtml(row.date)}</td><td>${oilNumber(row.gallons,1)}</td><td>${oilMoney(row.price)}</td><td>${row.amount == null ? "—" : oilMoney(row.amount)}</td><td>${escapeHtml(row.company)}</td><td>${escapeHtml(row.paidBy)}</td><td>${escapeHtml(row.levelNote)}</td><td>${escapeHtml(row.notes)}</td><td><button type="button" class="ghost oil-edit" data-id="${escapeAttribute(row.id)}">Edit</button><button type="button" class="ghost oil-delete" data-id="${escapeAttribute(row.id)}">Delete</button></td></tr>`).join("")}</tbody></table></div><p class="oil-footnote">Source: Home Heating Oil.xlsx. Blank invoice amounts stay blank; historic gauge notes are preserved as written where recognizable.</p>` : ""}
   ${oilTab === "readings" ? `<section class="oil-card"><h3>${editingReading ? "Update tank gauge" : "Record tank gauge"}</h3><p>Read the physical gauge and enter its percentage. The forecast and text alert use the newest reading only when it is at most 30 days old. A daily check on this computer attempts a text to 914-672-2393 when the 25% reserve is within 14 days; Verizon's legacy email-to-text delivery is not guaranteed.</p><form id="oilReadingForm" class="oil-reading-form"><label>Date<input name="date" type="date" value="${editingReading?.date || oilIsoToday()}" max="${oilIsoToday()}" required></label><label>Tank level<select name="percent">${[100,87.5,75,62.5,50,37.5,25,12.5,0].map(p => `<option value="${p}"${editingReading?.percent === p ? " selected" : ""}>${p}% · ${oilNumber(data.capacity*p/100)} gal</option>`).join("")}</select></label><label>Note<input name="note" value="${escapeAttribute(editingReading?.note || "")}" placeholder="Gauge check or service note"></label><button type="submit">${editingReading ? "Update Reading" : "Save Reading"}</button>${editingReading ? '<button type="button" id="oilCancelReading" class="ghost">Cancel</button>' : ""}</form></section><div class="oil-table-wrap"><table class="oil-table"><thead><tr><th>Date</th><th>Gauge</th><th>Approx. gallons</th><th>Note</th><th>Actions</th></tr></thead><tbody>${[...data.readings].sort((a,b)=>b.date.localeCompare(a.date)).map(row=>`<tr><td>${row.date}</td><td>${row.percent}%</td><td>${oilNumber(data.capacity*row.percent/100)}</td><td>${escapeHtml(row.note)}</td><td><button type="button" class="ghost oil-edit-reading" data-id="${escapeAttribute(row.id)}">Edit</button><button type="button" class="ghost oil-delete-reading" data-id="${escapeAttribute(row.id)}">Delete</button></td></tr>`).join("")}</tbody></table></div>` : ""}
@@ -241,8 +289,9 @@ function renderHomeHeatingOil() {
       if (displayRows[index]) tr.cells[0].textContent = `${displayRows[index].date} ${displayRows[index].time || ""}`.trim();
     });
   }
-  root.querySelectorAll("[data-oil-tab]").forEach(button => button.addEventListener("click", () => { oilTab = button.dataset.oilTab; oilEditingId = ""; renderHomeHeatingOil(); if (oilTab === "prices") checkOilRegionalPrice(); }));
+  root.querySelectorAll("[data-oil-tab]").forEach(button => button.addEventListener("click", () => { oilTab = button.dataset.oilTab; oilEditingId = ""; renderHomeHeatingOil(); if (oilTab === "prices") checkOilRegionalPrice(); if (oilTab === "priceHistory") checkOilPriceHistory(); }));
   root.querySelector("#oilCheckPrice")?.addEventListener("click", () => checkOilRegionalPrice(true));
+  root.querySelector("#oilRefreshHistory")?.addEventListener("click", () => checkOilPriceHistory(true));
   if (oilTab === "investment") wireOilInvestment(root, data);
   root.querySelector("#oilUsageYear")?.addEventListener("change", event => { oilUsageYear = event.target.value; renderHomeHeatingOil(); });
   root.querySelector("#oilPrevYear")?.addEventListener("click", () => { oilUsageYear = oilUsageYear === "average" ? usageYears.at(-1) : usageYears[Math.max(0, usageYearIndex - 1)]; renderHomeHeatingOil(); });
