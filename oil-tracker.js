@@ -53,7 +53,19 @@ function selectOilHistoryPoint(root, event, step = 0) {
   const diff = prior ? row.price - prior.price : null;
   const detail = `${row.date} · ${oilMoney(row.price)} per gallon${prior ? ` · ${diff > 0 ? "+" : diff < 0 ? "−" : ""}${oilMoney(Math.abs(diff))} since ${prior.date}` : " · first available survey"}`;
   root.querySelector("#oilHistoryPointInfo").textContent = detail;
-  root.querySelector("#oilHistoryTooltip").textContent = detail;
+  const tooltip = root.querySelector("#oilHistoryTooltip");
+  tooltip.textContent = detail;
+  const hostBounds = chart.parentElement.getBoundingClientRect();
+  const svgBounds = chart.getBoundingClientRect();
+  const pointX = svgBounds.left - hostBounds.left + x * svgBounds.width / width;
+  const pointY = svgBounds.top - hostBounds.top + y * svgBounds.height / height;
+  const gap = 10, inset = 6;
+  let left = pointX + gap;
+  if (left + tooltip.offsetWidth > hostBounds.width - inset) left = pointX - tooltip.offsetWidth - gap;
+  let top = pointY - tooltip.offsetHeight - gap;
+  if (top < inset) top = pointY + gap;
+  tooltip.style.left = `${Math.max(inset, Math.min(left, hostBounds.width - tooltip.offsetWidth - inset))}px`;
+  tooltip.style.top = `${Math.max(inset, Math.min(top, hostBounds.height - tooltip.offsetHeight - inset))}px`;
 }
 
 async function checkOilPriceHistory(force = false) {
