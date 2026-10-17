@@ -14,6 +14,44 @@ const OIL_YORKTOWN_PRICE_SOURCE = "https://www.gethomeheat.com/prices/ny/yorktow
 let oilRegionalPrice = { status: "idle", price: null, date: "", checkedAt: 0, error: "" };
 let oilPriceHistory = { status: "idle", rows: [], checkedAt: 0, error: "" };
 let oilHistoryRange = "month";
+let oilHistorySelectedDate = "";
+
+function oilHistoryVisibleRows() {
+  const rows = oilPriceHistory.rows;
+  const latest = rows.at(-1);
+  const rangeDays = { week: 7, month: 30, year: 365 }[oilHistoryRange];
+  const cutoff = latest && rangeDays ? new Date(oilDate(latest.date).getTime() - rangeDays * 86400000) : null;
+  return cutoff ? rows.filter(row => oilDate(row.date) >= cutoff) : rows;
+}
+
+function selectOilHistoryPoint(root, event, step = 0) {
+  const chart = root.querySelector("#oilHistorySvg");
+  const points = oilHistoryVisibleRows();
+  if (!chart || !points.length) return;
+  const width = 800, height = 240, pad = 36;
+  let index;
+  if (step) index = Math.max(0, Math.min(points.length - 1, points.findIndex(row => row.date === oilHistorySelectedDate) + step));
+  else {
+    const rect = chart.getBoundingClientRect();
+    const fraction = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+    const start = oilDate(points[0].date).getTime(), end = oilDate(points.at(-1).date).getTime();
+    const target = start + Math.max(0, Math.min(1, (fraction * width - pad) / (width - 2 * pad))) * (end - start);
+    index = points.reduce((best, row, i) => Math.abs(oilDate(row.date).getTime() - target) < Math.abs(oilDate(points[best].date).getTime() - target) ? i : best, 0);
+  }
+  const row = points[index], all = oilPriceHistory.rows;
+  const prior = all[all.findIndex(item => item.date === row.date) - 1];
+  const low = Math.min(...points.map(item => item.price)), high = Math.max(...points.map(item => item.price));
+  const first = oilDate(points[0].date).getTime(), last = oilDate(points.at(-1).date).getTime();
+  const x = pad + (oilDate(row.date).getTime() - first) * (width - 2 * pad) / Math.max(1, last - first);
+  const y = high === low ? height / 2 : height - pad - (row.price - low) * (height - 2 * pad) / (high - low);
+  oilHistorySelectedDate = row.date;
+  const xLine = root.querySelector("#oilHistoryCrosshairX"), yLine = root.querySelector("#oilHistoryCrosshairY"), marker = root.querySelector("#oilHistorySelectedPoint");
+  xLine.setAttribute("x1", x); xLine.setAttribute("x2", x); xLine.setAttribute("visibility", "visible");
+  yLine.setAttribute("y1", y); yLine.setAttribute("y2", y); yLine.setAttribute("visibility", "visible");
+  marker.setAttribute("cx", x); marker.setAttribute("cy", y); marker.setAttribute("visibility", "visible");
+  const diff = prior ? row.price - prior.price : null;
+  root.querySelector("#oilHistoryPointInfo").textContent = `${row.date} · ${oilMoney(row.price)} per gallon${prior ? ` · ${diff > 0 ? "+" : diff < 0 ? "−" : ""}${oilMoney(Math.abs(diff))} since ${prior.date}` : " · first available survey"}`;
+}
 
 async function checkOilPriceHistory(force = false) {
   if (oilPriceHistory.status === "loading") return;
@@ -44,23 +82,21 @@ function oilPriceHistoryView() {
   const rows = oilPriceHistory.rows;
   const latest = rows.at(-1), previous = rows.at(-2);
   const change = latest && previous ? latest.price - previous.price : null;
-  const rangeDays = { week: 7, month: 30, year: 365 }[oilHistoryRange];
-  const cutoff = latest && rangeDays ? new Date(oilDate(latest.date).getTime() - rangeDays * 86400000) : null;
-  const chartRows = cutoff ? rows.filter(row => oilDate(row.date) >= cutoff) : rows;
+  const chartRows = oilHistoryVisibleRows();
   const tableRows = chartRows.slice(-100);
   const low = Math.min(...chartRows.map(row => row.price));
   const high = Math.max(...chartRows.map(row => row.price));
-  const width = 800, height = 220, pad = 28;
+  const width = 800, height = 240, pad = 36;
   const firstTime = oilDate(chartRows[0]?.date || oilIsoToday()).getTime();
   const lastTime = oilDate(chartRows.at(-1)?.date || oilIsoToday()).getTime();
   const x = index => pad + (oilDate(chartRows[index].date).getTime() - firstTime) * (width - 2 * pad) / Math.max(1, lastTime - firstTime);
-  const y = price => height - pad - (price - low) * (height - 2 * pad) / Math.max(.01, high - low);
+  const y = price => high === low ? height / 2 : height - pad - (price - low) * (height - 2 * pad) / (high - low);
   const path = chartRows.map((row, index) => `${index ? "L" : "M"}${x(index).toFixed(1)} ${y(row.price).toFixed(1)}`).join(" ");
   return `<div class="oil-price-view"><section class="oil-card oil-price-hero"><div><small>Lower Hudson · #2 heating oil</small><h3>Price changes over time</h3><p>Actual NYSERDA survey dates are plotted. Prices are surveyed weekly during heating season and less often outside it; there is no daily observed price for dates between surveys.</p></div><button id="oilRefreshHistory" type="button" ${oilPriceHistory.status === "loading" ? "disabled" : ""}>${oilPriceHistory.status === "loading" ? "Checking…" : "Refresh history"}</button></section>
     ${oilPriceHistory.error ? `<p class="oil-price-error" role="status">${escapeHtml(oilPriceHistory.error)}${rows.length ? " Showing the last fetched history." : ""}</p>` : ""}
     <div class="oil-history-ranges" role="group" aria-label="Price chart range">${[["week","Week"],["month","Month"],["year","Year"],["all","All"]].map(([key,label]) => `<button type="button" data-oil-range="${key}" class="${oilHistoryRange === key ? "active" : "ghost"}" aria-pressed="${oilHistoryRange === key}">${label}</button>`).join("")}</div>
     ${latest ? `<div class="oil-price-grid"><section class="oil-card oil-price-metric"><small>Latest surveyed average</small><strong>${oilMoney(latest.price)} / gal</strong><span>${escapeHtml(latest.date)}</span></section><section class="oil-card oil-price-metric"><small>Change since previous survey</small><strong class="${change > 0 ? "oil-price-up" : change < 0 ? "oil-price-down" : ""}">${change > 0 ? "+" : change < 0 ? "−" : ""}${oilMoney(Math.abs(change))} / gal</strong><span>From ${escapeHtml(previous.date)} to ${escapeHtml(latest.date)}</span></section></div>
-    <section class="oil-card"><h3>Price trend <small>${chartRows.length} surveys · through latest survey ${escapeHtml(latest.date)}</small></h3><div class="oil-history-chart" role="img" aria-label="Lower Hudson surveyed oil price from ${escapeAttribute(chartRows[0].date)} at ${oilMoney(chartRows[0].price)} per gallon to ${escapeAttribute(latest.date)} at ${oilMoney(latest.price)} per gallon"><svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none"><line x1="${pad}" y1="${pad}" x2="${width-pad}" y2="${pad}"/><line x1="${pad}" y1="${height-pad}" x2="${width-pad}" y2="${height-pad}"/><path d="${path}"/>${chartRows.length <= 100 ? chartRows.map((row, index) => `<circle cx="${x(index).toFixed(1)}" cy="${y(row.price).toFixed(1)}" r="3"><title>${escapeHtml(row.date)}: ${oilMoney(row.price)} / gal</title></circle>`).join("") : ""}</svg></div><div class="oil-history-axis"><span>${escapeHtml(chartRows[0].date)} · ${oilMoney(chartRows[0].price)}</span><span>${escapeHtml(latest.date)} · ${oilMoney(latest.price)}</span></div><p>Range: ${oilMoney(low)}–${oilMoney(high)} per gallon. Points show survey observations, not estimated daily prices.</p></section>
+    <section class="oil-card"><h3>Price trend <small>${chartRows.length} surveys · through latest survey ${escapeHtml(latest.date)}</small></h3><div class="oil-history-chart" role="group" aria-label="Lower Hudson surveyed oil price from ${escapeAttribute(chartRows[0].date)} at ${oilMoney(chartRows[0].price)} per gallon to ${escapeAttribute(latest.date)} at ${oilMoney(latest.price)} per gallon"><svg id="oilHistorySvg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" tabindex="0" aria-label="Tap a survey point or use arrow keys to inspect prices"><g class="oil-history-grid">${[0,1,2,3,4].map(i => `<line x1="${pad}" y1="${pad + i*(height-2*pad)/4}" x2="${width-pad}" y2="${pad + i*(height-2*pad)/4}"/><line x1="${pad + i*(width-2*pad)/4}" y1="${pad}" x2="${pad + i*(width-2*pad)/4}" y2="${height-pad}"/>`).join("")}</g><path d="${path}"/>${chartRows.length <= 100 ? chartRows.map((row, index) => `<circle cx="${x(index).toFixed(1)}" cy="${y(row.price).toFixed(1)}" r="3"><title>${escapeHtml(row.date)}: ${oilMoney(row.price)} / gal</title></circle>`).join("") : ""}<line id="oilHistoryCrosshairX" class="oil-history-crosshair" y1="${pad}" y2="${height-pad}" visibility="hidden"/><line id="oilHistoryCrosshairY" class="oil-history-crosshair" x1="${pad}" x2="${width-pad}" visibility="hidden"/><circle id="oilHistorySelectedPoint" class="oil-history-selected" r="6" visibility="hidden"/></svg></div><div class="oil-history-axis"><span>${escapeHtml(chartRows[0].date)} · ${oilMoney(chartRows[0].price)}</span><span>${escapeHtml(latest.date)} · ${oilMoney(latest.price)}</span></div><p id="oilHistoryPointInfo" class="oil-history-point-info" aria-live="polite">Touch or click the chart to inspect a survey point.</p><p>Range: ${oilMoney(low)}–${oilMoney(high)} per gallon. Points show survey observations, not estimated daily prices.</p></section>
     <section class="oil-card"><h3>Dated changes <small>${tableRows.length} shown${chartRows.length > 100 ? ` · latest 100 of ${chartRows.length}` : ""}</small></h3><div class="oil-table-wrap"><table class="oil-table oil-history-table"><thead><tr><th>Survey date</th><th>Average / gal</th><th>Change from prior survey</th><th>Days since prior survey</th></tr></thead><tbody>${tableRows.slice().reverse().map((row, index, descending) => { const prior = descending[index + 1], diff = prior ? row.price - prior.price : null; const days = prior ? Math.round((oilDate(row.date) - oilDate(prior.date)) / 86400000) : null; return `<tr><td>${escapeHtml(row.date)}</td><td>${oilMoney(row.price)}</td><td class="${diff > 0 ? "oil-price-up" : diff < 0 ? "oil-price-down" : ""}">${diff == null ? "—" : `${diff > 0 ? "+" : diff < 0 ? "−" : ""}${oilMoney(Math.abs(diff))}`}</td><td>${days ?? "—"}</td></tr>`; }).join("")}</tbody></table></div><p><a href="${OIL_REGIONAL_PRICE_SOURCE}" target="_blank" rel="noopener noreferrer">NYSERDA source and methodology</a>. Lower Hudson includes Westchester; this is a regional posted credit average, not a Yorktown dealer quote.</p></section>` : `<section class="oil-card"><p>${oilPriceHistory.status === "loading" ? "Loading dated price observations…" : "Select Refresh history to load price observations."}</p></section>`}</div>`;
 }
 
@@ -297,7 +333,9 @@ function renderHomeHeatingOil() {
   root.querySelectorAll("[data-oil-tab]").forEach(button => button.addEventListener("click", () => { oilTab = button.dataset.oilTab; oilEditingId = ""; renderHomeHeatingOil(); if (oilTab === "prices") checkOilRegionalPrice(); if (oilTab === "priceHistory") checkOilPriceHistory(); }));
   root.querySelector("#oilCheckPrice")?.addEventListener("click", () => checkOilRegionalPrice(true));
   root.querySelector("#oilRefreshHistory")?.addEventListener("click", () => checkOilPriceHistory(true));
-  root.querySelectorAll("[data-oil-range]").forEach(button => button.addEventListener("click", () => { oilHistoryRange = button.dataset.oilRange; renderHomeHeatingOil(); }));
+  root.querySelectorAll("[data-oil-range]").forEach(button => button.addEventListener("click", () => { oilHistoryRange = button.dataset.oilRange; oilHistorySelectedDate = ""; renderHomeHeatingOil(); }));
+  root.querySelector("#oilHistorySvg")?.addEventListener("pointerdown", event => selectOilHistoryPoint(root, event));
+  root.querySelector("#oilHistorySvg")?.addEventListener("keydown", event => { if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); selectOilHistoryPoint(root, event, event.key === "ArrowRight" ? 1 : -1); } });
   if (oilTab === "investment") wireOilInvestment(root, data);
   root.querySelector("#oilUsageYear")?.addEventListener("change", event => { oilUsageYear = event.target.value; renderHomeHeatingOil(); });
   root.querySelector("#oilPrevYear")?.addEventListener("click", () => { oilUsageYear = oilUsageYear === "average" ? usageYears.at(-1) : usageYears[Math.max(0, usageYearIndex - 1)]; renderHomeHeatingOil(); });
