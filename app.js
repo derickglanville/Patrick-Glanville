@@ -2083,7 +2083,7 @@ const BILL_HEADER_TOOLTIPS = {
   "Proposed": "Optional one-time cash reduction. Turn on Preview Proposed Reductions, then select an amount to temporarily subtract it from Current Bal and recalculate the grid. The saved actual balance is never changed.",
   "Diff": "Current Balance minus Previous Balance. A negative value shows the balance fell. Click to view the column total.",
   "Pay More": "Payment guidance. It identifies paid bills where estimated interest consumes more than the principal-reducing portion of the payment.",
-  "Credit Line": "Credit limit or available credit line. Click to view the column total.",
+  "Credit Line": "Hover a bill's Credit Line value to see its available amount and percentage. Click to view the column total.",
   "Amount": "Scheduled amount due for this bill in the selected month.",
   "Due Amt": "Scheduled amount due for this bill in the selected month. Click to view the column total.",
   "Paid Amt": "Amount recorded as paid in the selected month. Click to view the column total.",
@@ -4557,6 +4557,22 @@ function calculateCreditRemainingPercent(bill) {
   if (!limit) return null;
   const remaining = Math.max(0, limit - balance);
   return Math.max(0, Math.min(100, Math.round((remaining / limit) * 1000) / 10));
+}
+
+function getCreditLineAvailabilityTooltip(creditLine, currentBalance, preview = false) {
+  const limit = normalizeMoney(creditLine);
+  if (!limit) return "Available credit: N/A — enter a credit line.";
+  const available = Math.max(0, Math.min(limit, limit - Math.max(0, normalizeSignedMoney(currentBalance))));
+  const percent = Math.round((available / limit) * 1000) / 10;
+  return `Available credit: ${formatCurrency(available)} (${formatPercentLabel(percent)} of ${formatCurrency(limit)} credit line).${preview ? " Proposed reduction preview only." : ""}`;
+}
+
+function getCombinedCreditLineAvailabilityTooltip(bills) {
+  const withCreditLines = bills.filter(bill => normalizeMoney(bill.creditLimit) > 0);
+  const limit = withCreditLines.reduce((sum, bill) => sum + normalizeMoney(bill.creditLimit), 0);
+  if (!limit) return "Combined available credit: N/A — no credit lines in this view.";
+  const available = withCreditLines.reduce((sum, bill) => sum + Math.max(0, Math.min(normalizeMoney(bill.creditLimit), normalizeMoney(bill.creditLimit) - Math.max(0, getEffectiveBillCurrentBalance(bill)))), 0);
+  return `Combined available credit: ${formatCurrency(available)} (${formatPercentLabel(available / limit * 100)} of ${formatCurrency(limit)} credit lines).`;
 }
 
 function formatPercentLabel(value) {
@@ -7262,7 +7278,7 @@ function renderBills() {
       <div class="budget-bill-total-cell bill-col-proposed">${isAdminProposedPreviewActive() ? escapeHtml(formatCurrency(totals.proposed)) : "—"}</div>
       <div class="budget-bill-total-cell bill-col-diff">${escapeHtml(formatSignedCurrency(totals.balanceDiff))}</div>
       <div class="budget-bill-total-cell bill-col-payment-priority">-</div>
-      <div class="budget-bill-total-cell bill-col-credit-line">${escapeHtml(formatCurrency(totals.creditLimit))}</div>
+      <div class="budget-bill-total-cell bill-col-credit-line" title="${escapeAttribute(getCombinedCreditLineAvailabilityTooltip(billsForTotals))}">${escapeHtml(formatCurrency(totals.creditLimit))}</div>
       <div class="budget-bill-total-cell bill-col-due-amt">${escapeHtml(formatCurrency(totals.amount))}</div>
       <div class="budget-bill-total-cell bill-col-paid-amt">${escapeHtml(formatCurrency(totals.paidAmount))}</div>
       <div class="budget-bill-total-cell bill-col-recommended">${escapeHtml(formatCurrency(totals.recommended))}</div>
@@ -7292,6 +7308,7 @@ function renderBills() {
     const dueSoon = !pastDue && isBillDueSoon(bill, 7);
     const effectivePreviousBalance = getEffectiveBillPreviousBalance(bill);
     const effectiveCurrentBalance = getEffectiveBillCurrentBalance(bill);
+    const creditLineTooltip = getCreditLineAvailabilityTooltip(bill.creditLimit, effectiveCurrentBalance, isAdminProposedPreviewActive() && normalizeMoney(bill.proposedAmount) > 0);
     const interestPaid = calculateMonthlyInterestPortion(getEffectiveBillInterestBalance(bill), bill.apr);
     const interestPriority = getAdminInterestPriority(bill, interestPaid, recommendedPayment);
     const balanceDiff = effectiveCurrentBalance - effectivePreviousBalance;
@@ -7348,9 +7365,9 @@ function renderBills() {
         <span>Pay more</span>
         <div class="bill-interest-priority${paymentPriorityDisplay.className}" title="${escapeAttribute(paymentPriorityDisplay.title)}">${escapeHtml(paymentPriorityDisplay.label)}</div>
       </div>
-      <label class="budget-bill-field bill-col-credit-line">
+      <label class="budget-bill-field bill-col-credit-line" title="${escapeAttribute(creditLineTooltip)}">
         <span>Credit line</span>
-        <input class="bill-credit-limit" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.creditLimit))}" aria-label="Credit line">
+        <input class="bill-credit-limit" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.creditLimit))}" aria-label="Credit line" aria-description="${escapeAttribute(creditLineTooltip)}" title="${escapeAttribute(creditLineTooltip)}">
       </label>
       <label class="budget-bill-field bill-col-due-amt">
         <span>Due amt</span>
@@ -7552,6 +7569,10 @@ function renderBills() {
       );
     }
     applyBillHeaderTooltips(billListHeader);
+    if (!usesSimpleBills) {
+      const creditHeader = billListHeader.querySelector(".bill-col-credit-line");
+      if (creditHeader) creditHeader.title = `${getCombinedCreditLineAvailabilityTooltip(filteredBills)} Click to view the credit-line total.`;
+    }
     const hiddenHeader = document.querySelector("#hiddenBillListHeader");
     if (hiddenHeader) {
       hiddenHeader.innerHTML = billListHeader.innerHTML;
@@ -8652,6 +8673,14 @@ function updateBillFromRow(row, options = {}) {
       recommendedInput.value = formatCurrency(recommendations.get(bill.id) ?? bill.amount);
     }
     const creditStatus = row.querySelector(".bill-col-credit-percent .budget-bill-status-note");
+    const creditLineInput = getField(".bill-credit-limit");
+    if (creditLineInput) {
+      const displayedBalance = normalizeCurrencyCell(getField(".bill-current-balance")?.value ?? bill.currentBalance);
+      const tooltip = getCreditLineAvailabilityTooltip(bill.creditLimit, displayedBalance, isAdminProposedPreviewActive() && normalizeMoney(bill.proposedAmount) > 0);
+      creditLineInput.title = tooltip;
+      creditLineInput.setAttribute("aria-description", tooltip);
+      creditLineInput.closest(".bill-col-credit-line")?.setAttribute("title", tooltip);
+    }
     if (creditStatus) {
       creditStatus.textContent = creditPercent === null ? "N/A" : formatPercentLabel(creditPercent);
       creditStatus.className = `budget-bill-status-note${creditPercent === null ? "" : creditPercent < 50 ? " is-low-credit" : " is-healthy-credit"}`;
