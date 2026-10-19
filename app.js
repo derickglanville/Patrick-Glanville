@@ -272,7 +272,7 @@ const ATT_PHONE_RETURNS_DEFAULT = {
     { id: "att-phone-1", label: "Phone package 1", status: "Rejected at delivery", shipmentTracking: "878520416564", returnTracking: "", evidence: "ATT_Return_Phone_1.jpeg", notes: "" },
     { id: "att-phone-2", label: "Phone package 2", status: "Rejected at delivery", shipmentTracking: "878603662650", returnTracking: "", evidence: "ATT_Return_Phone_2.jpeg", notes: "" },
     { id: "att-phone-3", label: "Phone package 3", status: "Rejected at delivery", shipmentTracking: "878562350368", returnTracking: "", evidence: "ATT_Return_Phone_3.jpeg", notes: "" },
-    { id: "att-phone-4", label: "Phone package 4", status: "Awaiting delivery", shipmentTracking: "", returnTracking: "", evidence: "", notes: "" },
+    { id: "att-phone-4", label: "Phone package 4", status: "Awaiting delivery", shipmentTracking: "878629070181", returnTracking: "", evidence: "", notes: "" },
     { id: "att-phone-5", label: "Phone package 5", status: "Awaiting delivery", shipmentTracking: "", returnTracking: "", evidence: "", notes: "" }
   ]
 };
@@ -3012,6 +3012,13 @@ function initializeState(loaded) {
   loaded.attPhoneReturns = loaded.attPhoneReturns && Array.isArray(loaded.attPhoneReturns.phones)
     ? loaded.attPhoneReturns
     : structuredClone(ATT_PHONE_RETURNS_DEFAULT);
+  if (!loaded.attPhoneReturns.trackingLabel20261019Applied) {
+    const fourthPackage = loaded.attPhoneReturns.phones.find(phone => phone.id === "att-phone-4");
+    if (fourthPackage && !String(fourthPackage.shipmentTracking || "").trim()) {
+      fourthPackage.shipmentTracking = "878629070181";
+    }
+    loaded.attPhoneReturns.trackingLabel20261019Applied = true;
+  }
   loaded.tasks = Array.isArray(loaded.tasks) ? loaded.tasks : structuredClone(seedData.tasks);
   let stateAdjusted = assignSeedKeys(loaded.tasks);
   stateAdjusted = addMissingSeedTasks(loaded) || stateAdjusted;
@@ -8281,7 +8288,7 @@ function renderCellphoneBillingHistoryDialog() {
         <div class="att-cancellation-note-details"><p><strong>AT&amp;T cancellation:</strong> ${escapeHtml(ATT_CANCELLATION_NOTES.cancellationNumber)}</p><p><strong>Reference number:</strong> ${escapeHtml(ATT_CANCELLATION_NOTES.referenceNumber)}</p><p>${escapeHtml(ATT_CANCELLATION_NOTES.deliveryExpectation)}</p><p>${escapeHtml(ATT_CANCELLATION_NOTES.returnPlan)}</p></div>
       </section>
       <section class="att-phone-returns" aria-labelledby="attPhoneReturnsTitle">
-        <div class="att-phone-returns-head"><div><span>FedEx return tracking</span><h4 id="attPhoneReturnsTitle">AT&amp;T phone returns · ${rejectedPhoneCount} rejected / ${awaitingPhoneCount} awaiting</h4><p>Original package numbers come from the three FedEx label photos. Rejection is recorded from your report; return tracking and AT&amp;T receipt remain unconfirmed until you enter them.</p></div><strong>5 phone packages</strong></div>
+        <div class="att-phone-returns-head"><div><span>FedEx return tracking</span><h4 id="attPhoneReturnsTitle">AT&amp;T phone returns · ${rejectedPhoneCount} rejected / ${awaitingPhoneCount} awaiting</h4><p>Original package numbers come from the FedEx label photos. Rejection is recorded from your report; return tracking and AT&amp;T receipt remain unconfirmed until you enter them.</p></div><strong>5 phone packages</strong></div>
         <div class="att-phone-call"><label>AT&amp;T call date<input id="attPhoneCallDate" type="date" value="${escapeAttribute(attPhoneReturns.callDate || "")}"></label><label>AT&amp;T reference #<input id="attPhoneCallReference" type="text" value="${escapeAttribute(attPhoneReturns.reference || "")}"></label><label class="att-phone-call-notes">Call notes<input id="attPhoneCallNotes" type="text" value="${escapeAttribute(attPhoneReturns.callNotes || "")}"></label></div>
         <div class="cellphone-billing-table-wrap"><table class="cellphone-billing-table att-phone-returns-table"><thead><tr><th>Package</th><th>Status</th><th>Original FedEx tracking</th><th>Return tracking / confirmation</th><th>Label photo</th><th>Follow-up notes</th></tr></thead><tbody>${attPhoneReturns.phones.map(phone => `<tr data-att-phone-id="${escapeAttribute(phone.id)}"><td><strong>${escapeHtml(phone.label)}</strong></td><td><select class="att-phone-status" aria-label="${escapeAttribute(phone.label)} status">${["Awaiting delivery", "Rejected at delivery", "Return in transit", "Received by AT&T", "Refund confirmed"].map(status => `<option value="${escapeAttribute(status)}"${phone.status === status ? " selected" : ""}>${escapeHtml(status)}</option>`).join("")}</select></td><td><input class="att-phone-shipment" type="text" inputmode="numeric" value="${escapeAttribute(phone.shipmentTracking || "")}" aria-label="${escapeAttribute(phone.label)} original FedEx tracking"></td><td><input class="att-phone-return" type="text" value="${escapeAttribute(phone.returnTracking || "")}" placeholder="Pending FedEx scan" aria-label="${escapeAttribute(phone.label)} return tracking"></td><td>${phone.evidence ? escapeHtml(phone.evidence) : "—"}</td><td><input class="att-phone-notes" type="text" value="${escapeAttribute(phone.notes || "")}" placeholder="Add an update" aria-label="${escapeAttribute(phone.label)} follow-up notes"></td></tr>`).join("")}</tbody></table></div>
         <div class="att-phone-returns-footer"><span>Label photos are stored locally in Downloads → Test; they are not included in the app.</span><button type="button" class="primary" id="saveAttPhoneReturnsBtn">Save phone tracking</button></div><p id="attPhoneReturnsStatus" class="att-phone-returns-status" aria-live="polite"></p>
@@ -8357,6 +8364,7 @@ function renderCellphoneBillingHistoryDialog() {
     const root = cellphoneBillingHistoryBody.querySelector(".att-phone-returns");
     const previous = getAttPhoneReturns();
     state.attPhoneReturns = {
+      trackingLabel20261019Applied: true,
       callDate: root.querySelector("#attPhoneCallDate").value,
       reference: root.querySelector("#attPhoneCallReference").value.trim(),
       callNotes: root.querySelector("#attPhoneCallNotes").value.trim(),
