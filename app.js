@@ -284,6 +284,12 @@ function getAttPhoneReturns() {
     : ATT_PHONE_RETURNS_DEFAULT;
 }
 
+function getBillHoverDescription(bill) {
+  const name = String(bill.name || "Untitled bill").trim();
+  const notes = String(bill.notes || "").trim();
+  return notes ? `${name}\n${notes}` : name;
+}
+
 function getAttCancellationTransactions() {
   return Array.isArray(state.attCancellationTransactions)
     ? state.attCancellationTransactions
@@ -7330,13 +7336,14 @@ function renderBills() {
     const row = document.createElement("article");
     row.className = `budget-bill-item${pastDue ? " is-past-due" : ""}${dueSoon ? " is-due-soon" : ""}${bill.status === "Paid" ? " is-paid" : ""}${isAdminClient() && bill.status === "Paid" ? " is-admin-paid" : ""}${bill.hidden && bill.status === "Paid Off" ? " is-hidden-paid-off" : ""}`;
     row.dataset.billId = bill.id;
+    row.title = getBillHoverDescription(bill);
     row.innerHTML = `
       <div class="budget-bill-selector-box">
         <button type="button" class="budget-bill-row-selector" aria-label="Select bill row" aria-pressed="${isBillSelected(bill.id) ? "true" : "false"}"></button>
       </div>
       <label class="budget-bill-field budget-bill-name-box bill-col-name">
         <span>Bill</span>
-        <input class="bill-name" value="${escapeAttribute(bill.name)}" aria-label="Bill name">
+        <input class="bill-name" value="${escapeAttribute(bill.name)}" aria-label="Bill name" title="${escapeAttribute(getBillHoverDescription(bill))}">
       </label>
       <label class="budget-bill-field bill-col-type">
         <span>Type</span>
@@ -7439,7 +7446,17 @@ function renderBills() {
       </div>
     `;
 
-    row.querySelector(".bill-name").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
+    row.querySelector(".bill-name").addEventListener("input", event => {
+      const description = getBillHoverDescription({ name: event.target.value, notes: row.querySelector(".bill-notes")?.value });
+      row.title = description;
+      event.target.title = description;
+      updateBillFromRow(row, { recordHistory: false, persist: false });
+    });
+    row.querySelector(".bill-notes").addEventListener("input", event => {
+      const description = getBillHoverDescription({ name: row.querySelector(".bill-name").value, notes: event.target.value });
+      row.title = description;
+      row.querySelector(".bill-name").title = description;
+    });
     row.querySelector(".bill-apr").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-type").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-previous-balance").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
@@ -13917,13 +13934,14 @@ function renderSimpleBillRow(bill, targetList) {
     const row = document.createElement("article");
     row.className = `budget-bill-item budget-bill-item-simple${isBillPastDue(bill) ? " is-past-due" : ""}${bill.status === "Paid" ? " is-paid" : ""}`;
     row.dataset.billId = bill.id;
+    row.title = getBillHoverDescription(bill);
     row.innerHTML = `
       <div class="budget-bill-selector-box">
         <button type="button" class="budget-bill-row-selector" aria-label="Select bill row" aria-pressed="${isBillSelected(bill.id) ? "true" : "false"}"></button>
       </div>
       <label class="budget-bill-field bill-field-name">
         <span>Bill</span>
-        <input class="bill-name" value="${escapeAttribute(bill.name)}" aria-label="Bill name">
+        <input class="bill-name" value="${escapeAttribute(bill.name)}" aria-label="Bill name" title="${escapeAttribute(getBillHoverDescription(bill))}">
       </label>
       <label class="budget-bill-field bill-field-previous-balance">
         <span>Previous balance</span>
@@ -13961,7 +13979,17 @@ function renderSimpleBillRow(bill, targetList) {
       </div>
     `;
 
-    row.querySelector(".bill-name").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
+    row.querySelector(".bill-name").addEventListener("input", event => {
+      const description = getBillHoverDescription({ name: event.target.value, notes: row.querySelector(".bill-notes")?.value });
+      row.title = description;
+      event.target.title = description;
+      updateBillFromRow(row, { recordHistory: false, persist: false });
+    });
+    row.querySelector(".bill-notes").addEventListener("input", event => {
+      const description = getBillHoverDescription({ name: row.querySelector(".bill-name").value, notes: event.target.value });
+      row.title = description;
+      row.querySelector(".bill-name").title = description;
+    });
     row.querySelector(".bill-amount").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-previous-balance").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-name").addEventListener("change", () => updateBillFromRow(row));
