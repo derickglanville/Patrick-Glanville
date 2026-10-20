@@ -1820,16 +1820,23 @@ textarea {
   border-color: #f1c7b8;
 }
 
+.budget-bill-item:not(.budget-bill-item-simple) .bill-apr {
+  color: #111;
+  font-weight: 800;
+}
+
 .budget-bill-item:not(.budget-bill-item-simple) .bill-apr.is-apr-high,
 .mobile-bill-grid-table td.is-apr-high {
-  color: #a32626;
+  color: #111;
+  font-weight: 800;
   background: #ffe8e8;
   border-color: #eeb3b3;
 }
 
 .budget-bill-item:not(.budget-bill-item-simple) .bill-apr.is-apr-low,
 .mobile-bill-grid-table td.is-apr-low {
-  color: #17623a;
+  color: #111;
+  font-weight: 800;
   background: #e8f7ec;
   border-color: #a9d8b8;
 }
