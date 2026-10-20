@@ -556,6 +556,44 @@ textarea {
   gap: 14px;
 }
 
+.math-challenge-panel {
+  margin: 0 0 18px;
+  padding: 18px 20px;
+  border: 1px solid #bed0e9;
+  border-left: 5px solid #315d9a;
+  border-radius: 10px;
+  background: #f7faff;
+  box-shadow: var(--shadow);
+  color: #17324e;
+}
+
+.math-challenge-panel[hidden] { display: none; }
+
+.math-challenge-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+}
+
+.math-challenge-kicker {
+  color: #315d9a;
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.math-challenge-panel h2 { margin: 3px 0 2px; font-size: 1.2rem; }
+.math-challenge-panel p { margin: 0; line-height: 1.45; }
+.math-challenge-head a { align-self: center; color: #175996; font-weight: 700; }
+.math-challenge-statement { margin-top: 14px; padding: 12px 14px; border-radius: 7px; background: #eaf2fd; }
+.math-challenge-statement strong { display: block; margin-bottom: 3px; }
+.math-challenge-panel details { margin-top: 10px; }
+.math-challenge-panel summary { cursor: pointer; font-weight: 750; }
+.math-challenge-panel details p { margin-top: 7px; max-width: 88ch; }
+
 #budgetPanel {
   padding-top: 12px;
   padding-bottom: 12px;

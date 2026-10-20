@@ -14,7 +14,7 @@
   <title>Budget &amp; Notifications</title>
   <link rel="apple-touch-icon" sizes="180x180" href="icons/budget-notifications-180.png?v=2026-10-16">
   <link rel="manifest" href="app.webmanifest?v=2026-10-16">
-    <link rel="stylesheet" href="styles.css?v=2026-10-19-admin-apr-strong-001">
+    <link rel="stylesheet" href="styles.css?v=2026-10-20-math-challenge-001">
     <link rel="stylesheet" href="mobile-bills.css?v=2026-10-16-saved-balances-001">
 </head>
 <body>
@@ -426,6 +426,25 @@
           </div>
         </section>
       </div>
+    </section>
+
+    <section class="math-challenge-panel" id="mathChallengePanel" aria-labelledby="mathChallengeTitle" hidden>
+      <div class="math-challenge-head">
+        <div>
+          <span class="math-challenge-kicker">Mathematics challenge · Millennium Prize Problem</span>
+          <h2 id="mathChallengeTitle">The Riemann Hypothesis</h2>
+          <p>A famous unsolved question about the pattern of prime numbers.</p>
+        </div>
+        <a href="https://www.claymath.org/millennium/riemann-hypothesis/" target="_blank" rel="noopener noreferrer">Read the official problem ↗</a>
+      </div>
+      <div class="math-challenge-statement">
+        <strong>The challenge</strong>
+        <p>Prove or disprove that every nontrivial zero of the Riemann zeta function has real part ½. In symbols: if ζ(s) = 0 and s is a nontrivial zero, then Re(s) = ½.</p>
+      </div>
+      <details>
+        <summary>Why mathematicians care</summary>
+        <p>The zeta function is closely tied to the distribution of prime numbers. The hypothesis would sharpen our understanding of how the primes depart from their average pattern. Checking many zeros is evidence, but only a proof can establish the claim for all of them.</p>
+      </details>
     </section>
 
     <section class="life-admin-panel" id="lifeAdminPanel" aria-label="Client to-do notes" hidden>
@@ -871,6 +890,6 @@
   <script src="oil-investment.js?v=2026-10-14-001"></script>
   <script src="oil-tracker.js?v=2026-10-17-oil-point-tooltip-001"></script>
   <script src="notes-dialog.js?v=2026-10-16-notes-grid-001"></script>
-  <script src="app.js?v=2026-10-19-admin-apr-001"></script>
+  <script src="app.js?v=2026-10-20-math-challenge-001"></script>
   </body>
   </html>
