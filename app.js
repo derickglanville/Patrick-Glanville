@@ -6978,7 +6978,6 @@ function taskGroupName(category = "N/A") {
 }
 
 function renderPanelVisibility() {
-  document.querySelector("#mathChallengePanel").hidden = !isAdminClient();
   setPanelCollapsed(
     budgetPanel,
     budgetPanelContent,
