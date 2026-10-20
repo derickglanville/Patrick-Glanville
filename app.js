@@ -4558,6 +4558,11 @@ function formatApr(value) {
   return text.includes("%") ? text : `${text}%`;
 }
 
+function getAdminAprHighlightClass(value) {
+  if (!String(value ?? "").trim()) return "";
+  return parseAprNumber(value) > 25 ? " is-apr-high" : " is-apr-low";
+}
+
 function formatCurrencyInputValue(value) {
   return formatCurrency(normalizeCurrencyCell(value));
 }
@@ -7052,7 +7057,7 @@ function renderMobileBillGrid() {
   dialog.querySelector("#mobileBillGridTotal").textContent = formatCurrency(total);
   dialog.querySelector("#mobileBillGridBalanceTotal").textContent = formatCurrency(balanceTotal);
   dialog.querySelector("#mobileBillGridBody").innerHTML = bills.length
-    ? bills.map(bill => `<tr${isBillPastDue(bill) ? ' class="is-past-due"' : ""}><td><button type="button" data-mobile-grid-bill-id="${escapeAttribute(bill.id)}">${escapeHtml(bill.name || "Untitled bill")}</button></td><td>${escapeHtml(formatApr(bill.apr) || "—")}</td><td>${escapeHtml(formatBillCurrentBalanceForDisplay(bill))}</td><td>${escapeHtml(formatCurrency(getEffectiveBillAmount(bill)))}</td><td>${bill.due ? escapeHtml(formatShortDate(bill.due)) : "—"}</td></tr>`).join("")
+    ? bills.map(bill => `<tr${isBillPastDue(bill) ? ' class="is-past-due"' : ""}><td><button type="button" data-mobile-grid-bill-id="${escapeAttribute(bill.id)}">${escapeHtml(bill.name || "Untitled bill")}</button></td><td class="${isAdminClient() ? getAdminAprHighlightClass(bill.apr).trim() : ""}">${escapeHtml(formatApr(bill.apr) || "—")}</td><td>${escapeHtml(formatBillCurrentBalanceForDisplay(bill))}</td><td>${escapeHtml(formatCurrency(getEffectiveBillAmount(bill)))}</td><td>${bill.due ? escapeHtml(formatShortDate(bill.due)) : "—"}</td></tr>`).join("")
     : '<tr><td colspan="5">No bills for this month.</td></tr>';
 }
 
@@ -7348,7 +7353,7 @@ function renderBills() {
       </label>
       <label class="budget-bill-field budget-bill-apr-box bill-col-apr">
         <span>APR</span>
-        <input class="bill-apr" type="text" inputmode="decimal" value="${escapeAttribute(formatApr(bill.apr))}" aria-label="APR" placeholder="-">
+        <input class="bill-apr${getAdminAprHighlightClass(bill.apr)}" type="text" inputmode="decimal" value="${escapeAttribute(formatApr(bill.apr))}" aria-label="APR" placeholder="-">
       </label>
       <label class="budget-bill-field bill-col-interest-paid">
         <span>Interest paid</span>
@@ -7447,7 +7452,12 @@ function renderBills() {
       event.target.title = getBillHoverDescription({ name: event.target.value });
       updateBillFromRow(row, { recordHistory: false, persist: false });
     });
-    row.querySelector(".bill-apr").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
+    row.querySelector(".bill-apr").addEventListener("input", event => {
+      event.target.classList.remove("is-apr-high", "is-apr-low");
+      const highlight = getAdminAprHighlightClass(event.target.value).trim();
+      if (highlight) event.target.classList.add(highlight);
+      updateBillFromRow(row, { recordHistory: false, persist: false });
+    });
     row.querySelector(".bill-type").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-previous-balance").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
     row.querySelector(".bill-current-balance").addEventListener("input", () => updateBillFromRow(row, { recordHistory: false, persist: false }));
