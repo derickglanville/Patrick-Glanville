@@ -1829,16 +1829,16 @@ textarea {
 .mobile-bill-grid-table td.is-apr-high {
   color: #111;
   font-weight: 800;
-  background: #ffe8e8;
-  border-color: #eeb3b3;
+  background: #ffb3b3;
+  border-color: #d95656;
 }
 
 .budget-bill-item:not(.budget-bill-item-simple) .bill-apr.is-apr-low,
 .mobile-bill-grid-table td.is-apr-low {
   color: #111;
   font-weight: 800;
-  background: #e8f7ec;
-  border-color: #a9d8b8;
+  background: #a9e8b9;
+  border-color: #42a566;
 }
 
 .budget-bill-item:not(.budget-bill-item-simple) .bill-paid-amount,
@@ -5872,10 +5872,10 @@ body[data-device-layout="tablet"] #budgetPanel .budget-bill-list-admin .budget-b
   box-shadow: inset 0 0 0 2px #54b978;
 }
 
-body[data-device-layout="phone"] #budgetPanel .budget-bill-list-admin .budget-bill-item.is-admin-paid:not(.budget-bill-item-simple) input,
+body[data-device-layout="phone"] #budgetPanel .budget-bill-list-admin .budget-bill-item.is-admin-paid:not(.budget-bill-item-simple) input:not(.bill-apr),
 body[data-device-layout="phone"] #budgetPanel .budget-bill-list-admin .budget-bill-item.is-admin-paid:not(.budget-bill-item-simple) select,
 body[data-device-layout="phone"] #budgetPanel .budget-bill-list-admin .budget-bill-item.is-admin-paid:not(.budget-bill-item-simple) textarea,
-body[data-device-layout="tablet"] #budgetPanel .budget-bill-list-admin .budget-bill-item.is-admin-paid:not(.budget-bill-item-simple) input,
+body[data-device-layout="tablet"] #budgetPanel .budget-bill-list-admin .budget-bill-item.is-admin-paid:not(.budget-bill-item-simple) input:not(.bill-apr),
 body[data-device-layout="tablet"] #budgetPanel .budget-bill-list-admin .budget-bill-item.is-admin-paid:not(.budget-bill-item-simple) select,
 body[data-device-layout="tablet"] #budgetPanel .budget-bill-list-admin .budget-bill-item.is-admin-paid:not(.budget-bill-item-simple) textarea {
   border-color: #55ae73;
