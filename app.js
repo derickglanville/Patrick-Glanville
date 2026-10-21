@@ -1350,6 +1350,7 @@ function buildAdminSeedData() {
       bills: true,
       budgetSnapshots: true,
       lifeAdmin: true,
+      momMedication: true,
       adminBillSms: true
     },
     collapsedTaskGroupsVersion: TASK_GROUP_COLLAPSE_VERSION,
@@ -2176,6 +2177,7 @@ function loadState() {
       bills: Array.isArray(parsed.bills) ? parsed.bills : structuredClone(seedData.bills),
       lifeAdminNotes: Array.isArray(parsed.lifeAdminNotes) ? parsed.lifeAdminNotes : structuredClone(seedData.lifeAdminNotes),
       workSchedules: Array.isArray(parsed.workSchedules) ? parsed.workSchedules : [],
+      momMedicationRefill: parsed.momMedicationRefill || null,
       tasks: Array.isArray(parsed.tasks) ? parsed.tasks : structuredClone(seedData.tasks)
     };
     const migrated = applyDataMigrations(loaded);
@@ -3070,11 +3072,9 @@ function initializeState(loaded) {
   loaded.documents = normalizeDocuments(loaded.documents);
   loaded.workSchedules = normalizeWorkSchedules(loaded.workSchedules);
   const hadMomMedicationPlan = Boolean(loaded.momMedicationRefill && typeof loaded.momMedicationRefill === "object");
-  loaded.momMedicationRefill = normalizeMomMedicationRefill(
-    loaded.momMedicationRefill,
-    activeClientId === "patrick" && !hadMomMedicationPlan
-  );
-  if (activeClientId === "patrick" && !hadMomMedicationPlan) stateAdjusted = true;
+  loaded.momMedicationRefill = hadMomMedicationPlan
+    ? normalizeMomMedicationRefill(loaded.momMedicationRefill)
+    : null;
   if (activeClientId === "patrick" && !loaded.workSchedules.length) {
     loaded.workSchedules = buildPatrickWorkScheduleSeed();
     stateAdjusted = true;
@@ -5869,8 +5869,6 @@ function applyRemoteSharedState(remoteState, updatedAt = "") {
     && Object.values(localExpenditures).some(entries => entries.length)) {
     normalizedState.monthlyExpenditures = structuredClone(localExpenditures);
   }
-  const missingMomMedicationPlan = activeClientId === "patrick"
-    && !(normalizedState.momMedicationRefill && typeof normalizedState.momMedicationRefill === "object");
   const preferredBillMonth = forceCurrentBillMonthOnNextRemoteApply
     ? defaultBillMonth()
     : (state.billMonth || "");
@@ -5904,9 +5902,7 @@ function applyRemoteSharedState(remoteState, updatedAt = "") {
   updateDataStoreStatus();
   renderBillSyncAlert();
   applyingRemoteState = false;
-  // Persist this new Patrick-only shared feature once, without saving a
-  // device-specific current-user selection back over another device.
-  return missingMomMedicationPlan || normalizedStateJson !== originalStateJson;
+  return normalizedStateJson !== originalStateJson;
 }
 
 async function subscribeToSharedState() {
@@ -6411,8 +6407,7 @@ function render() {
   updateMobileDashboardNavigation();
   renderRunningNotes();
   syncTopTodoPopoutState();
-  // Keep the selected editor visible. Sensitive Mom medication controls still
-  // require Deric's PIN through canAccessMomMedicationRefill().
+  // Keep the selected editor visible. Mom's medication is in the protected Admin account.
   userSelect.value = state.currentUser || "";
   updateTaskLabelControls();
   renderBillSyncAlert();
@@ -6481,10 +6476,8 @@ function renderMomMedicationRefill() {
   momMedicationPanel.hidden = !canShow;
   if (!canShow) return;
 
-  state.momMedicationRefill = normalizeMomMedicationRefill(
-    state.momMedicationRefill,
-    !state.momMedicationRefill
-  );
+  if (!state.momMedicationRefill) return;
+  state.momMedicationRefill = normalizeMomMedicationRefill(state.momMedicationRefill);
   const plan = state.momMedicationRefill;
   const nextRefill = nextMomMedicationRefillDate(plan);
   const reminderDate = nextRefill ? addDaysToIsoDate(nextRefill, -1) : "";
@@ -10765,13 +10758,43 @@ function canEditTaskLabels() {
 }
 
 function canAccessMomMedicationRefill() {
-  // Deric must authenticate again after each page load before admin-only tools appear.
-  return activeClientId === "patrick" && state.currentUser === DERIC_EMAIL && dericPinValidatedForSession;
+  return activeClientId === "admin" && isClientAccessValidated("admin");
+}
+
+async function moveMomMedicationToAdmin() {
+  const hasAdminPlan = () => Boolean(state.momMedicationRefill?.updatedAt)
+    || Boolean(state.momMedicationRefill?.medications?.length);
+  if (activeClientId !== "admin" || hasAdminPlan()) return;
+  let source = null;
+  let remoteAvailable = !supabaseEnabled;
+  if (supabaseEnabled) {
+    try {
+      const patrickRef = supabaseClient.doc(supabaseClient.db, SUPABASE_TABLE, PATRICK_SUPABASE_STATE_ID);
+      const snapshot = await supabaseClient.getDoc(patrickRef);
+      if (activeClientId !== "admin") return;
+      remoteAvailable = true;
+      if (snapshot.exists()) {
+        const patrickState = await hydrateFirebaseArchivedState(snapshot.data(), PATRICK_SUPABASE_STATE_ID);
+        source = patrickState?.momMedicationRefill || null;
+      }
+    } catch (error) {
+      console.warn("Could not load Patrick's existing medication plan for transfer.", error);
+    }
+  }
+  if (!source) {
+    try {
+      source = JSON.parse(localStorage.getItem(PATRICK_STORAGE_KEY) || "null")?.momMedicationRefill || null;
+    } catch { /* A damaged local cache cannot replace the shared plan. */ }
+  }
+  if (activeClientId !== "admin" || hasAdminPlan()) return;
+  if (!source && !remoteAvailable) return;
+  state.momMedicationRefill = normalizeMomMedicationRefill(source, !source);
+  saveState();
+  renderMomMedicationRefill();
 }
 
 function currentUser() {
-  // The Deric PIN protects the Mom IDeerFit feature only. Regular client edits
-  // must remain available to the account selected in the collaboration menu.
+  // Regular client edits remain available to the account selected in the collaboration menu.
   return getAllowedUserByEmail(state.currentUser);
 }
 
@@ -11018,7 +11041,11 @@ async function switchClient(clientId, pin = "") {
     forceCurrentBillMonthOnNextRemoteApply = true;
     supabaseStatus = `Connecting to Firebase Firestore shared storage for ${nextClient.shortName}`;
     updateDataStoreStatus();
-    subscribeToSharedState().catch(error => console.warn("Firebase listener did not start.", error));
+    subscribeToSharedState()
+      .then(() => moveMomMedicationToAdmin())
+      .catch(error => console.warn("Firebase listener or medication transfer did not start.", error));
+  } else if (nextClient.id === "admin") {
+    moveMomMedicationToAdmin().catch(error => console.warn("Medication transfer did not complete.", error));
   }
   return true;
 }
@@ -13419,6 +13446,10 @@ document.querySelector("#cancelWorkScheduleDialog")?.addEventListener("click", c
 if (momMedicationRefillBtn) {
   momMedicationRefillBtn.addEventListener("click", () => {
     if (!canAccessMomMedicationRefill()) return;
+    if (!state.momMedicationRefill) {
+      window.alert("Mom's medication list is still loading. Please try again in a moment.");
+      return;
+    }
     state.hiddenPanels.momMedication = false;
     saveState();
     renderMomMedicationRefill();
