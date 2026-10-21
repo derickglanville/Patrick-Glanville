@@ -1334,12 +1334,67 @@ function buildTheoSeedData() {
   };
 }
 
+function buildHospitalBillSeed() {
+  return {
+    provider: "White Plains Hospital / Montefiore MyChart",
+    account: "••••8861",
+    paymentMethod: "Checking x9616",
+    openingBalance: 841.66,
+    outsidePlanBalance: 116.34,
+    dueDate: "",
+    expectedPayment: 77,
+    reminderEnabled: true,
+    notes: "The October 21 MyChart email confirms a $77 automatic payment and $764.66 remaining on the plan. The $841.66 starting balance is inferred from those figures; verify against the statement. August and September are historical context; intervening balance changes are not yet reconciled.",
+    historyBackfill20261021: true,
+    records: [
+      { id: "hospital-plan-2026-08-05", date: "2026-08-05", type: "snapshot", amount: 374.44, description: "Plan updated from $206.24 to $374.44; monthly amount $68.75. August payment not confirmed.", method: "MyChart email", affectsBalance: false },
+      { id: "hospital-payment-2026-09-21", date: "2026-09-21", type: "payment", amount: 77, description: "Automatic payment processed; email reported $737.56 remaining.", method: "Checking x9616", affectsBalance: false },
+      { id: "hospital-payment-2026-10-21", date: "2026-10-21", type: "payment", amount: 77, description: "Automatic payment processed", method: "Checking x9616", affectsBalance: true }
+    ]
+  };
+}
+
+function normalizeHospitalBill(value) {
+  const seed = buildHospitalBillSeed();
+  const plan = value && typeof value === "object" ? value : seed;
+  const records = Array.isArray(plan.records) ? [...plan.records] : [...seed.records];
+  if (!plan.historyBackfill20261021) {
+    for (const historical of seed.records.filter(item => item.affectsBalance === false)) {
+      if (!records.some(item => item.id === historical.id || (item.date === historical.date && item.type === historical.type))) {
+        records.push(structuredClone(historical));
+      }
+    }
+  }
+  return {
+    provider: String(plan.provider || seed.provider),
+    account: String(plan.account || seed.account),
+    paymentMethod: String(plan.paymentMethod || seed.paymentMethod),
+    openingBalance: Math.max(0, Number(plan.openingBalance ?? seed.openingBalance) || 0),
+    outsidePlanBalance: Math.max(0, Number(plan.outsidePlanBalance ?? seed.outsidePlanBalance) || 0),
+    dueDate: /^\d{4}-\d{2}-\d{2}$/.test(String(plan.dueDate || "")) ? plan.dueDate : "",
+    expectedPayment: Math.max(0, Number(plan.expectedPayment ?? seed.expectedPayment) || 0),
+    reminderEnabled: plan.reminderEnabled !== false,
+    notes: String(plan.notes ?? seed.notes),
+    historyBackfill20261021: true,
+    records: records.filter(item => item && Number(item.amount) > 0).map(item => ({
+      id: String(item.id || crypto.randomUUID()),
+      date: /^\d{4}-\d{2}-\d{2}$/.test(String(item.date || "")) ? item.date : "",
+      type: ["payment", "charge", "credit", "snapshot"].includes(item.type) ? item.type : "payment",
+      amount: Number(item.amount),
+      description: String(item.description || ""),
+      method: String(item.method || ""),
+      affectsBalance: item.affectsBalance !== false && item.type !== "snapshot"
+    }))
+  };
+}
+
 function buildAdminSeedData() {
   return {
     dataVersion: DATA_VERSION,
     notes: "",
     runningNotes: [],
     adminNotesReminders: structuredClone(ADMIN_NOTES_REMINDERS_SEED),
+    hospitalBill: buildHospitalBillSeed(),
     homeHeatingOil: { capacity: 270, deliveries: structuredClone(window.HOME_HEATING_OIL_HISTORY || []), readings: [] },
     documents: [],
     history: [],
@@ -2159,6 +2214,7 @@ function loadState() {
       attPhoneReturns: parsed.attPhoneReturns && typeof parsed.attPhoneReturns === "object" ? parsed.attPhoneReturns : structuredClone(ATT_PHONE_RETURNS_DEFAULT),
       runningNotes: Array.isArray(parsed.runningNotes) ? parsed.runningNotes : [],
       adminNotesReminders: Array.isArray(parsed.adminNotesReminders) ? parsed.adminNotesReminders : structuredClone(seedData.adminNotesReminders || []),
+      hospitalBill: parsed.hospitalBill || structuredClone(seedData.hospitalBill || null),
       homeHeatingOil: parsed.homeHeatingOil || structuredClone(seedData.homeHeatingOil || { capacity: 270, deliveries: [], readings: [] }),
       documents: Array.isArray(parsed.documents) ? parsed.documents : [],
       collapsedTaskGroupsVersion: Number(parsed.collapsedTaskGroupsVersion) || 0,
@@ -3172,6 +3228,7 @@ function initializeState(loaded) {
   loaded.adminNotesReminders = Array.isArray(loaded.adminNotesReminders)
     ? loaded.adminNotesReminders.map(normalizeAdminNotesReminder).filter(Boolean)
     : structuredClone(seedData.adminNotesReminders || []).map(normalizeAdminNotesReminder).filter(Boolean);
+  if (activeClientId === "admin") loaded.hospitalBill = normalizeHospitalBill(loaded.hospitalBill);
   if (activeClientId === "admin") {
     const oilBeforeNormalization = JSON.stringify(loaded.homeHeatingOil || null);
     loaded.homeHeatingOil = normalizeHomeHeatingOil(loaded.homeHeatingOil, seedData.homeHeatingOil);
@@ -7229,6 +7286,7 @@ function renderBills() {
   if (adminCreditCardFinderBtn) adminCreditCardFinderBtn.hidden = !isAdminClient();
   if (cellphoneBillingHistoryBtn) cellphoneBillingHistoryBtn.hidden = !isAdminClient();
   if (adminNotesRemindersBtn) adminNotesRemindersBtn.hidden = !isAdminClient();
+  document.querySelector("#hospitalBillBtn").hidden = !isAdminClient();
   const oilButton = document.querySelector("#homeHeatingOilBtn");
   if (oilButton) oilButton.hidden = !isAdminClient();
   if (adminBillSimulationStatus) adminBillSimulationStatus.hidden = !simulationActive;
@@ -11028,6 +11086,7 @@ async function switchClient(clientId, pin = "") {
   stopSharedStateSync();
 
   activeClientId = nextClient.id;
+  if (nextClient.id !== "admin") window.closeHospitalBillTracker?.();
   remoteUpdatedAt = readCachedRemoteUpdatedAt();
   state = loadState();
   pendingLocalSharedSaveAt = localStorage.getItem(`${getStorageKey()}:pending-save`) || "";

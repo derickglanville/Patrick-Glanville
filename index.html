@@ -14,7 +14,7 @@
   <title>Budget &amp; Notifications</title>
   <link rel="apple-touch-icon" sizes="180x180" href="icons/budget-notifications-180.png?v=2026-10-16">
   <link rel="manifest" href="app.webmanifest?v=2026-10-16">
-    <link rel="stylesheet" href="styles.css?v=2026-10-20-math-removed-001">
+    <link rel="stylesheet" href="styles.css?v=2026-10-21-hospital-plan-001">
     <link rel="stylesheet" href="mobile-bills.css?v=2026-10-16-saved-balances-001">
 </head>
 <body>
@@ -305,6 +305,7 @@
           <button id="adminMonthlyExpendituresBtn" type="button" class="ghost" hidden>Monthly Expenditures</button>
           <button id="cellphoneBillingHistoryBtn" type="button" class="ghost" hidden>Cellphone History</button>
           <button id="adminNotesRemindersBtn" type="button" class="ghost" hidden>Notes &amp; Reminders</button>
+          <button id="hospitalBillBtn" type="button" class="ghost" hidden>Hospital Payment Plan</button>
           <button id="homeHeatingOilBtn" type="button" class="ghost" hidden>Heating Oil</button>
           <button id="assignDueDatesBtn" type="button" class="ghost">Assign Due Dates</button>
           <button id="undoCopyBillsToNextMonthBtn" type="button" class="ghost">Undo Next Month Copy</button>
@@ -812,6 +813,15 @@
       <div id="adminNotesRemindersBody"></div>
     </div>
   </dialog>
+  <dialog id="hospitalBillDialog" class="hospital-bill-dialog" aria-labelledby="hospitalBillTitle">
+    <div class="report-dialog hospital-bill-shell">
+      <div class="dialog-head">
+        <div><h2 id="hospitalBillTitle">White Plains Hospital payment plan</h2><p>Track payments, the remaining balance, and the next due date.</p></div>
+        <button type="button" id="closeHospitalBillDialog" class="icon-button" aria-label="Close hospital payment plan">x</button>
+      </div>
+      <div id="hospitalBillBody"></div>
+    </div>
+  </dialog>
   <dialog id="homeHeatingOilDialog">
     <div class="report-dialog home-oil-dialog">
       <div class="dialog-head"><div><h2>Home Heating Oil</h2><p>Delivery history, tank readings, seasonal usage and refill planning.</p></div><button id="closeHomeHeatingOilDialog" type="button" class="icon-button" aria-label="Close">x</button></div>
@@ -872,5 +882,6 @@
   <script src="oil-tracker.js?v=2026-10-17-oil-point-tooltip-001"></script>
   <script src="notes-dialog.js?v=2026-10-16-notes-grid-001"></script>
   <script src="app.js?v=2026-10-21-att-bank-update-003"></script>
+  <script src="hospital-bill.js?v=2026-10-21-002"></script>
   </body>
   </html>
