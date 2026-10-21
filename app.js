@@ -252,12 +252,13 @@ const ATT_SWITCH_VALIDATION = {
   ]
 };
 const ATT_CANCELLATION_NOTES = {
-  date: "Updated Oct 20, 2026",
+  date: "Updated Oct 21, 2026",
   transactions: [
-    { id: "att-20261020-return", date: "2026-10-20", description: "PURCH RTN AT&T DEVICE/ DALLAS TX CARD1300", type: "credit", amount: 208.35 },
+    { id: "att-20261021-return-10290", date: "2026-10-21", description: "PURCH RTN AT&T DEVICE/ DALLAS TX CARD1300", type: "credit", amount: 102.90 },
+    { id: "att-20261021-return-12860", date: "2026-10-21", description: "PURCH RTN AT&T DEVICE/ DALLAS TX CARD1300", type: "credit", amount: 128.60 },
+    { id: "att-20261020-return", date: "2026-10-20", description: "PURCHASE RETURN AUTHORIZED ON 10/19 AT&T DEVICE/EQUIP 800-331-0500", type: "credit", amount: 208.35 },
     { id: "att-20261015-charge-10289", date: "2026-10-15", description: "PURCHASE AUTHORIZED ON 10/13 AT&T DEVICE/EQUIP 800-331-0500 TX S306286785807226 CARD 1300", type: "charge", amount: 102.89 },
     { id: "att-20261015-charge-10290", date: "2026-10-15", description: "PURCHASE AUTHORIZED ON 10/12 AT&T DEVICE/EQUIP 800-331-0500 TX S346286216075832 CARD 1300", type: "charge", amount: 102.90 },
-    { id: "att-20261014-charge-20835", date: "2026-10-14", description: "PURCHASE AUTHORIZED ON 10/11 AT&T DEVICE/EQUIP 800-331-0500 TX S386284790126189 CARD 1300", type: "charge", amount: 208.35 },
     { id: "att-20261014-provisional-credit", date: "2026-10-14", description: "PROVISIONAL CREDIT FOR CLAIM-REF #2610110019914", type: "credit", amount: 208.35 },
     { id: "att-20261013-charge-12860", date: "2026-10-13", description: "PURCHASE AUTHORIZED ON 10/11 AT&T DEVICE/EQUIP 800-331-0500 TX S356284758955241 CARD 1300", type: "charge", amount: 128.60 }
   ],
@@ -2154,6 +2155,7 @@ function loadState() {
       verizonCellphoneNotes2: typeof parsed.verizonCellphoneNotes2 === "string" ? parsed.verizonCellphoneNotes2 : DEFAULT_VERIZON_CELLPHONE_NOTES_2,
       attCancellationTransactions: Array.isArray(parsed.attCancellationTransactions) ? parsed.attCancellationTransactions : structuredClone(ATT_CANCELLATION_NOTES.transactions),
       attCancellationBankUpdate20261020: parsed.attCancellationBankUpdate20261020 === true,
+      attCancellationBankUpdate20261021: parsed.attCancellationBankUpdate20261021 === true,
       attPhoneReturns: parsed.attPhoneReturns && typeof parsed.attPhoneReturns === "object" ? parsed.attPhoneReturns : structuredClone(ATT_PHONE_RETURNS_DEFAULT),
       runningNotes: Array.isArray(parsed.runningNotes) ? parsed.runningNotes : [],
       adminNotesReminders: Array.isArray(parsed.adminNotesReminders) ? parsed.adminNotesReminders : structuredClone(seedData.adminNotesReminders || []),
@@ -3026,9 +3028,10 @@ function initializeState(loaded) {
     ? loaded.attCancellationTransactions.filter(item => item && typeof item.id === "string" && /^\d{4}-\d{2}-\d{2}$/.test(item.date) && typeof item.description === "string" && ["charge", "credit"].includes(item.type) && Number.isFinite(Number(item.amount)) && Number(item.amount) > 0)
     : structuredClone(ATT_CANCELLATION_NOTES.transactions);
   let bankTransactionsUpdated = false;
-  if (isAdminClient() && !loaded.attCancellationBankUpdate20261020) {
+  if (isAdminClient() && !loaded.attCancellationBankUpdate20261021) {
     loaded.attCancellationTransactions = structuredClone(ATT_CANCELLATION_NOTES.transactions);
     loaded.attCancellationBankUpdate20261020 = true;
+    loaded.attCancellationBankUpdate20261021 = true;
     bankTransactionsUpdated = true;
   }
   loaded.attPhoneReturns = loaded.attPhoneReturns && Array.isArray(loaded.attPhoneReturns.phones)
