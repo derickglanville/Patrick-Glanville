@@ -5127,6 +5127,8 @@ body[data-device-layout="compact"] .budget-panel-popout .budget-bill-list-simple
 .att-cancellation-notes > div:first-child span { display: block; color: #8a5b00; font-size: .7rem; font-weight: 900; letter-spacing: .07em; text-transform: uppercase; }
 .att-cancellation-notes h4 { margin: 2px 0 0; color: #6c4b08; font-size: .98rem; }
 .att-cancellation-notes .cellphone-billing-table-wrap { margin-top: 10px; }
+.att-cancellation-notes .cellphone-billing-table tbody tr.att-transaction-credit td:nth-child(2) { background: #e2f4e7; color: #174d2c; }
+.att-cancellation-notes .cellphone-billing-table tbody tr.att-transaction-charge td:nth-child(2) { background: #fff3cc; color: #5d430a; }
 .att-cancellation-notes tfoot th,
 .att-cancellation-notes tfoot td { color: #5d430a; background: #fff3c7; font-weight: 800; border-top: 2px solid #d3ab50; }
 .att-cancellation-notes tfoot th { position: static; }
@@ -5140,6 +5142,7 @@ body[data-device-layout="compact"] .budget-panel-popout .budget-bill-list-simple
 .att-cancellation-summary > div { padding: 9px 11px; border: 1px solid #e6d7a7; border-radius: 7px; background: #fff; }
 .att-cancellation-summary span { display: block; color: #6b6250; font-size: .72rem; }
 .att-cancellation-summary strong { display: block; margin-top: 3px; color: #503b10; font-size: 1.05rem; }
+.att-cancellation-summary small { display: block; margin-top: 2px; color: #6b6250; font-size: .72rem; }
 .att-cancellation-actions { white-space: nowrap; }
 .att-cancellation-actions button { padding: 4px 8px; margin-right: 4px; }
 .att-cancellation-form { margin-top: 12px; padding: 12px; border: 1px solid #d8bd72; border-radius: 8px; background: #fff8e5; }
@@ -6077,13 +6080,21 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .oil-price-costs strong { display: block; margin-top: 4px; color: #174766; font-size: 1.06rem; }
 .oil-price-error { margin: 0; padding: 10px 12px; background: #fff4e0; border: 1px solid #e8bb70; border-radius: 7px; color: #754b13; font-size: .82rem; }
 .oil-history-chart { position: relative; display: grid; grid-template-columns: 48px minmax(0,1fr); width: 100%; max-width: 100%; min-width: 0; height: 240px; background: #fff; border: 1px solid #d1e0e9; border-radius: 8px; overflow: hidden; }
+.oil-history-scroll { width: 100%; overflow-x: auto; overflow-y: hidden; scrollbar-gutter: stable; scrollbar-color: #648ca6 #e7f0f5; }
+.oil-history-scroll::-webkit-scrollbar { height: 14px; }
+.oil-history-scroll::-webkit-scrollbar-track { background: #e7f0f5; border-radius: 8px; }
+.oil-history-scroll::-webkit-scrollbar-thumb { background: #648ca6; border: 2px solid #e7f0f5; border-radius: 8px; }
+.oil-history-content { width: 100%; }
 .oil-history-ranges { display: flex; flex-wrap: wrap; gap: 6px; }
 .oil-history-ranges button { min-width: 64px; padding: 7px 12px; }
 .oil-history-ranges button.active { background: #164e72; color: white; }
-.oil-history-chart svg { grid-column: 2; grid-row: 1; display: block; width: 100%; min-width: 0; height: 100%; cursor: crosshair; touch-action: pan-y; }
+.oil-history-chart svg { grid-column: 2; grid-row: 1; display: block; width: 100%; min-width: 0; height: 100%; cursor: crosshair; touch-action: auto; }
 .oil-history-y-axis { grid-column: 1; grid-row: 1; position: relative; border-right: 1px solid #d1e0e9; color: #47677c; font-size: .68rem; font-weight: 700; }
 .oil-history-y-axis span { position: absolute; right: 4px; transform: translateY(-50%); white-space: nowrap; }
 .oil-history-x-axis { display: flex; justify-content: space-between; gap: 3px; margin-left: 48px; padding: 5px 4% 0; color: #47677c; font-size: .72rem; font-weight: 700; }
+.oil-history-x-axis span { white-space: nowrap; }
+.oil-history-scroll-controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; margin: 6px 0 8px; color: #47677c; font-size: .75rem; }
+.oil-history-scroll-controls button { padding: 5px 9px; font-size: .75rem; }
 .oil-history-tooltip { position: absolute; max-width: min(260px,75%); padding: 7px 9px; border: 1px solid #9dc3d5; border-radius: 6px; background: rgba(255,255,255,.96); box-shadow: 0 2px 8px #153e5224; color: #163e58; font-size: .76rem; font-weight: 800; line-height: 1.3; pointer-events: none; }
 .oil-history-chart svg:focus-visible { outline: 3px solid #2a80ac; outline-offset: -3px; }
 .oil-history-chart .oil-history-grid line { stroke: #c8dae6; stroke-width: 1; vector-effect: non-scaling-stroke; }
@@ -6094,6 +6105,7 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .oil-history-point-info { padding: 9px 12px; border: 1px solid #b5cfdf; border-radius: 7px; background: #edf6fa; color: #184563 !important; font-weight: 700; }
 .oil-history-axis { display: flex; justify-content: space-between; gap: 8px; margin-top: 5px; color: #597286; font-size: .75rem; }
 @media (max-width: 490px) { .oil-history-x-axis span:nth-child(even) { display: none; }.oil-history-tooltip { font-size: .69rem; } }
+@media (max-width: 490px) { .oil-history-scroll .oil-history-x-axis span:nth-child(even) { display: block; } }
 .oil-history-table { min-width: 480px; }
 .oil-history-table td:last-child { display: table-cell; }
 .oil-price-up { color: #a4471f !important; }
