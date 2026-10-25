@@ -7180,8 +7180,7 @@ function openMobileBillGrid() {
 function updateMobileBillNavigator() {
   const navigator = document.querySelector("#mobileBillNavigator");
   if (!navigator) return;
-  const active = document.body.dataset.deviceLayout === "phone"
-    || (isAdminClient() && document.body.dataset.deviceLayout === "tablet");
+  const active = ["phone", "tablet"].includes(document.body.dataset.deviceLayout);
   navigator.hidden = !active;
   const mobileSyncButton = navigator.querySelector("#mobileBillSyncBtn");
   if (mobileSyncButton) {
