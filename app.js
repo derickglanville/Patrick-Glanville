@@ -7166,7 +7166,7 @@ function renderMobileBillGrid() {
   dialog.querySelector("#mobileBillGridTotal").textContent = formatCurrency(total);
   dialog.querySelector("#mobileBillGridBalanceTotal").textContent = formatCurrency(balanceTotal);
   dialog.querySelector("#mobileBillGridBody").innerHTML = bills.length
-    ? bills.map(bill => `<tr${isBillPastDue(bill) ? ' class="is-past-due"' : ""}><td><button type="button" data-mobile-grid-bill-id="${escapeAttribute(bill.id)}">${escapeHtml(bill.name || "Untitled bill")}</button></td><td class="${isAdminClient() ? getAdminAprHighlightClass(bill.apr).trim() : ""}">${escapeHtml(formatApr(bill.apr) || "—")}</td><td>${escapeHtml(formatBillCurrentBalanceForDisplay(bill))}</td><td>${escapeHtml(formatCurrency(getEffectiveBillAmount(bill)))}</td><td>${bill.due ? escapeHtml(formatShortDate(bill.due)) : "—"}</td></tr>`).join("")
+    ? bills.map(bill => `<tr${isBillPastDue(bill) ? ' class="is-past-due"' : ""}><td><button type="button"${isMobileBillPaid(bill) ? ' class="mobile-grid-bill-paid" title="Paid"' : ""} data-mobile-grid-bill-id="${escapeAttribute(bill.id)}">${escapeHtml(bill.name || "Untitled bill")}</button></td><td class="${isAdminClient() ? getAdminAprHighlightClass(bill.apr).trim() : ""}">${escapeHtml(formatApr(bill.apr) || "—")}</td><td>${escapeHtml(formatBillCurrentBalanceForDisplay(bill))}</td><td>${escapeHtml(formatCurrency(getEffectiveBillAmount(bill)))}</td><td>${bill.due ? escapeHtml(formatShortDate(bill.due)) : "—"}</td></tr>`).join("")
     : '<tr><td colspan="5">No bills for this month.</td></tr>';
 }
 

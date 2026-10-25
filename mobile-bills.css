@@ -398,6 +398,7 @@
 .mobile-bill-grid-table tbody tr:nth-child(even) { background: #f8fbfe; }
 .mobile-bill-grid-table tbody tr.is-past-due td:last-child { color: #b42318; font-weight: 800; }
 .mobile-bill-grid-table td button { width: 100%; padding: 4px 0; border: 0; background: transparent; color: #155c9c; font-weight: 800; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.mobile-bill-grid-table td button.mobile-grid-bill-paid { width: auto; max-width: 100%; padding: 5px 8px; border: 1px solid #9bd4ac; border-radius: 7px; background: #e4f6e9; color: #145c32; }
 .mobile-bill-grid-table tfoot { position: sticky; bottom: 0; background: #e9f3fb; font-weight: 800; }
 .mobile-bill-grid-hint { margin: 0; padding: 10px 16px 14px; border-top: 1px solid #d9e4ed; color: #52647d; font-size: .77rem; line-height: 1.35; }
 
