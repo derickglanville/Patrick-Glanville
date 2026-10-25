@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="icons/budget-notifications-180.png?v=2026-10-16">
   <link rel="manifest" href="app.webmanifest?v=2026-10-16">
     <link rel="stylesheet" href="styles.css?v=2026-10-25-admin-mobile-001">
-    <link rel="stylesheet" href="mobile-bills.css?v=2026-10-25-admin-mobile-001">
+    <link rel="stylesheet" href="mobile-bills.css?v=2026-10-25-admin-mobile-002">
 </head>
 <body>
   <section class="collaboration-panel" aria-label="Collaboration access">
@@ -363,6 +363,7 @@
             <strong>Browse bills</strong>
             <div class="mobile-bill-heading-actions">
               <span id="mobileBillPosition" aria-live="polite"></span>
+              <button id="mobileBillSyncBtn" type="button" hidden>Sync latest</button>
               <button id="mobileBillGridBtn" type="button" aria-haspopup="dialog" aria-controls="mobileBillGridDialog">All bills</button>
             </div>
           </div>
@@ -378,6 +379,7 @@
             <button id="mobileBillNextBtn" type="button" class="ghost" aria-label="Next bill">Next</button>
           </div>
           <p id="mobileBillScope" class="mobile-bill-scope"></p>
+          <p id="mobileBillSyncStatus" class="mobile-bill-sync-status" role="status" aria-live="polite" hidden></p>
         </div>
         <div class="budget-bill-group" aria-label="Monthly bills list">
           <div class="budget-bill-scroll-shell" aria-label="Swipe left or right to view all bill columns">
@@ -883,7 +885,7 @@
   <script src="oil-investment.js?v=2026-10-14-001"></script>
   <script src="oil-tracker.js?v=2026-10-23-oil-timeline-scroll-001"></script>
   <script src="notes-dialog.js?v=2026-10-16-notes-grid-001"></script>
-  <script src="app.js?v=2026-10-25-admin-mobile-001"></script>
+  <script src="app.js?v=2026-10-25-admin-mobile-002"></script>
   <script src="hospital-bill.js?v=2026-10-21-002"></script>
   </body>
   </html>

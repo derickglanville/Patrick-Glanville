@@ -6286,17 +6286,18 @@ function updateDataStoreStatus() {
   const syncAdminBillsBtn = document.querySelector("#syncAdminBillsBtn");
   if (syncAdminBillsBtn) syncAdminBillsBtn.disabled = !supabaseEnabled;
   const adminBillsSyncStatus = document.querySelector("#adminBillsSyncStatus");
-  if (adminBillsSyncStatus) {
-    adminBillsSyncStatus.hidden = !isAdminClient();
-    if (isAdminClient()) {
-      adminBillsSyncStatus.textContent = !supabaseEnabled
-        ? "Shared data unavailable; showing this device's saved copy"
-        : /failed|blocked|error/i.test(supabaseStatus)
-          ? "Sync needs attention; see Data Store above"
-          : remoteUpdatedAt
-            ? `Latest known shared save: ${formatDateTime(remoteUpdatedAt)}`
-            : "Waiting for shared data";
-    }
+  const mobileBillsSyncStatus = document.querySelector("#mobileBillSyncStatus");
+  const syncMessage = !supabaseEnabled
+    ? "Shared data unavailable; showing this device's saved copy"
+    : /failed|blocked|error/i.test(supabaseStatus)
+      ? "Sync needs attention; see Data Store above"
+      : remoteUpdatedAt
+        ? `Latest known shared save: ${formatDateTime(remoteUpdatedAt)}`
+        : "Waiting for shared data";
+  for (const status of [adminBillsSyncStatus, mobileBillsSyncStatus]) {
+    if (!status) continue;
+    status.hidden = !isAdminClient();
+    if (isAdminClient()) status.textContent = syncMessage;
   }
   const fallbackLabel = window.location.protocol === "file:"
     ? "local file browser storage"
@@ -7140,7 +7141,7 @@ function mobileBillMatchesFilter(bill) {
   if (mobileBillView.filter === "paid") return isMobileBillPaid(bill);
   if (mobileBillView.filter === "unpaid") return !isMobileBillPaid(bill);
   if (mobileBillView.filter === "due") {
-    return !isMobileBillPaid(bill) && (isBillPastDue(bill) || isBillDueSoon(bill, 7));
+    return getBillsDueWithinDays([bill], 7).length > 0;
   }
   return true;
 }
@@ -7182,6 +7183,11 @@ function updateMobileBillNavigator() {
   const active = document.body.dataset.deviceLayout === "phone"
     || (isAdminClient() && document.body.dataset.deviceLayout === "tablet");
   navigator.hidden = !active;
+  const mobileSyncButton = navigator.querySelector("#mobileBillSyncBtn");
+  if (mobileSyncButton) {
+    mobileSyncButton.hidden = !isAdminClient();
+    mobileSyncButton.disabled = !supabaseEnabled;
+  }
   billList.closest(".budget-bill-scroll-shell")?.setAttribute("aria-label", active
     ? "Selected monthly bill card"
     : "Swipe left or right to view all bill columns");
@@ -7209,7 +7215,7 @@ function updateMobileBillNavigator() {
       if (filter === "all") return true;
       if (filter === "paid") return isMobileBillPaid(bill);
       if (filter === "unpaid") return !isMobileBillPaid(bill);
-      return !isMobileBillPaid(bill) && (isBillPastDue(bill) || isBillDueSoon(bill, 7));
+      return getBillsDueWithinDays([bill], 7).length > 0;
     }).length;
     button.textContent = `${filter === "due" ? "Due soon" : filter[0].toUpperCase() + filter.slice(1)} (${count})`;
     button.setAttribute("aria-pressed", String(filter === mobileBillView.filter));
@@ -7229,6 +7235,15 @@ function updateMobileBillNavigator() {
   });
   if (navigator.dataset.bound) return;
   navigator.dataset.bound = "true";
+  mobileSyncButton?.addEventListener("click", async () => {
+    mobileSyncButton.disabled = true;
+    mobileSyncButton.textContent = "Syncing…";
+    try { await requestRemoteClientRefresh(); }
+    finally {
+      mobileSyncButton.textContent = "Sync latest";
+      mobileSyncButton.disabled = !supabaseEnabled;
+    }
+  });
   navigator.querySelectorAll("[data-mobile-bill-filter]").forEach(button => button.addEventListener("click", () => {
     mobileBillView.filter = button.dataset.mobileBillFilter;
     if (mobileBillView.filter !== "all") mobileBillView.billId = null;
