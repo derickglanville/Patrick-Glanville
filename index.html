@@ -14,8 +14,8 @@
   <title>Budget &amp; Notifications</title>
   <link rel="apple-touch-icon" sizes="180x180" href="icons/budget-notifications-180.png?v=2026-10-16">
   <link rel="manifest" href="app.webmanifest?v=2026-10-16">
-    <link rel="stylesheet" href="styles.css?v=2026-10-23-oil-timeline-scroll-001">
-    <link rel="stylesheet" href="mobile-bills.css?v=2026-10-16-saved-balances-001">
+    <link rel="stylesheet" href="styles.css?v=2026-10-25-admin-mobile-001">
+    <link rel="stylesheet" href="mobile-bills.css?v=2026-10-25-admin-mobile-001">
 </head>
 <body>
   <section class="collaboration-panel" aria-label="Collaboration access">
@@ -323,6 +323,8 @@
           <div class="admin-bill-quick-controls">
             <div id="upcomingBillsBanner" class="budget-upcoming-banner" hidden></div>
             <button id="refreshAdminBillsBtn" type="button" class="ghost" hidden title="Recalculate this month's bill values and refresh the dashboard without downloading shared data.">Refresh Current Month</button>
+            <button id="syncAdminBillsBtn" type="button" class="ghost" hidden title="Load the newest saved Admin bills from Firebase across devices.">Sync Latest Bills</button>
+            <span id="adminBillsSyncStatus" class="admin-bills-sync-status" role="status" aria-live="polite" hidden></span>
             <button id="toggleAdminProposedPreviewBtn" type="button" class="ghost" hidden aria-pressed="false" title="Temporarily subtract each Proposed amount from Current Bal and recalculate the bill grid. Actual Current Bal values are not changed.">Preview Proposed Reductions</button>
             <span id="adminProposedPreviewStatus" class="admin-proposed-preview-status" hidden></span>
             <div class="budget-group-toolbar" aria-label="Bill due-date groups">
@@ -875,13 +877,13 @@
     onload="window.__firebaseConfigLoaded = true"
     onerror="window.__firebaseConfigLoadError = 'firebase-config.js failed to load';"
   ></script>
-  <script src="firebase-init.js?v=2026-07-08-003"></script>
+  <script src="firebase-init.js?v=2026-10-25-server-sync-001"></script>
   <script src="oil-history.js?v=2026-10-14-001"></script>
   <script src="oil-weather.js?v=2026-10-14-001"></script>
   <script src="oil-investment.js?v=2026-10-14-001"></script>
   <script src="oil-tracker.js?v=2026-10-23-oil-timeline-scroll-001"></script>
   <script src="notes-dialog.js?v=2026-10-16-notes-grid-001"></script>
-  <script src="app.js?v=2026-10-24-att-bank-record-001"></script>
+  <script src="app.js?v=2026-10-25-admin-mobile-001"></script>
   <script src="hospital-bill.js?v=2026-10-21-002"></script>
   </body>
   </html>

@@ -4,8 +4,8 @@
   display: none;
 }
 
-@media (max-width: 1100px) {
-  body[data-device-layout="phone"] .mobile-bill-navigator:not([hidden]) {
+@media (max-width: 1400px) {
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) .mobile-bill-navigator:not([hidden]) {
     display: grid;
     gap: 10px;
     margin: 12px 0 10px;
@@ -15,7 +15,7 @@
     background: #f2f8ff;
   }
 
-  body[data-device-layout="phone"] .mobile-bill-navigator-heading {
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) .mobile-bill-navigator-heading {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -23,16 +23,16 @@
     color: #173a5d;
   }
 
-  body[data-device-layout="phone"] .mobile-bill-navigator-heading strong { font-size: 1.05rem; }
-  body[data-device-layout="phone"] .mobile-bill-navigator-heading span { font-size: .82rem; font-weight: 800; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) .mobile-bill-navigator-heading strong { font-size: 1.05rem; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) .mobile-bill-navigator-heading span { font-size: .82rem; font-weight: 800; }
 
-  body[data-device-layout="phone"] .mobile-bill-heading-actions {
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) .mobile-bill-heading-actions {
     display: flex;
     align-items: center;
     gap: 8px;
   }
 
-  body[data-device-layout="phone"] #mobileBillGridBtn {
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #mobileBillGridBtn {
     min-height: 36px;
     padding: 5px 9px;
     border: 1px solid #1768b6;
@@ -43,13 +43,13 @@
     font-weight: 800;
   }
 
-  body[data-device-layout="phone"] .mobile-bill-filters {
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) .mobile-bill-filters {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 4px;
   }
 
-  body[data-device-layout="phone"] .mobile-bill-filters button {
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) .mobile-bill-filters button {
     min-width: 0;
     min-height: 38px;
     padding: 5px 2px;
@@ -62,20 +62,20 @@
     line-height: 1.1;
   }
 
-  body[data-device-layout="phone"] .mobile-bill-filters button[aria-pressed="true"] {
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) .mobile-bill-filters button[aria-pressed="true"] {
     border-color: #1768b6;
     background: #1768b6;
     color: #fff;
   }
 
-  body[data-device-layout="phone"] .mobile-bill-picker {
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) .mobile-bill-picker {
     display: grid;
     grid-template-columns: 76px minmax(0, 1fr) 58px;
     align-items: end;
     gap: 6px;
   }
 
-  body[data-device-layout="phone"] .mobile-bill-picker label {
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) .mobile-bill-picker label {
     display: grid;
     gap: 3px;
     min-width: 0;
@@ -85,7 +85,7 @@
     text-transform: uppercase;
   }
 
-  body[data-device-layout="phone"] .mobile-bill-picker select {
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) .mobile-bill-picker select {
     width: 100%;
     min-width: 0;
     height: 44px;
@@ -97,14 +97,14 @@
     font-weight: 700;
   }
 
-  body[data-device-layout="phone"] .mobile-bill-picker button {
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) .mobile-bill-picker button {
     min-height: 44px;
     padding: 4px;
     font-size: .74rem !important;
     font-weight: 800;
   }
 
-  body[data-device-layout="phone"] .mobile-bill-scope {
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) .mobile-bill-scope {
     margin: 0;
     color: #4b6279;
     font-size: .77rem;
@@ -177,15 +177,15 @@
   body[data-device-layout="phone"] .budget-bill-item-simple .budget-bill-actions { justify-content: flex-end; }
 
   /* Admin keeps its full financial row data, presented one bill at a time. */
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards .budget-group-toolbar,
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards .budget-bill-list-header,
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .budget-bill-total-row {
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards .budget-group-toolbar,
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards .budget-bill-list-header,
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .budget-bill-total-row {
     display: none !important;
   }
 
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards .budget-bill-scroll-shell,
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList,
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .budget-bill-list-admin {
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards .budget-bill-scroll-shell,
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList,
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .budget-bill-list-admin {
     display: block;
     width: 100% !important;
     min-width: 0 !important;
@@ -194,11 +194,11 @@
     overflow: visible !important;
   }
 
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item[data-bill-id][hidden] {
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item[data-bill-id][hidden] {
     display: none !important;
   }
 
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item[data-bill-id] {
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item[data-bill-id] {
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     grid-template-areas:
@@ -222,11 +222,11 @@
     box-shadow: 0 5px 16px rgba(20, 65, 105, .08);
   }
 
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item.is-admin-paid[data-bill-id] {
-    background: #f1fbf3 !important;
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item.is-admin-paid[data-bill-id] {
+    background: #eef8f1 !important;
   }
 
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item.mobile-bill-details-open[data-bill-id] {
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item.mobile-bill-details-open[data-bill-id] {
     grid-template-areas:
       "name name"
       "type apr"
@@ -245,7 +245,7 @@
       "actions actions" !important;
   }
 
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item[data-bill-id] > * {
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item[data-bill-id] > * {
     min-width: 0 !important;
     width: auto !important;
     position: static !important;
@@ -253,51 +253,51 @@
     top: auto !important;
   }
 
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .budget-bill-selector-box { display: none !important; }
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .bill-col-name { grid-area: name; }
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .bill-col-type { grid-area: type; }
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .bill-col-apr { grid-area: apr; }
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .bill-col-interest-paid { grid-area: interest; }
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .bill-col-prev-bal { grid-area: previous; }
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .bill-col-current-bal { grid-area: current; }
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .bill-col-proposed { grid-area: proposed; }
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .bill-col-diff { grid-area: diff; }
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .bill-col-payment-priority { grid-area: priority; }
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .bill-col-credit-line { grid-area: credit-line; }
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .bill-col-due-amt { grid-area: amount; }
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .bill-col-paid-amt { grid-area: paid; }
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .bill-col-recommended { grid-area: recommended; }
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .bill-col-payoff-date { grid-area: payoff; }
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .bill-col-payoff-date-due { grid-area: payoff-due; }
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .bill-col-tran { grid-area: tran; }
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .bill-col-due-date { grid-area: due; }
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .bill-col-date-paid { grid-area: paid-date; }
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .bill-col-credit-percent { grid-area: credit-percent; }
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .bill-col-status { grid-area: status; }
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .bill-col-notes { grid-area: notes; }
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .bill-col-observation { grid-area: observation; }
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .bill-col-actions { grid-area: actions; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .budget-bill-selector-box { display: none !important; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-name { grid-area: name; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-type { grid-area: type; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-apr { grid-area: apr; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-interest-paid { grid-area: interest; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-prev-bal { grid-area: previous; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-current-bal { grid-area: current; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-proposed { grid-area: proposed; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-diff { grid-area: diff; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-payment-priority { grid-area: priority; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-credit-line { grid-area: credit-line; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-due-amt { grid-area: amount; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-paid-amt { grid-area: paid; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-recommended { grid-area: recommended; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-payoff-date { grid-area: payoff; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-payoff-date-due { grid-area: payoff-due; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-tran { grid-area: tran; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-due-date { grid-area: due; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-date-paid { grid-area: paid-date; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-credit-percent { grid-area: credit-percent; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-status { grid-area: status; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-notes { grid-area: notes; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-observation { grid-area: observation; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-actions { grid-area: actions; }
 
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item[data-bill-id] > :is(
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item[data-bill-id] > :is(
     .bill-col-name, .bill-col-current-bal, .bill-col-due-amt, .bill-col-due-date,
     .bill-col-status, .bill-col-paid-amt, .bill-col-recommended, .bill-col-actions
   ) { display: block !important; }
 
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item:not(.mobile-bill-details-open) > :is(
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item:not(.mobile-bill-details-open) > :is(
     .bill-col-type, .bill-col-apr, .bill-col-interest-paid, .bill-col-prev-bal,
     .bill-col-proposed, .bill-col-diff, .bill-col-payment-priority, .bill-col-credit-line,
     .bill-col-payoff-date, .bill-col-payoff-date-due, .bill-col-tran, .bill-col-date-paid,
     .bill-col-credit-percent, .bill-col-notes, .bill-col-observation
   ) { display: none !important; }
 
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item.mobile-bill-details-open > :is(
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item.mobile-bill-details-open > :is(
     .bill-col-type, .bill-col-apr, .bill-col-interest-paid, .bill-col-prev-bal,
     .bill-col-proposed, .bill-col-diff, .bill-col-payment-priority, .bill-col-credit-line,
     .bill-col-payoff-date, .bill-col-payoff-date-due, .bill-col-tran, .bill-col-date-paid,
     .bill-col-credit-percent, .bill-col-notes, .bill-col-observation
   ) { display: block !important; }
 
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .mobile-bill-details-toggle {
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .mobile-bill-details-toggle {
     display: block !important;
     grid-area: details;
     width: 100% !important;
@@ -309,9 +309,9 @@
     font-weight: 800;
   }
 
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item input,
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item select,
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item textarea {
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item input,
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item select,
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item textarea {
     box-sizing: border-box;
     width: 100% !important;
     min-width: 0 !important;
@@ -321,14 +321,14 @@
     font-size: 16px !important;
   }
 
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item textarea {
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item textarea {
     min-height: 74px !important;
     height: 74px !important;
     white-space: normal;
   }
 
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item .budget-bill-field > span,
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item .budget-bill-status-box span {
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item .budget-bill-field > span,
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item .budget-bill-status-box span {
     display: block !important;
     margin-bottom: 3px;
     color: #52647d;
@@ -338,19 +338,19 @@
     text-transform: uppercase;
   }
 
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .bill-col-name input {
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-name input {
     font-size: 1rem !important;
     font-weight: 800;
   }
 
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .bill-col-due-amt input {
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-due-amt input {
     border-color: #8fbae0;
     background: #f5faff;
     color: #123b5d;
     font-weight: 800;
   }
 
-  body[data-device-layout="phone"] #budgetPanel.is-mobile-admin-cards #billList .bill-observation {
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-observation {
     min-height: 42px;
     padding: 7px 8px;
     font-size: .88rem;

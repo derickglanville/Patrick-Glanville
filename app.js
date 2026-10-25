@@ -6119,7 +6119,7 @@ async function pullLatestSharedState() {
   window.clearTimeout(supabaseSaveTimer);
   const clientId = activeClientId;
   const docRef = supabaseClient.doc(supabaseClient.db, SUPABASE_TABLE, getSupabaseStateId());
-  const snapshot = await supabaseClient.getDoc(docRef);
+  const snapshot = await (supabaseClient.getDocFromServer || supabaseClient.getDoc)(docRef);
   if (!snapshot.exists() || !snapshot.data()?.state) {
     throw new Error("No shared Firebase state was found for this client.");
   }
@@ -6283,6 +6283,21 @@ async function updateSyncStatus() {
 
 function updateDataStoreStatus() {
   const dataStoreStatus = document.querySelector("#dataStoreStatus");
+  const syncAdminBillsBtn = document.querySelector("#syncAdminBillsBtn");
+  if (syncAdminBillsBtn) syncAdminBillsBtn.disabled = !supabaseEnabled;
+  const adminBillsSyncStatus = document.querySelector("#adminBillsSyncStatus");
+  if (adminBillsSyncStatus) {
+    adminBillsSyncStatus.hidden = !isAdminClient();
+    if (isAdminClient()) {
+      adminBillsSyncStatus.textContent = !supabaseEnabled
+        ? "Shared data unavailable; showing this device's saved copy"
+        : /failed|blocked|error/i.test(supabaseStatus)
+          ? "Sync needs attention; see Data Store above"
+          : remoteUpdatedAt
+            ? `Latest known shared save: ${formatDateTime(remoteUpdatedAt)}`
+            : "Waiting for shared data";
+    }
+  }
   const fallbackLabel = window.location.protocol === "file:"
     ? "local file browser storage"
     : `${window.location.hostname} browser storage`;
@@ -7164,7 +7179,8 @@ function openMobileBillGrid() {
 function updateMobileBillNavigator() {
   const navigator = document.querySelector("#mobileBillNavigator");
   if (!navigator) return;
-  const active = document.body.dataset.deviceLayout === "phone";
+  const active = document.body.dataset.deviceLayout === "phone"
+    || (isAdminClient() && document.body.dataset.deviceLayout === "tablet");
   navigator.hidden = !active;
   billList.closest(".budget-bill-scroll-shell")?.setAttribute("aria-label", active
     ? "Selected monthly bill card"
@@ -7258,7 +7274,7 @@ function updateMobileBillNavigator() {
 
 function renderBills() {
   const usesSimpleBills = !clientUsesBillGrouping();
-  const mobileAdminCards = !usesSimpleBills && document.body.dataset.deviceLayout === "phone";
+  const mobileAdminCards = !usesSimpleBills && ["phone", "tablet"].includes(document.body.dataset.deviceLayout);
   const displayBills = getBillsForCurrentDisplay();
   const simulationActive = isAdminBillSimulationActive();
   const proposedPreviewActive = isAdminProposedPreviewActive();
@@ -7735,6 +7751,11 @@ function renderBills() {
   if (copyBillsToNextMonthBtn) copyBillsToNextMonthBtn.hidden = false;
   if (calculateBillsBtn) calculateBillsBtn.hidden = usesSimpleBills;
   if (refreshAdminBillsBtn) refreshAdminBillsBtn.hidden = !isAdminClient();
+  const syncAdminBillsBtn = document.querySelector("#syncAdminBillsBtn");
+  if (syncAdminBillsBtn) {
+    syncAdminBillsBtn.hidden = !isAdminClient();
+    syncAdminBillsBtn.disabled = !supabaseEnabled;
+  }
   if (assignDueDatesBtn) assignDueDatesBtn.hidden = usesSimpleBills;
   if (undoCopyBillsToNextMonthBtn) undoCopyBillsToNextMonthBtn.hidden = usesSimpleBills;
   if (toggleBillsPopoutBtn) {
@@ -13128,6 +13149,7 @@ if (calculateBillsBtn) {
 if (refreshAdminBillsBtn) {
   refreshAdminBillsBtn.addEventListener("click", refreshAdminBills);
 }
+document.querySelector("#syncAdminBillsBtn")?.addEventListener("click", requestRemoteClientRefresh);
 if (adminBillSimulationBtn) {
   adminBillSimulationBtn.addEventListener("click", openAdminBillSimulation);
 }
