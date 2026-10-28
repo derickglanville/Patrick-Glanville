@@ -6266,3 +6266,35 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .car-invoice-dialog img { display: block; width: 100%; height: auto; max-height: 75vh; object-fit: contain; overflow: auto; }
 .car-invoice-dialog figure { margin: 12px 0 20px; }
 .car-invoice-dialog figcaption { margin-bottom: 7px; color: #193d55; font-weight: 800; }
+.admin-bill-tabs { display: flex; gap: 7px; padding: 10px 16px 0; border-top: 1px solid #d8e3ed; }
+.admin-bill-tabs[hidden], .admin-bill-notes-panel[hidden], .admin-bill-note-form[hidden] { display: none !important; }
+.admin-bill-tabs button { border: 1px solid #b9cbdc; border-radius: 8px 8px 0 0; padding: 9px 18px; background: #eef4fa; color: #234b6c; font-weight: 750; }
+.admin-bill-tabs button[aria-selected="true"] { border-color: #21659b; background: #21659b; color: #fff; }
+.budget-panel.is-admin-notes-view > #budgetPanelContent { display: none !important; }
+.budget-panel.is-admin-notes-view > header .panel-actions { display: none; }
+.admin-bill-notes-panel { padding: 16px; background: #f8fbfe; }
+.admin-bill-notes-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; }
+.admin-bill-notes-head h3 { margin: 0; color: #173f5f; }
+.admin-bill-notes-head p { margin: 4px 0 0; color: #60798e; font-size: .83rem; }
+.admin-bill-notes-status { min-height: 1.2em; margin: 7px 0 10px; color: #315d74; font-size: .8rem; font-weight: 700; }
+.admin-bill-notes-status.is-error { color: #a12626; }
+.admin-bill-notes-grid { max-height: 55vh; overflow: auto; border: 1px solid #c9d9e7; border-radius: 8px; background: #fff; }
+.admin-bill-notes-grid table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: .82rem; }
+.admin-bill-notes-grid th, .admin-bill-notes-grid td { padding: 9px; text-align: left; vertical-align: top; border-bottom: 1px solid #dce7f0; }
+.admin-bill-notes-grid th { position: sticky; top: 0; z-index: 1; background: #e8f2fa; color: #204e70; white-space: nowrap; }
+.admin-bill-notes-grid tr:nth-child(even) { background: #f8fbfe; }
+.admin-bill-notes-grid td:nth-child(2) { min-width: 260px; }
+.admin-bill-notes-grid td strong, .admin-bill-notes-grid td small { display: block; }
+.admin-bill-notes-grid td small { margin-top: 5px; color: #617889; line-height: 1.35; }
+.admin-bill-notes-grid td:last-child { white-space: nowrap; }
+.admin-bill-notes-grid td button { padding: 5px 8px; }
+.admin-bill-note-status { display: inline-block; padding: 4px 7px; border-radius: 6px; background: #e9f2fb; color: #245b82; font-weight: 750; }
+.admin-bill-note-status-waiting { background: #fff0c6; color: #754b00; }
+.admin-bill-note-status-resolved, .admin-bill-note-status-closed { background: #dff3e4; color: #23653d; }
+.admin-bill-note-form { margin-top: 14px; padding: 15px; border: 1px solid #c9d9e7; border-radius: 9px; background: #fff; }
+.admin-bill-note-form h4 { margin: 0 0 12px; color: #173f5f; }
+.admin-bill-note-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.admin-bill-note-form label { display: grid; gap: 5px; margin-bottom: 10px; color: #31536d; font-size: .8rem; font-weight: 750; }
+.admin-bill-note-form input, .admin-bill-note-form select, .admin-bill-note-form textarea { box-sizing: border-box; width: 100%; min-width: 0; padding: 8px; border: 1px solid #b9ccd9; border-radius: 6px; background: #fff; color: #17374e; font: inherit; }
+.admin-bill-note-actions { display: flex; gap: 8px; }
+@media (max-width: 650px) { .admin-bill-note-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }.admin-bill-notes-panel { padding: 10px; } }
