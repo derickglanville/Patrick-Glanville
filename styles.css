@@ -6262,4 +6262,5 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .car-invoice-dialog::backdrop { background: rgba(10, 27, 43, .75); }
 .car-invoice-head, .car-invoice-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; }
 .car-invoice-actions a { color: #155c91; font-weight: 700; }
+.car-invoice-actions { flex-wrap: wrap; justify-content: flex-start; }
 .car-invoice-dialog img { display: block; width: 100%; height: auto; max-height: 75vh; object-fit: contain; overflow: auto; }

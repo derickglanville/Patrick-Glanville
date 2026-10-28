@@ -9,9 +9,16 @@
   let loadStatus = "";
   const invoiceViewer = document.createElement("dialog");
   invoiceViewer.className = "car-invoice-dialog";
-  invoiceViewer.innerHTML = '<div class="car-invoice-head"><strong>Bill statement</strong><button type="button" class="ghost" data-invoice-close>Close</button></div><div class="car-invoice-actions"><a data-invoice-original target="_blank" rel="noopener">Open original</a><a data-invoice-download download="car-service-bill.jpg">Download enhanced copy</a></div><img alt="Enhanced car service bill statement">';
+  invoiceViewer.innerHTML = '<div class="car-invoice-head"><strong>Bill statement</strong><button type="button" class="ghost" data-invoice-close>Close</button></div><div class="car-invoice-actions"><button type="button" class="ghost" data-invoice-receipt>View receipt</button><button type="button" class="ghost" data-invoice-photo hidden>View product photo</button><a data-invoice-original target="_blank" rel="noopener">Open original</a><a data-invoice-download download="car-service-bill.jpg">Download displayed copy</a></div><img alt="Enhanced car service bill statement">';
   document.body.appendChild(invoiceViewer);
-  invoiceViewer.addEventListener("click", event => { if (event.target.closest("[data-invoice-close]")) invoiceViewer.close(); });
+  invoiceViewer.addEventListener("click", event => {
+    if (event.target.closest("[data-invoice-close]")) invoiceViewer.close();
+    const source = event.target.closest("[data-invoice-photo]") ? invoiceViewer.productImage : event.target.closest("[data-invoice-receipt]") ? invoiceViewer.receiptImage : "";
+    if (source) {
+      invoiceViewer.querySelector("img").src = source;
+      invoiceViewer.querySelector("[data-invoice-download]").href = source;
+    }
+  });
   const fileData = file => new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(file); });
   async function statementImages(file) {
     if (!/^image\/(jpeg|png|webp)$/.test(file.type)) throw new Error("Choose a JPG, PNG, or WebP statement image");
@@ -41,6 +48,9 @@
       if (!snapshot.exists()) throw new Error("The statement was not found");
       const saved = snapshot.data();
       const image = `data:image/jpeg;base64,${saved.enhancedBase64 || saved.originalBase64}`;
+      invoiceViewer.receiptImage = image;
+      invoiceViewer.productImage = saved.productBase64 ? `data:image/jpeg;base64,${saved.productBase64}` : "";
+      invoiceViewer.querySelector("[data-invoice-photo]").hidden = !saved.productBase64;
       invoiceViewer.querySelector("img").src = image;
       invoiceViewer.querySelector("[data-invoice-download]").href = image;
       invoiceViewer.querySelector("[data-invoice-original]").href = `data:image/jpeg;base64,${saved.originalBase64}`;
