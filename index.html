@@ -14,7 +14,7 @@
   <title>Budget &amp; Notifications</title>
   <link rel="apple-touch-icon" sizes="180x180" href="icons/budget-notifications-180.png?v=2026-10-16">
   <link rel="manifest" href="app.webmanifest?v=2026-10-16">
-    <link rel="stylesheet" href="styles.css?v=2026-10-25-admin-mobile-001">
+    <link rel="stylesheet" href="styles.css?v=2026-10-27-car-service-001">
     <link rel="stylesheet" href="mobile-bills.css?v=2026-10-25-patrick-bill-browser-001">
 </head>
 <body>
@@ -306,6 +306,7 @@
           <button id="cellphoneBillingHistoryBtn" type="button" class="ghost" hidden>Cellphone History</button>
           <button id="adminNotesRemindersBtn" type="button" class="ghost" hidden>Notes &amp; Reminders</button>
           <button id="hospitalBillBtn" type="button" class="ghost" hidden>Hospital Payment Plan</button>
+          <button id="carServiceBtn" type="button" class="ghost" hidden>Car Service &amp; Maintenance</button>
           <button id="homeHeatingOilBtn" type="button" class="ghost" hidden>Heating Oil</button>
           <button id="assignDueDatesBtn" type="button" class="ghost">Assign Due Dates</button>
           <button id="undoCopyBillsToNextMonthBtn" type="button" class="ghost">Undo Next Month Copy</button>
@@ -826,6 +827,15 @@
       <div id="hospitalBillBody"></div>
     </div>
   </dialog>
+  <dialog id="carServiceDialog" class="car-service-dialog" aria-labelledby="carServiceTitle">
+    <div class="report-dialog car-service-shell">
+      <div class="dialog-head">
+        <div><h2 id="carServiceTitle">Car Service &amp; Maintenance</h2><p>Service history, costs, and upcoming inspection and registration dates.</p></div>
+        <button type="button" id="closeCarServiceDialog" class="icon-button" aria-label="Close car service and maintenance">×</button>
+      </div>
+      <div id="carServiceBody"></div>
+    </div>
+  </dialog>
   <dialog id="homeHeatingOilDialog">
     <div class="report-dialog home-oil-dialog">
       <div class="dialog-head"><div><h2>Home Heating Oil</h2><p>Delivery history, tank readings, seasonal usage and refill planning.</p></div><button id="closeHomeHeatingOilDialog" type="button" class="icon-button" aria-label="Close">x</button></div>
@@ -885,7 +895,8 @@
   <script src="oil-investment.js?v=2026-10-14-001"></script>
   <script src="oil-tracker.js?v=2026-10-23-oil-timeline-scroll-001"></script>
   <script src="notes-dialog.js?v=2026-10-16-notes-grid-001"></script>
-  <script src="app.js?v=2026-10-25-patrick-bill-browser-001"></script>
+  <script src="app.js?v=2026-10-27-car-service-001"></script>
   <script src="hospital-bill.js?v=2026-10-21-002"></script>
+  <script src="car-service.js?v=2026-10-27-001"></script>
   </body>
   </html>

@@ -1408,6 +1408,41 @@ function normalizeHospitalBill(value) {
   };
 }
 
+function buildCarServiceSeed() {
+  const vehicle = (id, name) => ({
+    id, name, trim: "", plate: "", vin: "", oil: "", tires: "", mileage: null,
+    inspectionDue: "", registrationDue: "", reminderDays: 30, notes: "", links: [], records: []
+  });
+  return { vehicles: [vehicle("rogue-2016", "2016 Nissan Rogue"), vehicle("genesis-2012", "2012 Hyundai Genesis")] };
+}
+function normalizeCarService(value) {
+  const seed = buildCarServiceSeed();
+  const stored = value && typeof value === "object" && Array.isArray(value.vehicles) ? value.vehicles : [];
+  return {
+    vehicles: seed.vehicles.map(defaultVehicle => {
+      const vehicle = stored.find(item => item?.id === defaultVehicle.id) || defaultVehicle;
+      const validDate = date => /^\d{4}-\d{2}-\d{2}$/.test(String(date || "")) ? String(date) : "";
+      return {
+        ...defaultVehicle,
+        ...vehicle,
+        inspectionDue: validDate(vehicle.inspectionDue),
+        registrationDue: validDate(vehicle.registrationDue),
+        reminderDays: Math.max(0, Math.min(90, Number.isFinite(Number(vehicle.reminderDays)) ? Number(vehicle.reminderDays) : 30)),
+        links: Array.isArray(vehicle.links) ? vehicle.links.filter(link => link && /^https:\/\//i.test(String(link.url || ""))).map(link => ({ label: String(link.label || "Reference").slice(0, 100), url: String(link.url).slice(0, 500) })) : [],
+        records: (Array.isArray(vehicle.records) ? vehicle.records : defaultVehicle.records)
+          .filter(item => item && validDate(item.date) && String(item.work || "").trim())
+          .map(item => ({
+            id: String(item.id || crypto.randomUUID()), date: validDate(item.date),
+            work: String(item.work || "").trim().slice(0, 300),
+            cost: item.cost === "" || item.cost == null ? null : Math.max(0, Number(item.cost) || 0),
+            mileage: item.mileage === "" || item.mileage == null ? null : Math.max(0, Math.round(Number(item.mileage) || 0)),
+            provider: String(item.provider || "").slice(0, 120), notes: String(item.notes || "").slice(0, 1000)
+          }))
+      };
+    })
+  };
+}
+
 function buildAdminSeedData() {
   return {
     dataVersion: DATA_VERSION,
@@ -1415,6 +1450,7 @@ function buildAdminSeedData() {
     runningNotes: [],
     adminNotesReminders: structuredClone(ADMIN_NOTES_REMINDERS_SEED),
     hospitalBill: buildHospitalBillSeed(),
+    carService: buildCarServiceSeed(),
     homeHeatingOil: { capacity: 270, deliveries: structuredClone(window.HOME_HEATING_OIL_HISTORY || []), readings: [] },
     documents: [],
     history: [],
@@ -2236,6 +2272,7 @@ function loadState() {
       runningNotes: Array.isArray(parsed.runningNotes) ? parsed.runningNotes : [],
       adminNotesReminders: Array.isArray(parsed.adminNotesReminders) ? parsed.adminNotesReminders : structuredClone(seedData.adminNotesReminders || []),
       hospitalBill: parsed.hospitalBill || structuredClone(seedData.hospitalBill || null),
+      carService: parsed.carService || structuredClone(seedData.carService || null),
       homeHeatingOil: parsed.homeHeatingOil || structuredClone(seedData.homeHeatingOil || { capacity: 270, deliveries: [], readings: [] }),
       documents: Array.isArray(parsed.documents) ? parsed.documents : [],
       collapsedTaskGroupsVersion: Number(parsed.collapsedTaskGroupsVersion) || 0,
@@ -3251,6 +3288,7 @@ function initializeState(loaded) {
     ? loaded.adminNotesReminders.map(normalizeAdminNotesReminder).filter(Boolean)
     : structuredClone(seedData.adminNotesReminders || []).map(normalizeAdminNotesReminder).filter(Boolean);
   if (activeClientId === "admin") loaded.hospitalBill = normalizeHospitalBill(loaded.hospitalBill);
+  if (activeClientId === "admin") loaded.carService = normalizeCarService(loaded.carService);
   if (activeClientId === "admin") {
     const oilBeforeNormalization = JSON.stringify(loaded.homeHeatingOil || null);
     loaded.homeHeatingOil = normalizeHomeHeatingOil(loaded.homeHeatingOil, seedData.homeHeatingOil);
@@ -7341,6 +7379,7 @@ function renderBills() {
   if (cellphoneBillingHistoryBtn) cellphoneBillingHistoryBtn.hidden = !isAdminClient();
   if (adminNotesRemindersBtn) adminNotesRemindersBtn.hidden = !isAdminClient();
   document.querySelector("#hospitalBillBtn").hidden = !isAdminClient();
+  document.querySelector("#carServiceBtn").hidden = !isAdminClient();
   const oilButton = document.querySelector("#homeHeatingOilBtn");
   if (oilButton) oilButton.hidden = !isAdminClient();
   if (adminBillSimulationStatus) adminBillSimulationStatus.hidden = !simulationActive;
