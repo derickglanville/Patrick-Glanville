@@ -7,6 +7,46 @@
   let selectedVehicleId = "rogue-2016";
   let editingRecordId = "";
   let loadStatus = "";
+  const invoiceViewer = document.createElement("dialog");
+  invoiceViewer.className = "car-invoice-dialog";
+  invoiceViewer.innerHTML = '<div class="car-invoice-head"><strong>Bill statement</strong><button type="button" class="ghost" data-invoice-close>Close</button></div><div class="car-invoice-actions"><a data-invoice-original target="_blank" rel="noopener">Open original</a><a data-invoice-download download="car-service-bill.jpg">Download enhanced copy</a></div><img alt="Enhanced car service bill statement">';
+  document.body.appendChild(invoiceViewer);
+  invoiceViewer.addEventListener("click", event => { if (event.target.closest("[data-invoice-close]")) invoiceViewer.close(); });
+  const fileData = file => new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(file); });
+  async function statementImages(file) {
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) throw new Error("Choose a JPG, PNG, or WebP statement image");
+    const source = await fileData(file);
+    const image = new Image();
+    image.src = source;
+    await image.decode();
+    const scale = Math.min(1, 1600 / Math.max(image.width, image.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(image.width * scale); canvas.height = Math.round(image.height * scale);
+    const context = canvas.getContext("2d");
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const original = canvas.toDataURL("image/jpeg", .78).split(",")[1];
+    context.fillStyle = "#fff";
+    context.filter = "grayscale(1) contrast(1.3) brightness(1.1)";
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const enhanced = canvas.toDataURL("image/jpeg", .78).split(",")[1];
+    if (original.length + enhanced.length > 750000) throw new Error("Image is too large; choose a smaller photo");
+    return { original, enhanced };
+  }
+  async function openInvoice(invoiceId) {
+    try {
+      await window.__firebaseInitPromise;
+      const firebase = window.__patrickFirebase;
+      if (!firebase?.db) throw new Error("Firebase is not connected");
+      const snapshot = await (firebase.getDocFromServer || firebase.getDoc)(firebase.doc(firebase.db, "tracker_state", invoiceId));
+      if (!snapshot.exists()) throw new Error("The statement was not found");
+      const saved = snapshot.data();
+      const image = `data:image/jpeg;base64,${saved.enhancedBase64 || saved.originalBase64}`;
+      invoiceViewer.querySelector("img").src = image;
+      invoiceViewer.querySelector("[data-invoice-download]").href = image;
+      invoiceViewer.querySelector("[data-invoice-original]").href = `data:image/jpeg;base64,${saved.originalBase64}`;
+      invoiceViewer.showModal();
+    } catch (error) { alert(`Could not open the bill: ${error.message}`); }
+  }
   const money = value => Number(value).toLocaleString(undefined, { style: "currency", currency: "USD" });
   const today = () => {
     const date = new Date();
@@ -107,7 +147,7 @@
       <section class="car-card car-ledger">
         <div class="car-ledger-heading"><div><h3>Service history</h3><p>${records.length} dated entries, newest first</p></div></div>
         <div class="car-table-wrap"><table><thead><tr><th>Date</th><th>Work done</th><th>Shop</th><th>Mileage</th><th>Cost</th><th>Actions</th></tr></thead><tbody>
-          ${records.length ? records.map(record => `<tr><td>${escapeHtml(dateLabel(record.date))}</td><td><strong>${escapeHtml(record.work)}</strong>${record.notes ? `<small>${escapeHtml(record.notes)}</small>` : ""}</td><td>${escapeHtml(record.provider || "—")}</td><td>${record.mileage == null ? "—" : Number(record.mileage).toLocaleString()}</td><td>${record.cost == null ? "Not recorded" : money(record.cost)}</td><td><button type="button" class="ghost" data-car-edit="${escapeAttribute(record.id)}">Edit</button> <button type="button" class="ghost" data-car-delete="${escapeAttribute(record.id)}">Delete</button></td></tr>`).join("") : '<tr><td colspan="6">No service records yet.</td></tr>'}
+          ${records.length ? records.map(record => `<tr><td>${escapeHtml(dateLabel(record.date))}</td><td><strong>${escapeHtml(record.work)}</strong>${record.notes ? `<small>${escapeHtml(record.notes)}</small>` : ""}</td><td>${escapeHtml(record.provider || "—")}</td><td>${record.mileage == null ? "—" : Number(record.mileage).toLocaleString()}</td><td>${record.cost == null ? "Not recorded" : money(record.cost)}</td><td>${record.invoiceId ? `<button type="button" class="ghost" data-car-invoice="${escapeAttribute(record.invoiceId)}">View bill</button> ` : ""}<button type="button" class="ghost" data-car-edit="${escapeAttribute(record.id)}">Edit</button> <button type="button" class="ghost" data-car-delete="${escapeAttribute(record.id)}">Delete</button></td></tr>`).join("") : '<tr><td colspan="6">No service records yet.</td></tr>'}
         </tbody></table></div>
       </section>
       <div class="car-layout">
@@ -129,7 +169,7 @@
           <p class="car-hint">Set the dates shown on the inspection sticker and registration. A reminder is added to Admin Notes &amp; Reminders in advance and again on the due date.</p>
         </form>
         <form id="carRecordForm" class="car-card">
-          <h3>${edit ? "Update service record" : "Add service record"}</h3>
+          <h3>${edit ? "Update service record" : "Add service record or import bill"}</h3>
           <div class="car-fields">
             <label>Service date<input name="date" type="date" required value="${escapeAttribute(edit?.date || today())}"></label>
             <label>Cost ($)<input name="cost" type="number" min="0" step="0.01" placeholder="Leave blank if unknown" value="${edit?.cost ?? ""}"></label>
@@ -138,6 +178,7 @@
           </div>
           <label>Work done<input name="work" required maxlength="300" value="${escapeAttribute(edit?.work || "")}" placeholder="Describe the service or repair"></label>
           <label>Notes<textarea name="notes" rows="4">${escapeHtml(edit?.notes || "")}</textarea></label>
+          <label>Bill statement image (optional)<input name="invoice" type="file" accept="image/jpeg,image/png,image/webp"></label>
           <div class="car-actions"><button type="submit">${edit ? "Save changes" : "Add record"}</button>${edit ? '<button type="button" class="ghost" data-car-cancel>Cancel edit</button>' : ""}</div>
           <p class="car-hint">An empty cost means it was not supplied; it is not counted as $0 in the total.</p>
         </form>
@@ -156,6 +197,8 @@
 
   body.addEventListener("click", event => {
     if (event.target.closest("[data-car-reload]")) { void loadCarServiceFromFirebase(); return; }
+    const invoice = event.target.closest("[data-car-invoice]");
+    if (invoice) { void openInvoice(invoice.dataset.carInvoice); return; }
     const tab = event.target.closest("[data-car-tab]");
     if (tab) { selectedVehicleId = tab.dataset.carTab; editingRecordId = ""; paint(); return; }
     const edit = event.target.closest("[data-car-edit]");
@@ -171,7 +214,7 @@
     if (event.target.closest("[data-car-cancel]")) { editingRecordId = ""; paint(); }
   });
 
-  body.addEventListener("submit", event => {
+  body.addEventListener("submit", async event => {
     if (event.target.id === "carProfileForm") {
       event.preventDefault();
       const form = event.target;
@@ -193,8 +236,23 @@
         id: prior?.id || crypto.randomUUID(), date: field("date"), work: field("work").slice(0, 300),
         cost: field("cost") === "" ? null : Math.max(0, Number(field("cost"))),
         mileage: field("mileage") === "" ? null : Math.max(0, Math.round(Number(field("mileage")))),
-        provider: field("provider").slice(0, 120), notes: field("notes").slice(0, 1000)
+        provider: field("provider").slice(0, 120), notes: field("notes").slice(0, 1000), invoiceId: prior?.invoiceId || ""
       };
+      const file = form.elements.namedItem("invoice").files[0];
+      if (file) {
+        try {
+          const images = await statementImages(file);
+          await window.__firebaseInitPromise;
+          const firebase = window.__patrickFirebase;
+          if (!firebase?.db) throw new Error("Firebase is not connected");
+          record.invoiceId = `car-service-invoice-${crypto.randomUUID()}`;
+          await firebase.setDoc(firebase.doc(firebase.db, "tracker_state", record.invoiceId), {
+            kind: "car-service-invoice", vehicleId: item.id, recordId: record.id, name: file.name.slice(0, 120),
+            originalMime: "image/jpeg", originalBase64: images.original,
+            enhancedMime: "image/jpeg", enhancedBase64: images.enhanced
+          });
+        } catch (error) { alert(`Bill import failed: ${error.message}`); return; }
+      }
       if (prior) Object.assign(prior, record);
       else item.records.push(record);
       editingRecordId = "";

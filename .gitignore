@@ -14,3 +14,4 @@ Backups/
 Email/__pycache__/
 Scripts/send_daily_email-2.py
 car-service-seed-private.json
+car-service-private/
