@@ -14,7 +14,7 @@
   <title>Budget &amp; Notifications</title>
   <link rel="apple-touch-icon" sizes="180x180" href="icons/budget-notifications-180.png?v=2026-10-16">
   <link rel="manifest" href="app.webmanifest?v=2026-10-16">
-    <link rel="stylesheet" href="styles.css?v=2026-10-28-admin-bill-notes-001">
+    <link rel="stylesheet" href="styles.css?v=2026-10-28-cellphone-notes-001">
     <link rel="stylesheet" href="mobile-bills.css?v=2026-10-25-patrick-bill-browser-001">
 </head>
 <body>
@@ -347,11 +347,7 @@
             <span id="adminBillSmsStatus" class="admin-bill-sms-status" aria-live="polite"></span>
           </div>
       </div>
-      <div id="adminBillTabs" class="admin-bill-tabs" role="tablist" aria-label="Admin Bills views" hidden>
-        <button id="adminBillsTab" type="button" role="tab" aria-selected="true" aria-controls="budgetPanelContent">Bills</button>
-        <button id="adminBillNotesTab" type="button" role="tab" aria-selected="false" aria-controls="adminBillNotesPanel">Notes</button>
-      </div>
-      <div class="collapsible-content" id="budgetPanelContent" role="tabpanel" aria-labelledby="adminBillsTab">
+      <div class="collapsible-content" id="budgetPanelContent">
         <div class="budget-metrics">
           <article><strong id="billMBFDisplay">$0.00</strong><span>MBF</span></article>
           <article><strong id="billTotal">$0.00</strong><span>Total bills</span></article>
@@ -436,25 +432,6 @@
           </div>
         </section>
       </div>
-      <section id="adminBillNotesPanel" class="admin-bill-notes-panel" role="tabpanel" aria-labelledby="adminBillNotesTab" hidden>
-        <div class="admin-bill-notes-head"><div><h3>Admin Bill Notes</h3><p>Track requests, decisions, and follow-ups across billing cycles.</p></div><button id="addAdminBillNoteBtn" type="button">Add note</button></div>
-        <p id="adminBillNotesStatus" class="admin-bill-notes-status" role="status" aria-live="polite"></p>
-        <div id="adminBillNotesGrid" class="admin-bill-notes-grid"></div>
-        <form id="adminBillNoteForm" class="admin-bill-note-form" hidden>
-          <h4 id="adminBillNoteFormTitle">Add note</h4>
-          <div class="admin-bill-note-fields">
-            <label>Date<input name="date" type="date" required></label>
-            <label>Bill month<input name="billMonth" type="month"></label>
-            <label>Amount ($)<input name="amount" type="number" min="0" step="0.01" placeholder="Optional"></label>
-            <label>Status<select name="status"><option>Open</option><option>Waiting</option><option>Resolved</option><option>Closed</option></select></label>
-            <label>Follow-up date<input name="followUpDate" type="date"></label>
-            <label>Contact / reference<input name="contact" type="text" maxlength="120" placeholder="Optional"></label>
-          </div>
-          <label>Description<textarea name="description" rows="3" maxlength="1000" required></textarea></label>
-          <label>Additional details<textarea name="details" rows="3" maxlength="1000"></textarea></label>
-          <div class="admin-bill-note-actions"><button type="submit">Save note</button><button id="cancelAdminBillNoteBtn" type="button" class="ghost">Cancel</button></div>
-        </form>
-      </section>
     </section>
 
     <section class="life-admin-panel" id="lifeAdminPanel" aria-label="Client to-do notes" hidden>
@@ -918,9 +895,9 @@
   <script src="oil-investment.js?v=2026-10-14-001"></script>
   <script src="oil-tracker.js?v=2026-10-23-oil-timeline-scroll-001"></script>
   <script src="notes-dialog.js?v=2026-10-16-notes-grid-001"></script>
-  <script src="app.js?v=2026-10-28-admin-bill-notes-001"></script>
+  <script src="app.js?v=2026-10-28-cellphone-notes-001"></script>
   <script src="hospital-bill.js?v=2026-10-21-002"></script>
   <script src="car-service.js?v=2026-10-27-006"></script>
-  <script src="admin-bill-notes.js?v=2026-10-28-001"></script>
+  <script src="cellphone-history-notes.js?v=2026-10-28-001"></script>
   </body>
   </html>

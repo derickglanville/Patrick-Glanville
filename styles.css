@@ -6266,13 +6266,8 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .car-invoice-dialog img { display: block; width: 100%; height: auto; max-height: 75vh; object-fit: contain; overflow: auto; }
 .car-invoice-dialog figure { margin: 12px 0 20px; }
 .car-invoice-dialog figcaption { margin-bottom: 7px; color: #193d55; font-weight: 800; }
-.admin-bill-tabs { display: flex; gap: 7px; padding: 10px 16px 0; border-top: 1px solid #d8e3ed; }
-.admin-bill-tabs[hidden], .admin-bill-notes-panel[hidden], .admin-bill-note-form[hidden] { display: none !important; }
-.admin-bill-tabs button { border: 1px solid #b9cbdc; border-radius: 8px 8px 0 0; padding: 9px 18px; background: #eef4fa; color: #234b6c; font-weight: 750; }
-.admin-bill-tabs button[aria-selected="true"] { border-color: #21659b; background: #21659b; color: #fff; }
-.budget-panel.is-admin-notes-view > #budgetPanelContent { display: none !important; }
-.budget-panel.is-admin-notes-view > header .panel-actions { display: none; }
-.admin-bill-notes-panel { padding: 16px; background: #f8fbfe; }
+.admin-bill-note-form[hidden] { display: none !important; }
+.cellphone-history-notes-panel { padding: 16px; background: #f8fbfe; }
 .admin-bill-notes-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; }
 .admin-bill-notes-head h3 { margin: 0; color: #173f5f; }
 .admin-bill-notes-head p { margin: 4px 0 0; color: #60798e; font-size: .83rem; }
@@ -6297,4 +6292,4 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .admin-bill-note-form label { display: grid; gap: 5px; margin-bottom: 10px; color: #31536d; font-size: .8rem; font-weight: 750; }
 .admin-bill-note-form input, .admin-bill-note-form select, .admin-bill-note-form textarea { box-sizing: border-box; width: 100%; min-width: 0; padding: 8px; border: 1px solid #b9ccd9; border-radius: 6px; background: #fff; color: #17374e; font: inherit; }
 .admin-bill-note-actions { display: flex; gap: 8px; }
-@media (max-width: 650px) { .admin-bill-note-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }.admin-bill-notes-panel { padding: 10px; } }
+@media (max-width: 650px) { .admin-bill-note-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }.cellphone-history-notes-panel { padding: 10px; } }
