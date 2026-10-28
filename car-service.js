@@ -7,6 +7,7 @@
   let selectedVehicleId = "rogue-2016";
   let editingRecordId = "";
   let loadStatus = "";
+  let saveInProgress = false;
   const invoiceViewer = document.createElement("dialog");
   invoiceViewer.className = "car-invoice-dialog";
   invoiceViewer.innerHTML = '<div class="car-invoice-head"><strong>Service images</strong><button type="button" class="ghost" data-invoice-close>Close</button></div><div class="car-invoice-actions"><button type="button" class="ghost" data-invoice-receipt>Receipt</button><button type="button" class="ghost" data-invoice-photo hidden>Battery photo</button><a data-invoice-original target="_blank" rel="noopener">Open original receipt</a><a data-invoice-download download="car-service-image.jpg">Download displayed image</a></div><figure data-invoice-receipt-figure><figcaption>Enhanced receipt</figcaption><img data-invoice-receipt-image alt="Enhanced car service receipt"></figure><figure data-invoice-photo-figure hidden><figcaption>Battery photo</figcaption><img data-invoice-photo-image alt="Battery supplied for this service record"></figure>';
@@ -79,19 +80,18 @@
     return `${result.getFullYear()}-${String(result.getMonth() + 1).padStart(2, "0")}-${String(result.getDate()).padStart(2, "0")}`;
   };
 
-  function syncVehicleReminders(item) {
-    state.adminNotesReminders ||= [];
+  function syncVehicleReminders(item, reminders) {
     for (const [type, title] of [["inspection", "Inspection"], ["registration", "Registration"]]) {
       const due = item[`${type}Due`];
       for (const stage of ["early", "due"]) {
         const id = `car-service-${item.id}-${type}-${stage}`;
-        const index = state.adminNotesReminders.findIndex(note => note.id === id);
+        const index = reminders.findIndex(note => note.id === id);
         if (!due || (stage === "early" && item.reminderDays <= 0)) {
-          if (index >= 0) state.adminNotesReminders.splice(index, 1);
+          if (index >= 0) reminders.splice(index, 1);
           continue;
         }
         const reminderDate = stage === "early" ? daysBefore(due, item.reminderDays) : due;
-        const prior = index >= 0 ? state.adminNotesReminders[index] : null;
+        const prior = index >= 0 ? reminders[index] : null;
         const entry = normalizeAdminNotesReminder({
           id,
           title: `${item.name} ${title.toLowerCase()}${stage === "early" ? " coming up" : " due"}`,
@@ -106,9 +106,74 @@
             : `${item.name} ${title.toLowerCase()} is due today. Confirm completion and update the next date in Car Service & Maintenance.`,
           updatedAt: new Date().toISOString()
         });
-        if (index >= 0) state.adminNotesReminders[index] = entry;
-        else state.adminNotesReminders.push(entry);
+        if (index >= 0) reminders[index] = entry;
+        else reminders.push(entry);
       }
+    }
+  }
+
+  function cacheCarService(carService, reminders) {
+    try {
+      const storageKey = getStorageKey();
+      const cached = storageKey ? JSON.parse(localStorage.getItem(storageKey) || "null") : null;
+      if (cached && typeof cached === "object") {
+        cached.carService = carService;
+        if (reminders) cached.adminNotesReminders = reminders;
+        localStorage.setItem(storageKey, JSON.stringify(cached));
+      }
+    } catch { /* Firebase remains the source of truth if local storage is full. */ }
+  }
+
+  async function saveCarService(change, withReminders = false, reminderVehicleId = selectedVehicleId) {
+    if (saveInProgress) return false;
+    saveInProgress = true;
+    loadStatus = "Saving vehicle changes to Firebase…";
+    const status = body.querySelector(".car-source-status");
+    if (status) status.textContent = loadStatus;
+    try {
+      await window.__firebaseInitPromise;
+      const firebase = window.__patrickFirebase;
+      if (!firebase?.db) throw new Error("Firebase is not connected");
+      const docRef = firebase.doc(firebase.db, "tracker_state", "admin-glanville");
+      let savedCarService;
+      let savedReminders;
+      let savedAt;
+      await firebase.runTransaction(firebase.db, async transaction => {
+        const snapshot = await transaction.get(docRef);
+        if (!snapshot.exists()) throw new Error("The Admin record was not found");
+        const current = snapshot.data();
+        const remote = current.state || {};
+        const next = normalizeCarService(remote.carService);
+        const result = change(next);
+        if (result === false) throw new Error("This record changed on another device. Reload and try again");
+        savedAt = new Date(Math.max(Date.now(), Date.parse(current.updated_at || "") + 1 || 0)).toISOString();
+        const update = { "state.carService": next, updated_at: savedAt, updated_by: state.currentUser || "" };
+        if (withReminders) {
+          const reminders = Array.isArray(remote.adminNotesReminders) ? structuredClone(remote.adminNotesReminders) : [];
+          const item = next.vehicles.find(entry => entry.id === reminderVehicleId);
+          syncVehicleReminders(item, reminders);
+          update["state.adminNotesReminders"] = reminders;
+          savedReminders = reminders;
+        }
+        transaction.update(docRef, update);
+        savedCarService = next;
+      });
+      if (!isAdminClient()) return false;
+      state.carService = savedCarService;
+      if (savedReminders) state.adminNotesReminders = savedReminders;
+      cacheRemoteUpdatedAt(savedAt);
+      cacheCarService(savedCarService, savedReminders);
+      loadStatus = "Saved to Firebase.";
+      paint();
+      return true;
+    } catch (error) {
+      loadStatus = `Save failed: ${error.message}`;
+      const currentStatus = body.querySelector(".car-source-status");
+      if (currentStatus) currentStatus.textContent = loadStatus;
+      alert(`Car Service changes were not saved: ${error.message}`);
+      return false;
+    } finally {
+      saveInProgress = false;
     }
   }
 
@@ -128,14 +193,7 @@
       if (!count) throw new Error("The saved vehicle history has no service records");
       if (!dialog.open || !isAdminClient()) return;
       state.carService = normalized;
-      try {
-        const storageKey = getStorageKey();
-        const cached = storageKey ? JSON.parse(localStorage.getItem(storageKey) || "null") : null;
-        if (cached && typeof cached === "object") {
-          cached.carService = normalized;
-          localStorage.setItem(storageKey, JSON.stringify(cached));
-        }
-      } catch { /* The server copy is still available when local cache is full. */ }
+      cacheCarService(normalized);
       loadStatus = `Loaded ${count} service records from Firebase.`;
     } catch (error) {
       loadStatus = `Could not load Firebase history: ${error.message}. Showing this device's saved copy.`;
@@ -214,7 +272,7 @@
   });
   document.querySelector("#closeCarServiceDialog")?.addEventListener("click", () => dialog.close());
 
-  body.addEventListener("click", event => {
+  body.addEventListener("click", async event => {
     if (event.target.closest("[data-car-reload]")) { void loadCarServiceFromFirebase(); return; }
     const invoice = event.target.closest("[data-car-invoice]");
     if (invoice) { void openInvoice(invoice.dataset.carInvoice); return; }
@@ -228,9 +286,14 @@
     if (remove) {
       const record = vehicle().records.find(item => item.id === remove.dataset.carDelete);
       if (!record || !confirm(`Delete the ${dateLabel(record.date)} record: ${record.work}?`)) return;
-      vehicle().records = vehicle().records.filter(item => item.id !== record.id);
-      if (editingRecordId === record.id) editingRecordId = "";
-      saveState(); paint(); return;
+      const vehicleId = selectedVehicleId;
+      const removed = await saveCarService(next => {
+        const item = next.vehicles.find(entry => entry.id === vehicleId);
+        if (!item.records.some(entry => entry.id === record.id)) return false;
+        item.records = item.records.filter(entry => entry.id !== record.id);
+      });
+      if (removed && editingRecordId === record.id) editingRecordId = "";
+      return;
     }
     if (event.target.closest("[data-car-cancel]")) { editingRecordId = ""; paint(); }
   });
@@ -240,18 +303,22 @@
       event.preventDefault();
       const form = event.target;
       const field = name => form.elements.namedItem(name).value.trim();
-      const item = vehicle();
-      for (const key of ["plate", "vin", "trim", "oil", "tires", "notes", "inspectionDue", "registrationDue"]) item[key] = field(key);
-      item.mileage = field("mileage") === "" ? null : Math.max(0, Math.round(Number(field("mileage"))));
-      item.reminderDays = Math.max(0, Math.min(90, Math.round(Number(field("reminderDays")) || 0)));
-      syncVehicleReminders(item);
-      saveState(); paint(); return;
+      const vehicleId = selectedVehicleId;
+      const values = Object.fromEntries(["plate", "vin", "trim", "oil", "tires", "notes", "inspectionDue", "registrationDue", "mileage", "reminderDays"].map(key => [key, field(key)]));
+      await saveCarService(next => {
+        const item = next.vehicles.find(entry => entry.id === vehicleId);
+        for (const key of ["plate", "vin", "trim", "oil", "tires", "notes", "inspectionDue", "registrationDue"]) item[key] = values[key];
+        item.mileage = values.mileage === "" ? null : Math.max(0, Math.round(Number(values.mileage)));
+        item.reminderDays = Math.max(0, Math.min(90, Math.round(Number(values.reminderDays) || 0)));
+      }, true, vehicleId);
+      return;
     }
     if (event.target.id === "carRecordForm") {
       event.preventDefault();
       const form = event.target;
       const field = name => form.elements.namedItem(name).value.trim();
       const item = vehicle();
+      const recordVehicleId = item.id;
       const prior = item.records.find(record => record.id === editingRecordId);
       const record = {
         id: prior?.id || crypto.randomUUID(), date: field("date"), work: field("work").slice(0, 300),
@@ -267,6 +334,7 @@
           const firebase = window.__patrickFirebase;
           if (!firebase?.db) throw new Error("Firebase is not connected");
           record.invoiceId = `car-service-invoice-${crypto.randomUUID()}`;
+          record.photoAttached = false;
           await firebase.setDoc(firebase.doc(firebase.db, "tracker_state", record.invoiceId), {
             kind: "car-service-invoice", vehicleId: item.id, recordId: record.id, name: file.name.slice(0, 120),
             originalMime: "image/jpeg", originalBase64: images.original,
@@ -274,10 +342,15 @@
           });
         } catch (error) { alert(`Bill import failed: ${error.message}`); return; }
       }
-      if (prior) Object.assign(prior, record);
-      else item.records.push(record);
-      editingRecordId = "";
-      saveState(); paint();
+      const saved = await saveCarService(next => {
+        const target = next.vehicles.find(entry => entry.id === recordVehicleId);
+        if (!target) return false;
+        const existing = target.records.find(entry => entry.id === record.id);
+        if (prior && !existing) return false;
+        if (existing) Object.assign(existing, record);
+        else target.records.push(record);
+      });
+      if (saved) { editingRecordId = ""; paint(); }
     }
   });
 })();
