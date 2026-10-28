@@ -9,14 +9,16 @@
   let loadStatus = "";
   const invoiceViewer = document.createElement("dialog");
   invoiceViewer.className = "car-invoice-dialog";
-  invoiceViewer.innerHTML = '<div class="car-invoice-head"><strong>Bill statement</strong><button type="button" class="ghost" data-invoice-close>Close</button></div><div class="car-invoice-actions"><button type="button" class="ghost" data-invoice-receipt>View receipt</button><button type="button" class="ghost" data-invoice-photo hidden>View product photo</button><a data-invoice-original target="_blank" rel="noopener">Open original</a><a data-invoice-download download="car-service-bill.jpg">Download displayed copy</a></div><img alt="Enhanced car service bill statement">';
+  invoiceViewer.innerHTML = '<div class="car-invoice-head"><strong>Service images</strong><button type="button" class="ghost" data-invoice-close>Close</button></div><div class="car-invoice-actions"><button type="button" class="ghost" data-invoice-receipt>Receipt</button><button type="button" class="ghost" data-invoice-photo hidden>Battery photo</button><a data-invoice-original target="_blank" rel="noopener">Open original receipt</a><a data-invoice-download download="car-service-image.jpg">Download displayed image</a></div><figure data-invoice-receipt-figure><figcaption>Enhanced receipt</figcaption><img data-invoice-receipt-image alt="Enhanced car service receipt"></figure><figure data-invoice-photo-figure hidden><figcaption>Battery photo</figcaption><img data-invoice-photo-image alt="Battery supplied for this service record"></figure>';
   document.body.appendChild(invoiceViewer);
   invoiceViewer.addEventListener("click", event => {
     if (event.target.closest("[data-invoice-close]")) invoiceViewer.close();
-    const source = event.target.closest("[data-invoice-photo]") ? invoiceViewer.productImage : event.target.closest("[data-invoice-receipt]") ? invoiceViewer.receiptImage : "";
-    if (source) {
-      invoiceViewer.querySelector("img").src = source;
-      invoiceViewer.querySelector("[data-invoice-download]").href = source;
+    const photo = event.target.closest("[data-invoice-photo]");
+    const receipt = event.target.closest("[data-invoice-receipt]");
+    if (photo || receipt) {
+      const figure = invoiceViewer.querySelector(photo ? "[data-invoice-photo-figure]" : "[data-invoice-receipt-figure]");
+      invoiceViewer.querySelector("[data-invoice-download]").href = photo ? invoiceViewer.productImage : invoiceViewer.receiptImage;
+      figure.scrollIntoView({ block: "start", behavior: "smooth" });
     }
   });
   const fileData = file => new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(file); });
@@ -39,7 +41,7 @@
     if (original.length + enhanced.length > 750000) throw new Error("Image is too large; choose a smaller photo");
     return { original, enhanced };
   }
-  async function openInvoice(invoiceId) {
+  async function openInvoice(invoiceId, showPhoto = false) {
     try {
       await window.__firebaseInitPromise;
       const firebase = window.__patrickFirebase;
@@ -51,10 +53,17 @@
       invoiceViewer.receiptImage = image;
       invoiceViewer.productImage = saved.productBase64 ? `data:image/jpeg;base64,${saved.productBase64}` : "";
       invoiceViewer.querySelector("[data-invoice-photo]").hidden = !saved.productBase64;
-      invoiceViewer.querySelector("img").src = image;
+      invoiceViewer.querySelector("[data-invoice-receipt-image]").src = image;
+      const photoFigure = invoiceViewer.querySelector("[data-invoice-photo-figure]");
+      photoFigure.hidden = !saved.productBase64;
+      invoiceViewer.querySelector("[data-invoice-photo-image]").src = invoiceViewer.productImage;
       invoiceViewer.querySelector("[data-invoice-download]").href = image;
       invoiceViewer.querySelector("[data-invoice-original]").href = `data:image/jpeg;base64,${saved.originalBase64}`;
       invoiceViewer.showModal();
+      if (showPhoto && saved.productBase64) {
+        invoiceViewer.querySelector("[data-invoice-download]").href = invoiceViewer.productImage;
+        photoFigure.scrollIntoView({ block: "start" });
+      }
     } catch (error) { alert(`Could not open the bill: ${error.message}`); }
   }
   const money = value => Number(value).toLocaleString(undefined, { style: "currency", currency: "USD" });
@@ -157,7 +166,7 @@
       <section class="car-card car-ledger">
         <div class="car-ledger-heading"><div><h3>Service history</h3><p>${records.length} dated entries, newest first</p></div></div>
         <div class="car-table-wrap"><table><thead><tr><th>Date</th><th>Work done</th><th>Shop</th><th>Mileage</th><th>Cost</th><th>Actions</th></tr></thead><tbody>
-          ${records.length ? records.map(record => `<tr><td>${escapeHtml(dateLabel(record.date))}</td><td><strong>${escapeHtml(record.work)}</strong>${record.notes ? `<small>${escapeHtml(record.notes)}</small>` : ""}</td><td>${escapeHtml(record.provider || "—")}</td><td>${record.mileage == null ? "—" : Number(record.mileage).toLocaleString()}</td><td>${record.cost == null ? "Not recorded" : money(record.cost)}</td><td>${record.invoiceId ? `<button type="button" class="ghost" data-car-invoice="${escapeAttribute(record.invoiceId)}">View bill</button> ` : ""}<button type="button" class="ghost" data-car-edit="${escapeAttribute(record.id)}">Edit</button> <button type="button" class="ghost" data-car-delete="${escapeAttribute(record.id)}">Delete</button></td></tr>`).join("") : '<tr><td colspan="6">No service records yet.</td></tr>'}
+          ${records.length ? records.map(record => `<tr><td>${escapeHtml(dateLabel(record.date))}</td><td><strong>${escapeHtml(record.work)}</strong>${record.notes ? `<small>${escapeHtml(record.notes)}</small>` : ""}</td><td>${escapeHtml(record.provider || "—")}</td><td>${record.mileage == null ? "—" : Number(record.mileage).toLocaleString()}</td><td>${record.cost == null ? "Not recorded" : money(record.cost)}</td><td>${record.invoiceId ? `<button type="button" class="ghost" data-car-invoice="${escapeAttribute(record.invoiceId)}">View bill</button> ${record.photoAttached ? `<button type="button" class="ghost" data-car-photo="${escapeAttribute(record.invoiceId)}">View photo</button> ` : ""}` : ""}<button type="button" class="ghost" data-car-edit="${escapeAttribute(record.id)}">Edit</button> <button type="button" class="ghost" data-car-delete="${escapeAttribute(record.id)}">Delete</button></td></tr>`).join("") : '<tr><td colspan="6">No service records yet.</td></tr>'}
         </tbody></table></div>
       </section>
       <div class="car-layout">
@@ -209,6 +218,8 @@
     if (event.target.closest("[data-car-reload]")) { void loadCarServiceFromFirebase(); return; }
     const invoice = event.target.closest("[data-car-invoice]");
     if (invoice) { void openInvoice(invoice.dataset.carInvoice); return; }
+    const photo = event.target.closest("[data-car-photo]");
+    if (photo) { void openInvoice(photo.dataset.carPhoto, true); return; }
     const tab = event.target.closest("[data-car-tab]");
     if (tab) { selectedVehicleId = tab.dataset.carTab; editingRecordId = ""; paint(); return; }
     const edit = event.target.closest("[data-car-edit]");
@@ -246,7 +257,7 @@
         id: prior?.id || crypto.randomUUID(), date: field("date"), work: field("work").slice(0, 300),
         cost: field("cost") === "" ? null : Math.max(0, Number(field("cost"))),
         mileage: field("mileage") === "" ? null : Math.max(0, Math.round(Number(field("mileage")))),
-        provider: field("provider").slice(0, 120), notes: field("notes").slice(0, 1000), invoiceId: prior?.invoiceId || ""
+        provider: field("provider").slice(0, 120), notes: field("notes").slice(0, 1000), invoiceId: prior?.invoiceId || "", photoAttached: prior?.photoAttached === true
       };
       const file = form.elements.namedItem("invoice").files[0];
       if (file) {

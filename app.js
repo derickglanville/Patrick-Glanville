@@ -1437,7 +1437,8 @@ function normalizeCarService(value) {
             cost: item.cost === "" || item.cost == null ? null : Math.max(0, Number(item.cost) || 0),
             mileage: item.mileage === "" || item.mileage == null ? null : Math.max(0, Math.round(Number(item.mileage) || 0)),
             provider: String(item.provider || "").slice(0, 120), notes: String(item.notes || "").slice(0, 1000),
-            invoiceId: /^car-service-invoice-[a-z0-9-]+$/.test(String(item.invoiceId || "")) ? String(item.invoiceId) : ""
+            invoiceId: /^car-service-invoice-[a-z0-9-]+$/.test(String(item.invoiceId || "")) ? String(item.invoiceId) : "",
+            photoAttached: item.photoAttached === true
           }))
       };
     })
