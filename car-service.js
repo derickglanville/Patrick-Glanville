@@ -6,6 +6,7 @@
 
   let selectedVehicleId = "rogue-2016";
   let editingRecordId = "";
+  let loadStatus = "";
   const money = value => Number(value).toLocaleString(undefined, { style: "currency", currency: "USD" });
   const today = () => {
     const date = new Date();
@@ -52,6 +53,37 @@
     }
   }
 
+  async function loadCarServiceFromFirebase() {
+    loadStatus = "Loading saved vehicle history from Firebase…";
+    if (dialog.open) body.innerHTML = `<p class="car-loading" role="status">${escapeHtml(loadStatus)}</p>`;
+    try {
+      await window.__firebaseInitPromise;
+      const firebase = window.__patrickFirebase;
+      if (!firebase?.db) throw new Error("Firebase is not connected");
+      const docRef = firebase.doc(firebase.db, "tracker_state", "admin-glanville");
+      const snapshot = await (firebase.getDocFromServer || firebase.getDoc)(docRef);
+      const saved = snapshot.data()?.state?.carService;
+      if (!saved?.vehicles?.length) throw new Error("No saved vehicle history was found");
+      const normalized = normalizeCarService(saved);
+      const count = normalized.vehicles.reduce((sum, item) => sum + item.records.length, 0);
+      if (!count) throw new Error("The saved vehicle history has no service records");
+      if (!dialog.open || !isAdminClient()) return;
+      state.carService = normalized;
+      try {
+        const storageKey = getStorageKey();
+        const cached = storageKey ? JSON.parse(localStorage.getItem(storageKey) || "null") : null;
+        if (cached && typeof cached === "object") {
+          cached.carService = normalized;
+          localStorage.setItem(storageKey, JSON.stringify(cached));
+        }
+      } catch { /* The server copy is still available when local cache is full. */ }
+      loadStatus = `Loaded ${count} service records from Firebase.`;
+    } catch (error) {
+      loadStatus = `Could not load Firebase history: ${error.message}. Showing this device's saved copy.`;
+    }
+    paint();
+  }
+
   function paint() {
     if (!dialog.open || !isAdminClient()) return;
     state.carService = normalizeCarService(state.carService);
@@ -65,12 +97,19 @@
       <div class="car-tabs" role="tablist" aria-label="Vehicles">
         ${state.carService.vehicles.map(entry => `<button type="button" role="tab" data-car-tab="${escapeAttribute(entry.id)}" aria-selected="${entry.id === item.id}">${escapeHtml(entry.name)}</button>`).join("")}
       </div>
+      <div class="car-source-row"><p class="car-source-status" role="status">${escapeHtml(loadStatus)}</p><button type="button" class="ghost" data-car-reload>Reload from Firebase</button></div>
       <div class="car-summary">
         <article><span>Service records</span><strong>${records.length}</strong><small>${escapeHtml(item.name)}</small></article>
         <article><span>Recorded costs</span><strong>${money(total)}</strong><small>${knownCosts.length} priced record${knownCosts.length === 1 ? "" : "s"}; unknown costs excluded</small></article>
         <article><span>Next inspection</span><strong>${escapeHtml(dateLabel(item.inspectionDue))}</strong><small>${item.inspectionDue ? "Reminder saved" : "Enter the actual expiration date"}</small></article>
         <article><span>Next registration</span><strong>${escapeHtml(dateLabel(item.registrationDue))}</strong><small>${item.registrationDue ? "Reminder saved" : "Enter the actual expiration date"}</small></article>
       </div>
+      <section class="car-card car-ledger">
+        <div class="car-ledger-heading"><div><h3>Service history</h3><p>${records.length} dated entries, newest first</p></div></div>
+        <div class="car-table-wrap"><table><thead><tr><th>Date</th><th>Work done</th><th>Shop</th><th>Mileage</th><th>Cost</th><th>Actions</th></tr></thead><tbody>
+          ${records.length ? records.map(record => `<tr><td>${escapeHtml(dateLabel(record.date))}</td><td><strong>${escapeHtml(record.work)}</strong>${record.notes ? `<small>${escapeHtml(record.notes)}</small>` : ""}</td><td>${escapeHtml(record.provider || "—")}</td><td>${record.mileage == null ? "—" : Number(record.mileage).toLocaleString()}</td><td>${record.cost == null ? "Not recorded" : money(record.cost)}</td><td><button type="button" class="ghost" data-car-edit="${escapeAttribute(record.id)}">Edit</button> <button type="button" class="ghost" data-car-delete="${escapeAttribute(record.id)}">Delete</button></td></tr>`).join("") : '<tr><td colspan="6">No service records yet.</td></tr>'}
+        </tbody></table></div>
+      </section>
       <div class="car-layout">
         <form id="carProfileForm" class="car-card">
           <h3>Vehicle and reminders</h3>
@@ -103,12 +142,6 @@
           <p class="car-hint">An empty cost means it was not supplied; it is not counted as $0 in the total.</p>
         </form>
       </div>
-      <section class="car-card car-ledger">
-        <div class="car-ledger-heading"><div><h3>Service history</h3><p>${records.length} dated entries, newest first</p></div></div>
-        <div class="car-table-wrap"><table><thead><tr><th>Date</th><th>Work done</th><th>Shop</th><th>Mileage</th><th>Cost</th><th>Actions</th></tr></thead><tbody>
-          ${records.length ? records.map(record => `<tr><td>${escapeHtml(dateLabel(record.date))}</td><td><strong>${escapeHtml(record.work)}</strong>${record.notes ? `<small>${escapeHtml(record.notes)}</small>` : ""}</td><td>${escapeHtml(record.provider || "—")}</td><td>${record.mileage == null ? "—" : Number(record.mileage).toLocaleString()}</td><td>${record.cost == null ? "Not recorded" : money(record.cost)}</td><td><button type="button" class="ghost" data-car-edit="${escapeAttribute(record.id)}">Edit</button> <button type="button" class="ghost" data-car-delete="${escapeAttribute(record.id)}">Delete</button></td></tr>`).join("") : '<tr><td colspan="6">No service records yet.</td></tr>'}
-        </tbody></table></div>
-      </section>
       ${item.links?.length ? `<section class="car-card car-references"><h3>Saved references</h3><div>${item.links.filter(link => /^https:\/\//i.test(link.url)).map(link => `<a href="${escapeAttribute(link.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(link.label)}</a>`).join("")}</div></section>` : ""}`;
   }
 
@@ -117,11 +150,12 @@
     selectedVehicleId = "rogue-2016";
     editingRecordId = "";
     dialog.showModal();
-    paint();
+    void loadCarServiceFromFirebase();
   });
   document.querySelector("#closeCarServiceDialog")?.addEventListener("click", () => dialog.close());
 
   body.addEventListener("click", event => {
+    if (event.target.closest("[data-car-reload]")) { void loadCarServiceFromFirebase(); return; }
     const tab = event.target.closest("[data-car-tab]");
     if (tab) { selectedVehicleId = tab.dataset.carTab; editingRecordId = ""; paint(); return; }
     const edit = event.target.closest("[data-car-edit]");

@@ -6221,6 +6221,10 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .car-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 13px; border-bottom: 1px solid #ccdce6; padding-bottom: 9px; }
 .car-tabs button { border: 1px solid #bdd0df; border-radius: 8px; background: #f1f6fa; color: #315673; padding: 9px 15px; font-weight: 800; }
 .car-tabs button[aria-selected="true"] { background: #195f8a; border-color: #195f8a; color: #fff; }
+.car-source-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 0 0 12px; }
+.car-source-status { margin: 0; color: #42657b; font-size: .78rem; font-weight: 700; }
+.car-source-row button { flex: 0 0 auto; padding: 6px 9px; font-size: .75rem; }
+.car-loading { margin: 18px 0; padding: 16px; border: 1px solid #c9dce8; border-radius: 9px; background: #f5f9fc; color: #315673; font-weight: 700; }
 .car-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
 .car-summary article { display: grid; gap: 4px; padding: 12px; border: 1px solid #c9dce8; border-radius: 10px; background: #f5f9fc; }
 .car-summary span { color: #567286; font-size: .75rem; font-weight: 800; text-transform: uppercase; }
@@ -6235,13 +6239,13 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .car-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .car-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .car-hint { margin: 0; color: #5c7384; font-size: .75rem; line-height: 1.45; }
-.car-ledger { margin-top: 14px; }
+.car-ledger { margin: 0 0 14px; }
 .car-ledger-heading { display: flex; justify-content: space-between; gap: 10px; }
 .car-ledger-heading p { margin: 3px 0 0; color: #657b8b; font-size: .76rem; }
-.car-table-wrap { overflow-x: auto; }
-.car-table-wrap table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+.car-table-wrap { max-height: 48vh; overflow: auto; border: 1px solid #dbe6ed; border-radius: 7px; }
+.car-table-wrap table { width: 100%; min-width: 710px; border-collapse: collapse; font-size: .82rem; }
 .car-table-wrap th, .car-table-wrap td { padding: 9px 8px; text-align: left; vertical-align: top; border-bottom: 1px solid #dbe6ed; }
-.car-table-wrap th { background: #eaf3f9; color: #234f6a; white-space: nowrap; }
+.car-table-wrap th { position: sticky; top: 0; z-index: 1; background: #eaf3f9; color: #234f6a; white-space: nowrap; }
 .car-table-wrap tr:nth-child(even) { background: #f8fbfd; }
 .car-table-wrap td strong { display: block; color: #193f5b; }
 .car-table-wrap td small { display: block; margin-top: 4px; color: #607b8c; line-height: 1.35; }
@@ -6253,3 +6257,4 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .car-references a:hover { text-decoration: underline; }
 @media (max-width: 820px) { .car-layout { grid-template-columns: 1fr; }.car-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }.car-service-shell { padding: 14px; } }
 @media (max-width: 500px) { .car-fields { grid-template-columns: 1fr; }.car-summary strong { font-size: 1rem; }.car-tabs button { flex: 1 1 100%; } }
+@media (max-width: 500px) { .car-source-row { align-items: flex-start; flex-direction: column; }.car-table-wrap { max-height: 42vh; } }
