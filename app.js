@@ -3856,7 +3856,7 @@ function mergeDuplicateBudgetBills(primaryBill, duplicateBill) {
       : (primary.status || duplicate.status || "Unpaid"),
     notes: pickBillStringValue(primary.notes, duplicate.notes),
     observation: pickBillStringValue(primary.observation, duplicate.observation),
-    hidden: Boolean(primary.hidden && duplicate.hidden),
+    hidden: Boolean(primary.hidden || duplicate.hidden),
     statusTracksPaidDate: Boolean(primary.statusTracksPaidDate || duplicate.statusTracksPaidDate)
   };
 
@@ -9304,8 +9304,13 @@ function copyBillsToNextMonth() {
   const nextMonth = shiftMonthString(currentMonth, 1);
   captureBillSnapshot(`Before copying bills from ${currentMonth} to ${nextMonth}`, currentMonth);
   const currentMonthBudget = ensureMonthlyBudgetState(currentMonth);
-  const sourceBills = dedupeBudgetBills((currentMonthBudget?.bills || state.bills).map(normalizeBill));
+  // Use the bills currently on screen, including their order and hidden state.
+  const sourceBills = dedupeBudgetBills(state.bills.map(normalizeBill));
   const copiedBills = buildRolledForwardBills(sourceBills, nextMonth);
+  const copiedKeys = new Set(copiedBills.map(buildBillIdentityKey));
+  const missingTemplateKeys = buildDefaultMonthlyBudget(nextMonth).bills
+    .map(buildBillIdentityKey)
+    .filter(key => key && !copiedKeys.has(key));
 
   const normalizedNextMonthBudget = normalizeMonthlyBudgetEntry({
     month: nextMonth,
@@ -9313,22 +9318,20 @@ function copyBillsToNextMonth() {
     monthlyCashUsed: currentMonthBudget.monthlyCashUsed,
     copiedForwardFrom: currentMonth,
     bills: copiedBills,
-    deletedBillKeys: [],
-    // Prevent the seed-data normalizer from adding the one-time bill back.
-    deletedBillNames: getRolloverDeletedBillNames()
+    // Keep template bills omitted from the current layout omitted next month.
+    deletedBillKeys: [...new Set([...(currentMonthBudget.deletedBillKeys || []), ...missingTemplateKeys])],
+    deletedBillNames: [...new Set([...(currentMonthBudget.deletedBillNames || []), ...getRolloverDeletedBillNames()])]
   }, nextMonth);
-  normalizedNextMonthBudget.bills = normalizedNextMonthBudget.bills.map(bill => {
-    const sourceBill = copiedBills.find(candidate => (candidate.templateKey || candidate.name) === (bill.templateKey || bill.name));
-    if (!sourceBill) return bill;
-    return {
-      ...bill,
-      due: normalizeBillDateLike(sourceBill.due) || bill.due || ""
-    };
-  });
+  // Normalization may apply template defaults; retain the copied row's values,
+  // formatting inputs, hidden flag, and next-month due date verbatim.
+  const normalizedByKey = new Map(normalizedNextMonthBudget.bills.map(bill => [buildBillIdentityKey(bill), bill]));
+  normalizedNextMonthBudget.bills = copiedBills.map(bill => ({
+    ...(normalizedByKey.get(buildBillIdentityKey(bill)) || {}),
+    ...bill
+  }));
   state.monthlyBudgets[nextMonth] = normalizedNextMonthBudget;
   syncBudgetSnapshotForMonth(nextMonth);
   loadBudgetMonth(nextMonth, { syncSnapshot: false });
-  state.billGroupView = "full";
   saveState();
   renderBills();
   if (copyBillsToNextMonthBtn) {
