@@ -6267,6 +6267,11 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .home-maintenance-dialog .car-card button { justify-self: start; }
 .home-maintenance-dialog .car-table-wrap table { min-width: 690px; }
 .home-maintenance-dialog .car-source-status.is-error { color: #a12626; }
+.home-maintenance-dialog .car-tabs [data-equipment-add] { margin-left: auto; border-style: dashed; }
+.home-maintenance-category-form { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; margin: -3px 0 14px; padding: 12px; border: 1px solid #cbdce8; border-radius: 9px; background: #f5f9fc; }
+.home-maintenance-category-form[hidden] { display: none; }
+.home-maintenance-category-form label { display: grid; gap: 5px; flex: 1 1 230px; color: #32536a; font-size: .78rem; font-weight: 800; }
+.home-maintenance-category-form input { box-sizing: border-box; width: 100%; padding: 9px 10px; border: 1px solid #b9ccd9; border-radius: 7px; font: inherit; }
 @media (max-width: 820px) { .home-maintenance-shell { padding: 14px; } }
 .car-invoice-dialog { width: min(95vw, 900px); max-height: 94vh; padding: 14px; border: 1px solid #c9dce8; border-radius: 12px; }
 .car-invoice-dialog::backdrop { background: rgba(10, 27, 43, .75); }

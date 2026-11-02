@@ -30,8 +30,12 @@
     };
   }
   function normalizeEquipment(raw) {
-    return equipmentTypes.map(type => {
-      const item = Array.isArray(raw) ? raw.find(entry => entry?.id === type.id) : null;
+    const saved = Array.isArray(raw) ? raw : [];
+    const custom = saved.filter(item => /^equipment-[a-f0-9-]{36}$/.test(String(item?.id || "")) && String(item?.name || "").trim())
+      .map(item => ({ id: item.id, name: String(item.name).trim().slice(0, 80) }));
+    const types = [...equipmentTypes, ...custom.filter((item, index) => custom.findIndex(other => other.id === item.id) === index)];
+    return types.map(type => {
+      const item = saved.find(entry => entry?.id === type.id);
       return {
         ...type, make: String(item?.make || "").slice(0, 100), model: String(item?.model || "").slice(0, 100),
         serial: String(item?.serial || "").slice(0, 120), purchaseDate: date(item?.purchaseDate),
@@ -154,7 +158,8 @@
     const total = priced.reduce((sum, record) => sum + record.cost, 0);
     const edit = item.records.find(record => record.id === editingId);
     body.innerHTML = `
-      <div class="car-tabs" role="tablist" aria-label="Home maintenance equipment">${equipmentTypes.map(type => `<button type="button" role="tab" data-equipment-tab="${type.id}" aria-selected="${type.id === selectedId}">${escape(type.name)}</button>`).join("")}</div>
+      <div class="car-tabs" role="tablist" aria-label="Home maintenance equipment">${equipment.map(type => `<button type="button" role="tab" data-equipment-tab="${escape(type.id)}" aria-selected="${type.id === selectedId}">${escape(type.name)}</button>`).join("")}<button type="button" class="ghost" data-equipment-add aria-label="Add equipment category">+ Add category</button></div>
+      <form id="equipmentCategoryForm" class="home-maintenance-category-form" hidden><label>New category name<input name="name" maxlength="80" required placeholder="e.g., Leaf Blower"></label><button type="submit">Add category</button><button type="button" class="ghost" data-equipment-add-cancel>Cancel</button></form>
       <div class="car-source-row"><p class="car-source-status${statusError ? " is-error" : ""}" role="status">${escape(statusText)}</p><button type="button" class="ghost" data-equipment-reload>Reload from Firebase</button></div>
       <div class="car-summary">
         <article><span>Service records</span><strong>${records.length}</strong><small>${escape(item.name)}</small></article>
@@ -202,6 +207,16 @@
   });
   document.querySelector("#closeHomeMaintenanceDialog")?.addEventListener("click", () => dialog.close());
   body.addEventListener("click", async event => {
+    if (event.target.closest("[data-equipment-add]")) {
+      const form = body.querySelector("#equipmentCategoryForm");
+      form.hidden = false;
+      form.elements.namedItem("name").focus();
+      return;
+    }
+    if (event.target.closest("[data-equipment-add-cancel]")) {
+      body.querySelector("#equipmentCategoryForm").hidden = true;
+      return;
+    }
     const tab = event.target.closest("[data-equipment-tab]");
     if (tab) { selectedId = tab.dataset.equipmentTab; editingId = ""; paint(); return; }
     if (event.target.closest("[data-equipment-reload]")) { editingId = ""; void load(); return; }
@@ -224,6 +239,18 @@
     event.preventDefault();
     const form = event.target;
     const value = name => form.elements.namedItem(name).value.trim();
+    if (form.id === "equipmentCategoryForm") {
+      const name = value("name").slice(0, 80);
+      if (!name) { setStatus("Enter a category name.", true); return; }
+      if (equipment.some(item => item.name.toLowerCase() === name.toLowerCase())) { setStatus("That category already exists.", true); return; }
+      const newId = `equipment-${crypto.randomUUID()}`;
+      const saved = await save(next => {
+        if (next.some(item => item.name.toLowerCase() === name.toLowerCase())) throw new Error("That category already exists on another device. Reload and review it");
+        next.push({ ...seed()[0], id: newId, name, records: [] });
+      });
+      if (saved) { selectedId = newId; paint(); }
+      return;
+    }
     if (form.id === "equipmentProfileForm") {
       const profile = {
         make: value("make"), model: value("model"), serial: value("serial"), purchaseDate: value("purchaseDate"),
