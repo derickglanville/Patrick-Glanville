@@ -7382,6 +7382,7 @@ function renderBills() {
   if (adminNotesRemindersBtn) adminNotesRemindersBtn.hidden = !isAdminClient();
   document.querySelector("#hospitalBillBtn").hidden = !isAdminClient();
   document.querySelector("#carServiceBtn").hidden = !isAdminClient();
+  document.querySelector("#homeMaintenanceBtn").hidden = !isAdminClient();
   const oilButton = document.querySelector("#homeHeatingOilBtn");
   if (oilButton) oilButton.hidden = !isAdminClient();
   if (adminBillSimulationStatus) adminBillSimulationStatus.hidden = !simulationActive;
