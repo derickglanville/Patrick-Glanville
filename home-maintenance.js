@@ -16,7 +16,7 @@
   const today = () => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`; };
   const dateLabel = value => value ? new Date(`${value}T12:00:00`).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "Not set";
   const money = value => Number(value).toLocaleString(undefined, { style: "currency", currency: "USD" });
-  const seed = () => equipmentTypes.map(type => ({ ...type, make: "", model: "", serial: "", purchaseDate: "", location: "", fuel: "", oil: "", nextServiceDue: "", reminderDays: 30, notes: "", records: [] }));
+  const seed = () => equipmentTypes.map(type => ({ ...type, make: "", model: "", serial: "", purchaseDate: "", location: "", fuel: "", oil: "", sparkPlug: "", nextServiceDue: "", reminderDays: 30, notes: "", records: [] }));
   const numberOrNull = value => value === "" || value == null ? null : Math.max(0, Number(value) || 0);
   function normalizeRecord(record) {
     return {
@@ -40,7 +40,7 @@
         ...type, make: String(item?.make || "").slice(0, 100), model: String(item?.model || "").slice(0, 100),
         serial: String(item?.serial || "").slice(0, 120), purchaseDate: date(item?.purchaseDate),
         location: String(item?.location || "").slice(0, 120), fuel: String(item?.fuel || "").slice(0, 120),
-        oil: String(item?.oil || "").slice(0, 120), nextServiceDue: date(item?.nextServiceDue),
+        oil: String(item?.oil || "").slice(0, 120), sparkPlug: String(item?.sparkPlug || "").slice(0, 120), nextServiceDue: date(item?.nextServiceDue),
         reminderDays: Math.min(180, Math.max(0, Number(item?.reminderDays ?? 30) || 0)),
         notes: String(item?.notes || "").slice(0, 2000),
         records: Array.isArray(item?.records) ? item.records.filter(Boolean).map(normalizeRecord) : []
@@ -196,6 +196,7 @@
           <label>Storage location<input name="location" maxlength="120" value="${escape(item.location)}"></label>
           <label>Fuel specification<input name="fuel" maxlength="120" value="${escape(item.fuel)}"></label>
           <label>Oil specification<input name="oil" maxlength="120" value="${escape(item.oil)}"></label>
+          <label>Spark Plug type<input name="sparkPlug" maxlength="120" value="${escape(item.sparkPlug)}" placeholder="Part number or plug type"></label>
           <label>Next service date<input name="nextServiceDue" type="date" value="${escape(item.nextServiceDue)}"></label>
           <label>Advance reminder (days)<input name="reminderDays" type="number" min="0" max="180" step="1" value="${item.reminderDays}"></label>
         </div><label>Equipment notes<textarea name="notes" rows="4" maxlength="2000">${escape(item.notes)}</textarea></label>
@@ -271,7 +272,7 @@
     if (form.id === "equipmentProfileForm") {
       const profile = {
         make: value("make"), model: value("model"), serial: value("serial"), purchaseDate: value("purchaseDate"),
-        location: value("location"), fuel: value("fuel"), oil: value("oil"), nextServiceDue: value("nextServiceDue"),
+        location: value("location"), fuel: value("fuel"), oil: value("oil"), sparkPlug: value("sparkPlug"), nextServiceDue: value("nextServiceDue"),
         reminderDays: value("reminderDays"), notes: value("notes")
       };
       const confirmation = profile.nextServiceDue
