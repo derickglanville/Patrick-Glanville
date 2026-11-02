@@ -53,6 +53,8 @@
   let busy = false;
   let statusText = "";
   let statusError = false;
+  let profileFeedback = "";
+  let profileFeedbackError = false;
   const selected = () => equipment.find(item => item.id === selectedId);
   const daysBefore = (value, days) => {
     const result = new Date(`${value}T12:00:00`);
@@ -108,10 +110,22 @@
     }
     paint();
   }
-  async function save(change, withReminders = false) {
+  function setProfileFeedback(message, failed = false) {
+    profileFeedback = message;
+    profileFeedbackError = failed;
+    const target = body.querySelector(".home-maintenance-save-feedback");
+    if (target) {
+      target.textContent = message;
+      target.classList.toggle("is-error", failed);
+      target.hidden = !message;
+    }
+  }
+  async function save(change, withReminders = false, successMessage = "") {
     if (busy) return false;
     busy = true;
     const targetId = selectedId;
+    if (successMessage) setProfileFeedback("Saving equipment details…");
+    else setProfileFeedback("");
     setStatus("Saving to Firebase…");
     try {
       const { firebase, ref } = await firebaseClient();
@@ -142,11 +156,13 @@
         if (savedReminders) state.adminNotesReminders = savedReminders;
         editingId = "";
         setStatus("Saved to Firebase.");
+        if (successMessage) setProfileFeedback(successMessage);
         paint();
       }
       return true;
     } catch (error) {
       setStatus(`Save failed: ${error.message}. Your changes were not saved.`, true);
+      if (successMessage) setProfileFeedback(`Could not save equipment details: ${error.message}`, true);
       return false;
     } finally { busy = false; }
   }
@@ -183,7 +199,7 @@
           <label>Next service date<input name="nextServiceDue" type="date" value="${escape(item.nextServiceDue)}"></label>
           <label>Advance reminder (days)<input name="reminderDays" type="number" min="0" max="180" step="1" value="${item.reminderDays}"></label>
         </div><label>Equipment notes<textarea name="notes" rows="4" maxlength="2000">${escape(item.notes)}</textarea></label>
-        <button type="submit">Save equipment and reminder</button><p class="car-hint">Set an actual next-service date to create advance and due-date entries in Admin Notes &amp; Reminders.</p></form>
+        <button type="submit">Save equipment and reminder</button><p class="home-maintenance-save-feedback${profileFeedbackError ? " is-error" : ""}" role="status" aria-live="polite"${profileFeedback ? "" : " hidden"}>${escape(profileFeedback)}</p><p class="car-hint">This button saves the equipment details above. To add work performed to Service history, use the Add service record form. A next-service date creates reminders in Admin Notes &amp; Reminders.</p></form>
         <form id="equipmentRecordForm" class="car-card"><h3>${edit ? "Update service record" : "Add service record"}</h3><div class="car-fields">
           <label>Service date<input name="date" type="date" required value="${escape(edit?.date || today())}"></label>
           <label>Cost ($)<input name="cost" type="number" min="0" step="0.01" placeholder="Leave blank if unknown" value="${edit?.cost ?? ""}"></label>
@@ -201,6 +217,7 @@
     if (!isAdminClient()) return;
     selectedId = equipmentTypes[0].id;
     editingId = "";
+    profileFeedback = "";
     dialog.showModal();
     paint();
     void load();
@@ -218,7 +235,7 @@
       return;
     }
     const tab = event.target.closest("[data-equipment-tab]");
-    if (tab) { selectedId = tab.dataset.equipmentTab; editingId = ""; paint(); return; }
+    if (tab) { selectedId = tab.dataset.equipmentTab; editingId = ""; profileFeedback = ""; paint(); return; }
     if (event.target.closest("[data-equipment-reload]")) { editingId = ""; void load(); return; }
     if (event.target.closest("[data-equipment-cancel]")) { editingId = ""; paint(); return; }
     const edit = event.target.closest("[data-equipment-edit]");
@@ -257,7 +274,10 @@
         location: value("location"), fuel: value("fuel"), oil: value("oil"), nextServiceDue: value("nextServiceDue"),
         reminderDays: value("reminderDays"), notes: value("notes")
       };
-      await save((next, targetId) => Object.assign(next.find(item => item.id === targetId), profile), true);
+      const confirmation = profile.nextServiceDue
+        ? "Equipment details saved to Firebase. The next-service reminders are in Admin Notes & Reminders. Add work performed with Add service record."
+        : "Equipment details saved to Firebase. No next-service reminder is scheduled. Add work performed with Add service record.";
+      await save((next, targetId) => Object.assign(next.find(item => item.id === targetId), profile), true, confirmation);
       return;
     }
     if (form.id !== "equipmentRecordForm") return;
