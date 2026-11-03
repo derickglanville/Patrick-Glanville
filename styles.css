@@ -6313,3 +6313,30 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .admin-bill-note-form input, .admin-bill-note-form select, .admin-bill-note-form textarea { box-sizing: border-box; width: 100%; min-width: 0; padding: 8px; border: 1px solid #b9ccd9; border-radius: 6px; background: #fff; color: #17374e; font: inherit; }
 .admin-bill-note-actions { display: flex; gap: 8px; }
 @media (max-width: 650px) { .admin-bill-note-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }.cellphone-history-notes-panel { padding: 10px; } }
+
+/* A single ordered path for protecting and recovering shared data. */
+.sync-panel.data-management-panel { display: block; padding: 14px clamp(18px, 4vw, 56px); }
+.data-management-panel .sync-summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 22px; margin-bottom: 10px; }
+.data-management-panel .sync-summary > div { display: grid; gap: 2px; min-width: 220px; }
+.data-management-panel .sync-summary > div:first-child { flex: 1 1 420px; }
+.data-management-panel .sync-summary > div:last-child { flex: 0 1 260px; }
+.data-management-panel .sync-alert-banner { margin: 8px 0 12px; }
+.data-management-panel .sync-action-panel { display: block; }
+.data-management-panel .sync-action-panel h2 { margin: 0 0 8px; color: #193f5c; font-size: .95rem; }
+.data-management-panel .sync-action-list { display: grid; gap: 5px; max-width: 900px; margin: 0; padding-left: 30px; }
+.data-management-panel .sync-action-list li { padding-left: 4px; color: #234b6c; font-weight: 750; }
+.data-management-panel .sync-action-list li::marker { font-weight: 900; }
+.data-management-panel .sync-action-list li button { min-width: 230px; margin-right: 10px; padding: 7px 11px; text-align: left; }
+.data-management-panel .sync-action-list li span { color: #526a7d; font-size: .78rem; font-weight: 400; }
+.data-management-panel #saveJsonBackupBtn { background: #e7f7ed; border-color: #8dcaaa; color: #155735; }
+.data-management-panel #pullLatestSyncAlertBtn { background: #e0f2fe; border-color: #8bcaed; color: #075985; }
+.data-management-panel .sync-more-tools, .data-management-panel .sync-diagnostics { max-width: 900px; margin-top: 10px; }
+.data-management-panel .sync-more-tools summary, .data-management-panel .sync-diagnostics summary { cursor: pointer; color: #315b78; font-size: .8rem; font-weight: 750; }
+.data-management-panel .sync-more-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 9px; }
+.data-management-panel .sync-more-actions button { padding: 7px 10px; }
+.data-management-panel #dataStoreDetails { display: block; margin: 8px 0 0; overflow-wrap: anywhere; }
+@media (max-width: 690px) {
+  .data-management-panel .sync-summary > div { flex: 1 1 100%; }
+  .data-management-panel .sync-action-list li button { width: 100%; margin: 0 0 4px; }
+  .data-management-panel .sync-action-list li span { display: block; }
+}

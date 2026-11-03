@@ -14,7 +14,7 @@
   <title>Budget &amp; Notifications</title>
   <link rel="apple-touch-icon" sizes="180x180" href="icons/budget-notifications-180.png?v=2026-10-16">
   <link rel="manifest" href="app.webmanifest?v=2026-10-16">
-    <link rel="stylesheet" href="styles.css?v=2026-11-03-pull-latest-alert-001">
+    <link rel="stylesheet" href="styles.css?v=2026-11-03-data-actions-001">
     <link rel="stylesheet" href="mobile-bills.css?v=2026-10-25-patrick-bill-browser-001">
 </head>
 <body>
@@ -55,39 +55,33 @@
     </div>
   </section>
 
-  <section class="sync-panel" aria-label="Website sync status">
-    <div>
-      <strong>Latest GitHub Push</strong>
-      <span id="syncStatus">Checking GitHub version...</span>
+  <section class="sync-panel data-management-panel" aria-label="Data safety and recovery">
+    <div class="sync-summary">
+      <div><strong>Data Store</strong><span id="dataStoreStatus"></span></div>
+      <div><strong>Latest GitHub Push</strong><span id="syncStatus">Checking GitHub version...</span></div>
     </div>
-    <div>
-      <strong>Local Build</strong>
-      <span id="localBuildStatus"></span>
-    </div>
-    <div>
-      <strong>Data Store</strong>
-      <span id="dataStoreStatus"></span>
-    </div>
-    <button id="chooseJsonBackupBtn" type="button" class="ghost">Choose Backup JSON</button>
-    <button id="saveJsonBackupBtn" type="button" class="ghost">Save Backup JSON</button>
-    <button id="openJsonBackupBtn" type="button" class="ghost">Open Backup JSON</button>
-    <input id="openJsonBackupInput" type="file" accept="application/json,.json" hidden>
-    <button id="validateJsonBackupBtn" type="button" class="ghost">Validate Firebase vs JSON</button>
-    <button id="viewJsonBackupBtn" type="button" class="ghost json-backup-entry-button">View Backup JSON</button>
-    <button id="viewBillAuditBtn" type="button" class="ghost">Bill Audit</button>
-    <button id="restoreBillSnapshotBtn" type="button" class="ghost">Restore Bill Snapshot</button>
-    <button id="refreshAppBtn" type="button" class="ghost">Refresh Website</button>
     <div id="billSyncAlertBanner" class="sync-alert-banner" hidden>
-      <div class="sync-alert-banner-copy">
-        <strong id="billSyncAlertTitle">Bill sync warning</strong>
-        <span id="billSyncAlertText"></span>
-      </div>
-      <div class="sync-alert-banner-actions">
-        <button id="reviewBillSyncAlertBtn" type="button" class="ghost">Review</button>
-        <button id="pullLatestSyncAlertBtn" type="button" class="ghost" hidden>Pull Latest From Firebase</button>
-        <button id="restoreBillSyncAlertBtn" type="button" class="ghost">Restore previous good version</button>
-        <button id="dismissBillSyncAlertBtn" type="button" class="ghost">Dismiss</button>
-      </div>
+      <div class="sync-alert-banner-copy"><strong id="billSyncAlertTitle">Sync warning</strong><span id="billSyncAlertText"></span></div>
+    </div>
+    <div class="sync-action-panel">
+      <h2>Data safety steps</h2>
+      <ol class="sync-action-list">
+        <li><button id="chooseJsonBackupBtn" type="button" class="ghost" title="Step 1: Choose or create a JSON backup file on this device. Then use Save Backup JSON. Do this once per device or browser site.">Choose Backup JSON</button><span>Choose the file this device will use for backups.</span></li>
+        <li><button id="saveJsonBackupBtn" type="button" class="ghost" title="Step 2: Save your current data to the chosen JSON file. If the browser requests access, allow it and confirm the save before pulling Firebase data.">Save Backup JSON</button><span>Protect your current data before a pull or restore.</span></li>
+        <li><button id="viewBillAuditBtn" type="button" class="ghost" title="Step 3: Review recent bill changes and identify any pending edits you need to keep. This only displays the audit; it does not change data.">Review Bill Audit</button><span>Check which bill edits need to be retained.</span></li>
+        <li><button id="pullLatestSyncAlertBtn" type="button" class="ghost" title="Step 4: After saving a backup and reviewing edits, pull Firebase's latest version. If this device has pending edits, confirm the prompt and verify the recovery JSON download before the browser copy is replaced.">Pull Latest From Firebase</button><span>Downloads a recovery copy when edits are pending, then loads shared data.</span></li>
+      </ol>
+      <details class="sync-more-tools"><summary>More backup and restore tools</summary>
+        <div class="sync-more-actions">
+          <button id="viewJsonBackupBtn" type="button" class="ghost json-backup-entry-button" title="Open the configured backup to inspect its contents. This does not replace your current data.">View Backup JSON</button>
+          <button id="openJsonBackupBtn" type="button" class="ghost" title="Select a different JSON file from this device and open it for inspection. This does not restore the file.">Open Other JSON</button>
+          <input id="openJsonBackupInput" type="file" accept="application/json,.json" hidden>
+          <button id="validateJsonBackupBtn" type="button" class="ghost" title="Compare the configured JSON backup with the current data. First choose a backup file, then save it, then run this check.">Validate Backup</button>
+          <button id="restoreBillSnapshotBtn" type="button" class="ghost" title="Open saved monthly bill snapshots. Review the snapshot and confirm before replacing bill values. Save a JSON backup first.">Restore Bill Snapshot</button>
+          <button id="restoreBillSyncAlertBtn" type="button" class="ghost" title="Recover from a trusted JSON backup: first choose and open the backup, review its saved points, then confirm the restore. This replaces the current browser state.">Restore Previous Good Version</button>
+        </div>
+      </details>
+      <details class="sync-diagnostics"><summary>Technical details</summary><span id="dataStoreDetails"></span></details>
     </div>
   </section>
 
@@ -906,7 +900,7 @@
   <script src="oil-investment.js?v=2026-10-14-001"></script>
   <script src="oil-tracker.js?v=2026-10-23-oil-timeline-scroll-001"></script>
   <script src="notes-dialog.js?v=2026-10-16-notes-grid-001"></script>
-  <script src="app.js?v=2026-11-03-pull-latest-alert-001"></script>
+  <script src="app.js?v=2026-11-03-data-actions-001"></script>
   <script src="hospital-bill.js?v=2026-10-21-002"></script>
   <script src="car-service.js?v=2026-10-27-006"></script>
   <script src="home-maintenance.js?v=2026-11-03-sync-conflict-001"></script>

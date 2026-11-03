@@ -140,6 +140,7 @@ let applyingRemoteState = false;
 let sharedStateUnsubscribe = null;
 let sharedStateListenerId = "";
 let pendingLocalSharedSaveAt = "";
+let localCacheWriteFailed = false;
 let refreshSignalUnsubscribe = null;
 let refreshSignalListenerId = "";
 let lastSeenRefreshSignalAt = "";
@@ -2652,10 +2653,6 @@ function renderBillSyncAlert() {
   }
   billSyncAlertTitle.textContent = alert.title || "Bill sync warning";
   billSyncAlertText.textContent = alert.text || "";
-  if (pullLatestSyncAlertBtn) {
-    pullLatestSyncAlertBtn.hidden = alert.kind !== "save-conflict";
-    pullLatestSyncAlertBtn.disabled = !supabaseEnabled;
-  }
   billSyncAlertBanner.hidden = false;
 }
 
@@ -5719,14 +5716,34 @@ function saveState() {
   }
   state.lastSavedAt = new Date().toISOString();
   const storageKey = getStorageKey();
-  if (storageKey) {
-    localStorage.setItem(storageKey, JSON.stringify(state));
-  }
+  if (storageKey) tryWriteLocalState(storageKey);
   pendingLocalSharedSaveAt = state.lastSavedAt;
-  if (storageKey) localStorage.setItem(`${storageKey}:pending-save`, pendingLocalSharedSaveAt);
+  if (storageKey) {
+    try { localStorage.setItem(`${storageKey}:pending-save`, pendingLocalSharedSaveAt); }
+    catch (error) {
+      if (!isStorageQuotaError(error)) throw error;
+      localCacheWriteFailed = true;
+    }
+  }
   updateDataStoreStatus();
   queueJsonBackupSave("local save");
   queueSharedStateSave();
+}
+
+function isStorageQuotaError(error) {
+  return error?.name === "QuotaExceededError" || /quota|exceeded/i.test(String(error?.message || ""));
+}
+
+function tryWriteLocalState(storageKey) {
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(state));
+    localCacheWriteFailed = false;
+    return true;
+  } catch (error) {
+    if (!isStorageQuotaError(error)) throw error;
+    localCacheWriteFailed = true;
+    return false;
+  }
 }
 
 function cacheRemoteUpdatedAt(value) {
@@ -6027,10 +6044,8 @@ function applyRemoteSharedState(remoteState, updatedAt = "") {
     billSyncAlertState = null;
   }
   cacheRemoteUpdatedAt(updatedAt || state.lastSavedAt || "");
-  if (getStorageKey()) {
-    localStorage.setItem(getStorageKey(), JSON.stringify(state));
-  }
-  supabaseStatus = `Firebase Firestore shared storage; live sync active for ${currentClientConfig()?.shortName || "client"}${updatedAt ? `; synced ${formatDateTime(updatedAt)}` : ""}`;
+  const cached = !getStorageKey() || tryWriteLocalState(getStorageKey());
+  supabaseStatus = `Firebase Firestore shared storage; live sync active for ${currentClientConfig()?.shortName || "client"}${updatedAt ? `; synced ${formatDateTime(updatedAt)}` : ""}${cached ? "" : "; browser cache full—save a JSON backup"}`;
   queueJsonBackupSave("remote sync");
   render();
   updateDataStoreStatus();
@@ -6160,7 +6175,12 @@ async function pullLatestSharedState() {
       throw new Error("Refresh cancelled; pending edits are unchanged.");
     }
     const recovery = JSON.stringify({ clientId: activeClientId, savedAt: new Date().toISOString(), state }, null, 2);
-    localStorage.setItem(`${getStorageKey()}:recovery:${Date.now()}`, recovery);
+    try { localStorage.setItem(`${getStorageKey()}:recovery:${Date.now()}`, recovery); }
+    catch (error) {
+      if (!isStorageQuotaError(error)) throw error;
+      localCacheWriteFailed = true;
+      // The downloaded file is the recovery copy when browser storage is full.
+    }
     const link = document.createElement("a");
     link.href = URL.createObjectURL(new Blob([recovery], { type: "application/json" }));
     link.download = `${activeClientId}-pending-edits-${Date.now()}.json`;
@@ -6315,7 +6335,7 @@ async function saveSharedStateNow() {
 async function updateSyncStatus() {
   const localBuildStatus = document.querySelector("#localBuildStatus");
   const syncStatus = document.querySelector("#syncStatus");
-  localBuildStatus.textContent = `${BUILD_INFO.label}: ${formatDateTime(BUILD_INFO.builtAt)}`;
+  if (localBuildStatus) localBuildStatus.textContent = `${BUILD_INFO.label}: ${formatDateTime(BUILD_INFO.builtAt)}`;
   updateDataStoreStatus();
 
   try {
@@ -6334,6 +6354,8 @@ async function updateSyncStatus() {
 
 function updateDataStoreStatus() {
   const dataStoreStatus = document.querySelector("#dataStoreStatus");
+  const dataStoreDetails = document.querySelector("#dataStoreDetails");
+  if (pullLatestSyncAlertBtn) pullLatestSyncAlertBtn.disabled = !activeClientId || !supabaseEnabled;
   const syncAdminBillsBtn = document.querySelector("#syncAdminBillsBtn");
   if (syncAdminBillsBtn) syncAdminBillsBtn.disabled = !supabaseEnabled;
   const adminBillsSyncStatus = document.querySelector("#adminBillsSyncStatus");
@@ -6363,11 +6385,13 @@ function updateDataStoreStatus() {
     finalizeSupabaseInitStatusIfPending();
   }
   if (!activeClientId) {
-    dataStoreStatus.textContent = supabaseEnabled
+    const fullStatus = supabaseEnabled
       ? "Firebase Firestore ready; choose a client to load shared data"
       : supabaseStatus === "Checking Firebase Firestore availability"
         ? `${fallbackLabel}; ${supabaseStatus}; ${getFirebaseDebugStatus()}`
         : `${fallbackLabel}; ${supabaseStatus}`;
+    dataStoreStatus.textContent = supabaseEnabled ? "Firebase ready; choose a client" : "Shared data unavailable";
+    if (dataStoreDetails) dataStoreDetails.textContent = fullStatus;
     return;
   }
   const locationLabel = supabaseEnabled
@@ -6377,7 +6401,15 @@ function updateDataStoreStatus() {
     ? `; ${getFirebaseDebugStatus()}`
     : "";
   const backupSuffix = jsonBackupStatus ? `; ${jsonBackupStatus}` : "";
-  dataStoreStatus.textContent = `${locationLabel}${debugSuffix}; local backup ${formatDateTime(state.lastSavedAt)}${backupSuffix}`;
+  const fullStatus = `${locationLabel}${debugSuffix}; local backup ${formatDateTime(state.lastSavedAt)}${backupSuffix}${localCacheWriteFailed ? "; browser cache full—save a JSON backup" : ""}`;
+  const needsAttention = /failed|blocked|error/i.test(supabaseStatus) || localCacheWriteFailed;
+  const backupNeedsAccess = /backup access required|save failed/i.test(jsonBackupStatus);
+  dataStoreStatus.textContent = needsAttention
+    ? `${localCacheWriteFailed ? "Browser cache full; save a JSON backup" : "Firebase sync needs attention; local edits are preserved"}${backupNeedsAccess ? "; backup file needs access" : ""}`
+    : supabaseEnabled
+      ? `Firebase connected${backupNeedsAccess ? "; backup file needs access" : ""}`
+      : "Shared data unavailable; showing this device's copy";
+  if (dataStoreDetails) dataStoreDetails.textContent = fullStatus;
 }
 
 function updateClientChrome() {
@@ -6406,43 +6438,43 @@ function updateClientChrome() {
   if (chooseJsonBackupBtn) {
     chooseJsonBackupBtn.disabled = !client;
     chooseJsonBackupBtn.title = client
-      ? `Choose the local JSON verification backup file for ${client.shortName}`
+      ? `Step 1: Choose or create a JSON backup file for ${client.shortName} on this device. Then click Save Backup JSON. Do this once per device or browser site.`
       : "Choose a client first";
   }
   if (saveJsonBackupBtn) {
     saveJsonBackupBtn.disabled = !client || !jsonBackupHandle;
     saveJsonBackupBtn.title = client
       ? jsonBackupHandle
-        ? `Save a fresh local JSON backup for ${client.shortName}`
-        : `Choose a JSON backup file for ${client.shortName} first`
+        ? `Step 2: Save a fresh JSON backup for ${client.shortName}. If asked, grant file access and confirm the save before pulling Firebase data.`
+        : `Step 1: Choose a JSON backup file for ${client.shortName}; then use Step 2 to save it.`
       : "Choose a client first";
   }
   if (validateJsonBackupBtn) {
     validateJsonBackupBtn.disabled = !client;
     validateJsonBackupBtn.title = client
       ? jsonBackupHandle
-        ? `Compare live Firebase data against the configured JSON backup for ${client.shortName}`
-        : `Choose a JSON backup file for ${client.shortName} on this device/site first`
+        ? `Compare the configured JSON backup with current ${client.shortName} data. Choose and save the backup first; this check changes no data.`
+        : `Choose and save a JSON backup for ${client.shortName} before validating it.`
       : "Choose a client first";
   }
   if (viewJsonBackupBtn) {
     viewJsonBackupBtn.disabled = !client;
     viewJsonBackupBtn.title = client
       ? jsonBackupHandle
-        ? `Open the configured JSON backup file for ${client.shortName}`
-        : `Choose a JSON backup file for ${client.shortName} on this device/site first`
+        ? `Inspect the configured JSON backup for ${client.shortName}. Viewing does not restore or replace data.`
+        : `Choose a JSON backup file for ${client.shortName} first; viewing does not change data.`
       : "Choose a client first";
   }
   if (viewBillAuditBtn) {
     viewBillAuditBtn.disabled = !client;
     viewBillAuditBtn.title = client
-      ? `Review recent monthly bill field changes for ${client.shortName}`
+      ? `Step 3: Review recent ${client.shortName} bill changes and identify pending edits to keep. This does not modify data.`
       : "Choose a client first";
   }
   if (restoreBillSnapshotBtn) {
     restoreBillSnapshotBtn.disabled = !client;
     restoreBillSnapshotBtn.title = client
-      ? `Restore a saved monthly bill snapshot for ${client.shortName}`
+      ? `Open ${client.shortName} monthly bill snapshots. Save a JSON backup, review the snapshot, then confirm before restoring bill values.`
       : "Choose a client first";
   }
   if (currentUserContent && toggleCurrentUserBtn) {
@@ -14041,7 +14073,7 @@ document.querySelector("#resetBtn").addEventListener("click", () => {
   saveState();
   render();
 });
-document.querySelector("#refreshAppBtn").addEventListener("click", () => {
+document.querySelector("#refreshAppBtn")?.addEventListener("click", () => {
   const url = new URL(window.location.href);
   url.searchParams.set("refresh", Date.now().toString());
   window.location.href = url.toString();
