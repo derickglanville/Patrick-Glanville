@@ -2026,6 +2026,7 @@ const openJsonBackupBtn = document.querySelector("#openJsonBackupBtn");
 const openJsonBackupInput = document.querySelector("#openJsonBackupInput");
 const validateJsonBackupBtn = document.querySelector("#validateJsonBackupBtn");
 const viewJsonBackupBtn = document.querySelector("#viewJsonBackupBtn");
+const repairAdminFromBackupBtn = document.querySelector("#repairAdminFromBackupBtn");
 const viewBillAuditBtn = document.querySelector("#viewBillAuditBtn");
 const restoreBillSnapshotBtn = document.querySelector("#restoreBillSnapshotBtn");
 const billSyncAlertBanner = document.querySelector("#billSyncAlertBanner");
@@ -2712,6 +2713,13 @@ function updateJsonBackupLocation() {
   const fileName = document.querySelector("#jsonBackupFileName");
   const location = document.querySelector("#jsonBackupFileLocation");
   const savedAt = document.querySelector("#jsonBackupFileSavedAt");
+  if (repairAdminFromBackupBtn) {
+    repairAdminFromBackupBtn.hidden = activeClientId !== "admin";
+    repairAdminFromBackupBtn.disabled = activeClientId !== "admin" || !supabaseEnabled || jsonBackupHandle?.name !== "admin-firebase-backup.json";
+    repairAdminFromBackupBtn.title = !jsonBackupHandle || jsonBackupHandle.name !== "admin-firebase-backup.json"
+      ? "Use Choose Backup JSON once to connect admin-firebase-backup.json in this browser."
+      : "Read admin-firebase-backup.json and repair an incomplete Firebase archive after your confirmation.";
+  }
   if (!fileName || !location || !savedAt) return;
   if (!activeClientId) {
     fileName.textContent = "Choose a client first";
@@ -2721,14 +2729,40 @@ function updateJsonBackupLocation() {
   }
   const name = jsonBackupHandle?.name || jsonBackupMeta?.fileName || "";
   fileName.textContent = name || "No backup file selected";
-  location.textContent = jsonBackupHandle
-    ? `In the folder you chose on this device. The browser does not reveal its full path; search your files for ${name}.`
-    : name
-      ? "File access is not connected here. Use Choose Backup JSON to select it again."
-      : "Choose Backup JSON to select a folder and file.";
+  const adminLocalPath = getAdminBackupPathBesideApp();
+  location.textContent = adminLocalPath
+    ? `${adminLocalPath}${jsonBackupHandle?.name === "admin-firebase-backup.json" ? " (selected file name matches)" : "; use Choose Backup JSON to connect this file"}`
+    : jsonBackupHandle
+      ? `In the folder chosen on this device. The browser does not reveal its full path; search for ${name}.`
+      : name
+        ? "File access is not connected here. Use Choose Backup JSON to select it again."
+        : "Choose Backup JSON to select a folder and file.";
   savedAt.textContent = jsonBackupMeta?.lastSavedAt
     ? `${formatDateTime(jsonBackupMeta.lastSavedAt)} (last recorded successful save)`
     : "No successful save recorded";
+}
+
+async function repairAdminFromConfiguredBackup() {
+  if (activeClientId !== "admin" || jsonBackupHandle?.name !== "admin-firebase-backup.json") {
+    alert("Use Choose Backup JSON to connect admin-firebase-backup.json first.");
+    return;
+  }
+  try {
+    const payload = await readJsonBackupPayload();
+    if (payload?.clientId !== "admin" || !payload?.state) throw new Error("The selected file is not an Admin backup with saved data.");
+    currentJsonBackupPayload = payload;
+    const currentPoint = getJsonBackupComparisonPoints(payload).find(point => point.kind === "current");
+    if (!currentPoint) throw new Error("The backup has no current saved state.");
+    await repairFirebaseFromJsonBackup(currentPoint.id);
+  } catch (error) {
+    alert(`Could not use the Admin backup file. Choose Backup JSON to reconnect it if browser access expired.\n\n${error.message}`);
+  }
+}
+
+function getAdminBackupPathBesideApp() {
+  if (activeClientId !== "admin" || window.location.protocol !== "file:") return "";
+  const pathname = decodeURIComponent(new URL("admin-firebase-backup.json", window.location.href).pathname);
+  return pathname.replace(/^\/(?:([A-Za-z]:)\/)/, "$1/").replaceAll("/", "\\");
 }
 
 async function loadConfiguredJsonBackupForActiveClient() {
@@ -6345,7 +6379,7 @@ async function requestRemoteClientRefresh() {
     updateDataStoreStatus();
     const archiveProblem = /Firebase (?:billSnapshots|billAuditLog|history) archive (?:is incomplete|count does not match)/.test(error.message);
     alert(archiveProblem
-      ? `The shared Firebase archive is incomplete, so this device kept its local data. Save your JSON backup, open Review Daily Backups, choose a trusted saved day, then use Repair Firebase from Selected Backup. This replaces shared data only after your confirmation.\n\nDetails: ${error.message}`
+      ? `The shared Firebase archive is incomplete, so this device kept its local data. If the Admin backup shown on this screen contains the data you want to keep, click Repair Firebase from Admin Backup and confirm the version shown.\n\nDetails: ${error.message}`
       : `Could not load the latest Firebase data: ${error.message}`);
   }
 }
@@ -14204,7 +14238,13 @@ if (viewJsonBackupBtn) {
   viewJsonBackupBtn.addEventListener("click", () => {
     openJsonBackupViewer();
   });
-}if (openJsonBackupBtn && openJsonBackupInput) {
+}
+if (repairAdminFromBackupBtn) {
+  repairAdminFromBackupBtn.addEventListener("click", () => {
+    repairAdminFromConfiguredBackup();
+  });
+}
+if (openJsonBackupBtn && openJsonBackupInput) {
   openJsonBackupBtn.addEventListener("click", () => openJsonBackupInput.click());
   openJsonBackupInput.addEventListener("change", () => {
     const file = openJsonBackupInput.files?.[0];

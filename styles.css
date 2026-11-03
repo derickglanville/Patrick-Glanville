@@ -6338,6 +6338,8 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .data-management-panel .backup-location-card p strong { color: #315b78; }
 .data-management-panel .backup-location-card p span { overflow-wrap: anywhere; }
 .data-management-panel .backup-location-card #viewJsonBackupBtn { width: 100%; margin-top: 3px; }
+.data-management-panel .backup-location-card #repairAdminFromBackupBtn { width: 100%; margin-top: 7px; background: #e0f2fe; border-color: #8bcaed; color: #075985; }
+.data-management-panel .backup-location-card #repairAdminFromBackupBtn[hidden] { display: none; }
 .data-management-panel .sync-more-tools, .data-management-panel .sync-diagnostics { max-width: 900px; margin-top: 10px; }
 .data-management-panel .sync-more-tools summary, .data-management-panel .sync-diagnostics summary { cursor: pointer; color: #315b78; font-size: .8rem; font-weight: 750; }
 .data-management-panel .sync-more-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 9px; }
