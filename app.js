@@ -3112,7 +3112,7 @@ async function openJsonBackupViewer() {
 
   const client = currentClientConfig();
   if (jsonBackupViewerTitle) {
-    jsonBackupViewerTitle.textContent = `${client?.shortName || "Client"} Backup JSON Viewer`;
+    jsonBackupViewerTitle.textContent = `${client?.shortName || "Client"} Daily Backup Recovery`;
   }
   jsonBackupViewerMeta.innerHTML = "";
   jsonBackupViewerBody.innerHTML = `<div class="json-backup-viewer-loading">Loading backup JSON...</div>`;

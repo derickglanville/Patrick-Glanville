@@ -14,7 +14,7 @@
   <title>Budget &amp; Notifications</title>
   <link rel="apple-touch-icon" sizes="180x180" href="icons/budget-notifications-180.png?v=2026-10-16">
   <link rel="manifest" href="app.webmanifest?v=2026-10-16">
-    <link rel="stylesheet" href="styles.css?v=2026-11-03-backup-location-001">
+    <link rel="stylesheet" href="styles.css?v=2026-11-03-backup-recovery-001">
     <link rel="stylesheet" href="mobile-bills.css?v=2026-10-25-patrick-bill-browser-001">
 </head>
 <body>
@@ -77,11 +77,11 @@
           <p><strong>File</strong><span id="jsonBackupFileName">Checking...</span></p>
           <p><strong>Location</strong><span id="jsonBackupFileLocation">Checking...</span></p>
           <p><strong>Last saved</strong><span id="jsonBackupFileSavedAt">Checking...</span></p>
+          <button id="viewJsonBackupBtn" type="button" class="ghost json-backup-entry-button" title="Open the selected JSON backup and review its saved days. Viewing does not replace current data. Restore only after selecting and confirming a trusted saved day.">Review Daily Backups</button>
         </aside>
       </div>
       <details class="sync-more-tools"><summary>More backup and restore tools</summary>
         <div class="sync-more-actions">
-          <button id="viewJsonBackupBtn" type="button" class="ghost json-backup-entry-button" title="Open the configured backup to inspect its contents. This does not replace your current data.">View Backup JSON</button>
           <button id="openJsonBackupBtn" type="button" class="ghost" title="Select a different JSON file from this device and open it for inspection. This does not restore the file.">Open Other JSON</button>
           <input id="openJsonBackupInput" type="file" accept="application/json,.json" hidden>
           <button id="validateJsonBackupBtn" type="button" class="ghost" title="Compare the configured JSON backup with the current data. First choose a backup file, then save it, then run this check.">Validate Backup</button>
@@ -878,7 +878,7 @@
   <dialog id="jsonBackupViewerDialog">
     <div class="report-dialog json-backup-viewer-dialog">
       <div class="dialog-head">
-        <h2 id="jsonBackupViewerTitle">Backup JSON Viewer</h2>
+        <h2 id="jsonBackupViewerTitle">Daily Backup Recovery</h2>
         <button type="button" id="closeJsonBackupViewerDialog" class="icon-button" aria-label="Close">x</button>
       </div>
       <div id="jsonBackupViewerMeta" class="json-backup-viewer-meta"></div>
@@ -908,7 +908,7 @@
   <script src="oil-investment.js?v=2026-10-14-001"></script>
   <script src="oil-tracker.js?v=2026-10-23-oil-timeline-scroll-001"></script>
   <script src="notes-dialog.js?v=2026-10-16-notes-grid-001"></script>
-  <script src="app.js?v=2026-11-03-versioned-archive-001"></script>
+  <script src="app.js?v=2026-11-03-backup-recovery-001"></script>
   <script src="hospital-bill.js?v=2026-10-21-002"></script>
   <script src="car-service.js?v=2026-10-27-006"></script>
   <script src="home-maintenance.js?v=2026-11-03-sync-conflict-001"></script>
