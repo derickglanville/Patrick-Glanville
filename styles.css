@@ -6315,15 +6315,17 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 @media (max-width: 650px) { .admin-bill-note-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }.cellphone-history-notes-panel { padding: 10px; } }
 
 /* A single ordered path for protecting and recovering shared data. */
-.sync-panel.data-management-panel { display: block; padding: 14px clamp(18px, 4vw, 56px); }
-.data-management-panel .sync-summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 22px; margin-bottom: 10px; }
+.sync-panel.data-management-panel { display: block; padding: 9px clamp(18px, 4vw, 56px); }
+.data-management-panel .sync-summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 22px; margin-bottom: 4px; }
 .data-management-panel .sync-summary > div { display: grid; gap: 2px; min-width: 220px; }
 .data-management-panel .sync-summary > div:first-child { flex: 1 1 420px; }
 .data-management-panel .sync-summary > div:last-child { flex: 0 1 260px; }
 .data-management-panel .sync-alert-banner { margin: 8px 0 12px; }
 .data-management-panel .sync-action-panel { display: block; }
-.data-management-panel .sync-action-panel h2 { margin: 0 0 8px; color: #193f5c; font-size: .95rem; }
+.data-management-panel .sync-action-panel > summary { width: fit-content; cursor: pointer; color: #193f5c; font-size: .82rem; font-weight: 750; }
+.data-management-panel .sync-action-panel[open] > summary { margin-bottom: 10px; }
 .data-management-panel .sync-actions-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 310px); gap: 20px; align-items: start; }
+.data-management-panel .sync-actions-main { display: grid; align-content: start; gap: 0; min-width: 0; }
 .data-management-panel .sync-action-list { display: grid; gap: 5px; max-width: 900px; margin: 0; padding-left: 30px; }
 .data-management-panel .sync-action-list li { padding-left: 4px; color: #234b6c; font-weight: 750; }
 .data-management-panel .sync-action-list li::marker { font-weight: 900; }
