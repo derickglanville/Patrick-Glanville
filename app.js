@@ -5989,7 +5989,7 @@ function buildFirebaseSavePayload(updatedAt) {
 async function saveFirebaseArchiveDocuments(stateId, archiveDocuments) {
   await Promise.all(archiveDocuments.map(archive => {
     const archiveRef = supabaseClient.doc(
-      supabaseClient.db, SUPABASE_TABLE, stateId, FIREBASE_ARCHIVE_SUBCOLLECTION, `${archive.field}-${archive.index}`
+      supabaseClient.db, SUPABASE_TABLE, stateId, FIREBASE_ARCHIVE_SUBCOLLECTION, `${archive.archive_version}-${archive.field}-${archive.index}`
     );
     return supabaseClient.setDoc(archiveRef, archive);
   }));
@@ -6008,10 +6008,17 @@ async function hydrateFirebaseArchivedState(data, stateId) {
       throw new Error(`Firebase ${field} archive metadata is invalid; no local data was replaced.`);
     }
     const parts = await Promise.all(Array.from({ length: manifest.chunks }, async (_, index) => {
-      const archiveRef = supabaseClient.doc(
-        supabaseClient.db, SUPABASE_TABLE, stateId, FIREBASE_ARCHIVE_SUBCOLLECTION, `${field}-${index}`
+      const versionedRef = supabaseClient.doc(
+        supabaseClient.db, SUPABASE_TABLE, stateId, FIREBASE_ARCHIVE_SUBCOLLECTION, `${data.archive_version}-${field}-${index}`
       );
-      const snapshot = await supabaseClient.getDoc(archiveRef);
+      let snapshot = await supabaseClient.getDoc(versionedRef);
+      // Archives written by older builds used a shared name for every version.
+      if (!snapshot.exists()) {
+        const legacyRef = supabaseClient.doc(
+          supabaseClient.db, SUPABASE_TABLE, stateId, FIREBASE_ARCHIVE_SUBCOLLECTION, `${field}-${index}`
+        );
+        snapshot = await supabaseClient.getDoc(legacyRef);
+      }
       const archive = snapshot.exists() ? snapshot.data() : null;
       if (!archive || archive.archive_version !== data.archive_version || !Array.isArray(archive.values)) {
         throw new Error(`Firebase ${field} archive is incomplete; no local data was replaced.`);
@@ -6268,7 +6275,10 @@ async function requestRemoteClientRefresh() {
   } catch (error) {
     supabaseStatus = `Firebase Firestore refresh request failed: ${error.message}`;
     updateDataStoreStatus();
-    alert(`Could not request the latest pull on other devices: ${error.message}`);
+    const archiveProblem = /Firebase (?:billSnapshots|billAuditLog|history) archive (?:is incomplete|count does not match)/.test(error.message);
+    alert(archiveProblem
+      ? `The shared Firebase archive is incomplete, so this device kept its local data. Save and verify your JSON backup, then use a trusted saved day in Daily Backup Recovery. Do not pull again until the shared archive has been repaired.\n\nDetails: ${error.message}`
+      : `Could not load the latest Firebase data: ${error.message}`);
   }
 }
 
