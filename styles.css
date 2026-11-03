@@ -356,6 +356,8 @@ main {
   gap: 8px;
   flex-wrap: wrap;
 }
+.sync-alert-banner-actions #pullLatestSyncAlertBtn { color: #075985; background: #e0f2fe; border-color: #8bcaed; font-weight: 750; }
+.sync-alert-banner-actions #pullLatestSyncAlertBtn[hidden] { display: none; }
 
 #accountGateDialog,
 #clientGateDialog {

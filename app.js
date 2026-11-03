@@ -2031,6 +2031,7 @@ const billSyncAlertBanner = document.querySelector("#billSyncAlertBanner");
 const billSyncAlertTitle = document.querySelector("#billSyncAlertTitle");
 const billSyncAlertText = document.querySelector("#billSyncAlertText");
 const reviewBillSyncAlertBtn = document.querySelector("#reviewBillSyncAlertBtn");
+const pullLatestSyncAlertBtn = document.querySelector("#pullLatestSyncAlertBtn");
 const restoreBillSyncAlertBtn = document.querySelector("#restoreBillSyncAlertBtn");
 const dismissBillSyncAlertBtn = document.querySelector("#dismissBillSyncAlertBtn");
 const jsonBackupViewerDialog = document.querySelector("#jsonBackupViewerDialog");
@@ -2651,6 +2652,10 @@ function renderBillSyncAlert() {
   }
   billSyncAlertTitle.textContent = alert.title || "Bill sync warning";
   billSyncAlertText.textContent = alert.text || "";
+  if (pullLatestSyncAlertBtn) {
+    pullLatestSyncAlertBtn.hidden = alert.kind !== "save-conflict";
+    pullLatestSyncAlertBtn.disabled = !supabaseEnabled;
+  }
   billSyncAlertBanner.hidden = false;
 }
 
@@ -6240,7 +6245,7 @@ function showSharedSaveConflict() {
     kind: "save-conflict", clientId: activeClientId,
     createdAt: new Date().toISOString(),
     title: "Firebase save blocked to prevent overwrite",
-    text: "Another saved version conflicts with pending edits on this device. Your edits remain saved locally; Firebase was not overwritten. Review Bill Audit. Pull Latest offers a local recovery copy before replacing pending edits.",
+    text: "Another saved version conflicts with pending edits on this device. Your edits remain saved locally; Firebase was not overwritten. Review Bill Audit, then use Pull Latest From Firebase below. It offers a recovery download before replacing pending edits.",
     entries: [], affectedBills: []
   };
   renderBillSyncAlert();
@@ -13346,6 +13351,11 @@ if (reviewBillSyncAlertBtn && billAuditDialog) {
   reviewBillSyncAlertBtn.addEventListener("click", () => {
     renderBillAuditDialog();
     billAuditDialog.showModal();
+  });
+}
+if (pullLatestSyncAlertBtn) {
+  pullLatestSyncAlertBtn.addEventListener("click", () => {
+    requestRemoteClientRefresh();
   });
 }
 if (restoreBillSnapshotBtn && billSnapshotDialog) {
