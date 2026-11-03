@@ -2708,6 +2708,29 @@ function getJsonBackupStatusText() {
   return `JSON backup ${fileName}; ${savedAtText}; ${validationText}`;
 }
 
+function updateJsonBackupLocation() {
+  const fileName = document.querySelector("#jsonBackupFileName");
+  const location = document.querySelector("#jsonBackupFileLocation");
+  const savedAt = document.querySelector("#jsonBackupFileSavedAt");
+  if (!fileName || !location || !savedAt) return;
+  if (!activeClientId) {
+    fileName.textContent = "Choose a client first";
+    location.textContent = "No backup file selected";
+    savedAt.textContent = "—";
+    return;
+  }
+  const name = jsonBackupHandle?.name || jsonBackupMeta?.fileName || "";
+  fileName.textContent = name || "No backup file selected";
+  location.textContent = jsonBackupHandle
+    ? `In the folder you chose on this device. The browser does not reveal its full path; search your files for ${name}.`
+    : name
+      ? "File access is not connected here. Use Choose Backup JSON to select it again."
+      : "Choose Backup JSON to select a folder and file.";
+  savedAt.textContent = jsonBackupMeta?.lastSavedAt
+    ? `${formatDateTime(jsonBackupMeta.lastSavedAt)} (last recorded successful save)`
+    : "No successful save recorded";
+}
+
 async function loadConfiguredJsonBackupForActiveClient() {
   jsonBackupHandle = null;
   jsonBackupMeta = null;
@@ -2851,6 +2874,7 @@ async function chooseJsonBackupFile() {
       lastValidationResult: ""
     };
     writeJsonBackupMeta(jsonBackupMeta, activeClientId);
+    updateDataStoreStatus();
     await saveJsonBackupNow("manual setup", true);
     updateClientChrome();
     alert(`JSON backup configured for ${currentClientConfig()?.shortName || "this client"}.\n\nFile: ${jsonBackupMeta.fileName}`);
@@ -6355,6 +6379,7 @@ async function updateSyncStatus() {
 function updateDataStoreStatus() {
   const dataStoreStatus = document.querySelector("#dataStoreStatus");
   const dataStoreDetails = document.querySelector("#dataStoreDetails");
+  updateJsonBackupLocation();
   if (pullLatestSyncAlertBtn) pullLatestSyncAlertBtn.disabled = !activeClientId || !supabaseEnabled;
   const syncAdminBillsBtn = document.querySelector("#syncAdminBillsBtn");
   if (syncAdminBillsBtn) syncAdminBillsBtn.disabled = !supabaseEnabled;
