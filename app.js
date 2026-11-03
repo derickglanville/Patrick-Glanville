@@ -3031,6 +3031,7 @@ function renderJsonBackupComparison(points, payload) {
         <button type="button" class="ghost" id="restoreJsonBackupFromSnapshotBtn" data-point-id="${escapeHtml(fromPoint?.id || "")}">
           Restore <span class="json-backup-restore-emphasis">Selected Saved Day</span>
         </button>
+        <button type="button" class="ghost" id="repairFirebaseFromBackupBtn" data-point-id="${escapeHtml(fromPoint?.id || "")}" title="Replace the shared Firebase state with this selected backup after a version check and explicit confirmation. Use only when the Firebase archive is incomplete.">Repair Firebase from Selected Backup</button>
       </div>
       <div class="json-backup-compare-metrics">
         <div class="json-backup-compare-metric">
@@ -5960,8 +5961,8 @@ function splitFirebaseArchiveValue(values) {
   return chunks;
 }
 
-function buildFirebaseSavePayload(updatedAt) {
-  const fullState = structuredClone(state);
+function buildFirebaseSavePayload(updatedAt, sourceState = state) {
+  const fullState = structuredClone(sourceState);
   const main = {
     id: getSupabaseStateId(), client_id: activeClientId, state: fullState,
     updated_by: state.currentUser || "", updated_at: updatedAt
@@ -5984,6 +5985,73 @@ function buildFirebaseSavePayload(updatedAt) {
   main.archive_version = archiveVersion;
   main.archive_manifest = archiveManifest;
   return { main, archiveDocuments };
+}
+
+async function repairFirebaseFromJsonBackup(pointId = "") {
+  if (!activeClientId || !supabaseEnabled || !currentJsonBackupPayload) {
+    alert("Choose a client and open its JSON backup first.");
+    return;
+  }
+  const { points } = getJsonBackupComparisonSelection(currentJsonBackupPayload);
+  const point = points.find(entry => entry.id === pointId);
+  if (!point?.payload?.state || currentJsonBackupPayload.clientId !== activeClientId) {
+    alert("The selected backup does not belong to this client or has no saved state.");
+    return;
+  }
+  if (sharedSaveInFlight) {
+    alert("Wait for the current save to finish before repairing Firebase.");
+    return;
+  }
+  const stateId = getSupabaseStateId();
+  const docRef = supabaseClient.doc(supabaseClient.db, SUPABASE_TABLE, stateId);
+  let committed = false;
+  try {
+    const snapshot = await (supabaseClient.getDocFromServer || supabaseClient.getDoc)(docRef);
+    if (!snapshot.exists() || !snapshot.data()?.state) throw new Error("No shared Firebase state was found.");
+    const remote = snapshot.data();
+    const remoteVersion = String(remote.updated_at || "");
+    const remoteArchiveVersion = String(remote.archive_version || "");
+    try {
+      await hydrateFirebaseArchivedState(remote, stateId);
+      throw new Error("The Firebase archive is complete now. Use Pull Latest From Firebase instead of replacing it from a backup.");
+    } catch (archiveError) {
+      if (!/Firebase (?:billSnapshots|billAuditLog|history) archive (?:is incomplete|count does not match)/.test(archiveError.message)) throw archiveError;
+    }
+    const backupState = initializeState(structuredClone(point.payload.state));
+    if (!Array.isArray(backupState.tasks)) throw new Error("The backup is missing its task list.");
+    const risk = assessAdminBillDataLoss(state, backupState);
+    if (risk) throw new Error("The selected backup would remove or zero substantial bill data. Choose a different saved day.");
+    const remoteRisk = assessAdminBillDataLoss(remote.state, backupState);
+    if (remoteRisk) throw new Error("The selected backup would remove or zero substantial shared bill data. Choose a different saved day.");
+    const backupTime = point.payload.savedAt ? formatDateTime(point.payload.savedAt) : point.label;
+    const remoteTime = remoteVersion ? formatDateTime(remoteVersion) : "unknown";
+    if (!confirm(`Repair shared Firebase from ${point.label}?\n\nBackup saved: ${backupTime}\nCurrent Firebase save: ${remoteTime}\n\nThis replaces the shared data for this client with the selected backup, including bills, tasks, and history. Other devices will see the restored data after refreshing. Keep your downloaded JSON recovery copy. Continue?`)) return;
+    window.clearTimeout(supabaseSaveTimer);
+    const payload = buildFirebaseSavePayload(new Date().toISOString(), backupState);
+    await saveFirebaseArchiveDocuments(stateId, payload.archiveDocuments);
+    await supabaseClient.runTransaction(supabaseClient.db, async transaction => {
+      const latest = await transaction.get(docRef);
+      const current = latest.exists() ? latest.data() : null;
+      if (String(current?.updated_at || "") !== remoteVersion || String(current?.archive_version || "") !== remoteArchiveVersion) {
+        throw new Error("Firebase changed during repair. Nothing was replaced; review the latest data and try again.");
+      }
+      transaction.set(docRef, payload.main);
+    });
+    committed = true;
+    pendingLocalSharedSaveAt = "";
+    try { localStorage.removeItem(`${getStorageKey()}:pending-save`); } catch { /* Browser cache may be unavailable. */ }
+    remoteUpdatedAt = payload.main.updated_at;
+    try { cacheRemoteUpdatedAt(payload.main.updated_at); } catch { /* Firebase save already succeeded. */ }
+    applyRemoteSharedState(backupState, payload.main.updated_at);
+    billSyncAlertState = null;
+    renderBillSyncAlert();
+    if (jsonBackupViewerDialog?.open) jsonBackupViewerDialog.close();
+    alert(`Firebase was repaired from ${point.label}. Reload your other devices to receive the restored data.`);
+  } catch (error) {
+    alert(committed
+      ? `Firebase was repaired, but the browser could not finish updating its local view. Keep your JSON backup and refresh this page.\n\n${error.message}`
+      : `Firebase repair did not complete. Your browser data was not replaced.\n\n${error.message}`);
+  }
 }
 
 async function saveFirebaseArchiveDocuments(stateId, archiveDocuments) {
@@ -6277,7 +6345,7 @@ async function requestRemoteClientRefresh() {
     updateDataStoreStatus();
     const archiveProblem = /Firebase (?:billSnapshots|billAuditLog|history) archive (?:is incomplete|count does not match)/.test(error.message);
     alert(archiveProblem
-      ? `The shared Firebase archive is incomplete, so this device kept its local data. Save and verify your JSON backup, then use a trusted saved day in Daily Backup Recovery. Do not pull again until the shared archive has been repaired.\n\nDetails: ${error.message}`
+      ? `The shared Firebase archive is incomplete, so this device kept its local data. Save your JSON backup, open Review Daily Backups, choose a trusted saved day, then use Repair Firebase from Selected Backup. This replaces shared data only after your confirmation.\n\nDetails: ${error.message}`
       : `Could not load the latest Firebase data: ${error.message}`);
   }
 }
@@ -13475,8 +13543,12 @@ if (jsonBackupViewerBody) {
     const target = event.target;
     if (!(target instanceof Element)) return;
     const restoreButton = target.closest("#restoreJsonBackupFromSnapshotBtn");
-    if (!restoreButton) return;
-    restoreJsonBackupComparisonFromPoint(restoreButton.dataset.pointId || "");
+    if (restoreButton) {
+      restoreJsonBackupComparisonFromPoint(restoreButton.dataset.pointId || "");
+      return;
+    }
+    const repairButton = target.closest("#repairFirebaseFromBackupBtn");
+    if (repairButton) repairFirebaseFromJsonBackup(repairButton.dataset.pointId || "");
   });
   jsonBackupViewerBody.addEventListener("change", event => {
     const target = event.target;
