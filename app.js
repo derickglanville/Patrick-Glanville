@@ -2400,15 +2400,18 @@ async function saveJsonBackupHandleToDb(clientId, handle) {
 
 async function ensureJsonBackupPermission(handle, mode = "readwrite", requestIfNeeded = true) {
   if (!handle) return false;
+  let permissionChecked = false;
   if (typeof handle.queryPermission === "function") {
+    permissionChecked = true;
     const existing = await handle.queryPermission({ mode });
     if (existing === "granted") return true;
+    if (!requestIfNeeded) return false;
   }
   if (requestIfNeeded && typeof handle.requestPermission === "function") {
     const granted = await handle.requestPermission({ mode });
     return granted === "granted";
   }
-  return true;
+  return !permissionChecked;
 }
 
 function getJsonBackupSuggestedFileName(client = currentClientConfig()) {
@@ -2801,13 +2804,16 @@ function queueJsonBackupSave(reason = "auto") {
   window.clearTimeout(jsonBackupSaveTimer);
   jsonBackupSaveTimer = window.setTimeout(() => {
     saveJsonBackupNow(reason).catch(error => {
+      const accessRequired = /user activation|permission|not allowed/i.test(String(error?.message || ""));
       jsonBackupMeta = {
         ...(jsonBackupMeta || {}),
         fileName: jsonBackupMeta?.fileName || jsonBackupHandle?.name || "",
         lastSavedAt: jsonBackupMeta?.lastSavedAt || "",
         lastSavedReason: jsonBackupMeta?.lastSavedReason || "",
         lastValidationAt: jsonBackupMeta?.lastValidationAt || "",
-        lastValidationResult: `save failed (${error.message})`
+        lastValidationResult: accessRequired
+          ? "backup access required (click Save Backup JSON)"
+          : `save failed (${error.message})`
       };
       writeJsonBackupMeta(jsonBackupMeta, activeClientId);
       updateDataStoreStatus();

@@ -130,9 +130,14 @@
     try {
       const { firebase, ref } = await firebaseClient();
       const adminRef = withReminders ? firebase.doc(firebase.db, "tracker_state", "admin-glanville") : null;
+      if (adminRef && pendingLocalSharedSaveAt) {
+        await saveSharedStateNow();
+        if (pendingLocalSharedSaveAt) throw new Error("Pending Admin edits must be resolved before updating reminders");
+      }
       let savedEquipment;
       let savedReminders;
       let savedAt;
+      let adminUpdatedAt = "";
       await firebase.runTransaction(firebase.db, async transaction => {
         const snapshot = await transaction.get(ref);
         const adminSnapshot = adminRef ? await transaction.get(adminRef) : null;
@@ -147,10 +152,11 @@
             ? structuredClone(adminSnapshot.data().state.adminNotesReminders) : [];
           syncReminders(next.find(item => item.id === targetId), reminders);
           savedReminders = reminders;
-          const adminUpdatedAt = new Date(Math.max(Date.now(), Date.parse(adminSnapshot.data().updated_at || "") + 1 || 0)).toISOString();
+          adminUpdatedAt = new Date(Math.max(Date.now(), Date.parse(adminSnapshot.data().updated_at || "") + 1 || 0)).toISOString();
           transaction.update(adminRef, { "state.adminNotesReminders": reminders, updated_at: adminUpdatedAt, updated_by: state.currentUser || "" });
         }
       });
+      if (adminUpdatedAt && isAdminClient()) cacheRemoteUpdatedAt(adminUpdatedAt);
       if (dialog.open && isAdminClient()) {
         equipment = savedEquipment;
         if (savedReminders) state.adminNotesReminders = savedReminders;
