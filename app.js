@@ -6551,6 +6551,8 @@ function updateDataStoreStatus() {
 
 function updateClientChrome() {
   const client = currentClientConfig();
+  const dataManagementPanel = document.querySelector(".data-management-panel");
+  if (dataManagementPanel) dataManagementPanel.hidden = client?.id !== "admin";
   if (clientSwitchBtn) clientSwitchBtn.textContent = client ? `Client: ${client.shortName}` : "Choose Client";
   if (topClientSwitchBtn) topClientSwitchBtn.hidden = true;
   if (topClientSelect) topClientSelect.value = client?.id || "";

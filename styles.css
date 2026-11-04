@@ -6316,6 +6316,7 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 
 /* A single ordered path for protecting and recovering shared data. */
 .sync-panel.data-management-panel { display: block; padding: 9px clamp(18px, 4vw, 56px); }
+.sync-panel.data-management-panel[hidden] { display: none; }
 .data-management-panel .sync-summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 22px; margin-bottom: 4px; }
 .data-management-panel .sync-summary > div { display: grid; gap: 2px; min-width: 220px; }
 .data-management-panel .sync-summary > div:first-child { flex: 1 1 420px; }
