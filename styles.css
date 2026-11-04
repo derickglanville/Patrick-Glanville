@@ -6084,6 +6084,7 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .oil-price-costs span { display: block; color: #587287; font-size: .75rem; }
 .oil-price-costs strong { display: block; margin-top: 4px; color: #174766; font-size: 1.06rem; }
 .oil-price-error { margin: 0; padding: 10px 12px; background: #fff4e0; border: 1px solid #e8bb70; border-radius: 7px; color: #754b13; font-size: .82rem; }
+.oil-price-quote-note { margin: 0; padding: 10px 12px; background: #eaf5fc; border: 1px solid #a9cfe4; border-radius: 7px; color: #214d68; font-size: .85rem; }
 .oil-history-chart { position: relative; display: grid; grid-template-columns: 48px minmax(0,1fr); width: 100%; max-width: 100%; min-width: 0; height: 240px; background: #fff; border: 1px solid #d1e0e9; border-radius: 8px; overflow: hidden; }
 .oil-history-scroll { width: 100%; overflow-x: auto; overflow-y: hidden; scrollbar-gutter: stable; scrollbar-color: #648ca6 #e7f0f5; }
 .oil-history-scroll::-webkit-scrollbar { height: 14px; }
