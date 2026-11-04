@@ -2638,8 +2638,8 @@ function buildBillSyncAlert(entries = [], updatedAt = "") {
   return {
     clientId: activeClientId || "",
     createdAt: updatedAt || new Date().toISOString(),
-    title: "Unexpected Firebase bill changes detected",
-    text: `${affectedBills.length} bill${affectedBills.length === 1 ? "" : "s"} changed during Firebase sync${fieldNames.length ? ` (${fieldNames.join(", ")})` : ""}. Review the bill audit or restore the last trusted JSON backup if needed.`,
+    title: "Firebase bill changes need review",
+    text: `${affectedBills.length} bill${affectedBills.length === 1 ? "" : "s"} changed during Firebase sync${fieldNames.length ? ` (${fieldNames.join(", ")})` : ""}. Review the recorded changes before deciding whether any bill needs correction.`,
     entries: suspiciousEntries,
     affectedBills
   };
@@ -9325,13 +9325,18 @@ function renderBudgetSnapshots() {
   });
 }
 
-function renderBillAuditDialog() {
+function renderBillAuditDialog(showSyncAlertEntries = false) {
   if (!billAuditBody) return;
   const month = state.billMonth || defaultBillMonth();
-  const entries = (state.billAuditLog || [])
+  const alertEntries = showSyncAlertEntries && billSyncAlertState?.entries?.length
+    ? billSyncAlertState.entries
+    : null;
+  const entries = (alertEntries || state.billAuditLog || [])
     .filter(entry => !activeClientId || entry.clientId === activeClientId)
-    .filter(entry => entry.month === month)
+    .filter(entry => alertEntries || entry.month === month)
     .sort((a, b) => (b.changedAt || "").localeCompare(a.changedAt || ""));
+  const dialogTitle = billAuditDialog?.querySelector(".dialog-head h2");
+  if (dialogTitle) dialogTitle.textContent = alertEntries ? "Firebase bill changes" : "Bill Audit";
   if (!entries.length) {
     billAuditBody.innerHTML = '<p class="empty-report">No audited bill field changes have been captured for this month yet.</p>';
     return;
@@ -13520,7 +13525,7 @@ if (viewBillAuditBtn && billAuditDialog) {
 }
 if (reviewBillSyncAlertBtn && billAuditDialog) {
   reviewBillSyncAlertBtn.addEventListener("click", () => {
-    renderBillAuditDialog();
+    renderBillAuditDialog(true);
     billAuditDialog.showModal();
   });
 }

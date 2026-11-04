@@ -341,6 +341,7 @@ main {
   border-radius: 10px;
   background: #fff6f6;
 }
+.sync-alert-banner[hidden] { display: none; }
 
 .sync-alert-banner-copy {
   display: grid;
@@ -356,6 +357,7 @@ main {
   gap: 8px;
   flex-wrap: wrap;
 }
+.sync-alert-banner-actions button { padding: 7px 10px; }
 .sync-alert-banner-actions #pullLatestSyncAlertBtn { color: #075985; background: #e0f2fe; border-color: #8bcaed; font-weight: 750; }
 .sync-alert-banner-actions #pullLatestSyncAlertBtn[hidden] { display: none; }
 
