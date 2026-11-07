@@ -1707,6 +1707,8 @@ let activeBillBalanceHistoryKey = "";
 let selectedAllBillHistoryKeys = null;
 let allBillHistoryScale = "adaptive";
 let allBillHistoryChartType = "panels";
+let activeAllBillDetailKey = "";
+let activeAllBillDetailMetric = "index";
 
 function currentClientConfig() {
   return clientConfigs[activeClientId] || null;
@@ -1976,6 +1978,9 @@ const billBalanceHistoryTitle = document.querySelector("#billBalanceHistoryTitle
 const billBalanceHistoryBody = document.querySelector("#billBalanceHistoryBody");
 const allBillBalanceHistoryDialog = document.querySelector("#allBillBalanceHistoryDialog");
 const allBillBalanceHistoryBody = document.querySelector("#allBillBalanceHistoryBody");
+const allBillDetailDialog = document.querySelector("#allBillDetailDialog");
+const allBillDetailTitle = document.querySelector("#allBillDetailTitle");
+const allBillDetailBody = document.querySelector("#allBillDetailBody");
 const closeBillBalanceHistoryDialogBtn = document.querySelector("#closeBillBalanceHistoryDialog");
 const adminMonthlyExpendituresDialog = document.querySelector("#adminMonthlyExpendituresDialog");
 const adminMonthlyExpendituresBody = document.querySelector("#adminMonthlyExpendituresBody");
@@ -8500,7 +8505,10 @@ function getBillBalanceHistory(bill) {
         return candidateKey === key || String(candidate.name || "").trim().toLowerCase() === name;
       });
       if (!historicalBill) return null;
-      return { month, previousBalance: normalizeMoney(historicalBill.previousBalance ?? historicalBill.currentBalance), currentBalance: normalizeMoney(historicalBill.currentBalance), paidAmount: normalizeMoney(historicalBill.paidAmount) };
+      const previousBalance = normalizeMoney(historicalBill.previousBalance ?? historicalBill.currentBalance);
+      const aprText = String(historicalBill.apr ?? "").trim();
+      const hasApr = /\d/.test(aprText);
+      return { month, previousBalance, currentBalance: normalizeMoney(historicalBill.currentBalance), paidAmount: normalizeMoney(historicalBill.paidAmount), apr: parseAprNumber(aprText), hasApr, estimatedInterest: hasApr ? calculateMonthlyInterestPortion(previousBalance, aprText) : null };
     })
     .filter(Boolean);
 }
@@ -8633,6 +8641,16 @@ function buildAllBillBalanceChart(series, months) {
   return `<svg class="all-bill-balance-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="All Admin bill balances, each indexed to $100 at its first saved nonzero balance. ${allBillHistoryScale === "adaptive" ? "Adaptive vertical scale expands differences near $100." : "Linear vertical scale."}"><rect x="${left}" y="${top}" width="${plotWidth}" height="${plotHeight}" class="all-bill-chart-plot"/>${vertical}${horizontal}${lines}</svg>`;
 }
 
+function getBillProgressTone(value) {
+  const displayed = Math.round(value * 10) / 10;
+  if (displayed > 100) return "is-red";
+  if (displayed >= 90) return "is-burgundy";
+  if (displayed >= 79) return "is-blue";
+  if (displayed >= 78) return "is-orange";
+  if (displayed >= 60) return "is-yellow";
+  return "is-green";
+}
+
 function buildAllBillSmallMultiples(series, months) {
   if (!series.length) return '<p class="documents-note">Select bills to display their individual charts.</p>';
   const width = 420, height = 132, left = 42, right = 15, top = 14, bottom = 27;
@@ -8645,7 +8663,7 @@ function buildAllBillSmallMultiples(series, months) {
     const path = item.points.map((point, index) => `${index ? "L" : "M"}${x(point.month).toFixed(1)},${y(point.value).toFixed(1)}`).join(" ");
     const latest = item.points.at(-1);
     const direction = latest.value < 100 ? "down" : latest.value > 100 ? "up" : "flat";
-    return `<article class="all-bill-small-card ${direction}"><header><span class="all-bill-history-swatch" style="background:${item.color}"></span><strong>${escapeHtml(item.name)}</strong><span>${latest.value.toFixed(1)} / 100</span></header><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeAttribute(`${item.name} indexed balance history`)}"><line x1="${left}" x2="${width - right}" y1="${y(100)}" y2="${y(100)}" class="all-bill-chart-grid baseline"/><text x="${left - 4}" y="${y(100) - 3}" text-anchor="end" class="all-bill-chart-axis">100</text>${months.map(month => `<line x1="${x(month)}" x2="${x(month)}" y1="${top}" y2="${height - bottom}" class="all-bill-chart-grid vertical"/>`).join("")}<path d="${path}" fill="none" stroke="${item.color}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>${item.points.map(point => `<circle cx="${x(point.month)}" cy="${y(point.value)}" r="4.5" fill="${item.color}" stroke="#fff" stroke-width="1.5" class="all-bill-chart-point" data-history-key="${escapeAttribute(item.key)}" data-history-month="${escapeAttribute(point.month)}"/>`).join("")}<text x="${left}" y="${height - 7}" class="all-bill-chart-axis">${escapeHtml(formatBudgetMonthLabel(item.points[0].month).slice(0, 3))}</text><text x="${width - right}" y="${height - 7}" text-anchor="end" class="all-bill-chart-axis">${escapeHtml(formatBudgetMonthLabel(latest.month).slice(0, 3))}</text></svg><footer>${latest.value < 100 ? "↘" : latest.value > 100 ? "↗" : "→"} ${Math.abs(latest.value - 100).toFixed(1)}% since start · ${escapeHtml(formatCurrency(latest.actual))} now</footer></article>`;
+    return `<article class="all-bill-small-card ${direction}" data-detail-key="${escapeAttribute(item.key)}"><header><span class="all-bill-history-swatch" style="background:${item.color}"></span><strong>${escapeHtml(item.name)}</strong><span class="bill-index-value ${getBillProgressTone(latest.value)}">${latest.value.toFixed(1)} / 100</span></header><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeAttribute(`${item.name} indexed balance history`)}"><line x1="${left}" x2="${width - right}" y1="${y(100)}" y2="${y(100)}" class="all-bill-chart-grid baseline"/><text x="${left - 4}" y="${y(100) - 3}" text-anchor="end" class="all-bill-chart-axis">100</text>${months.map(month => `<line x1="${x(month)}" x2="${x(month)}" y1="${top}" y2="${height - bottom}" class="all-bill-chart-grid vertical"/>`).join("")}<path d="${path}" fill="none" stroke="${item.color}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>${item.points.map(point => `<circle cx="${x(point.month)}" cy="${y(point.value)}" r="4.5" fill="${item.color}" stroke="#fff" stroke-width="1.5" class="all-bill-chart-point" data-history-key="${escapeAttribute(item.key)}" data-history-month="${escapeAttribute(point.month)}"/>`).join("")}<text x="${left}" y="${height - 7}" class="all-bill-chart-axis">${escapeHtml(formatBudgetMonthLabel(item.points[0].month).slice(0, 3))}</text><text x="${width - right}" y="${height - 7}" text-anchor="end" class="all-bill-chart-axis">${escapeHtml(formatBudgetMonthLabel(latest.month).slice(0, 3))}</text></svg><footer>${latest.value < 100 ? "↘" : latest.value > 100 ? "↗" : "→"} ${Math.abs(latest.value - 100).toFixed(1)}% since start · ${escapeHtml(formatCurrency(latest.actual))} now</footer></article>`;
   }).join("")}</div>`;
 }
 
@@ -8656,8 +8674,44 @@ function buildAllBillRankingChart(series) {
   return `<div class="all-bill-ranking" role="img" aria-label="Bills ranked by percentage change from their first saved balance"><div class="all-bill-ranking-head"><span>Balance fell most</span><span>Starting value: $100</span><span>Balance rose most</span></div>${ranked.map(item => {
     const latest = item.points.at(-1), change = latest.value - 100;
     const width = Math.max(2, Math.abs(change) / largest * 48);
-    return `<div class="all-bill-ranking-row" title="${escapeAttribute(`${item.name}: ${latest.value.toFixed(2)} per $100; actual ${formatCurrency(latest.actual)}`)}"><strong>${escapeHtml(item.name)}</strong><div class="all-bill-ranking-track"><span class="all-bill-ranking-center"></span><span class="all-bill-ranking-bar ${change <= 0 ? "down" : "up"}" style="width:${width}%;${change <= 0 ? `right:50%` : `left:50%`};background:${item.color}"></span></div><b>${change < 0 ? "−" : change > 0 ? "+" : ""}${Math.abs(change).toFixed(1)}%</b></div>`;
+    return `<div class="all-bill-ranking-row" data-detail-key="${escapeAttribute(item.key)}" title="${escapeAttribute(`${item.name}: ${latest.value.toFixed(2)} per $100; actual ${formatCurrency(latest.actual)}`)}"><strong>${escapeHtml(item.name)}</strong><div class="all-bill-ranking-track"><span class="all-bill-ranking-center"></span><span class="all-bill-ranking-bar ${change <= 0 ? "down" : "up"}" style="width:${width}%;${change <= 0 ? `right:50%` : `left:50%`};background:${item.color}"></span></div><b>${change < 0 ? "−" : change > 0 ? "+" : ""}${Math.abs(change).toFixed(1)}%</b></div>`;
   }).join("")}</div>`;
+}
+
+function buildAllBillInterestChart(series, months) {
+  const available = series.filter(item => item.history.some(point => point.hasApr));
+  if (!available.length) return '<p class="documents-note">No selected bills have saved APR values. Select a bill with an APR to view estimated interest.</p>';
+  const width = 420, height = 152, left = 53, right = 16, top = 16, bottom = 29;
+  const x = month => left + (months.length === 1 ? (width - left - right) / 2 : months.indexOf(month) / (months.length - 1) * (width - left - right));
+  return `<div class="all-bill-small-grid">${available.map(item => {
+    const points = item.history.filter(point => point.hasApr);
+    const maxInterest = Math.max(1, ...points.map(point => point.estimatedInterest));
+    const y = value => top + (maxInterest * 1.12 - value) / (maxInterest * 1.12) * (height - top - bottom);
+    const path = points.map((point, index) => `${index ? "L" : "M"}${x(point.month).toFixed(1)},${y(point.estimatedInterest).toFixed(1)}`).join(" ");
+    const latest = points.at(-1), first = points[0];
+    const total = points.reduce((sum, point) => sum + point.estimatedInterest, 0);
+    const change = latest.estimatedInterest - first.estimatedInterest;
+    const rateOnlyChange = latest.previousBalance * (latest.apr - first.apr) / 1200;
+    return `<article class="all-bill-small-card interest-impact-card ${change < -.005 ? "down" : change > .005 ? "up" : "flat"}" data-detail-key="${escapeAttribute(item.key)}"><header><span class="all-bill-history-swatch" style="background:${item.color}"></span><strong title="${escapeAttribute(item.name)}">${escapeHtml(item.name)}</strong><span>${escapeHtml(formatCurrency(latest.estimatedInterest))}/mo</span></header><div class="interest-impact-meta"><span>APR <strong>${latest.apr.toFixed(2)}%</strong>${Math.abs(latest.apr - first.apr) >= .005 ? ` (${latest.apr > first.apr ? "↑" : "↓"}${Math.abs(latest.apr - first.apr).toFixed(2)} points)` : ""}</span><span>${points.length} saved month${points.length === 1 ? "" : "s"}</span></div><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeAttribute(`${item.name} estimated monthly interest over time`)}"><line x1="${left}" x2="${width - right}" y1="${y(0)}" y2="${y(0)}" class="all-bill-chart-grid baseline"/><line x1="${left}" x2="${width - right}" y1="${y(maxInterest)}" y2="${y(maxInterest)}" class="all-bill-chart-grid"/><text x="${left - 5}" y="${y(maxInterest) + 4}" text-anchor="end" class="all-bill-chart-axis">${Math.round(maxInterest)}</text><text x="${left - 5}" y="${y(0) - 4}" text-anchor="end" class="all-bill-chart-axis">0</text>${months.map(month => `<line x1="${x(month)}" x2="${x(month)}" y1="${top}" y2="${height - bottom}" class="all-bill-chart-grid vertical"/>`).join("")}<path d="${path}" fill="none" stroke="${item.color}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>${points.map(point => `<circle cx="${x(point.month)}" cy="${y(point.estimatedInterest)}" r="4.5" fill="${item.color}" stroke="#fff" stroke-width="1.5" class="all-bill-chart-point" data-interest-key="${escapeAttribute(item.key)}" data-interest-month="${escapeAttribute(point.month)}"><title>${escapeHtml(`${item.name} · ${formatBudgetMonthLabel(point.month)} · estimated interest ${formatCurrency(point.estimatedInterest)} at ${point.apr.toFixed(2)}% APR on ${formatCurrency(point.previousBalance)}`)}</title></circle>`).join("")}<text x="${left}" y="${height - 7}" class="all-bill-chart-axis">${escapeHtml(formatBudgetMonthLabel(first.month).slice(0, 3))}</text><text x="${width - right}" y="${height - 7}" text-anchor="end" class="all-bill-chart-axis">${escapeHtml(formatBudgetMonthLabel(latest.month).slice(0, 3))}</text></svg><footer>Estimated across saved months: <strong>${escapeHtml(formatCurrency(total))}</strong> · ${change < -.005 ? "↘" : change > .005 ? "↗" : "→"} ${escapeHtml(formatCurrency(Math.abs(change)))} / month ${change < -.005 ? "lower" : change > .005 ? "higher" : "change"}<br>APR change alone at latest saved previous balance: <strong>${rateOnlyChange < -.005 ? "−" : rateOnlyChange > .005 ? "+" : ""}${escapeHtml(formatCurrency(Math.abs(rateOnlyChange)))}/month</strong></footer></article>`;
+  }).join("")}</div>`;
+}
+
+function getBillProgressGuidance(item) {
+  const latest = item.points.at(-1);
+  if (!latest || !item.baseline) return { score: -1, level: "No history", text: "Add a saved nonzero balance to compare this bill over time.", target: "" };
+  const latestInterest = item.history.filter(point => point.hasApr).at(-1);
+  const previous = item.points.at(-2);
+  const recentRise = previous && latest.value > previous.value + .05;
+  const displayed = Math.round(latest.value * 10) / 10;
+  const targetPercent = displayed > 100 ? 100 : displayed >= 90 ? 89.9 : displayed >= 79 ? 78.9 : displayed >= 78 ? 77.9 : displayed >= 60 ? 59.9 : null;
+  const target = targetPercent === null || latest.actual <= 0 ? "" : `About ${formatCurrency(Math.max(0, latest.actual - item.baseline * targetPercent / 100))} less balance to reach the next color band, before new charges or interest.`;
+  if (latest.actual <= 0) return { score: 0, level: "At zero", text: "The saved balance is $0. Confirm the account status before redirecting its planned payment.", target: "" };
+  const change = latest.value - 100;
+  const trend = change > .05 ? `Up ${change.toFixed(1)}% since the first saved month.` : change < -.05 ? `Down ${Math.abs(change).toFixed(1)}% since the first saved month.` : "Near its first saved balance.";
+  const rate = latestInterest ? `${latestInterest.apr.toFixed(2)}% APR; about ${formatCurrency(latestInterest.estimatedInterest)} estimated monthly interest.` : "APR is missing, so interest impact cannot be estimated.";
+  const action = displayed > 100 ? "Review charges and whether payments are reducing principal." : displayed >= 90 ? "Look for room to reduce principal after required payments." : "Keep the balance moving down and watch for new charges.";
+  const score = (displayed > 100 ? 100 + change : displayed >= 90 ? 25 : 0) + (recentRise ? 18 : 0) + (latestInterest?.apr >= 25 ? 18 : 0) + (latestInterest?.estimatedInterest || 0) / 10;
+  return { score, level: displayed > 100 ? "Focus first" : score >= 35 ? "Review closely" : "Keep progress", text: `${trend} ${rate} ${action}`, target };
 }
 
 function renderAllBillBalanceHistoryDialog() {
@@ -8665,21 +8719,28 @@ function renderAllBillBalanceHistoryDialog() {
   const all = getAllBillBalanceSeries();
   if (selectedAllBillHistoryKeys === null) selectedAllBillHistoryKeys = new Set(all.filter(item => item.baseline).map(item => item.key));
   const palette = ["#0866a8", "#ce4c2a", "#148257", "#8048a4", "#ba8610", "#d23d83", "#167b91", "#a45321", "#425dbb", "#68872a", "#b04456", "#147fbe"];
-  all.forEach((item, index) => { item.color = palette[index % palette.length]; });
+  all.forEach((item, index) => { item.color = palette[index % palette.length]; item.guide = getBillProgressGuidance(item); });
+  const focusBills = [...all].filter(item => item.points.at(-1)?.actual > 0).sort((a, b) => b.guide.score - a.guide.score).slice(0, 3);
   const selected = all.filter(item => item.baseline && selectedAllBillHistoryKeys.has(item.key));
   const months = [...new Set(all.flatMap(item => item.points.map(point => point.month)))].sort();
   const falling = selected.filter(item => item.points.length > 1 && item.points.at(-1).value < item.points[0].value).length;
   const rising = selected.filter(item => item.points.length > 1 && item.points.at(-1).value > item.points[0].value).length;
-  allBillBalanceHistoryBody.innerHTML = `<p class="all-bill-history-explain">Each bill starts at <strong>$100</strong> in its first saved month with a nonzero balance. A value of $80 means its balance fell 20%; $120 means it rose 20%. These values compare progress, not dollars owed. ${allBillHistoryChartType === "lines" ? "Adaptive scale spreads small differences near $100; its vertical tick spacing is intentionally nonuniform." : allBillHistoryChartType === "panels" ? "Each panel has its own vertical scale so its trend is easy to see; compare the labels for magnitude." : "Ranked bars show the latest percentage change from each bill’s starting balance."}</p>
-    <div class="all-bill-history-stats"><span><strong>${selected.length}</strong> shown</span><span class="down"><strong>↘ ${falling}</strong> falling</span><span class="up"><strong>↗ ${rising}</strong> rising</span><span><strong>${months.length}</strong> months</span></div>
-    <div class="all-bill-history-chart-tabs" role="group" aria-label="Chart type"><button type="button" data-all-history-chart="lines" aria-pressed="${allBillHistoryChartType === "lines"}">Trend lines</button><button type="button" data-all-history-chart="panels" aria-pressed="${allBillHistoryChartType === "panels"}">Individual charts</button><button type="button" data-all-history-chart="ranking" aria-pressed="${allBillHistoryChartType === "ranking"}">Ranked change</button></div>
-    <div class="all-bill-history-toolbar"><button type="button" data-all-history-action="show">Select all</button><button type="button" data-all-history-action="hide">Hide all</button><button type="button" data-all-history-action="falling">Show falling</button><button type="button" data-all-history-action="rising">Show rising</button>${allBillHistoryChartType === "lines" ? `<span class="all-bill-history-scale"><button type="button" data-all-history-scale="adaptive" aria-pressed="${allBillHistoryScale === "adaptive"}">Adaptive scale</button><button type="button" data-all-history-scale="linear" aria-pressed="${allBillHistoryScale === "linear"}">Linear scale</button></span>` : ""}</div>
-    <div class="all-bill-history-layout"><div class="all-bill-history-plot">${allBillHistoryChartType === "panels" ? buildAllBillSmallMultiples(selected, months) : allBillHistoryChartType === "ranking" ? buildAllBillRankingChart(selected) : buildAllBillBalanceChart(selected, months)}<div id="allBillHistoryPointDetail" class="all-bill-history-point-detail">${allBillHistoryChartType === "ranking" ? "Hover over a bar for its indexed value and actual balance." : "Tap or hover over a point to see its month, indexed value, and actual balance."}</div></div>
-    <div class="all-bill-history-legend" aria-label="Choose bills to display">${all.map((item, index) => {
+  const interestSeries = selected.filter(item => item.history.some(point => point.hasApr));
+  const latestInterestTotal = interestSeries.reduce((sum, item) => sum + item.history.filter(point => point.hasApr).at(-1).estimatedInterest, 0);
+  const estimatedInterestTotal = interestSeries.reduce((sum, item) => sum + item.history.reduce((billSum, point) => billSum + (point.estimatedInterest || 0), 0), 0);
+  const interestView = allBillHistoryChartType === "interest";
+  allBillBalanceHistoryBody.innerHTML = `<p class="all-bill-history-explain">${interestView ? "Estimated monthly interest = saved previous balance × saved APR ÷ 12. This shows the effect of APR and balance changes over time; it is not a bank-reported interest charge. Totals sum only the saved months shown, so gaps in history are excluded." : `Each bill starts at <strong>$100</strong> in its first saved month with a nonzero balance. A value of $80 means its balance fell 20%; $120 means it rose 20%. These values compare progress, not dollars owed. ${allBillHistoryChartType === "lines" ? "Adaptive scale spreads small differences near $100; its vertical tick spacing is intentionally nonuniform." : allBillHistoryChartType === "panels" ? "Each panel has its own vertical scale so its trend is easy to see; compare the labels for magnitude." : "Ranked bars show the latest percentage change from each bill’s starting balance."}`}</p>
+    ${interestView ? `<p class="interest-impact-caveat">Actual card interest can differ because issuers may use daily balances, multiple APRs, and grace periods. <a href="https://www.consumerfinance.gov/ask-cfpb/how-does-my-credit-card-company-calculate-the-amount-of-interest-i-owe-en-51/" target="_blank" rel="noopener noreferrer">How card interest is calculated</a></p>` : ""}
+    <div class="all-bill-history-stats">${interestView ? `<span><strong>${interestSeries.length}</strong> bills with APR</span><span class="up"><strong>${escapeHtml(formatCurrency(latestInterestTotal))}</strong> latest monthly estimate</span><span><strong>${escapeHtml(formatCurrency(estimatedInterestTotal))}</strong> across saved months</span>` : `<span><strong>${selected.length}</strong> shown</span><span class="down"><strong>↘ ${falling}</strong> falling</span><span class="up"><strong>↗ ${rising}</strong> rising</span>`}<span><strong>${months.length}</strong> months</span></div>
+    <div class="all-bill-history-chart-tabs" role="group" aria-label="Chart type"><button type="button" data-all-history-chart="lines" aria-pressed="${allBillHistoryChartType === "lines"}">Trend lines</button><button type="button" data-all-history-chart="panels" aria-pressed="${allBillHistoryChartType === "panels"}">Individual charts</button><button type="button" data-all-history-chart="ranking" aria-pressed="${allBillHistoryChartType === "ranking"}">Ranked change</button><button type="button" data-all-history-chart="interest" aria-pressed="${interestView}">Interest impact</button></div>
+    <div class="all-bill-history-toolbar"><button type="button" data-all-history-action="show">Select all</button><button type="button" data-all-history-action="hide">Hide all</button><button type="button" data-all-history-action="falling">${interestView ? "Show interest falling" : "Show falling"}</button><button type="button" data-all-history-action="rising">${interestView ? "Show interest rising" : "Show rising"}</button>${allBillHistoryChartType === "lines" ? `<span class="all-bill-history-scale"><button type="button" data-all-history-scale="adaptive" aria-pressed="${allBillHistoryScale === "adaptive"}">Adaptive scale</button><button type="button" data-all-history-scale="linear" aria-pressed="${allBillHistoryScale === "linear"}">Linear scale</button></span>` : ""}</div>
+    <div class="all-bill-history-layout"><div class="all-bill-history-plot">${interestView ? buildAllBillInterestChart(selected, months) : allBillHistoryChartType === "panels" ? buildAllBillSmallMultiples(selected, months) : allBillHistoryChartType === "ranking" ? buildAllBillRankingChart(selected) : buildAllBillBalanceChart(selected, months)}<div id="allBillHistoryPointDetail" class="all-bill-history-point-detail">Click or tap any chart to open detailed analysis. Hover over a point to preview its saved value.</div></div>
+    <aside class="all-bill-history-sidebar"><div class="all-bill-focus-summary"><strong>Where to focus</strong><p>Review these bills first based on balance growth, APR, and estimated interest. This is a guide for comparing bills; check due dates and available cash before changing payments.</p>${focusBills.length ? `<ol>${focusBills.map(item => `<li><b>${escapeHtml(item.name)}</b><span>${escapeHtml(item.guide.level)} · ${item.points.at(-1).value.toFixed(1)} / 100</span></li>`).join("")}</ol>` : '<p>No balances need a reduction target yet.</p>'}</div><div class="all-bill-history-legend" aria-label="Choose bills to display and review progress">${all.map((item, index) => {
       const latest = item.points.at(-1);
       const change = latest ? latest.value - 100 : 0;
-      return `<label class="all-bill-history-bill${item.baseline ? "" : " unavailable"}" data-legend-key="${escapeAttribute(item.key)}"><input type="checkbox" data-all-history-key="${escapeAttribute(item.key)}" ${selectedAllBillHistoryKeys.has(item.key) ? "checked" : ""} ${item.baseline ? "" : "disabled"}><span class="all-bill-history-swatch" style="background:${item.color}"></span><span class="all-bill-history-bill-name">${escapeHtml(item.name)}<small>${item.baseline ? `${escapeHtml(formatCurrency(item.baseline))} start · ${latest.value.toFixed(1)} / 100 · ${change < 0 ? "↓" : change > 0 ? "↑" : "→"}${Math.abs(change).toFixed(1)}%` : "No saved nonzero balance"}</small></span></label>`;
-    }).join("")}</div></div>`;
+      const latestInterest = item.history.filter(point => point.hasApr).at(-1);
+      return `<label class="all-bill-history-bill${item.baseline && (!interestView || latestInterest) ? "" : " unavailable"}" data-legend-key="${escapeAttribute(item.key)}"><input type="checkbox" data-all-history-key="${escapeAttribute(item.key)}" ${selectedAllBillHistoryKeys.has(item.key) && (!interestView || latestInterest) ? "checked" : ""} ${item.baseline && (!interestView || latestInterest) ? "" : "disabled"}><span class="all-bill-history-swatch" style="background:${item.color}"></span><span class="all-bill-history-bill-name">${escapeHtml(item.name)}<small>${interestView ? latestInterest ? `${latestInterest.apr.toFixed(2)}% APR · ${escapeHtml(formatCurrency(latestInterest.estimatedInterest))}/month estimated` : "No saved APR" : item.baseline ? `${escapeHtml(formatCurrency(item.baseline))} start · <span class="bill-index-value ${getBillProgressTone(latest.value)}">${latest.value.toFixed(1)} / 100</span> · ${change < 0 ? "↓" : change > 0 ? "↑" : "→"}${Math.abs(change).toFixed(1)}%` : "No saved nonzero balance"}</small><span class="all-bill-guidance-level">${escapeHtml(item.guide.level)}</span><span class="all-bill-guidance-text">${escapeHtml(item.guide.text)}</span>${item.guide.target ? `<span class="all-bill-guidance-target">${escapeHtml(item.guide.target)}</span>` : ""}</span></label>`;
+    }).join("")}</div></aside></div>`;
 }
 
 function openAllBillBalanceHistory() {
@@ -8687,6 +8748,72 @@ function openAllBillBalanceHistory() {
   selectedAllBillHistoryKeys = null;
   renderAllBillBalanceHistoryDialog();
   allBillBalanceHistoryDialog.showModal();
+}
+
+function renderAllBillDetailDialog() {
+  if (!allBillDetailBody) return;
+  const item = getAllBillBalanceSeries().find(candidate => candidate.key === activeAllBillDetailKey);
+  if (!item || !item.history.length) {
+    allBillDetailBody.innerHTML = '<p class="documents-note">No saved monthly history is available for this bill.</p>';
+    return;
+  }
+  if (allBillDetailTitle) allBillDetailTitle.textContent = `${item.name} · Detailed Analysis`;
+  const metric = activeAllBillDetailMetric;
+  const points = metric === "interest"
+    ? item.history.filter(point => point.hasApr).map(point => ({ month: point.month, value: point.estimatedInterest }))
+    : metric === "actual"
+      ? item.history.map(point => ({ month: point.month, value: point.currentBalance }))
+      : item.points.map(point => ({ month: point.month, value: point.value }));
+  const width = 960, height = 410, left = 78, right = 28, top = 28, bottom = 48;
+  const months = item.history.map(point => point.month);
+  const rawValues = points.map(point => point.value);
+  const rawMin = rawValues.length ? (metric === "interest" ? 0 : Math.min(metric === "index" ? 100 : Infinity, ...rawValues)) : 0;
+  const rawMax = rawValues.length ? Math.max(metric === "index" ? 100 : 0, ...rawValues) : 1;
+  const span = Math.max(metric === "index" ? 1 : 10, rawMax - rawMin);
+  const min = Math.max(0, rawMin - span * .12), max = rawMax + span * .12;
+  const x = month => left + (months.length === 1 ? (width - left - right) / 2 : months.indexOf(month) / (months.length - 1) * (width - left - right));
+  const y = value => top + (max - value) / Math.max(.01, max - min) * (height - top - bottom);
+  const formatValue = value => metric === "index" ? `${value.toFixed(1)} / 100` : formatCurrency(value);
+  const path = points.map((point, index) => `${index ? "L" : "M"}${x(point.month).toFixed(1)},${y(point.value).toFixed(1)}`).join(" ");
+  const grid = Array.from({ length: 5 }, (_, index) => {
+    const value = min + (max - min) * index / 4;
+    return `<g><line x1="${left}" x2="${width - right}" y1="${y(value)}" y2="${y(value)}" class="all-bill-detail-grid"/><text x="${left - 9}" y="${y(value) + 4}" text-anchor="end" class="all-bill-detail-axis">${escapeHtml(metric === "index" ? value.toFixed(1) : formatCurrency(value))}</text></g>`;
+  }).join("");
+  const vertical = months.map(month => `<g><line x1="${x(month)}" x2="${x(month)}" y1="${top}" y2="${height - bottom}" class="all-bill-detail-grid vertical"/><text x="${x(month)}" y="${height - 15}" text-anchor="middle" class="all-bill-detail-axis">${escapeHtml(formatBudgetMonthLabel(month).slice(0, 3))}</text></g>`).join("");
+  const dots = points.map(point => `<circle cx="${x(point.month)}" cy="${y(point.value)}" r="7" class="all-bill-detail-point" data-detail-month="${escapeAttribute(point.month)}" data-detail-x="${(x(point.month) / width * 100).toFixed(2)}" data-detail-y="${(y(point.value) / height * 100).toFixed(2)}" tabindex="0" role="button" aria-label="${escapeAttribute(`${formatBudgetMonthLabel(point.month)}: ${formatValue(point.value)}. Show details`)}"><title>${escapeHtml(`${formatBudgetMonthLabel(point.month)}: ${formatValue(point.value)}`)}</title></circle>`).join("");
+  const first = points[0], latest = points.at(-1);
+  const change = first && latest ? latest.value - first.value : 0;
+  allBillDetailBody.innerHTML = `<p class="all-bill-detail-intro">Saved monthly values through ${escapeHtml(formatBudgetMonthLabel(item.history.at(-1).month))}. Select a metric, then tap or hover over any point for its saved balance, APR, payment, and estimated interest.</p>
+    <div class="all-bill-detail-metrics" role="group" aria-label="Detail chart metric"><button type="button" data-detail-metric="index" aria-pressed="${metric === "index"}">Relative $100 index</button><button type="button" data-detail-metric="actual" aria-pressed="${metric === "actual"}">Actual balance</button><button type="button" data-detail-metric="interest" aria-pressed="${metric === "interest"}">Estimated interest</button></div>
+    <div class="all-bill-detail-summary"><span><small>First shown</small><strong>${first ? escapeHtml(formatValue(first.value)) : "—"}</strong></span><span><small>Latest shown</small><strong>${latest ? escapeHtml(formatValue(latest.value)) : "—"}</strong></span><span><small>Change</small><strong>${first && latest ? `${change < 0 ? "−" : change > 0 ? "+" : ""}${escapeHtml(metric === "index" ? `${Math.abs(change).toFixed(1)} index points` : formatCurrency(Math.abs(change)))}` : "—"}</strong></span></div>
+    ${points.length ? `<div class="all-bill-detail-chart-wrap"><svg class="all-bill-detail-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeAttribute(`${item.name} ${metric} monthly chart`)}"><rect x="${left}" y="${top}" width="${width - left - right}" height="${height - top - bottom}" class="all-bill-detail-plot"/>${vertical}${grid}${metric === "index" ? `<line x1="${left}" x2="${width - right}" y1="${y(100)}" y2="${y(100)}" class="all-bill-detail-baseline"/>` : ""}<path d="${path}" class="all-bill-detail-line"/>${dots}</svg><div id="allBillDetailTooltip" class="all-bill-detail-tooltip" role="status"></div></div>` : '<p class="documents-note">This bill has no saved APR, so estimated interest is unavailable.</p>'}
+    <div class="bill-history-table-wrap"><table class="bill-history-table all-bill-detail-table"><thead><tr><th>Month</th><th>Previous balance</th><th>Current balance</th><th>APR</th><th>Paid</th><th>Est. interest</th><th>$100 index</th></tr></thead><tbody>${item.history.map(point => {
+      const indexed = item.points.find(entry => entry.month === point.month);
+      return `<tr data-detail-table-month="${escapeAttribute(point.month)}"><td>${escapeHtml(formatBudgetMonthLabel(point.month))}</td><td>${escapeHtml(formatCurrency(point.previousBalance))}</td><td>${escapeHtml(formatCurrency(point.currentBalance))}</td><td>${point.hasApr ? `${point.apr.toFixed(2)}%` : "—"}</td><td>${escapeHtml(formatCurrency(point.paidAmount))}</td><td>${point.hasApr ? escapeHtml(formatCurrency(point.estimatedInterest)) : "—"}</td><td>${indexed ? `${indexed.value.toFixed(1)} / 100` : "—"}</td></tr>`;
+    }).join("")}</tbody></table></div><p class="interest-impact-caveat">Estimated interest uses saved previous balance × APR ÷ 12. Actual statement interest may differ.</p>`;
+  if (latest) showAllBillDetailPoint(latest.month);
+}
+
+function showAllBillDetailPoint(month) {
+  const item = getAllBillBalanceSeries().find(candidate => candidate.key === activeAllBillDetailKey);
+  const point = item?.history.find(entry => entry.month === month);
+  const tooltip = document.querySelector("#allBillDetailTooltip");
+  const circle = [...(allBillDetailBody?.querySelectorAll("[data-detail-month]") || [])].find(node => node.dataset.detailMonth === month);
+  if (!point || !tooltip || !circle) return;
+  allBillDetailBody.querySelectorAll("[data-detail-month]").forEach(node => node.classList.toggle("is-selected", node === circle));
+  allBillDetailBody.querySelectorAll("[data-detail-table-month]").forEach(row => row.classList.toggle("is-selected", row.dataset.detailTableMonth === month));
+  const indexed = item.points.find(entry => entry.month === month);
+  tooltip.innerHTML = `<strong>${escapeHtml(formatBudgetMonthLabel(month))}</strong><span>Current ${escapeHtml(formatCurrency(point.currentBalance))} · ${indexed ? `${indexed.value.toFixed(1)} / 100` : "No index"}</span><span>APR ${point.hasApr ? `${point.apr.toFixed(2)}%` : "—"} · Paid ${escapeHtml(formatCurrency(point.paidAmount))}</span><span>Estimated interest ${point.hasApr ? escapeHtml(formatCurrency(point.estimatedInterest)) : "—"}</span>`;
+  tooltip.style.left = `${Math.min(84, Math.max(16, Number(circle.dataset.detailX)))}%`;
+  tooltip.style.top = `${Math.max(22, Number(circle.dataset.detailY))}%`;
+}
+
+function openAllBillDetail(key, metric = "index") {
+  if (!isAdminClient() || !allBillDetailDialog) return;
+  activeAllBillDetailKey = key;
+  activeAllBillDetailMetric = metric;
+  renderAllBillDetailDialog();
+  if (!allBillDetailDialog.open) allBillDetailDialog.showModal();
 }
 
 function renderCellphoneBillingHistoryDialog() {
@@ -13592,6 +13719,21 @@ document.addEventListener("click", event => {
   }
 });
 document.querySelector("#closeAllBillBalanceHistoryDialog")?.addEventListener("click", () => allBillBalanceHistoryDialog?.close());
+document.querySelector("#closeAllBillDetailDialog")?.addEventListener("click", () => allBillDetailDialog?.close());
+allBillDetailBody?.addEventListener("click", event => {
+  const metric = event.target.closest("[data-detail-metric]")?.dataset.detailMetric;
+  if (metric) { activeAllBillDetailMetric = metric; renderAllBillDetailDialog(); return; }
+  const month = event.target.closest("[data-detail-month]")?.dataset.detailMonth;
+  if (month) showAllBillDetailPoint(month);
+});
+allBillDetailBody?.addEventListener("pointerover", event => {
+  const month = event.target.closest("[data-detail-month]")?.dataset.detailMonth;
+  if (month) showAllBillDetailPoint(month);
+});
+allBillDetailBody?.addEventListener("keydown", event => {
+  const month = event.target.closest("[data-detail-month]")?.dataset.detailMonth;
+  if (month && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); showAllBillDetailPoint(month); }
+});
 document.querySelector("#toggleAllBillHistoryFullscreen")?.addEventListener("click", event => {
   const fullScreen = allBillBalanceHistoryDialog.classList.toggle("is-fullscreen");
   event.currentTarget.textContent = fullScreen ? "Exit full screen" : "Full screen";
@@ -13623,16 +13765,29 @@ allBillBalanceHistoryBody?.addEventListener("click", event => {
   }
   const action = event.target.closest("[data-all-history-action]")?.dataset.allHistoryAction;
   if (action) {
-    const available = getAllBillBalanceSeries().filter(item => item.baseline);
-    selectedAllBillHistoryKeys = new Set(available.filter(item => action === "show" || (action === "falling" && item.points.length > 1 && item.points.at(-1).value < 100) || (action === "rising" && item.points.length > 1 && item.points.at(-1).value > 100)).map(item => item.key));
+    const available = getAllBillBalanceSeries().filter(item => item.baseline && (allBillHistoryChartType !== "interest" || item.history.some(point => point.hasApr)));
+    selectedAllBillHistoryKeys = new Set(available.filter(item => {
+      if (action === "show") return true;
+      const values = allBillHistoryChartType === "interest"
+        ? item.history.filter(point => point.hasApr).map(point => point.estimatedInterest)
+        : item.points.map(point => point.value);
+      if (values.length < 2) return false;
+      return action === "falling" ? values.at(-1) < values[0] : action === "rising" && values.at(-1) > values[0];
+    }).map(item => item.key));
     renderAllBillBalanceHistoryDialog();
   }
   const point = event.target.closest("[data-history-key][data-history-month]");
   if (point) showAllBillHistoryPoint(point);
+  const interestPoint = event.target.closest("[data-interest-key][data-interest-month]");
+  if (interestPoint) showAllBillInterestPoint(interestPoint);
+  const chart = event.target.closest("[data-detail-key], [data-series-key]");
+  if (chart && chart.closest(".all-bill-history-plot")) openAllBillDetail(chart.dataset.detailKey || chart.dataset.seriesKey, allBillHistoryChartType === "interest" ? "interest" : "index");
 });
 allBillBalanceHistoryBody?.addEventListener("pointerover", event => {
   const point = event.target.closest("[data-history-key][data-history-month]");
   if (point) showAllBillHistoryPoint(point);
+  const interestPoint = event.target.closest("[data-interest-key][data-interest-month]");
+  if (interestPoint) showAllBillInterestPoint(interestPoint);
   const legend = event.target.closest("[data-legend-key]");
   if (legend) allBillBalanceHistoryBody.querySelectorAll("[data-series-key]").forEach(line => line.classList.toggle("is-dimmed", line.dataset.seriesKey !== legend.dataset.legendKey));
 });
@@ -13645,6 +13800,12 @@ function showAllBillHistoryPoint(point) {
   const value = series?.points.find(entry => entry.month === point.dataset.historyMonth);
   const detail = document.querySelector("#allBillHistoryPointDetail");
   if (value && detail) detail.textContent = `${series.name} · ${formatBudgetMonthLabel(value.month)} · $${value.value.toFixed(2)} per $100 starting balance · actual ${formatCurrency(value.actual)}`;
+}
+function showAllBillInterestPoint(point) {
+  const series = getAllBillBalanceSeries().find(item => item.key === point.dataset.interestKey);
+  const value = series?.history.find(entry => entry.month === point.dataset.interestMonth);
+  const detail = document.querySelector("#allBillHistoryPointDetail");
+  if (value && detail) detail.textContent = `${series.name} · ${formatBudgetMonthLabel(value.month)} · estimated interest ${formatCurrency(value.estimatedInterest)} at ${value.apr.toFixed(2)}% APR on ${formatCurrency(value.previousBalance)} previous balance`;
 }
 if (saveAdminBillSimulationBtn) {
   saveAdminBillSimulationBtn.addEventListener("click", saveAdminBillSimulationProjectionTable);
