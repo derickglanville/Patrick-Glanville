@@ -1707,6 +1707,9 @@ let activeBillBalanceHistoryKey = "";
 let selectedAllBillHistoryKeys = null;
 let allBillHistoryScale = "adaptive";
 let allBillHistoryChartType = "panels";
+let allBillScenarioMonths = 12;
+let allBillScenarioCashRedirect = 0;
+const allBillScenarioFocus = new Map();
 let activeAllBillDetailKey = "";
 let activeAllBillDetailMetric = "index";
 
@@ -8720,8 +8723,159 @@ function getBillProgressGuidance(item) {
   return { score, level: displayed > 100 ? "Focus first" : score >= 35 ? "Review closely" : "Keep progress", text: `${trend} ${rate} ${action}`, target };
 }
 
+function buildAllBillScenario(monthCount, cashRedirect) {
+  const cards = state.bills.filter(bill => !isBillPayoffComplete(bill) && ["Credit Card", "Merchant Card"].includes(String(bill.type || ""))).map((bill, index) => ({
+    key: String(bill.id || bill.name || index), name: String(bill.name || "Card"), balance: normalizeMoney(bill.currentBalance), due: normalizeMoney(bill.amount), apr: parseAprNumber(bill.apr), hasApr: String(bill.apr ?? "").trim() !== ""
+  })).filter(card => card.balance > 0);
+  const otherDues = state.bills.filter(bill => !isBillPayoffComplete(bill) && !["Credit Card", "Merchant Card"].includes(String(bill.type || ""))).reduce((sum, bill) => sum + normalizeMoney(bill.amount), 0);
+  const mbf = normalizeMoney(state.monthlyBudgetFund);
+  const cashUsed = getCurrentMonthlyCashUsed();
+  const redirect = Math.min(cashUsed, Math.max(0, normalizeMoney(cashRedirect)));
+  const available = Math.max(0, mbf - cashUsed + redirect);
+  const projected = new Map(cards.map(card => [card.key, card.balance]));
+  const baseline = new Map(projected);
+  const rows = [];
+  let totalInterest = 0;
+  let baselineInterest = 0;
+  for (let offset = 0; offset < monthCount; offset += 1) {
+    const month = shiftMonthString(state.billMonth, offset + 1);
+    const eligible = cards.filter(card => projected.get(card.key) > .005).sort((a, b) => projected.get(b.key) - projected.get(a.key));
+    const requested = allBillScenarioFocus.get(offset);
+    const focus = eligible.find(card => card.key === requested) || eligible[0] || null;
+    const dues = cards.map(card => {
+      const opening = projected.get(card.key);
+      const interest = opening * card.apr / 1200;
+      const minimum = Math.min(opening + interest, card.due);
+      const baseOpening = baseline.get(card.key);
+      const baseInterest = baseOpening * card.apr / 1200;
+      baseline.set(card.key, Math.max(0, baseOpening + baseInterest - Math.min(baseOpening + baseInterest, card.due)));
+      baselineInterest += baseInterest;
+      totalInterest += interest;
+      projected.set(card.key, Math.max(0, opening + interest - minimum));
+      return { card, minimum };
+    });
+    const minimums = dues.reduce((sum, item) => sum + item.minimum, 0) + otherDues;
+    const gap = Math.max(0, minimums - available);
+    const extra = focus && !gap ? Math.min(projected.get(focus.key), Math.max(0, available - minimums)) : 0;
+    if (focus) projected.set(focus.key, Math.max(0, projected.get(focus.key) - extra));
+    rows.push({ month, focus, candidates: eligible, available, minimums, gap, extra, balance: [...projected.values()].reduce((a, b) => a + b, 0), baselineBalance: [...baseline.values()].reduce((a, b) => a + b, 0), interest: totalInterest, baselineInterest });
+  }
+  return { rows, cards, mbf, cashUsed, redirect, otherDues, missing: cards.filter(card => !card.due || !card.hasApr) };
+}
+
+function renderAllBillScenario() {
+  hideAllBillScenarioTooltip();
+  const result = buildAllBillScenario(allBillScenarioMonths, allBillScenarioCashRedirect);
+  const { rows, cards, mbf, cashUsed, redirect, missing } = result;
+  const final = rows.at(-1);
+  const start = cards.reduce((sum, card) => sum + card.balance, 0);
+  const maxBalance = Math.max(start, ...rows.map(row => row.baselineBalance), 1);
+  const width = 900, height = 240, left = 62, right = 18, top = 20, bottom = 35;
+  const x = index => left + index * (width - left - right) / Math.max(1, rows.length);
+  const y = value => top + (maxBalance - value) * (height - top - bottom) / maxBalance;
+  const scenarioPoints = [[x(0), y(start)], ...rows.map((row, i) => [x(i + 1), y(row.balance)])];
+  const baselinePoints = [[x(0), y(start)], ...rows.map((row, i) => [x(i + 1), y(row.baselineBalance)])];
+  const points = values => values.map(([px, py]) => `${px.toFixed(1)},${py.toFixed(1)}`).join(" ");
+  const tabs = `<div class="all-bill-history-chart-tabs" role="group" aria-label="Chart type"><button type="button" data-all-history-chart="lines">Trend lines</button><button type="button" data-all-history-chart="panels">Individual charts</button><button type="button" data-all-history-chart="ranking">Ranked change</button><button type="button" data-all-history-chart="interest">Interest impact</button><button type="button" data-all-history-chart="scenario" aria-pressed="true">Scenario</button></div>`;
+  allBillBalanceHistoryBody.innerHTML = `<p class="all-bill-history-explain">Starting with the month after ${escapeHtml(formatBudgetMonthLabel(state.billMonth))}, test a monthly focus-card plan against paying only the saved Due Amt on each card. This estimate does not change bills or Firebase.</p>${tabs}
+    <section class="all-bill-scenario"><div class="all-bill-scenario-controls"><label>Months <select data-scenario-months><option value="6" ${allBillScenarioMonths === 6 ? "selected" : ""}>6</option><option value="12" ${allBillScenarioMonths === 12 ? "selected" : ""}>12</option><option value="24" ${allBillScenarioMonths === 24 ? "selected" : ""}>24</option></select></label><label>Monthly Cash Used redirected to card payment <input data-scenario-cash type="number" min="0" max="${cashUsed}" step="10" value="${redirect}"></label><button type="button" data-scenario-reset>Reset monthly choices</button></div>
+    <p class="all-bill-scenario-formula">Available for bills each month: ${escapeHtml(formatCurrency(mbf))} MBF − ${escapeHtml(formatCurrency(cashUsed))} Cash Used + ${escapeHtml(formatCurrency(redirect))} redirected = <strong>${escapeHtml(formatCurrency(Math.max(0, mbf - cashUsed + redirect)))}</strong>. Redirecting cash leaves less for other spending.</p>
+    ${missing.length ? `<p class="all-bill-scenario-warning">Projection incomplete: ${escapeHtml(missing.map(card => card.name).join(", "))} ${missing.length === 1 ? "has" : "have"} a missing Due Amt or APR. Enter those values before relying on this estimate.</p>` : ""}
+    ${rows.some(row => row.gap) ? `<p class="all-bill-scenario-warning">Funding gap: available bill money does not cover saved due amounts in ${rows.filter(row => row.gap).length} projected month(s). This plan is not fully funded.</p>` : ""}
+    <div class="all-bill-scenario-stats"><span><b>${escapeHtml(formatCurrency(start))}</b> starting card balances</span><span><b>${escapeHtml(formatCurrency(final?.balance || 0))}</b> focus plan after ${allBillScenarioMonths} months</span><span><b>${escapeHtml(formatCurrency(final?.baselineBalance || 0))}</b> due amounts only</span><span><b>${escapeHtml(formatCurrency(Math.max(0, (final?.baselineBalance || 0) - (final?.balance || 0))))}</b> balance difference</span><span><b>${escapeHtml(formatCurrency(Math.max(0, (final?.baselineInterest || 0) - (final?.interest || 0))))}</b> estimated interest difference</span></div>
+    <div class="all-bill-scenario-chart"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Projected credit card balances, focus plan versus due amounts only"><g class="scenario-grid">${[0,.25,.5,.75,1].map(f => `<line x1="${left}" x2="${width-right}" y1="${y(maxBalance*f)}" y2="${y(maxBalance*f)}"/><text x="${left-7}" y="${y(maxBalance*f)+4}" text-anchor="end">${escapeHtml(formatCurrency(maxBalance*f))}</text>`).join("")}</g><polyline class="scenario-baseline" points="${points(baselinePoints)}"/><polyline class="scenario-focus" points="${points(scenarioPoints)}"/>${rows.map((row,i) => `<circle class="scenario-baseline-point" cx="${x(i+1)}" cy="${y(row.baselineBalance)}" r="5"/>`).join("")}${rows.map((row,i) => `<circle class="scenario-point" cx="${x(i+1)}" cy="${y(row.balance)}" r="5"><title>${escapeHtml(formatBudgetMonthLabel(row.month))}: ${escapeHtml(formatCurrency(row.balance))} focus plan; ${escapeHtml(formatCurrency(row.baselineBalance))} due amounts only</title></circle>`).join("")}</svg><div class="scenario-legend"><span class="focus">Focus plan</span><span class="baseline">Due amounts only</span></div></div>
+    <div class="all-bill-scenario-table-wrap"><table class="all-bill-scenario-table"><thead><tr><th>Month</th><th>Focus card</th><th>Available</th><th>Minimums + other bills</th><th>Extra to focus</th><th>Focus plan balance</th><th>Due only balance</th><th>Difference</th></tr></thead><tbody>${rows.map((row,i) => `<tr><td>${escapeHtml(formatBudgetMonthLabel(row.month))}</td><td><select data-scenario-focus="${i}" aria-label="Focus card for ${escapeAttribute(formatBudgetMonthLabel(row.month))}">${row.candidates.map(card => `<option value="${escapeAttribute(card.key)}" ${row.focus?.key === card.key ? "selected" : ""}>${escapeHtml(card.name)} · ${escapeHtml(formatCurrency(card.balance))} now</option>`).join("")}</select></td><td>${escapeHtml(formatCurrency(row.available))}</td><td>${escapeHtml(formatCurrency(row.minimums))}${row.gap ? `<small class="scenario-gap">Gap ${escapeHtml(formatCurrency(row.gap))}</small>` : ""}</td><td>${escapeHtml(formatCurrency(row.extra))}</td><td>${escapeHtml(formatCurrency(row.balance))}</td><td>${escapeHtml(formatCurrency(row.baselineBalance))}</td><td>${escapeHtml(formatCurrency(Math.max(0,row.baselineBalance-row.balance)))}</td></tr>`).join("")}</tbody></table></div><p class="all-bill-scenario-assumptions">Assumptions: MBF, Cash Used, APRs and saved Due Amt repeat monthly; no new charges; non-card bills keep their current due amount. Due Amt is used as a minimum-payment proxy. Interest uses opening balance × APR ÷ 12; actual card interest and required minimums may differ. Payments stop at payoff. Check statements before changing payments. <a href="https://www.consumerfinance.gov/ask-cfpb/how-does-my-credit-card-company-calculate-the-amount-of-interest-i-owe-en-51/" target="_blank" rel="noopener noreferrer">How interest is calculated</a>.</p></section>`;
+  decorateAllBillScenarioTooltips(result, start);
+}
+
+function decorateAllBillScenarioTooltips(result, start) {
+  const root = allBillBalanceHistoryBody.querySelector(".all-bill-scenario");
+  if (!root) return;
+  const { rows, mbf, cashUsed, redirect, otherDues } = result;
+  const final = rows.at(-1);
+  const money = formatCurrency;
+  const add = (element, explanation) => {
+    if (!element) return;
+    element.dataset.scenarioTip = explanation;
+    if (element instanceof SVGElement) element.setAttribute("aria-label", explanation);
+    else element.title = explanation;
+    if (!element.matches("input, select, button")) element.setAttribute("tabindex", "0");
+  };
+  const controlLabels = root.querySelectorAll(".all-bill-scenario-controls label");
+  add(controlLabels[0], `Projection length: ${rows.length} monthly payment cycles, beginning after ${formatBudgetMonthLabel(state.billMonth)}. Change this to compare 6, 12, or 24 months.`);
+  add(root.querySelector("[data-scenario-months]"), `Show 6, 12, or 24 projected months. The current saved month is the starting balance, so payments begin next month.`);
+  add(controlLabels[1], `Move up to ${money(cashUsed)} per month from Cash Used into bill payments. This reduces money reserved for other spending by the same amount.`);
+  add(root.querySelector("[data-scenario-cash]"), `Current Cash Used is ${money(cashUsed)}. Redirected amount is ${money(redirect)} per month. Available bill money = MBF − Cash Used + redirected cash.`);
+  add(root.querySelector("[data-scenario-reset]"), "Clear your card selections. Each month will then automatically focus on the highest projected card balance still owed.");
+  add(root.querySelector(".all-bill-scenario-formula"), `${money(mbf)} MBF − ${money(cashUsed)} Cash Used + ${money(redirect)} redirected = ${money(Math.max(0, mbf - cashUsed + redirect))} available for all bill payments each month.`);
+  const stats = root.querySelectorAll(".all-bill-scenario-stats span");
+  [
+    `Sum of the current saved balances on ${result.cards.length} credit and merchant cards: ${money(start)}. Loans and other bills are excluded from this balance total.`,
+    `Projected sum of card balances after ${rows.length} months when saved Due Amt is paid on all cards and spare bill money is sent to each month's focus card: ${money(final?.balance || 0)}.`,
+    `Comparison: projected sum of card balances after ${rows.length} months if each card receives only its saved Due Amt, with no extra focus payment: ${money(final?.baselineBalance || 0)}.`,
+    `Due-amount-only balance ${money(final?.baselineBalance || 0)} minus focus-plan balance ${money(final?.balance || 0)} = ${money(Math.max(0, (final?.baselineBalance || 0) - (final?.balance || 0)))}. Extra payments account for much of this difference.`,
+    `Estimated interest under due-amount-only payments ${money(final?.baselineInterest || 0)} minus estimated interest under the focus plan ${money(final?.interest || 0)} = ${money(Math.max(0, (final?.baselineInterest || 0) - (final?.interest || 0)))} over ${rows.length} months. Interest is approximated as opening balance × APR ÷ 12.`
+  ].forEach((tip, index) => add(stats[index], tip));
+  const headers = [
+    "Projected payment month, starting after the currently selected saved bill month.",
+    "Card that receives the extra payment this month. The default is the highest projected balance still owed. Select another card to test a different focus.",
+    "Monthly bill money = MBF − Cash Used + Cash Used redirected. The same budget is assumed every projected month.",
+    "Sum of each active card's saved Due Amt, capped at its projected balance plus interest, plus recurring due amounts for non-card bills. Saved Due Amt is only a proxy for the required minimum.",
+    "Available bill money minus card due amounts and other bills, capped at the focus card's remaining projected balance. Zero when the budget has a funding gap.",
+    "Total projected card balance after estimated interest and the month's card payments under the focus plan.",
+    "Total projected card balance after estimated interest and saved Due Amt payments only, with no extra payment.",
+    "Due-only total minus focus-plan total for this month. This includes the effect of extra payments and subsequent interest changes."
+  ];
+  root.querySelectorAll(".all-bill-scenario-table th").forEach((cell, index) => add(cell, headers[index]));
+  root.querySelectorAll(".all-bill-scenario-table tbody tr").forEach((tr, index) => {
+    const row = rows[index];
+    const month = formatBudgetMonthLabel(row.month);
+    const cells = tr.querySelectorAll("td");
+    add(cells[0], `${month} is payment cycle ${index + 1} of ${rows.length}. Starting balances come from ${formatBudgetMonthLabel(state.billMonth)}.`);
+    add(cells[1], `${row.focus?.name || "No card remaining"} receives any extra payment in ${month}. The default is the highest projected card balance still owed at the start of this month.`);
+    add(cells[1]?.querySelector("select"), `Choose which card receives ${money(row.extra)} of extra payment in ${month}. Changing this choice recalculates later months.`);
+    add(cells[2], `${month}: ${money(mbf)} MBF − ${money(cashUsed)} Cash Used + ${money(redirect)} redirected = ${money(row.available)} available.`);
+    add(cells[3], `${month}: ${money(row.minimums - otherDues)} total card Due Amt payments + ${money(otherDues)} other bill due amounts = ${money(row.minimums)}.${row.gap ? ` Funding gap: ${money(row.gap)}.` : ""}`);
+    add(cells[4], `${month}: max(0, ${money(row.available)} available − ${money(row.minimums)} due amounts) = ${money(Math.max(0, row.available - row.minimums))}; payment to ${row.focus?.name || "a focus card"} is capped at its remaining balance, giving ${money(row.extra)}.`);
+    add(cells[5], `${month}: ${money(row.balance)} total remaining on all projected cards after approximate interest, saved due payments, and ${money(row.extra)} extra to the focus card.`);
+    add(cells[6], `${month}: ${money(row.baselineBalance)} total remaining if only saved Due Amt is paid on each card. Other bill payments remain in both plans.`);
+    add(cells[7], `${month}: ${money(row.baselineBalance)} due-only balance − ${money(row.balance)} focus-plan balance = ${money(Math.max(0, row.baselineBalance - row.balance))}.`);
+  });
+  root.querySelectorAll(".scenario-point").forEach((point, index) => add(point, `${formatBudgetMonthLabel(rows[index].month)}: focus plan ${money(rows[index].balance)}; due amounts only ${money(rows[index].baselineBalance)}; difference ${money(Math.max(0, rows[index].baselineBalance - rows[index].balance))}.`));
+  root.querySelectorAll(".scenario-baseline-point").forEach((point, index) => add(point, `${formatBudgetMonthLabel(rows[index].month)}: due-amount-only card balance ${money(rows[index].baselineBalance)}. Focus plan balance ${money(rows[index].balance)}; difference ${money(Math.max(0, rows[index].baselineBalance - rows[index].balance))}.`));
+  root.querySelectorAll(".scenario-grid text").forEach(label => add(label, `${label.textContent} on the vertical axis represents total remaining balances across all projected cards.`));
+  add(root.querySelector(".scenario-legend .focus"), "Green line: projected total card balance when extra available bill money goes to the selected focus card each month.");
+  add(root.querySelector(".scenario-legend .baseline"), "Orange dashed line: projected total card balance when each card receives only its saved Due Amt.");
+}
+
+function showAllBillScenarioTooltip(element) {
+  const explanation = element?.dataset?.scenarioTip;
+  if (!explanation) return;
+  let popup = document.getElementById("allBillScenarioTooltip");
+  if (!popup) {
+    popup = document.createElement("div");
+    popup.id = "allBillScenarioTooltip";
+    popup.className = "all-bill-scenario-tooltip";
+    popup.setAttribute("role", "tooltip");
+    document.body.appendChild(popup);
+  }
+  popup.textContent = explanation;
+  popup.hidden = false;
+  const box = element.getBoundingClientRect();
+  const popupBox = popup.getBoundingClientRect();
+  popup.style.left = `${Math.max(8, Math.min(window.innerWidth - popupBox.width - 8, box.left))}px`;
+  popup.style.top = `${box.bottom + popupBox.height + 12 < window.innerHeight ? box.bottom + 8 : Math.max(8, box.top - popupBox.height - 8)}px`;
+  element.setAttribute("aria-describedby", popup.id);
+}
+
+function hideAllBillScenarioTooltip() {
+  const popup = document.getElementById("allBillScenarioTooltip");
+  if (popup) popup.hidden = true;
+}
+
 function renderAllBillBalanceHistoryDialog() {
   if (!allBillBalanceHistoryBody) return;
+  if (allBillHistoryChartType === "scenario") { renderAllBillScenario(); return; }
   const all = getAllBillBalanceSeries();
   if (selectedAllBillHistoryKeys === null) selectedAllBillHistoryKeys = new Set(all.filter(item => item.baseline).map(item => item.key));
   const palette = ["#0866a8", "#ce4c2a", "#148257", "#8048a4", "#ba8610", "#d23d83", "#167b91", "#a45321", "#425dbb", "#68872a", "#b04456", "#147fbe"];
@@ -8738,7 +8892,7 @@ function renderAllBillBalanceHistoryDialog() {
   allBillBalanceHistoryBody.innerHTML = `<p class="all-bill-history-explain">${interestView ? "Estimated monthly interest = saved previous balance × saved APR ÷ 12. This shows the effect of APR and balance changes over time; it is not a bank-reported interest charge. Totals sum only the saved months shown, so gaps in history are excluded." : `Each bill starts at <strong>$100</strong> in its first saved month with a nonzero balance. A value of $80 means its balance fell 20%; $120 means it rose 20%. These values compare progress, not dollars owed. ${allBillHistoryChartType === "lines" ? "Adaptive scale spreads small differences near $100; its vertical tick spacing is intentionally nonuniform." : allBillHistoryChartType === "panels" ? "Each panel has its own vertical scale so its trend is easy to see; compare the labels for magnitude." : "Ranked bars show the latest percentage change from each bill’s starting balance."}`}</p>
     ${interestView ? `<p class="interest-impact-caveat">Actual card interest can differ because issuers may use daily balances, multiple APRs, and grace periods. <a href="https://www.consumerfinance.gov/ask-cfpb/how-does-my-credit-card-company-calculate-the-amount-of-interest-i-owe-en-51/" target="_blank" rel="noopener noreferrer">How card interest is calculated</a></p>` : ""}
     <div class="all-bill-history-stats">${interestView ? `<span><strong>${interestSeries.length}</strong> bills with APR</span><span class="up"><strong>${escapeHtml(formatCurrency(latestInterestTotal))}</strong> latest monthly estimate</span><span><strong>${escapeHtml(formatCurrency(estimatedInterestTotal))}</strong> across saved months</span>` : `<span><strong>${selected.length}</strong> shown</span><span class="down"><strong>↘ ${falling}</strong> falling</span><span class="up"><strong>↗ ${rising}</strong> rising</span>`}<span><strong>${months.length}</strong> months</span></div>
-    <div class="all-bill-history-chart-tabs" role="group" aria-label="Chart type"><button type="button" data-all-history-chart="lines" aria-pressed="${allBillHistoryChartType === "lines"}">Trend lines</button><button type="button" data-all-history-chart="panels" aria-pressed="${allBillHistoryChartType === "panels"}">Individual charts</button><button type="button" data-all-history-chart="ranking" aria-pressed="${allBillHistoryChartType === "ranking"}">Ranked change</button><button type="button" data-all-history-chart="interest" aria-pressed="${interestView}">Interest impact</button></div>
+    <div class="all-bill-history-chart-tabs" role="group" aria-label="Chart type"><button type="button" data-all-history-chart="lines" aria-pressed="${allBillHistoryChartType === "lines"}">Trend lines</button><button type="button" data-all-history-chart="panels" aria-pressed="${allBillHistoryChartType === "panels"}">Individual charts</button><button type="button" data-all-history-chart="ranking" aria-pressed="${allBillHistoryChartType === "ranking"}">Ranked change</button><button type="button" data-all-history-chart="interest" aria-pressed="${interestView}">Interest impact</button><button type="button" data-all-history-chart="scenario" aria-pressed="false">Scenario</button></div>
     <div class="all-bill-history-toolbar"><button type="button" data-all-history-action="show">Select all</button><button type="button" data-all-history-action="hide">Hide all</button><button type="button" data-all-history-action="falling">${interestView ? "Show interest falling" : "Show falling"}</button><button type="button" data-all-history-action="rising">${interestView ? "Show interest rising" : "Show rising"}</button>${allBillHistoryChartType === "lines" ? `<span class="all-bill-history-scale"><button type="button" data-all-history-scale="adaptive" aria-pressed="${allBillHistoryScale === "adaptive"}">Adaptive scale</button><button type="button" data-all-history-scale="linear" aria-pressed="${allBillHistoryScale === "linear"}">Linear scale</button></span>` : ""}</div>
     <div class="all-bill-history-layout"><div class="all-bill-history-plot">${interestView ? buildAllBillInterestChart(selected, months) : allBillHistoryChartType === "panels" ? buildAllBillSmallMultiples(selected, months) : allBillHistoryChartType === "ranking" ? buildAllBillRankingChart(selected) : buildAllBillBalanceChart(selected, months)}<div id="allBillHistoryPointDetail" class="all-bill-history-point-detail">Click or tap any chart to open detailed analysis. Hover over a point to preview its saved value.</div></div>
     <aside class="all-bill-history-sidebar"><div class="all-bill-focus-summary"><strong>Where to focus</strong><p>Review these bills first based on balance growth, APR, and estimated interest. This is a guide for comparing bills; check due dates and available cash before changing payments.</p>${focusBills.length ? `<ol>${focusBills.map(item => `<li><b>${escapeHtml(item.name)}</b><span>${escapeHtml(item.guide.level)} · ${item.points.at(-1).value.toFixed(1)} / 100</span></li>`).join("")}</ol>` : '<p>No balances need a reduction target yet.</p>'}</div><div class="all-bill-history-legend" aria-label="Choose bills to display and review progress">${all.map((item, index) => {
@@ -13750,6 +13904,21 @@ window.addEventListener("resize", () => {
   if (allBillBalanceHistoryDialog?.open && allBillBalanceHistoryDialog.classList.contains("is-fullscreen") && allBillHistoryChartType === "lines") renderAllBillBalanceHistoryDialog();
 });
 allBillBalanceHistoryBody?.addEventListener("change", event => {
+  if (event.target.matches("[data-scenario-months]")) {
+    allBillScenarioMonths = Number(event.target.value) || 12;
+    renderAllBillBalanceHistoryDialog();
+    return;
+  }
+  if (event.target.matches("[data-scenario-cash]")) {
+    allBillScenarioCashRedirect = Number(event.target.value) || 0;
+    renderAllBillBalanceHistoryDialog();
+    return;
+  }
+  if (event.target.matches("[data-scenario-focus]")) {
+    allBillScenarioFocus.set(Number(event.target.dataset.scenarioFocus), event.target.value);
+    renderAllBillBalanceHistoryDialog();
+    return;
+  }
   const checkbox = event.target.closest("[data-all-history-key]");
   if (!checkbox) return;
   if (checkbox.checked) selectedAllBillHistoryKeys.add(checkbox.dataset.allHistoryKey);
@@ -13757,6 +13926,14 @@ allBillBalanceHistoryBody?.addEventListener("change", event => {
   renderAllBillBalanceHistoryDialog();
 });
 allBillBalanceHistoryBody?.addEventListener("click", event => {
+  const scenarioTipTarget = event.target.closest("[data-scenario-tip]");
+  if (scenarioTipTarget) showAllBillScenarioTooltip(scenarioTipTarget);
+  else hideAllBillScenarioTooltip();
+  if (event.target.closest("[data-scenario-reset]")) {
+    allBillScenarioFocus.clear();
+    renderAllBillBalanceHistoryDialog();
+    return;
+  }
   const chartButton = event.target.closest("[data-all-history-chart]");
   if (chartButton) {
     allBillHistoryChartType = chartButton.dataset.allHistoryChart;
@@ -13788,6 +13965,20 @@ allBillBalanceHistoryBody?.addEventListener("click", event => {
   if (interestPoint) showAllBillInterestPoint(interestPoint);
   const chart = event.target.closest("[data-detail-key], [data-series-key]");
   if (chart && chart.closest(".all-bill-history-plot")) openAllBillDetail(chart.dataset.detailKey || chart.dataset.seriesKey, allBillHistoryChartType === "interest" ? "interest" : "index");
+});
+allBillBalanceHistoryBody?.addEventListener("pointerover", event => {
+  const target = event.target.closest("[data-scenario-tip]");
+  if (target) showAllBillScenarioTooltip(target);
+});
+allBillBalanceHistoryBody?.addEventListener("pointerout", event => {
+  if (event.target.closest("[data-scenario-tip]")) hideAllBillScenarioTooltip();
+});
+allBillBalanceHistoryBody?.addEventListener("focusin", event => {
+  const target = event.target.closest("[data-scenario-tip]");
+  if (target) showAllBillScenarioTooltip(target);
+});
+allBillBalanceHistoryBody?.addEventListener("focusout", event => {
+  if (event.target.closest("[data-scenario-tip]")) hideAllBillScenarioTooltip();
 });
 allBillBalanceHistoryBody?.addEventListener("pointerover", event => {
   const point = event.target.closest("[data-history-key][data-history-month]");

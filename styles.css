@@ -4993,6 +4993,39 @@ body[data-device-layout="compact"] .budget-panel-popout .budget-bill-list-simple
 .all-bill-history-chart-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; padding: 5px; border: 1px solid #a8c6d9; border-radius: 9px; background: #e9f3fa; }
 .all-bill-history-chart-tabs button { flex: 1 1 145px; padding: 9px 12px; border: 1px solid transparent; border-radius: 7px; background: #fff; color: #1a547b; font-weight: 850; cursor: pointer; }
 .all-bill-history-chart-tabs button[aria-pressed="true"] { border-color: #0a609b; background: #126ba6; color: #fff; box-shadow: 0 2px 5px rgba(10, 73, 112, .22); }
+.all-bill-scenario { padding: 12px; border: 1px solid #b4ccdc; border-radius: 10px; background: #f5fbff; color: #173c56; }
+.all-bill-scenario-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
+.all-bill-scenario-controls label { display: grid; gap: 5px; font-weight: 750; }
+.all-bill-scenario-controls select, .all-bill-scenario-controls input, .all-bill-scenario-controls button { min-height: 36px; padding: 6px 9px; border: 1px solid #a8c6d9; border-radius: 6px; background: #fff; color: #173c56; }
+.all-bill-scenario-controls input { width: 135px; }
+.all-bill-scenario-formula, .all-bill-scenario-assumptions { font-size: 13px; line-height: 1.45; }
+.all-bill-scenario-warning { padding: 9px; border: 1px solid #dca74b; border-radius: 6px; background: #fff2cb; color: #67420a; font-weight: 700; }
+.all-bill-scenario-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 8px; margin: 12px 0; }
+.all-bill-scenario-stats span { display: grid; gap: 4px; padding: 10px; border: 1px solid #b4ccdc; border-radius: 8px; background: #fff; font-size: 12px; }
+.all-bill-scenario-stats b { font-size: 18px; color: #0d5b86; }
+.all-bill-scenario-chart { padding: 12px; border: 1px solid #b4ccdc; border-radius: 8px; background: #fff; }
+.all-bill-scenario-chart svg { display: block; width: 100%; max-height: 300px; }
+.scenario-grid line { stroke: #a9c8d9; stroke-width: 1.5; }
+.scenario-grid text { fill: #365b72; font-size: 13px; font-weight: 700; }
+.scenario-baseline, .scenario-focus { fill: none; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.scenario-baseline { stroke: #b55d39; stroke-dasharray: 8 5; }
+.scenario-focus { stroke: #078466; }
+.scenario-point { fill: #fff; stroke: #078466; stroke-width: 3; }
+.scenario-baseline-point { fill: #fff; stroke: #b55d39; stroke-width: 3; }
+.scenario-legend { display: flex; gap: 16px; font-weight: 700; font-size: 12px; }
+.scenario-legend span::before { content: ""; display: inline-block; width: 15px; height: 4px; margin: 0 5px 3px 0; background: #078466; }
+.scenario-legend .baseline::before { background: #b55d39; }
+.all-bill-scenario-table-wrap { overflow-x: auto; margin-top: 12px; }
+.all-bill-scenario-table { width: 100%; border-collapse: collapse; background: #fff; font-size: 12px; white-space: nowrap; }
+.all-bill-scenario-table th, .all-bill-scenario-table td { padding: 8px; border: 1px solid #bdd2de; text-align: right; }
+.all-bill-scenario-table th:first-child, .all-bill-scenario-table td:first-child, .all-bill-scenario-table th:nth-child(2), .all-bill-scenario-table td:nth-child(2) { text-align: left; }
+.all-bill-scenario-table th { background: #dcecf6; color: #173c56; }
+.all-bill-scenario-table select { max-width: 220px; min-height: 30px; border: 1px solid #a8c6d9; border-radius: 4px; }
+.scenario-gap { display: block; color: #a34420; font-weight: 700; }
+.all-bill-scenario [data-scenario-tip] { cursor: help; }
+.all-bill-scenario [data-scenario-tip]:focus-visible { outline: 3px solid #df9a24; outline-offset: 2px; }
+.all-bill-scenario-tooltip { position: fixed; z-index: 100000; width: max-content; max-width: min(360px, calc(100vw - 16px)); padding: 10px 12px; border: 1px solid #0b5d85; border-radius: 7px; background: #123e57; color: #fff; box-shadow: 0 8px 24px #123e5755; font-size: 13px; line-height: 1.4; pointer-events: none; }
+.all-bill-scenario-tooltip[hidden] { display: none; }
 .all-bill-history-scale { display: inline-flex; gap: 3px; margin-left: auto; padding: 3px; border: 1px solid #a9c5d8; border-radius: 8px; background: #e6f1f8; }
 .all-bill-history-scale button[aria-pressed="true"] { border-color: #075a91; background: #1169a3; color: #fff; }
 .all-bill-history-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(210px, 280px); gap: 13px; align-items: start; }
