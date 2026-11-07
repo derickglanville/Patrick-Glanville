@@ -8518,7 +8518,7 @@ function getBillBalanceHistory(bill) {
       const previousBalance = normalizeMoney(historicalBill.previousBalance ?? historicalBill.currentBalance);
       const aprText = String(historicalBill.apr ?? "").trim();
       const hasApr = /\d/.test(aprText);
-      return { month, previousBalance, currentBalance: normalizeMoney(historicalBill.currentBalance), paidAmount: normalizeMoney(historicalBill.paidAmount), status: String(historicalBill.status || "Unpaid"), apr: parseAprNumber(aprText), hasApr, estimatedInterest: hasApr ? calculateMonthlyInterestPortion(previousBalance, aprText) : null };
+      return { month, previousBalance, currentBalance: normalizeMoney(historicalBill.currentBalance), paidAmount: normalizeMoney(historicalBill.paidAmount), apr: parseAprNumber(aprText), hasApr, estimatedInterest: hasApr ? calculateMonthlyInterestPortion(previousBalance, aprText) : null };
     })
     .filter(Boolean);
 }
@@ -8905,7 +8905,7 @@ function renderAllBillPaymentHistoryDialog() {
   const savedTotal = selected.reduce((sum, item) => sum + item.history.reduce((billSum, point) => billSum + point.paidAmount, 0), 0);
   const rising = selected.filter(item => item.history.length > 1 && item.history.at(-1).paidAmount > item.history[0].paidAmount).length;
   const falling = selected.filter(item => item.history.length > 1 && item.history.at(-1).paidAmount < item.history[0].paidAmount).length;
-  allBillBalanceHistoryBody.innerHTML = `<p class="all-bill-history-explain">Payment Made shows the saved <strong>Paid Amt</strong> for each bill and month. These are recorded payments, not estimates. Unpaid bills with a saved $0 Paid Amt appear in the breakdown as “No payment recorded.” A missing month has no point. Totals include only selected bills and saved months.</p>
+  allBillBalanceHistoryBody.innerHTML = `<p class="all-bill-history-explain">Payment Made shows the saved <strong>Paid Amt</strong> for each bill and month. These are recorded payments, not estimates. A $0 point means the saved Paid Amt is zero; a missing month has no point. Totals include only selected bills and saved months.</p>
     <div class="all-bill-history-stats"><span><strong>${selected.length}</strong> bills shown</span><span class="down"><strong>${escapeHtml(formatCurrency(latestTotal))}</strong> ${latestMonth ? escapeHtml(formatBudgetMonthLabel(latestMonth)) : "latest month"} paid</span><span><strong>${escapeHtml(formatCurrency(savedTotal))}</strong> across saved months</span><span><strong>${months.length}</strong> months</span></div>
     <div class="all-bill-history-chart-tabs" role="group" aria-label="Chart type"><button type="button" data-all-history-chart="lines">Trend lines</button><button type="button" data-all-history-chart="panels">Individual charts</button><button type="button" data-all-history-chart="ranking">Ranked change</button><button type="button" data-all-history-chart="interest">Interest impact</button><button type="button" data-all-history-chart="payment" aria-pressed="true">Payment Made</button><button type="button" data-all-history-chart="scenario">Scenario</button></div>
     <div class="all-bill-history-toolbar"><button type="button" data-all-history-action="show">Select all</button><button type="button" data-all-history-action="hide">Hide all</button><button type="button" data-all-history-action="falling">Show payments falling</button><button type="button" data-all-history-action="rising">Show payments rising</button></div>
@@ -8928,24 +8928,24 @@ function attachAllBillAmountBreakdowns(mode, selected, latestMonth = "") {
       total: points.reduce((sum, point) => sum + (interest ? point.estimatedInterest : point.paidAmount), 0) };
   });
   const amount = value => formatCurrency(Math.round(value * 100) / 100);
-  const latestRows = values.filter(item => item.latest && (interest || item.latestValue > 0)).sort((a, b) => b.latestValue - a.latestValue).map(item => {
+  const latestRows = values.filter(item => item.latest).sort((a, b) => interest ? b.latestValue - a.latestValue : a.name.localeCompare(b.name)).map(item => {
     const detail = interest ? `${amount(item.latest.previousBalance)} previous balance × ${item.latest.apr.toFixed(2)}% APR ÷ 12` : `saved Paid Amt for ${formatBudgetMonthLabel(latestMonth)}`;
     return `${item.name}: ${amount(item.latestValue)} (${detail})`;
   });
-  const zeroPaymentRows = interest ? [] : values.filter(item => item.latest && item.latestValue === 0).map(item => `${item.name}: ${amount(0)} — no payment recorded (saved status: ${item.latest.status || "unknown"})`);
-  const missingPaymentRows = interest ? [] : values.filter(item => !item.latest).map(item => `${item.name}: no saved record for ${formatBudgetMonthLabel(latestMonth)}`);
+  const missingMonthRows = interest ? [] : values.filter(item => !item.latest).sort((a, b) => a.name.localeCompare(b.name)).map(item => {
+    const last = item.points.at(-1);
+    return `${item.name}: no ${formatBudgetMonthLabel(latestMonth)} record; latest saved ${formatBudgetMonthLabel(last.month)} payment ${amount(last.paidAmount)} (excluded from this month's total)`;
+  });
   const monthTotals = [...new Set(values.flatMap(item => item.points.map(point => point.month)))].sort().map(month => {
     const sum = values.reduce((total, item) => total + (item.points.find(point => point.month === month)?.[interest ? "estimatedInterest" : "paidAmount"] || 0), 0);
     return `${formatBudgetMonthLabel(month)}: ${amount(sum)}`;
   });
-  const billTotals = values.filter(item => item.points.length).sort((a, b) => b.total - a.total).map(item => `${item.name}: ${amount(item.total)} (${item.points.length} saved month${item.points.length === 1 ? "" : "s"})`);
+  const billTotals = values.filter(item => item.points.length).sort((a, b) => interest ? b.total - a.total : a.name.localeCompare(b.name)).map(item => `${item.name}: ${amount(item.total)} (${item.points.length} saved month${item.points.length === 1 ? "" : "s"})`);
   const latestSum = values.reduce((sum, item) => sum + item.latestValue, 0);
   const totalSum = values.reduce((sum, item) => sum + item.total, 0);
   const latestLabel = interest ? "Latest saved estimate for each selected bill" : `${formatBudgetMonthLabel(latestMonth)} recorded payments for selected bills`;
-  const latestTip = interest
-    ? `${latestLabel}\n${latestRows.length ? latestRows.join("\n") : "No saved amounts in this month."}\nTOTAL: ${amount(latestSum)}`
-    : `${latestLabel}\nNO PAYMENT RECORDED (${zeroPaymentRows.length})\n${zeroPaymentRows.join("\n") || "None"}\nPAYMENTS RECORDED\n${latestRows.join("\n") || "None"}${missingPaymentRows.length ? `\nNO SAVED RECORD (${missingPaymentRows.length})\n${missingPaymentRows.join("\n")}` : ""}\nTOTAL PAID: ${amount(latestSum)}`;
-  const totalTip = `${interest ? "Estimated interest" : "Recorded payments"} across selected bills and saved months\nMONTHLY SUBTOTALS\n${monthTotals.join("\n") || "No saved months."}${interest ? "" : `\nNO PAYMENT RECORDED ACROSS SAVED MONTHS\n${values.filter(item => item.points.length && item.total === 0).map(item => `${item.name}: ${amount(0)}`).join("\n") || "None"}`}\nBILL TOTALS\n${billTotals.join("\n") || "No saved bills."}\nTOTAL: ${amount(totalSum)}`;
+  const latestTip = `${latestLabel}\n${latestRows.length ? latestRows.join("\n") : "No saved amounts in this month."}\nTOTAL: ${amount(latestSum)}${missingMonthRows.length ? `\nOTHER SELECTED BILLS (NOT IN TOTAL)\n${missingMonthRows.join("\n")}` : ""}`;
+  const totalTip = `${interest ? "Estimated interest" : "Recorded payments"} across selected bills and saved months\nMONTHLY SUBTOTALS\n${monthTotals.join("\n") || "No saved months."}\nBILL TOTALS\n${billTotals.join("\n") || "No saved bills."}\nTOTAL: ${amount(totalSum)}`;
   [stats[1], stats[2]].forEach((element, index) => {
     element.dataset.scenarioTip = index ? totalTip : latestTip;
     element.title = index ? totalTip : latestTip;
