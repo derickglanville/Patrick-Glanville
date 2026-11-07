@@ -14523,10 +14523,11 @@ async function bootApp() {
 try {
   window.__appBootStage = "check-local-settings";
   const useLocalAdmin = await localProductionSettingsExist();
-  activeClientId = useLocalAdmin ? "admin" : "patrick";
-  if (useLocalAdmin) validatedProtectedClientIds.add("admin");
-  state = loadState();
-  loadBudgetMonth(defaultBillMonth(), { syncSnapshot: false });
+  // The settings file chooses the requested client, but never grants Admin access.
+  // Keep its data unloaded until switchClient validates the entered access code.
+  activeClientId = useLocalAdmin ? "" : "patrick";
+  state = useLocalAdmin ? buildUnselectedClientState() : loadState();
+  if (!useLocalAdmin) loadBudgetMonth(defaultBillMonth(), { syncSnapshot: false });
   window.__appBootStage = "populate-users";
   populateUsers();
   window.__appBootStage = "populate-clients";
@@ -14538,7 +14539,14 @@ try {
   window.__appBootStage = "close-account-gate";
   closeAccountGateDialog();
   window.__appBootStage = "close-client-gate";
-  closeClientGateDialog();
+  if (useLocalAdmin) {
+    showClientGate("Enter the Admin access code to open the Admin dashboard.");
+    clientGateSelect.value = "admin";
+    updateClientGatePinVisibility();
+    clientGatePin.focus();
+  } else {
+    closeClientGateDialog();
+  }
   window.__appBootStage = "update-sync-status";
   updateSyncStatus();
   window.__appBootStage = "initialize-shared-data-source";
