@@ -44,6 +44,19 @@
     font-weight: 800;
   }
 
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) .mobile-bill-analysis-actions:not([hidden]) { display: flex; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #mobileBillBalanceChartsBtn:not([hidden]) {
+    width: 100%;
+    min-height: 42px;
+    padding: 8px 12px;
+    border: 1px solid #12669c;
+    border-radius: 8px;
+    background: #126ba6;
+    color: #fff;
+    font-size: .84rem !important;
+    font-weight: 850;
+  }
+
   body:is([data-device-layout="phone"],[data-device-layout="tablet"]) .mobile-bill-filters {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));

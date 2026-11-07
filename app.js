@@ -7419,6 +7419,11 @@ function updateMobileBillNavigator() {
     mobileSyncButton.hidden = !isAdminClient();
     mobileSyncButton.disabled = !supabaseEnabled;
   }
+  const mobileChartsButton = navigator.querySelector("#mobileBillBalanceChartsBtn");
+  if (mobileChartsButton) {
+    mobileChartsButton.hidden = !isAdminClient();
+    mobileChartsButton.parentElement.hidden = !isAdminClient();
+  }
   billList.closest(".budget-bill-scroll-shell")?.setAttribute("aria-label", active
     ? "Selected monthly bill card"
     : "Swipe left or right to view all bill columns");
@@ -7489,6 +7494,7 @@ function updateMobileBillNavigator() {
   navigator.querySelector("#mobileBillNextBtn").addEventListener("click", () => moveMobileBill(1));
   const gridDialog = document.querySelector("#mobileBillGridDialog");
   navigator.querySelector("#mobileBillGridBtn").addEventListener("click", openMobileBillGrid);
+  navigator.querySelector("#mobileBillBalanceChartsBtn")?.addEventListener("click", openAllBillBalanceHistory);
   gridDialog.querySelector("#closeMobileBillGridBtn").addEventListener("click", () => gridDialog.close());
   gridDialog.querySelector("#mobileBillGridBody").addEventListener("click", event => {
     const billButton = event.target.closest("[data-mobile-grid-bill-id]");
