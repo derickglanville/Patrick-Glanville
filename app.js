@@ -1704,6 +1704,9 @@ let selectedVerizonPdfFile = null;
 let selectedVerizonPdfMonth = "";
 let selectedVerizonReviewTab = "monthly";
 let activeBillBalanceHistoryKey = "";
+let selectedAllBillHistoryKeys = null;
+let allBillHistoryScale = "adaptive";
+let allBillHistoryChartType = "panels";
 
 function currentClientConfig() {
   return clientConfigs[activeClientId] || null;
@@ -1971,6 +1974,8 @@ const closeCellphoneBillingHistoryDialogBtn = document.querySelector("#closeCell
 const billBalanceHistoryDialog = document.querySelector("#billBalanceHistoryDialog");
 const billBalanceHistoryTitle = document.querySelector("#billBalanceHistoryTitle");
 const billBalanceHistoryBody = document.querySelector("#billBalanceHistoryBody");
+const allBillBalanceHistoryDialog = document.querySelector("#allBillBalanceHistoryDialog");
+const allBillBalanceHistoryBody = document.querySelector("#allBillBalanceHistoryBody");
 const closeBillBalanceHistoryDialogBtn = document.querySelector("#closeBillBalanceHistoryDialog");
 const adminMonthlyExpendituresDialog = document.querySelector("#adminMonthlyExpendituresDialog");
 const adminMonthlyExpendituresBody = document.querySelector("#adminMonthlyExpendituresBody");
@@ -7933,7 +7938,7 @@ function renderBills() {
     billListHeader.classList.toggle("is-simple", usesSimpleBills);
     billListHeader.innerHTML = usesSimpleBills
       ? "<span class=\"budget-bill-selector-header\"></span><span>Bill</span><span>Prev Bal</span><span>Current Bal</span><span>Amount</span><span>Due</span><span>Date Paid</span><span>Status</span><span>Notes</span><span>Actions</span>"
-      : "<span class=\"budget-bill-selector-header bill-col-selector\"></span><span class=\"bill-col bill-col-name\">Bill</span><span class=\"bill-col bill-col-type\">Type</span><span class=\"bill-col bill-col-apr\">APR</span><span class=\"bill-col bill-col-interest-paid is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum interest paid column\">Interest Paid</span><span class=\"bill-col bill-col-prev-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum previous balance column\">Prev Bal</span><span class=\"bill-col bill-col-current-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum current balance column\">Current Bal</span><span class=\"bill-col bill-col-proposed is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum proposed reductions column\">Proposed</span><span class=\"bill-col bill-col-diff is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum difference column\">Diff</span><span class=\"bill-col bill-col-payment-priority\" title=\"Paid bills where interest consumes more than the principal portion\">Pay More</span><span class=\"bill-col bill-col-credit-line is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum credit line column\">Credit Line</span><span class=\"bill-col bill-col-due-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum due amount column\">Due Amt</span><span class=\"bill-col bill-col-paid-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum paid amount column\">Paid Amt</span><span class=\"bill-col bill-col-recommended is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum recommended payment column\">Recommended</span><span class=\"bill-col bill-col-payoff-date\">Expected Paid Off Date</span><span class=\"bill-col bill-col-tran\">Tran #</span><span class=\"bill-col bill-col-due-date\">Due</span><span class=\"bill-col bill-col-date-paid\">Date Paid</span><span class=\"bill-col bill-col-credit-percent\">% Credit</span><span class=\"bill-col bill-col-status\">Status</span><span class=\"bill-col bill-col-notes\">Notes</span><span class=\"bill-col bill-col-observation\">Saved Balances</span><span class=\"bill-col bill-col-actions\">Actions</span>";
+      : "<span class=\"budget-bill-selector-header bill-col-selector\"></span><span class=\"bill-col bill-col-name\">Bill</span><span class=\"bill-col bill-col-type\">Type</span><span class=\"bill-col bill-col-apr\">APR</span><span class=\"bill-col bill-col-interest-paid is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum interest paid column\">Interest Paid</span><span class=\"bill-col bill-col-prev-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum previous balance column\">Prev Bal</span><span class=\"bill-col bill-col-current-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum current balance column\">Current Bal</span><span class=\"bill-col bill-col-proposed is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum proposed reductions column\">Proposed</span><span class=\"bill-col bill-col-diff is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum difference column\">Diff</span><span class=\"bill-col bill-col-payment-priority\" title=\"Paid bills where interest consumes more than the principal portion\">Pay More</span><span class=\"bill-col bill-col-credit-line is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum credit line column\">Credit Line</span><span class=\"bill-col bill-col-due-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum due amount column\">Due Amt</span><span class=\"bill-col bill-col-paid-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum paid amount column\">Paid Amt</span><span class=\"bill-col bill-col-recommended is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum recommended payment column\">Recommended</span><span class=\"bill-col bill-col-payoff-date\">Expected Paid Off Date</span><span class=\"bill-col bill-col-tran\">Tran #</span><span class=\"bill-col bill-col-due-date\">Due</span><span class=\"bill-col bill-col-date-paid\">Date Paid</span><span class=\"bill-col bill-col-credit-percent\">% Credit</span><span class=\"bill-col bill-col-status\">Status</span><span class=\"bill-col bill-col-notes\">Notes</span><span class=\"bill-col bill-col-observation\">Saved Balances <button type=\"button\" class=\"all-bill-history-launch\" title=\"Compare every Admin bill on a $100 starting scale\">All</button></span><span class=\"bill-col bill-col-actions\">Actions</span>";
     if (!usesSimpleBills) {
       billListHeader.querySelector(".bill-col-payoff-date")?.insertAdjacentHTML(
         "afterend",
@@ -8525,11 +8530,11 @@ function getBillCurrentBalanceObservation(bill, targetMonth = state.billMonth ||
   };
 }
 
-function buildHistoryLineChart(points, label = "History chart") {
+function buildHistoryLineChart(points, label = "History chart", vivid = false) {
   if (!points.length) return "";
   const width = 720;
-  const height = 200;
-  const padding = { top: 18, right: 20, bottom: 36, left: 74 };
+  const height = vivid ? 224 : 200;
+  const padding = { top: 22, right: 24, bottom: 42, left: 78 };
   const values = points.map(point => normalizeMoney(point.value));
   const rawMin = Math.min(...values);
   const rawMax = Math.max(...values);
@@ -8541,13 +8546,16 @@ function buildHistoryLineChart(points, label = "History chart") {
   const x = index => padding.left + (points.length === 1 ? plotWidth / 2 : (index / (points.length - 1)) * plotWidth);
   const y = value => padding.top + ((max - value) / Math.max(1, max - min)) * plotHeight;
   const path = points.map((point, index) => `${index ? "L" : "M"}${x(index).toFixed(1)},${y(point.value).toFixed(1)}`).join(" ");
+  const area = `${path} L${x(points.length - 1).toFixed(1)},${(padding.top + plotHeight).toFixed(1)} L${x(0).toFixed(1)},${(padding.top + plotHeight).toFixed(1)} Z`;
   const grid = [0, .5, 1].map(fraction => {
     const value = max - (max - min) * fraction;
     const yPosition = padding.top + plotHeight * fraction;
     return `<g><line x1="${padding.left}" x2="${width - padding.right}" y1="${yPosition}" y2="${yPosition}" class="history-chart-grid"></line><text x="${padding.left - 8}" y="${yPosition + 4}" text-anchor="end" class="history-chart-axis">${escapeHtml(formatCurrency(value))}</text></g>`;
   }).join("");
-  const dots = points.map((point, index) => `<g><circle cx="${x(index)}" cy="${y(point.value)}" r="4" class="history-chart-dot"><title>${escapeHtml(`${point.label}: ${formatCurrency(point.value)}`)}</title></circle><text x="${x(index)}" y="${height - 12}" text-anchor="middle" class="history-chart-axis">${escapeHtml(point.label)}</text></g>`).join("");
-  return `<svg class="history-line-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeAttribute(label)}">${grid}<path d="${path}" class="history-chart-line"></path>${dots}</svg>`;
+  const verticalGrid = vivid ? points.map((point, index) => `<line x1="${x(index)}" x2="${x(index)}" y1="${padding.top}" y2="${padding.top + plotHeight}" class="history-chart-grid history-chart-grid-vertical"></line>`).join("") : "";
+  const dots = points.map((point, index) => `<g><circle cx="${x(index)}" cy="${y(point.value)}" r="${vivid && index === points.length - 1 ? 6 : 4}" class="history-chart-dot${vivid && index === points.length - 1 ? " history-chart-dot-latest" : ""}"><title>${escapeHtml(`${point.label}: ${formatCurrency(point.value)}`)}</title></circle><text x="${x(index)}" y="${height - 12}" text-anchor="middle" class="history-chart-axis">${escapeHtml(point.label)}</text></g>`).join("");
+  const vividMarkup = vivid ? `<defs><linearGradient id="bill-history-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#21a68e" stop-opacity=".4"/><stop offset="100%" stop-color="#21a68e" stop-opacity=".04"/></linearGradient></defs><path d="${area}" class="history-chart-area"></path>` : "";
+  return `<svg class="history-line-chart${vivid ? " bill-history-vivid-chart" : ""}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeAttribute(label)}">${vividMarkup}${verticalGrid}${grid}<path d="${path}" class="history-chart-line"></path>${dots}</svg>`;
 }
 
 function renderBillBalanceHistoryDialog() {
@@ -8555,12 +8563,24 @@ function renderBillBalanceHistoryDialog() {
   const bill = state.bills.find(item => (item.templateKey || buildBudgetBillTemplateKey(item.name)) === activeBillBalanceHistoryKey) || state.bills.find(item => item.id === activeBillBalanceHistoryKey);
   if (!bill) { billBalanceHistoryBody.innerHTML = '<p class="documents-note">This bill is not available in the selected month.</p>'; return; }
   const history = getBillBalanceHistory(bill);
+  if (!history.length) {
+    if (billBalanceHistoryTitle) billBalanceHistoryTitle.textContent = `${bill.name || "Bill"} Balance History`;
+    billBalanceHistoryBody.innerHTML = '<p class="documents-note">No saved monthly balance is available for this bill from July 1, 2026 onward. New monthly saves will add points to this chart.</p>';
+    return;
+  }
   const first = history[0];
   const latest = history[history.length - 1];
+  const prior = history[history.length - 2];
+  const overallChange = latest.currentBalance - first.currentBalance;
+  const recentChange = prior ? latest.currentBalance - prior.currentBalance : 0;
+  const trend = !prior ? "Only one saved month" : recentChange < 0 ? "Balance falling" : recentChange > 0 ? "Balance rising" : "Balance unchanged";
+  const trendClass = !prior || recentChange === 0 ? "flat" : recentChange < 0 ? "down" : "up";
+  const trendIcon = !prior || recentChange === 0 ? "→" : recentChange < 0 ? "↘" : "↗";
   if (billBalanceHistoryTitle) billBalanceHistoryTitle.textContent = `${bill.name || "Bill"} Balance History`;
   billBalanceHistoryBody.innerHTML = history.length ? `
-    <div class="bill-history-summary"><span>Tracking since July 1, 2026</span><strong>Latest: ${escapeHtml(formatCurrency(latest.currentBalance))}</strong><span>${escapeHtml(formatSignedCurrency(latest.currentBalance - first.currentBalance))} since first saved month</span></div>
-    ${buildHistoryLineChart(history.map(point => ({ label: formatBudgetMonthLabel(point.month).slice(0, 3), value: point.currentBalance })), `${bill.name} current balance history`)}
+    <div class="bill-history-summary"><span>Tracking since ${escapeHtml(formatBudgetMonthLabel(first.month))}</span><strong>Latest: ${escapeHtml(formatCurrency(latest.currentBalance))}</strong><span>${escapeHtml(formatSignedCurrency(overallChange))} since first saved month</span></div>
+    <div class="bill-history-trend ${trendClass}"><span class="bill-history-trend-icon" aria-hidden="true">${trendIcon}</span><strong>${trend}</strong><span>${prior ? `${escapeHtml(formatSignedCurrency(recentChange))} from ${escapeHtml(formatBudgetMonthLabel(prior.month))} to ${escapeHtml(formatBudgetMonthLabel(latest.month))}` : "Save another month to show a trend"}</span></div>
+    ${buildHistoryLineChart(history.map(point => ({ label: formatBudgetMonthLabel(point.month).slice(0, 3), value: point.currentBalance })), `${bill.name} current balance history`, true)}
     <div class="bill-history-table-wrap"><table class="bill-history-table"><thead><tr><th>Month</th><th>Previous balance</th><th>Current balance</th><th>Paid</th></tr></thead><tbody>${history.map(point => `<tr><td>${escapeHtml(formatBudgetMonthLabel(point.month))}</td><td>${escapeHtml(formatCurrency(point.previousBalance))}</td><td>${escapeHtml(formatCurrency(point.currentBalance))}</td><td>${escapeHtml(formatCurrency(point.paidAmount))}</td></tr>`).join("")}</tbody></table></div>` : '<p class="documents-note">No saved monthly balance is available for this bill from July 1, 2026 onward. New monthly saves will add points to this chart.</p>';
 }
 
@@ -8569,6 +8589,104 @@ function openBillBalanceHistory(bill) {
   activeBillBalanceHistoryKey = bill.templateKey || buildBudgetBillTemplateKey(bill.name) || bill.id;
   renderBillBalanceHistoryDialog();
   billBalanceHistoryDialog.showModal();
+}
+
+function getAllBillBalanceSeries() {
+  const seen = new Set();
+  return state.bills.map(bill => {
+    const key = String(bill.templateKey || buildBudgetBillTemplateKey(bill.name) || bill.id).toLowerCase();
+    if (seen.has(key)) return null;
+    seen.add(key);
+    const history = getBillBalanceHistory(bill);
+    const baseline = history.find(point => point.currentBalance > 0);
+    return { key, name: bill.name || "Unnamed bill", history, baseline: baseline?.currentBalance || 0,
+      points: baseline ? history.filter(point => point.month >= baseline.month).map(point => ({ month: point.month, actual: point.currentBalance, value: point.currentBalance / baseline.currentBalance * 100 })) : [] };
+  }).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function buildAllBillBalanceChart(series, months) {
+  if (!series.length || !months.length) return '<p class="documents-note">Select a bill with a saved nonzero balance to view the chart.</p>';
+  const fullScreen = allBillBalanceHistoryDialog?.classList.contains("is-fullscreen");
+  const width = fullScreen ? Math.max(520, window.innerWidth - (window.innerWidth <= 850 ? 50 : Math.max(300, window.innerWidth * .24))) : 900;
+  const height = fullScreen ? Math.max(390, window.innerHeight - 275) : 390;
+  const left = 64, right = 26, top = 24, bottom = 44;
+  const plotWidth = width - left - right, plotHeight = height - top - bottom;
+  const values = series.flatMap(item => item.points.map(point => point.value));
+  const scale = value => allBillHistoryScale === "adaptive" ? Math.asinh((value - 100) / 5) : value;
+  const unscale = value => allBillHistoryScale === "adaptive" ? 100 + 5 * Math.sinh(value) : value;
+  const scaledValues = [scale(100), ...values.map(scale)];
+  const rawMin = Math.min(...scaledValues), rawMax = Math.max(...scaledValues);
+  const pad = Math.max(allBillHistoryScale === "adaptive" ? .1 : .5, (rawMax - rawMin) * .06);
+  const min = rawMin - pad, max = rawMax + pad;
+  const x = month => left + (months.length === 1 ? plotWidth / 2 : months.indexOf(month) / (months.length - 1) * plotWidth);
+  const y = value => top + (max - scale(value)) / Math.max(.001, max - min) * plotHeight;
+  const palette = ["#0866a8", "#ce4c2a", "#148257", "#8048a4", "#ba8610", "#d23d83", "#167b91", "#a45321", "#425dbb", "#68872a", "#b04456", "#147fbe"];
+  const gridValues = Array.from({ length: 7 }, (_, index) => unscale(min + (max - min) * index / 6));
+  const horizontal = [...gridValues.filter(value => Math.abs(y(value) - y(100)) > 14), 100].sort((a, b) => a - b).map(value => `<g><line x1="${left}" x2="${width - right}" y1="${y(value)}" y2="${y(value)}" class="all-bill-chart-grid${Math.abs(value - 100) < .001 ? " baseline" : ""}"/><text x="${left - 9}" y="${y(value) + 4}" text-anchor="end" class="all-bill-chart-axis">${value.toFixed(1)}</text></g>`).join("");
+  const vertical = months.map(month => `<g><line x1="${x(month)}" x2="${x(month)}" y1="${top}" y2="${height - bottom}" class="all-bill-chart-grid vertical"/><text x="${x(month)}" y="${height - 14}" text-anchor="middle" class="all-bill-chart-axis">${escapeHtml(formatBudgetMonthLabel(month).slice(0, 3))}</text></g>`).join("");
+  const lines = series.map((item, index) => {
+    const color = item.color || palette[index % palette.length];
+    const path = item.points.map((point, pointIndex) => `${pointIndex ? "L" : "M"}${x(point.month).toFixed(1)},${y(point.value).toFixed(1)}`).join(" ");
+    const dots = item.points.map(point => `<circle cx="${x(point.month)}" cy="${y(point.value)}" r="5" fill="${color}" stroke="#fff" stroke-width="2" class="all-bill-chart-point" data-history-key="${escapeAttribute(item.key)}" data-history-month="${escapeAttribute(point.month)}"><title>${escapeHtml(`${item.name} · ${formatBudgetMonthLabel(point.month)}: $${point.value.toFixed(2)} relative to $100; actual ${formatCurrency(point.actual)}`)}</title></circle>`).join("");
+    return `<g class="all-bill-chart-series" data-series-key="${escapeAttribute(item.key)}"><path d="${path}" fill="none" stroke="${color}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="${path}" fill="none" stroke="transparent" stroke-width="16" class="all-bill-chart-hit"><title>${escapeHtml(item.name)}</title></path>${dots}</g>`;
+  }).join("");
+  return `<svg class="all-bill-balance-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="All Admin bill balances, each indexed to $100 at its first saved nonzero balance. ${allBillHistoryScale === "adaptive" ? "Adaptive vertical scale expands differences near $100." : "Linear vertical scale."}"><rect x="${left}" y="${top}" width="${plotWidth}" height="${plotHeight}" class="all-bill-chart-plot"/>${vertical}${horizontal}${lines}</svg>`;
+}
+
+function buildAllBillSmallMultiples(series, months) {
+  if (!series.length) return '<p class="documents-note">Select bills to display their individual charts.</p>';
+  const width = 420, height = 132, left = 42, right = 15, top = 14, bottom = 27;
+  const x = month => left + (months.length === 1 ? (width - left - right) / 2 : months.indexOf(month) / (months.length - 1) * (width - left - right));
+  return `<div class="all-bill-small-grid">${series.map(item => {
+    const values = item.points.map(point => point.value);
+    const low = Math.min(100, ...values), high = Math.max(100, ...values);
+    const pad = Math.max(.5, (high - low) * .14);
+    const y = value => top + (high + pad - value) / Math.max(.01, high - low + 2 * pad) * (height - top - bottom);
+    const path = item.points.map((point, index) => `${index ? "L" : "M"}${x(point.month).toFixed(1)},${y(point.value).toFixed(1)}`).join(" ");
+    const latest = item.points.at(-1);
+    const direction = latest.value < 100 ? "down" : latest.value > 100 ? "up" : "flat";
+    return `<article class="all-bill-small-card ${direction}"><header><span class="all-bill-history-swatch" style="background:${item.color}"></span><strong>${escapeHtml(item.name)}</strong><span>${latest.value.toFixed(1)} / 100</span></header><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeAttribute(`${item.name} indexed balance history`)}"><line x1="${left}" x2="${width - right}" y1="${y(100)}" y2="${y(100)}" class="all-bill-chart-grid baseline"/><text x="${left - 4}" y="${y(100) - 3}" text-anchor="end" class="all-bill-chart-axis">100</text>${months.map(month => `<line x1="${x(month)}" x2="${x(month)}" y1="${top}" y2="${height - bottom}" class="all-bill-chart-grid vertical"/>`).join("")}<path d="${path}" fill="none" stroke="${item.color}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>${item.points.map(point => `<circle cx="${x(point.month)}" cy="${y(point.value)}" r="4.5" fill="${item.color}" stroke="#fff" stroke-width="1.5" class="all-bill-chart-point" data-history-key="${escapeAttribute(item.key)}" data-history-month="${escapeAttribute(point.month)}"/>`).join("")}<text x="${left}" y="${height - 7}" class="all-bill-chart-axis">${escapeHtml(formatBudgetMonthLabel(item.points[0].month).slice(0, 3))}</text><text x="${width - right}" y="${height - 7}" text-anchor="end" class="all-bill-chart-axis">${escapeHtml(formatBudgetMonthLabel(latest.month).slice(0, 3))}</text></svg><footer>${latest.value < 100 ? "↘" : latest.value > 100 ? "↗" : "→"} ${Math.abs(latest.value - 100).toFixed(1)}% since start · ${escapeHtml(formatCurrency(latest.actual))} now</footer></article>`;
+  }).join("")}</div>`;
+}
+
+function buildAllBillRankingChart(series) {
+  if (!series.length) return '<p class="documents-note">Select bills to compare their latest progress.</p>';
+  const ranked = [...series].sort((a, b) => a.points.at(-1).value - b.points.at(-1).value);
+  const largest = Math.max(1, ...ranked.map(item => Math.abs(item.points.at(-1).value - 100)));
+  return `<div class="all-bill-ranking" role="img" aria-label="Bills ranked by percentage change from their first saved balance"><div class="all-bill-ranking-head"><span>Balance fell most</span><span>Starting value: $100</span><span>Balance rose most</span></div>${ranked.map(item => {
+    const latest = item.points.at(-1), change = latest.value - 100;
+    const width = Math.max(2, Math.abs(change) / largest * 48);
+    return `<div class="all-bill-ranking-row" title="${escapeAttribute(`${item.name}: ${latest.value.toFixed(2)} per $100; actual ${formatCurrency(latest.actual)}`)}"><strong>${escapeHtml(item.name)}</strong><div class="all-bill-ranking-track"><span class="all-bill-ranking-center"></span><span class="all-bill-ranking-bar ${change <= 0 ? "down" : "up"}" style="width:${width}%;${change <= 0 ? `right:50%` : `left:50%`};background:${item.color}"></span></div><b>${change < 0 ? "−" : change > 0 ? "+" : ""}${Math.abs(change).toFixed(1)}%</b></div>`;
+  }).join("")}</div>`;
+}
+
+function renderAllBillBalanceHistoryDialog() {
+  if (!allBillBalanceHistoryBody) return;
+  const all = getAllBillBalanceSeries();
+  if (selectedAllBillHistoryKeys === null) selectedAllBillHistoryKeys = new Set(all.filter(item => item.baseline).map(item => item.key));
+  const palette = ["#0866a8", "#ce4c2a", "#148257", "#8048a4", "#ba8610", "#d23d83", "#167b91", "#a45321", "#425dbb", "#68872a", "#b04456", "#147fbe"];
+  all.forEach((item, index) => { item.color = palette[index % palette.length]; });
+  const selected = all.filter(item => item.baseline && selectedAllBillHistoryKeys.has(item.key));
+  const months = [...new Set(all.flatMap(item => item.points.map(point => point.month)))].sort();
+  const falling = selected.filter(item => item.points.length > 1 && item.points.at(-1).value < item.points[0].value).length;
+  const rising = selected.filter(item => item.points.length > 1 && item.points.at(-1).value > item.points[0].value).length;
+  allBillBalanceHistoryBody.innerHTML = `<p class="all-bill-history-explain">Each bill starts at <strong>$100</strong> in its first saved month with a nonzero balance. A value of $80 means its balance fell 20%; $120 means it rose 20%. These values compare progress, not dollars owed. ${allBillHistoryChartType === "lines" ? "Adaptive scale spreads small differences near $100; its vertical tick spacing is intentionally nonuniform." : allBillHistoryChartType === "panels" ? "Each panel has its own vertical scale so its trend is easy to see; compare the labels for magnitude." : "Ranked bars show the latest percentage change from each bill’s starting balance."}</p>
+    <div class="all-bill-history-stats"><span><strong>${selected.length}</strong> shown</span><span class="down"><strong>↘ ${falling}</strong> falling</span><span class="up"><strong>↗ ${rising}</strong> rising</span><span><strong>${months.length}</strong> months</span></div>
+    <div class="all-bill-history-chart-tabs" role="group" aria-label="Chart type"><button type="button" data-all-history-chart="lines" aria-pressed="${allBillHistoryChartType === "lines"}">Trend lines</button><button type="button" data-all-history-chart="panels" aria-pressed="${allBillHistoryChartType === "panels"}">Individual charts</button><button type="button" data-all-history-chart="ranking" aria-pressed="${allBillHistoryChartType === "ranking"}">Ranked change</button></div>
+    <div class="all-bill-history-toolbar"><button type="button" data-all-history-action="show">Select all</button><button type="button" data-all-history-action="hide">Hide all</button><button type="button" data-all-history-action="falling">Show falling</button><button type="button" data-all-history-action="rising">Show rising</button>${allBillHistoryChartType === "lines" ? `<span class="all-bill-history-scale"><button type="button" data-all-history-scale="adaptive" aria-pressed="${allBillHistoryScale === "adaptive"}">Adaptive scale</button><button type="button" data-all-history-scale="linear" aria-pressed="${allBillHistoryScale === "linear"}">Linear scale</button></span>` : ""}</div>
+    <div class="all-bill-history-layout"><div class="all-bill-history-plot">${allBillHistoryChartType === "panels" ? buildAllBillSmallMultiples(selected, months) : allBillHistoryChartType === "ranking" ? buildAllBillRankingChart(selected) : buildAllBillBalanceChart(selected, months)}<div id="allBillHistoryPointDetail" class="all-bill-history-point-detail">${allBillHistoryChartType === "ranking" ? "Hover over a bar for its indexed value and actual balance." : "Tap or hover over a point to see its month, indexed value, and actual balance."}</div></div>
+    <div class="all-bill-history-legend" aria-label="Choose bills to display">${all.map((item, index) => {
+      const latest = item.points.at(-1);
+      const change = latest ? latest.value - 100 : 0;
+      return `<label class="all-bill-history-bill${item.baseline ? "" : " unavailable"}" data-legend-key="${escapeAttribute(item.key)}"><input type="checkbox" data-all-history-key="${escapeAttribute(item.key)}" ${selectedAllBillHistoryKeys.has(item.key) ? "checked" : ""} ${item.baseline ? "" : "disabled"}><span class="all-bill-history-swatch" style="background:${item.color}"></span><span class="all-bill-history-bill-name">${escapeHtml(item.name)}<small>${item.baseline ? `${escapeHtml(formatCurrency(item.baseline))} start · ${latest.value.toFixed(1)} / 100 · ${change < 0 ? "↓" : change > 0 ? "↑" : "→"}${Math.abs(change).toFixed(1)}%` : "No saved nonzero balance"}</small></span></label>`;
+    }).join("")}</div></div>`;
+}
+
+function openAllBillBalanceHistory() {
+  if (!isAdminClient() || !allBillBalanceHistoryDialog) return;
+  selectedAllBillHistoryKeys = null;
+  renderAllBillBalanceHistoryDialog();
+  allBillBalanceHistoryDialog.showModal();
 }
 
 function renderCellphoneBillingHistoryDialog() {
@@ -13467,6 +13585,67 @@ if (closeCellphoneBillingHistoryDialogBtn && cellphoneBillingHistoryDialog) {
 if (closeBillBalanceHistoryDialogBtn && billBalanceHistoryDialog) {
   closeBillBalanceHistoryDialogBtn.addEventListener("click", () => billBalanceHistoryDialog.close());
 }
+document.addEventListener("click", event => {
+  if (event.target.closest(".all-bill-history-launch")) {
+    event.stopPropagation();
+    openAllBillBalanceHistory();
+  }
+});
+document.querySelector("#closeAllBillBalanceHistoryDialog")?.addEventListener("click", () => allBillBalanceHistoryDialog?.close());
+document.querySelector("#toggleAllBillHistoryFullscreen")?.addEventListener("click", event => {
+  const fullScreen = allBillBalanceHistoryDialog.classList.toggle("is-fullscreen");
+  event.currentTarget.textContent = fullScreen ? "Exit full screen" : "Full screen";
+  event.currentTarget.setAttribute("aria-pressed", String(fullScreen));
+  renderAllBillBalanceHistoryDialog();
+});
+window.addEventListener("resize", () => {
+  if (allBillBalanceHistoryDialog?.open && allBillBalanceHistoryDialog.classList.contains("is-fullscreen") && allBillHistoryChartType === "lines") renderAllBillBalanceHistoryDialog();
+});
+allBillBalanceHistoryBody?.addEventListener("change", event => {
+  const checkbox = event.target.closest("[data-all-history-key]");
+  if (!checkbox) return;
+  if (checkbox.checked) selectedAllBillHistoryKeys.add(checkbox.dataset.allHistoryKey);
+  else selectedAllBillHistoryKeys.delete(checkbox.dataset.allHistoryKey);
+  renderAllBillBalanceHistoryDialog();
+});
+allBillBalanceHistoryBody?.addEventListener("click", event => {
+  const chartButton = event.target.closest("[data-all-history-chart]");
+  if (chartButton) {
+    allBillHistoryChartType = chartButton.dataset.allHistoryChart;
+    renderAllBillBalanceHistoryDialog();
+    return;
+  }
+  const scaleButton = event.target.closest("[data-all-history-scale]");
+  if (scaleButton) {
+    allBillHistoryScale = scaleButton.dataset.allHistoryScale;
+    renderAllBillBalanceHistoryDialog();
+    return;
+  }
+  const action = event.target.closest("[data-all-history-action]")?.dataset.allHistoryAction;
+  if (action) {
+    const available = getAllBillBalanceSeries().filter(item => item.baseline);
+    selectedAllBillHistoryKeys = new Set(available.filter(item => action === "show" || (action === "falling" && item.points.length > 1 && item.points.at(-1).value < 100) || (action === "rising" && item.points.length > 1 && item.points.at(-1).value > 100)).map(item => item.key));
+    renderAllBillBalanceHistoryDialog();
+  }
+  const point = event.target.closest("[data-history-key][data-history-month]");
+  if (point) showAllBillHistoryPoint(point);
+});
+allBillBalanceHistoryBody?.addEventListener("pointerover", event => {
+  const point = event.target.closest("[data-history-key][data-history-month]");
+  if (point) showAllBillHistoryPoint(point);
+  const legend = event.target.closest("[data-legend-key]");
+  if (legend) allBillBalanceHistoryBody.querySelectorAll("[data-series-key]").forEach(line => line.classList.toggle("is-dimmed", line.dataset.seriesKey !== legend.dataset.legendKey));
+});
+allBillBalanceHistoryBody?.addEventListener("pointerout", event => {
+  const legend = event.target.closest("[data-legend-key]");
+  if (legend && !legend.contains(event.relatedTarget)) allBillBalanceHistoryBody.querySelectorAll("[data-series-key]").forEach(line => line.classList.remove("is-dimmed"));
+});
+function showAllBillHistoryPoint(point) {
+  const series = getAllBillBalanceSeries().find(item => item.key === point.dataset.historyKey);
+  const value = series?.points.find(entry => entry.month === point.dataset.historyMonth);
+  const detail = document.querySelector("#allBillHistoryPointDetail");
+  if (value && detail) detail.textContent = `${series.name} · ${formatBudgetMonthLabel(value.month)} · $${value.value.toFixed(2)} per $100 starting balance · actual ${formatCurrency(value.actual)}`;
+}
 if (saveAdminBillSimulationBtn) {
   saveAdminBillSimulationBtn.addEventListener("click", saveAdminBillSimulationProjectionTable);
 }
@@ -14318,9 +14497,34 @@ taskViewAllBtn.addEventListener("click", () => {
   render();
 });
 
+function localProductionSettingsExist() {
+  if (window.location.protocol !== "file:") return Promise.resolve(false);
+  // A classic script reports resource load separately from JSON parsing. The JSON file
+  // is only a local presence marker here; its contents are never used as app settings.
+  return new Promise(resolve => {
+    const probe = document.createElement("script");
+    let finished = false;
+    const finish = exists => {
+      if (finished) return;
+      finished = true;
+      window.clearTimeout(timer);
+      probe.remove();
+      resolve(exists);
+    };
+    const timer = window.setTimeout(() => finish(false), 2500);
+    probe.onload = () => finish(true);
+    probe.onerror = () => finish(false);
+    probe.src = "file:///C:/Software%20Developement/settings.production.json";
+    document.head.appendChild(probe);
+  });
+}
+
+async function bootApp() {
 try {
-  // Open Patrick by default; the client selector remains available for switching dashboards.
-  activeClientId = "patrick";
+  window.__appBootStage = "check-local-settings";
+  const useLocalAdmin = await localProductionSettingsExist();
+  activeClientId = useLocalAdmin ? "admin" : "patrick";
+  if (useLocalAdmin) validatedProtectedClientIds.add("admin");
   state = loadState();
   loadBudgetMonth(defaultBillMonth(), { syncSnapshot: false });
   window.__appBootStage = "populate-users";
@@ -14349,6 +14553,8 @@ try {
   window.__appBootStage = "boot-failed";
   updateDataStoreStatus();
 }
+}
+bootApp();
 function renderSimpleBillRow(bill, targetList) {
     const row = document.createElement("article");
     row.className = `budget-bill-item budget-bill-item-simple${isBillPastDue(bill) ? " is-past-due" : ""}${bill.status === "Paid" ? " is-paid" : ""}`;
