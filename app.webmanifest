@@ -3,8 +3,8 @@
   "short_name": "Budget & Notifications",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#123b5d",
+  "background_color": "#0b1422",
+  "theme_color": "#0b1422",
   "icons": [
     { "src": "icons/budget-notifications-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "icons/budget-notifications-512.png", "sizes": "512x512", "type": "image/png" }

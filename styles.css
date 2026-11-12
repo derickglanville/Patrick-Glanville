@@ -2130,6 +2130,17 @@ textarea {
 .work-schedule-panel h2 { margin: 0 0 6px; }
 .work-schedule-panel p { margin: 0; color: var(--muted); }
 
+.work-schedule-hours-change-banner {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 2px solid #c39000;
+  border-radius: 8px;
+  background: #ffe36b;
+  color: #382b00;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
 .mom-medication-panel {
   margin: 0 0 18px;
   padding: 16px;
@@ -4903,6 +4914,8 @@ body[data-device-layout="compact"] .budget-panel-popout .budget-bill-list-simple
 .gather-notes-table tbody tr:hover { background: #f0f6ec; cursor: pointer; }
 .gather-notes-table tbody tr.selected { background: #dcefd7; box-shadow: inset 3px 0 #397356; }
 .gather-notes-table .gather-notes-due-cell { color: #306348; font-weight: 700; }
+.gather-notes-table .gather-notes-inline { width: 100%; min-width: 0; padding: 3px 4px; border: 1px solid #b6cbb6; border-radius: 4px; background: #fff; color: #183e2b; font: inherit; }
+.gather-notes-table .gather-notes-inline:focus { outline: 2px solid #397356; outline-offset: 1px; }
 #adminNotesRemindersDialog .gather-notes-open { display: block; width: 100%; min-height: 0; padding: 0; background: transparent; color: #183f32; border: 0; border-radius: 0; text-align: left; font-size: inherit; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gather-notes-empty { padding: 18px 12px; color: #738575; line-height: 1.4; }
 .gather-notes-detail { padding: 10px 13px; }
@@ -5265,6 +5278,11 @@ body[data-device-layout="compact"] .budget-panel-popout .budget-bill-list-simple
 .verizon-payment-targets span { letter-spacing: .03em; text-transform: uppercase; }
 .verizon-payment-targets strong { display: block; margin: 3px 0; color: #166534; font-size: 1.2rem; }
 .verizon-discount-table a { color: #155e9a; font-weight: 800; white-space: nowrap; }
+.verizon-discount-table input { width: 100%; min-width: 105px; padding: 7px 8px; border: 1px solid #a8c3d8; border-radius: 6px; background: #fff; font: inherit; }
+.verizon-discount-table input[type="date"] { min-width: 140px; }
+.verizon-discount-table td:last-child input { min-width: 220px; }
+.verizon-payment-targets input { width: 100%; max-width: 180px; padding: 6px 8px; border: 1px solid #a8c3d8; border-radius: 6px; font: inherit; }
+#verizonDiscountRemindersForm > button { margin-top: 12px; }
 .verizon-discount-reminder-note { margin: 11px 0 0; color: #31566e; font-size: .82rem; line-height: 1.45; }
 
 .cellphone-switch-analysis { margin: 16px 0; padding: 16px; border: 1px solid #b9d2ec; border-radius: 10px; background: linear-gradient(135deg, #f8fbff 0%, #fffdf5 100%); }
@@ -6247,6 +6265,9 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .oil-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 18px 0; border-bottom: 1px solid #cbd9e6; padding-bottom: 9px; }
 .oil-tabs button.active { background: #164e72; color: white; }
 .oil-kpis { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 14px; }
+.oil-refill-group { display: flex; flex-direction: column; min-width: 0; gap: 5px; }
+.oil-refill-group article { flex: 1; }
+.oil-remaining-label { display: block; padding: 5px 8px; border: 1px solid #bd9017; border-radius: 7px; background: #f4d45f; color: #4b3600; font-size: .79rem; font-weight: 900; text-align: center; }
 .oil-kpis article, .oil-card, .oil-savings article { border: 1px solid #ccdce9; border-radius: 11px; background: #f9fcff; padding: 13px 15px; }
 .oil-kpis article small, .oil-kpis article span { display: block; color: #60768a; font-size: .78rem; }
 .oil-kpis article strong { display: block; color: #123d5c; font-size: 1.45rem; line-height: 1.2; margin: 5px 0; }

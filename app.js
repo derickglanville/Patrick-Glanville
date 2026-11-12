@@ -362,6 +362,44 @@ const VERIZON_DISCOUNT_REMINDERS = {
   senior: { amount: "Amount pending", status: "Follow up needed", action: "Ask Verizon whether the account and current plans qualify for a senior discount." },
   fiosMobile: { amount: "Amount pending", status: "Follow up needed", action: "Ask Verizon whether Fios and Mobile account linking creates a qualifying discount." }
 };
+let editingVerizonDiscountReminders = false;
+
+function getVerizonDiscountReminders() {
+  const saved = state?.verizonDiscountReminders;
+  const defaults = VERIZON_DISCOUNT_REMINDERS;
+  const result = {
+    currentPayment: Number.isFinite(Number(saved?.currentPayment)) ? Number(saved.currentPayment) : defaults.currentPayment,
+    nextPayment: Number.isFinite(Number(saved?.nextPayment)) ? Number(saved.nextPayment) : defaults.nextPayment
+  };
+  for (const key of ["loyalty", "paperFree", "military", "senior", "fiosMobile"]) {
+    const item = saved?.[key];
+    result[key] = {
+      date: /^\d{4}-\d{2}-\d{2}$/.test(String(item?.date || "")) ? item.date : "",
+      amount: String(item?.amount ?? defaults[key].amount).trim(),
+      status: String(item?.status ?? defaults[key].status).trim(),
+      action: String(item?.action ?? defaults[key].action).trim()
+    };
+  }
+  return result;
+}
+
+function renderVerizonDiscountReminders() {
+  const data = getVerizonDiscountReminders();
+  const rows = [["loyalty", "Loyalty"], ["paperFree", "Paper-free billing / Auto Pay"], ["military", "Military"], ["senior", "Senior"], ["fiosMobile", "Fios / Mobile"]];
+  const editing = editingVerizonDiscountReminders;
+  const cell = (key, field, value) => editing
+    ? `<input data-verizon-discount="${key}" data-verizon-field="${field}" value="${escapeAttribute(value)}" aria-label="${escapeAttribute(`${key} ${field}`)}" required>`
+    : escapeHtml(value);
+  const formatAmount = amount => /^\d+(?:\.\d+)?$/.test(amount) ? formatCurrency(Number(amount)) : amount;
+  return `<section class="verizon-discount-reminders cellphone-review-tab-panel" data-cellphone-review-tab-panel="discounts" aria-labelledby="verizonDiscountReminderTitle"${selectedVerizonReviewTab === "discounts" ? "" : " hidden"}>
+    <div class="verizon-discount-reminders-head"><div><span>Monthly payment control</span><h3 id="verizonDiscountReminderTitle">Verizon Discounts &amp; Reminders</h3><p>Review each statement before payment. Update discounts and follow-up actions when Verizon confirms a change.</p></div><button type="button" id="editVerizonDiscountRemindersBtn" class="ghost">${editing ? "Cancel" : "Edit discounts"}</button></div>
+    <form id="verizonDiscountRemindersForm">
+      <div class="verizon-payment-targets"><article><span>Current payment target</span><strong>${editing ? `<input name="currentPayment" type="number" min="0" step="0.01" value="${data.currentPayment}" required>` : escapeHtml(formatCurrency(data.currentPayment))}</strong><small>Confirm the bill matches before paying.</small></article><article><span>Next payment target</span><strong>${editing ? `<input name="nextPayment" type="number" min="0" step="0.01" value="${data.nextPayment}" required>` : escapeHtml(formatCurrency(data.nextPayment))}</strong><small>Investigate any increase before the due date.</small></article></div>
+      <div class="cellphone-billing-table-wrap"><table class="cellphone-billing-table verizon-discount-table"><thead><tr><th>Discount</th><th>Date</th><th>Value</th><th>Status</th><th>Monthly reminder / next action</th></tr></thead><tbody>${rows.map(([key, label]) => `<tr><td><strong>${escapeHtml(label)}</strong></td><td>${editing ? `<input type="date" data-verizon-discount="${key}" data-verizon-field="date" value="${data[key].date}" aria-label="${escapeAttribute(`${label} date`)}">` : escapeHtml(data[key].date ? formatScheduleDate(data[key].date) : "—")}</td><td>${cell(key, "amount", editing ? data[key].amount : formatAmount(data[key].amount))}</td><td>${cell(key, "status", data[key].status)}</td><td>${cell(key, "action", data[key].action)}${!editing && key === "military" ? ` <a href="https://www.id.me/" target="_blank" rel="noopener noreferrer">Open ID.me</a>` : ""}</td></tr>`).join("")}</tbody></table></div>
+      ${editing ? '<button type="submit" class="primary">Save discounts</button>' : ""}
+    </form><p class="verizon-discount-reminder-note"><strong>Monthly checklist:</strong> compare the bill with the ${escapeHtml(formatCurrency(data.nextPayment))} target; verify the ${escapeHtml(data.paperFree.amount)} discount on each eligible line; and follow up on the loyalty discount before it ends.</p>
+  </section>`;
+}
 const VERIZON_CURRENT_LINE_COSTS = [
   { name: "Shanelle", number: "914-409-5940", plan: "Unlimited Ultimate", amount: 74.35, note: "Highest standard plan cost; compare Unlimited Welcome only if its data features are not needed." },
   { name: "Theodore", number: "914-409-5907", plan: "Unlimited Welcome", amount: 59.34, note: "Review device payment and promotions before changing the plan." },
@@ -1574,6 +1612,12 @@ function normalizeWorkSchedules(value) {
     receivedOn: schedule.receivedOn || "",
     createdAt: schedule.createdAt || new Date().toISOString(),
     updatedAt: schedule.updatedAt || schedule.createdAt || new Date().toISOString(),
+    hoursChange: schedule.hoursChange && typeof schedule.hoursChange === "object" ? {
+      changedAt: String(schedule.hoursChange.changedAt || ""),
+      beforeTotal: Number(schedule.hoursChange.beforeTotal) || 0,
+      afterTotal: Number(schedule.hoursChange.afterTotal) || 0,
+      changedDays: Array.isArray(schedule.hoursChange.changedDays) ? schedule.hoursChange.changedDays.map(String).slice(0, 7) : []
+    } : null,
     entries: Array.isArray(schedule.entries) ? schedule.entries.slice(0, 7).map((entry, index) => ({
       day: entry.day || ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][index],
       date: entry.date || "",
@@ -1699,7 +1743,7 @@ let adminProposedPreviewActive = false;
 let selectedVerizonBillingMonth = "";
 let adminNotesReminderSearch = "";
 let adminNotesReminderStatus = "All";
-let adminNotesReminderView = "overview";
+let adminNotesReminderView = "upcoming";
 let adminNotesReminderSelectedId = "";
 let selectedVerizonPdfFile = null;
 let selectedVerizonPdfMonth = "";
@@ -2284,6 +2328,7 @@ function loadState() {
       dataVersion: Number(parsed.dataVersion) || 0,
       notes: parsed.notes || "",
       verizonCellphoneNotes2: typeof parsed.verizonCellphoneNotes2 === "string" ? parsed.verizonCellphoneNotes2 : DEFAULT_VERIZON_CELLPHONE_NOTES_2,
+      verizonDiscountReminders: parsed.verizonDiscountReminders && typeof parsed.verizonDiscountReminders === "object" ? parsed.verizonDiscountReminders : null,
       attCancellationTransactions: Array.isArray(parsed.attCancellationTransactions) ? parsed.attCancellationTransactions : structuredClone(ATT_CANCELLATION_NOTES.transactions),
       attCancellationBankUpdate20261020: parsed.attCancellationBankUpdate20261020 === true,
       attCancellationBankUpdate20261021: parsed.attCancellationBankUpdate20261021 === true,
@@ -6773,6 +6818,17 @@ function renderWorkSchedule() {
 
   const schedules = normalizeWorkSchedules(state.workSchedules);
   state.workSchedules = schedules;
+  const currentWeek = currentWorkWeekStart();
+  const currentSchedule = schedules.find(item => item.weekStart === currentWeek);
+  const hoursChangeBanner = document.querySelector("#workScheduleHoursChangeBanner");
+  if (hoursChangeBanner) {
+    const change = currentSchedule?.hoursChange;
+    hoursChangeBanner.hidden = !change?.changedAt;
+    if (change?.changedAt) {
+      const dayText = change.changedDays.length ? ` Changed: ${change.changedDays.join(", ")}.` : "";
+      hoursChangeBanner.textContent = `Hours changed for the current week (${formatScheduleDate(currentWeek)}): ${change.beforeTotal} → ${change.afterTotal} scheduled hours.${dayText}`;
+    }
+  }
   workScheduleSelect.innerHTML = "";
   schedules.forEach(schedule => {
     const option = document.createElement("option");
@@ -6790,7 +6846,6 @@ function renderWorkSchedule() {
   }
 
   const selectedId = workScheduleSelect.dataset.selectedId;
-  const currentWeek = currentWorkWeekStart();
   const schedule = schedules.find(item => item.id === selectedId)
     || schedules.find(item => item.weekStart === currentWeek)
     || schedules[0];
@@ -9133,7 +9188,21 @@ function renderCellphoneBillingHistoryDialog() {
       </div>
       <div class="cellphone-review-facts"><span><strong>Billing period:</strong> ${escapeHtml(selectedBill.billingPeriod)}</span><span><strong>Due:</strong> ${escapeHtml(selectedBill.dueDate)}</span><span><strong>Auto Pay:</strong> ${escapeHtml(selectedBill.autoPayDate)}</span><span><strong>Local PDF:</strong> ${escapeHtml(selectedBill.pdfFile)}</span></div>
     </section>
-    ${selectedBill.month === "2026-11" ? `<section class="cellphone-review-comparison" aria-label="November line charge analysis">
+    ${selectedBill.month === "2026-11" ? `<section class="cellphone-review-comparison" aria-label="November charges by line">
+      <div class="cellphone-review-section-head"><div><span>Statement summary</span><h3>November charges by line</h3></div><strong>$390.73 total due</strong></div>
+      <div class="cellphone-billing-table-wrap"><table class="cellphone-billing-table"><thead><tr><th>Line</th><th>Device</th><th>Charge</th></tr></thead><tbody>
+        ${[
+          ["329-333-1007", "iPad Air 11-inch", 20.94],
+          ["612-581-0697", "iPhone 14 Plus", 31.28],
+          ["612-581-0697", "Apple Watch (Number Share)", 26.18],
+          ["914-409-5907", "iPhone 17 Pro", 41.50],
+          ["914-409-5940", "iPhone 17 Pro", 49.11],
+          ["914-672-2393", "iPhone 17 Pro Max", 68.44],
+          ["914-675-4305", "iPhone 17 Pro", 21.74],
+          ["914-953-0851", "iPhone 17 Pro Max", 151.54]
+        ].map(([number, device, amount]) => `<tr><td>${escapeHtml(number)}</td><td>${escapeHtml(device)}</td><td>${escapeHtml(formatCurrency(amount))}</td></tr>`).join("")}
+      </tbody><tfoot><tr><th colspan="2" scope="row">Line charges</th><td>$410.73</td></tr><tr><th colspan="2" scope="row">Account-wide loyalty credit</th><td>−$20.00</td></tr><tr><th colspan="2" scope="row">Total due</th><td>$390.73</td></tr></tfoot></table></div>
+    </section><section class="cellphone-review-comparison" aria-label="November line charge analysis">
       <div class="cellphone-review-section-head"><div><span>Line-by-line analysis</span><h3>Why 914-953-0851 is the highest line</h3></div><strong class="is-increase">$151.54 · 38.8% of the bill</strong></div>
       <p>This line is $83.10 above the next highest line (914-672-2393 at $68.44), or about 2.2 times as much. Its charge also rose $11.93 from October's $139.61, even though the overall bill fell $81.26.</p>
       <div class="cellphone-billing-table-wrap"><table class="cellphone-billing-table"><thead><tr><th>914-953-0851 charge</th><th>November amount</th><th>What to check</th></tr></thead><tbody>
@@ -9149,7 +9218,7 @@ function renderCellphoneBillingHistoryDialog() {
     ${buildHistoryLineChart(VERIZON_BILL_HISTORY.map(point => ({ label: formatBudgetMonthLabel(point.month).slice(0, 3), value: point.total })), "Verizon monthly bill history")}
     <section class="cellphone-billing-insight"><h3>Selected-bill review</h3><p>${escapeHtml(selectedBill.note)}</p><p class="cellphone-billing-note">This is a comparison workspace. The selected statement data is read from the local PDF record and does not change the Admin bill budget.</p></section>
     </div>
-    <section class="verizon-discount-reminders cellphone-review-tab-panel" data-cellphone-review-tab-panel="discounts" aria-labelledby="verizonDiscountReminderTitle"${selectedVerizonReviewTab === "discounts" ? "" : " hidden"}><div class="verizon-discount-reminders-head"><div><span>Monthly payment control</span><h3 id="verizonDiscountReminderTitle">Verizon Discounts &amp; Reminders</h3><p>Review this section with each Verizon statement before payment. It tracks the negotiated target and the discounts that need renewal or verification.</p></div><strong>Monthly review</strong></div><div class="verizon-payment-targets"><article><span>Current payment target</span><strong>${escapeHtml(formatCurrency(VERIZON_DISCOUNT_REMINDERS.currentPayment))}</strong><small>Confirm the bill matches before paying.</small></article><article><span>Next payment target</span><strong>${escapeHtml(formatCurrency(VERIZON_DISCOUNT_REMINDERS.nextPayment))}</strong><small>Investigate any increase before the due date.</small></article></div><div class="cellphone-billing-table-wrap"><table class="cellphone-billing-table verizon-discount-table"><thead><tr><th>Discount</th><th>Value</th><th>Status</th><th>Monthly reminder / next action</th></tr></thead><tbody>${[["Loyalty", VERIZON_DISCOUNT_REMINDERS.loyalty], ["Paper-free billing / Auto Pay", VERIZON_DISCOUNT_REMINDERS.paperFree], ["Military", VERIZON_DISCOUNT_REMINDERS.military], ["Senior", VERIZON_DISCOUNT_REMINDERS.senior], ["Fios / Mobile", VERIZON_DISCOUNT_REMINDERS.fiosMobile]].map(([name, discount]) => `<tr><td><strong>${escapeHtml(name)}</strong></td><td>${escapeHtml(typeof discount.amount === "number" ? formatCurrency(discount.amount) : discount.amount.trim())}</td><td>${escapeHtml(discount.status)}</td><td>${escapeHtml(discount.action)}${name === "Military" ? ` <a href="https://www.id.me/" target="_blank" rel="noopener noreferrer">Open ID.me</a>` : ""}</td></tr>`).join("")}</tbody></table></div><p class="verizon-discount-reminder-note"><strong>Monthly checklist:</strong> compare the bill with the ${escapeHtml(formatCurrency(VERIZON_DISCOUNT_REMINDERS.nextPayment))} target; verify the $${VERIZON_DISCOUNT_REMINDERS.paperFree.amount.trim().replace("$", "")} discount on every eligible line; and contact Verizon before the loyalty discount ends.</p></section>
+    ${renderVerizonDiscountReminders()}
     <section class="cellphone-switch-analysis cellphone-review-tab-panel" data-cellphone-review-tab-panel="att" aria-labelledby="attSwitchAnalysisTitle"${selectedVerizonReviewTab === "att" ? "" : " hidden"}>
       <div class="cellphone-switch-analysis-head"><div><span>Decision support</span><h3 id="attSwitchAnalysisTitle">Potential AT&amp;T switch validation</h3><p>Started ${escapeHtml(ATT_SWITCH_VALIDATION.started)} after a sales approach at ${escapeHtml(ATT_SWITCH_VALIDATION.location)}. This review does not complete, cancel, or change either carrier account.</p></div><strong class="cellphone-switch-pending">Written terms needed</strong></div>
       <div class="cellphone-switch-assessment"><strong>Initial assessment</strong><p>${escapeHtml(ATT_SWITCH_VALIDATION.assessment)}</p></div>
@@ -9197,6 +9266,29 @@ function renderCellphoneBillingHistoryDialog() {
       selectedVerizonReviewTab = button.dataset.cellphoneReviewTab || "monthly";
       renderCellphoneBillingHistoryDialog();
     });
+  });
+  cellphoneBillingHistoryBody.querySelector("#editVerizonDiscountRemindersBtn")?.addEventListener("click", () => {
+    editingVerizonDiscountReminders = !editingVerizonDiscountReminders;
+    renderCellphoneBillingHistoryDialog();
+  });
+  cellphoneBillingHistoryBody.querySelector("#verizonDiscountRemindersForm")?.addEventListener("submit", event => {
+    event.preventDefault();
+    if (!editingVerizonDiscountReminders || !isAdminClient()) return;
+    const form = event.currentTarget;
+    if (!form.reportValidity()) return;
+    const currentPayment = Number(form.elements.currentPayment?.value);
+    const nextPayment = Number(form.elements.nextPayment?.value);
+    if (![currentPayment, nextPayment].every(value => Number.isFinite(value) && value >= 0)) return;
+    const updated = { currentPayment, nextPayment };
+    for (const key of ["loyalty", "paperFree", "military", "senior", "fiosMobile"]) {
+      const field = name => form.querySelector(`[data-verizon-discount="${key}"][data-verizon-field="${name}"]`)?.value.trim() || "";
+      updated[key] = { date: field("date"), amount: field("amount"), status: field("status"), action: field("action") };
+      if (!updated[key].amount || !updated[key].status || !updated[key].action) return;
+    }
+    state.verizonDiscountReminders = updated;
+    editingVerizonDiscountReminders = false;
+    saveState();
+    renderCellphoneBillingHistoryDialog();
   });
   cellphoneBillingHistoryBody.querySelectorAll("[data-verizon-bill-month]").forEach(row => {
     const selectBill = () => {
@@ -9367,7 +9459,7 @@ function openAdminNotesReminders() {
   if (!isAdminClient() || !adminNotesRemindersDialog) return;
   adminNotesReminderSearch = "";
   adminNotesReminderStatus = "All";
-  adminNotesReminderView = "overview";
+  adminNotesReminderView = "upcoming";
   adminNotesReminderSelectedId = "";
   renderAdminNotesRemindersDialog();
   adminNotesRemindersDialog.showModal();
@@ -14451,12 +14543,23 @@ if (workScheduleForm) {
     });
     const schedules = normalizeWorkSchedules(state.workSchedules);
     const existingIndex = schedules.findIndex(schedule => schedule.weekStart === weekStart);
+    const previousSchedule = existingIndex >= 0 ? schedules[existingIndex] : null;
+    const changedDays = previousSchedule && weekStart === currentWorkWeekStart()
+      ? entries.filter((entry, index) => Number(entry.hours) !== Number(previousSchedule.entries[index]?.hours || 0)).map(entry => entry.day)
+      : [];
+    const totalHours = scheduleEntries => scheduleEntries.reduce((sum, entry) => sum + Number(entry.hours || 0), 0);
     const updated = {
       id: existingIndex >= 0 ? schedules[existingIndex].id : crypto.randomUUID(),
       weekStart,
       receivedOn: workScheduleReceivedOn.value || scheduleDateForOffset(weekStart, 4),
       createdAt: existingIndex >= 0 ? schedules[existingIndex].createdAt : new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      hoursChange: changedDays.length ? {
+        changedAt: new Date().toISOString(),
+        beforeTotal: totalHours(previousSchedule.entries),
+        afterTotal: totalHours(entries),
+        changedDays
+      } : previousSchedule?.hoursChange || null,
       entries
     };
     if (existingIndex >= 0) schedules[existingIndex] = updated;

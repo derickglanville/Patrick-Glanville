@@ -1,0 +1,164 @@
+/* Dark is the default. The theme switch sets data-theme="light" to use the original palette. */
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #e8eef7;
+  --muted: #a9b9cb;
+  --line: #34475e;
+  --paper: #0b1422;
+  --panel: #162437;
+  --blue: #4d91df;
+  --green: #49b98a;
+  --gold: #ebc565;
+  --red: #ee7777;
+  --shadow: 0 18px 45px rgba(0, 0, 0, .28);
+}
+
+.theme-toggle { white-space: nowrap; min-height: 34px; }
+html[data-theme="dark"] .theme-toggle { border: 1px solid #7db5ed; background: #244969; color: #eef7ff; }
+
+html[data-theme="dark"] body,
+html[data-theme="dark"] dialog { background: var(--paper); color: var(--ink); }
+html[data-theme="dark"] dialog::backdrop { background: rgba(1, 7, 15, .82); }
+html[data-theme="dark"] :where(input, select, textarea) { color-scheme: dark; background: #111e2e; color: #e8eef7; border-color: #506780; }
+html[data-theme="dark"] :where(input, textarea)::placeholder { color: #8ea3b9; }
+html[data-theme="dark"] :where(.ghost, .icon-button) { background: #283c53; color: #e7f2ff; border-color: #506780; }
+html[data-theme="dark"] :where(.ghost, .icon-button):hover { background: #33516e; }
+html[data-theme="dark"] a { color: #8cc9ff; }
+
+/* Main dashboard, cards, reports, and recovery controls. */
+html[data-theme="dark"] :where(
+  .collaboration-panel, .sync-panel, .data-management-panel, .overview article,
+  .task-card, .notes-panel, .controls, .progress-band, .budget-panel,
+  .work-schedule-panel, .mom-medication-panel, .patrick-watch-panel,
+  .life-admin-panel, .hidden-bills-panel, .task-group,
+  .admin-bill-sms-controls, .admin-bill-quick-controls,
+  .backup-location-card, .sync-action-panel, .sync-more-tools,
+  .json-backup-viewer-meta-card, .history-dialog, .report-dialog
+) { background: #162437; color: #e8eef7; border-color: #34475e; }
+html[data-theme="dark"] :where(.sync-panel, .data-management-panel) { background: #111e2e; }
+html[data-theme="dark"] :where(.budget-metrics article, .bill-column-sum-card,
+  .task-details-box, .task-notes-box, .task-comment-box, .task-comment-history-item,
+  .admin-notes-summary article, .admin-note-card, .admin-notes-toolbar,
+  .all-bill-history-legend, .all-bill-small-card, .all-bill-scenario-stats span,
+  .all-bill-scenario-chart, .all-bill-scenario-table, .all-bill-detail-summary span
+) { background: #1d3046; color: #e8eef7; border-color: #425a73; }
+html[data-theme="dark"] :where(.sync-alert-banner, .all-bill-scenario-warning) { background: #38262a; color: #ffe3df; border-color: #a75b67; }
+html[data-theme="dark"] :where(.task-group-header, .all-bill-history-chart-tabs,
+  .all-bill-history-scale, .bill-history-table th, .cellphone-billing-table th,
+  .all-bill-scenario-table th, .oil-table th, .admin-bill-notes-grid th
+) { background: #28415b; color: #e7f2ff; border-color: #526b85; }
+html[data-theme="dark"] :where(.task-card h2, .task-group-header strong,
+  .budget-panel h2, .collaboration-panel h2, .dialog-head h2,
+  .report-dialog h2, .history-dialog h2
+) { color: #eaf3ff; }
+html[data-theme="dark"] :where(.task-card p, .collaboration-panel p,
+  .sync-panel span, .admin-bills-sync-status, .documents-note
+) { color: #a9b9cb; }
+html[data-theme="dark"] :where(.work-schedule-table tbody tr:nth-child(odd),
+  .mom-medication-table tbody tr:nth-child(odd), table tbody tr:nth-child(odd)
+) { background: #1b2b3e; }
+html[data-theme="dark"] :where(.work-schedule-table tbody tr:nth-child(even),
+  .mom-medication-table tbody tr:nth-child(even), table tbody tr:nth-child(even)
+) { background: #22354a; }
+html[data-theme="dark"] :where(table td, table th) { border-color: #41566e; }
+
+/* Monthly bill table retains its paid, due, APR, and priority accent colors. */
+html[data-theme="dark"] #budgetPanel :where(input, select, textarea),
+html[data-theme="dark"] :where(.gather-notes-table input, .gather-notes-table select,
+  .car-card input, .car-card textarea, .hospital-card input, .hospital-card select,
+  .hospital-card textarea, .verizon-discount-table input, .admin-bill-note-form input,
+  .admin-bill-note-form select, .admin-bill-note-form textarea
+) { background: #132338; color: #f2f7ff; border-color: #5c7793; }
+html[data-theme="dark"] :where(.bill-history-vivid-chart, .all-bill-detail-chart-wrap,
+  .all-bill-history-plot, .oil-history-chart, .all-bill-scenario
+) { background: #13243a; background-image: none; color: #e8eef7; border-color: #5c7793; }
+html[data-theme="dark"] :where(.bill-history-vivid-chart .history-chart-axis) { fill: #d5e8fa; }
+
+/* Notes & Reminders dialog and spreadsheet. */
+html[data-theme="dark"] #adminNotesRemindersDialog .admin-notes-reminders-dialog,
+html[data-theme="dark"] #adminNotesRemindersDialog .dialog-head,
+html[data-theme="dark"] :where(.gather-notes-rail, .gather-notes-main,
+  .gather-notes-list-panel, .gather-notes-detail, .gather-notes-stats article
+) { background: #152638; color: #e8eef7; border-color: #3b564e; }
+html[data-theme="dark"] #adminNotesRemindersDialog .dialog-head { background: #10251f; }
+html[data-theme="dark"] #adminNotesRemindersDialog :where(h2, h3, h4, strong),
+html[data-theme="dark"] :where(.gather-notes-heading h3, .gather-notes-section-title h4,
+  .gather-notes-stats strong, .gather-notes-detail-head h4
+) { color: #e4f6e9; }
+html[data-theme="dark"] #adminNotesRemindersDialog :where(p, small, label, span) { color: #adc9b7; }
+html[data-theme="dark"] #adminNotesRemindersDialog :where(input, select, textarea) { background: #10271e; color: #e7f7ed; border-color: #537d64; }
+html[data-theme="dark"] #adminNotesRemindersDialog .gather-notes-nav { color: #b8d3c2; }
+html[data-theme="dark"] #adminNotesRemindersDialog .gather-notes-nav.active,
+html[data-theme="dark"] .gather-notes-table tr.selected { background: #28513d; color: #fff; }
+html[data-theme="dark"] .gather-notes-table th { background: #254337; color: #e8f8eb; }
+html[data-theme="dark"] .gather-notes-table tbody tr:nth-child(even) { background: #1b352b; }
+html[data-theme="dark"] .gather-notes-table tbody tr:nth-child(odd) { background: #152d24; }
+html[data-theme="dark"] .gather-notes-table tbody tr.selected { background: #28513d; }
+html[data-theme="dark"] .gather-notes-table td { border-color: #3c584b; }
+
+/* Verizon review and its forms. */
+html[data-theme="dark"] :where(.cellphone-review-header, .cellphone-review-tabs,
+  .cellphone-review-comparison, .cellphone-review-details, .cellphone-billing-insight,
+  .cellphone-review-metrics article, .cellphone-review-compare-grid > div,
+  .verizon-discount-reminders, .verizon-payment-targets article,
+  .cellphone-switch-analysis, .cellphone-switch-facts article,
+  .cellphone-history-notes-panel, .att-cancellation-letter, .att-cancellation-notes
+) { background: #1a2e43; background-image: none; color: #e8eef7; border-color: #44627e; }
+html[data-theme="dark"] :where(.cellphone-review-header h3, .cellphone-review-section-head h3,
+  .cellphone-review-controls label, .verizon-discount-reminders-head h3,
+  .cellphone-review-metrics strong, .cellphone-review-compare-grid strong
+) { color: #e8f3ff; }
+html[data-theme="dark"] :where(.cellphone-review-header p, .cellphone-review-metrics span,
+  .cellphone-review-compare-grid span, .verizon-payment-targets span,
+  .verizon-payment-targets small, .verizon-discount-reminder-note
+) { color: #afc8de; }
+html[data-theme="dark"] :where(.cellphone-review-tab:not([aria-selected="true"]),
+  .cellphone-review-controls select, .verizon-discount-table input
+) { background: #233b53; color: #eaf3ff; border-color: #597a9b; }
+html[data-theme="dark"] .cellphone-review-tab:hover:not([aria-selected="true"]) { background: #304c68; }
+
+/* Heating oil, car service, home equipment, hospital, and their data grids. */
+html[data-theme="dark"] :where(#homeHeatingOilDialog, .home-oil-dialog,
+  .oil-card, .oil-kpis article, .oil-savings article, .oil-price-costs div,
+  .oil-efficiency-kpis article, .oil-efficiency-season div,
+  .oil-investment-metrics article, .hospital-card, .hospital-summary article,
+  .car-card, .car-summary article, .car-loading,
+  .home-maintenance-category-form, .admin-bill-note-form, .admin-bill-notes-grid
+) { background: #1a2d42; color: #e8eef7; border-color: #44627e; }
+html[data-theme="dark"] :where(.home-oil-dialog .dialog-head h2, .oil-kpis article strong,
+  .oil-card h3, .hospital-card h3, .car-card h3
+) { color: #e9f4ff; }
+html[data-theme="dark"] :where(.home-oil-dialog .dialog-head p, .oil-card p,
+  .oil-info, .oil-footnote, .oil-kpis article small, .oil-kpis article span
+) { color: #abc4d8; }
+html[data-theme="dark"] :where(.oil-table tbody tr:nth-child(even),
+  .car-table-wrap tr:nth-child(even), .admin-bill-notes-grid tr:nth-child(even)
+) { background: #22384f; }
+html[data-theme="dark"] :where(.oil-investment-chart svg) { background: #16283c; }
+
+/* Phone and tablet bill browser. */
+html[data-theme="dark"] :where(.mobile-bill-navigator, .mobile-bill-grid-head,
+  .mobile-bill-grid-table thead th, .mobile-bill-grid-table tfoot,
+  .mobile-bill-grid-hint
+) { background: #1b3148; color: #e8f3ff; border-color: #4d6b88; }
+html[data-theme="dark"] :where(.mobile-bill-navigator-heading,
+  .mobile-bill-grid-head h2, .mobile-bill-grid-head p,
+  .mobile-bill-picker label, .mobile-bill-scope
+) { color: #d2e4f5; }
+html[data-theme="dark"] :where(.mobile-bill-filters button:not([aria-pressed="true"]),
+  .mobile-bill-picker select
+) { background: #223c56; color: #e8f3ff; border-color: #6684a0; }
+html[data-theme="dark"] .mobile-bill-grid-table tbody tr:nth-child(even) { background: #22384f; }
+html[data-theme="dark"] .mobile-bill-grid-table td button:not(.mobile-grid-bill-paid) { color: #9bcfff; }
+html[data-theme="dark"] body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item[data-bill-id] { background: #1b3046 !important; border-color: #52718e; }
+html[data-theme="dark"] body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item.is-admin-paid[data-bill-id] { background: #194338 !important; }
+
+/* Preserve high contrast on yellow warnings and intentional highlighted amounts. */
+html[data-theme="dark"] :where(.work-schedule-hours-change-banner,
+  .oil-remaining-label, .oil-price-metric .oil-compare-yorktown-link,
+  .data-management-panel .sync-action-panel > summary
+) { color: #2f2600; }
+
+@media (max-width: 680px) {
+  .theme-toggle { min-height: 40px; }
+}
