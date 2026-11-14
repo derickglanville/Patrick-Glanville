@@ -6270,7 +6270,12 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .oil-dialog-actions { display: flex; align-items: center; gap: 8px; }
 .oil-tank-card-main { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .oil-tank-card-main > div:first-child { min-width: 0; }
+.oil-tank-percent-button { padding: 0; border: 0; background: transparent; text-align: left; cursor: pointer; }
+.oil-tank-percent-button:focus-visible { outline: 3px solid #1b6fa6; border-radius: 5px; }
+.oil-kpis article .oil-tank-percent-button strong { display: block; color: #123d5c; font-size: 1.45rem; line-height: 1.2; margin: 5px 0; }
 .oil-tank-dial { flex: 0 0 96px; width: 96px; }
+.oil-tank-dial { padding: 0; border: 0; background: transparent; cursor: pointer; }
+.oil-tank-dial:focus-visible { outline: 3px solid #1b6fa6; border-radius: 8px; }
 .oil-tank-dial svg { display: block; width: 100%; height: auto; overflow: visible; }
 .oil-tank-dial path { fill: none; stroke-width: 8; stroke-linecap: round; }
 .oil-dial-background { stroke: #d7e2eb; }
@@ -6281,6 +6286,19 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .oil-tank-level-track { height: 9px; margin: 8px 0 5px; overflow: hidden; border-radius: 999px; background: #d7e2eb; }
 .oil-tank-level-track b { display: block; height: 100%; border-radius: inherit; background: #23835d; }
 .oil-refill-group .oil-tank-estimate-note { font-size: .73rem; line-height: 1.3; }
+#oilDailyUsageDialog { width: min(1050px, 96vw); max-height: 90vh; border: 1px solid #aac3d7; border-radius: 14px; padding: 20px; color: #203449; background: #f9fcff; }
+.oil-daily-head { display: flex; justify-content: space-between; gap: 15px; align-items: flex-start; }
+.oil-daily-head h2 { margin: 0; font-size: 1.3rem; }
+.oil-daily-head p, .oil-daily-explain { color: #526d82; font-size: .84rem; line-height: 1.4; }
+.oil-daily-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 12px 0; }
+.oil-daily-summary div { padding: 10px; background: #e8f2f8; border: 1px solid #bbd2e1; border-radius: 8px; }
+.oil-daily-summary small, .oil-daily-summary strong { display: block; }
+.oil-daily-summary strong { margin-top: 4px; color: #123d5c; }
+.oil-daily-table-wrap { max-height: 52vh; overflow: auto; }
+.oil-daily-table th { position: sticky; top: 0; z-index: 1; white-space: nowrap; }
+.oil-daily-table td { white-space: nowrap; }
+.oil-daily-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; font-size: .84rem; }
+@media (max-width: 600px) { .oil-daily-summary { grid-template-columns: 1fr; } #oilDailyUsageDialog { padding: 12px; } }
 .oil-remaining-label { display: block; padding: 5px 8px; border: 1px solid #bd9017; border-radius: 7px; background: #f4d45f; color: #4b3600; font-size: .79rem; font-weight: 900; text-align: center; }
 .oil-kpis article, .oil-card, .oil-savings article { border: 1px solid #ccdce9; border-radius: 11px; background: #f9fcff; padding: 13px 15px; }
 .oil-kpis article small, .oil-kpis article span { display: block; color: #60768a; font-size: .78rem; }

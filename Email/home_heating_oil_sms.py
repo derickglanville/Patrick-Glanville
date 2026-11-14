@@ -1,12 +1,17 @@
 """Daily 1/2, 1/4, and 1/8 tank alerts from the Admin Firebase tracker."""
 import argparse
+import calendar
 import json
 import os
+import re
 import smtplib
 import sys
 from datetime import date, datetime, timedelta
 from email.mime.text import MIMEText
+from functools import lru_cache
 from pathlib import Path
+from urllib.parse import urlencode
+from urllib.request import urlopen
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "Scripts"))
@@ -42,7 +47,41 @@ def seasonal_rates(rows):
     return [g / d if d >= 14 else overall for g, d in zip(gallons, days)]
 
 
-def forecast(data, today):
+@lru_cache(maxsize=1)
+def typical_daily_hdd():
+    source = (ROOT / "oil-weather.js").read_text(encoding="utf-8")
+    match = re.search(r"window\.HOME_OIL_WEATHER\s*=\s*(\[.*?\]);", source, re.S)
+    if not match:
+        return [None] * 12
+    months = json.loads(match.group(1))
+    values = [[] for _ in range(12)]
+    for period, hdd, _ in months:
+        year, month = map(int, period.split("-"))
+        if hdd is not None:
+            values[month - 1].append(float(hdd) / calendar.monthrange(year, month)[1])
+    return [sum(group) / len(group) if group else None for group in values]
+
+
+def fetch_daily_weather(start, end):
+    url = "https://data.rcc-acis.org/StnData?" + urlencode({"sid": "KHPN", "sdate": start.isoformat(), "edate": end.isoformat(), "elems": "avgt,hdd", "output": "json"})
+    with urlopen(url, timeout=20) as response:
+        payload = json.load(response)
+    return {row[0]: float(row[2]) for row in payload.get("data", []) if len(row) > 2 and row[2] not in ("M", None, "")}
+
+
+def estimated_daily_use(day, rates, weather):
+    seasonal = rates[day.month - 1]
+    hdd = weather.get(day.isoformat())
+    typical = typical_daily_hdd()[day.month - 1]
+    if hdd is None or typical is None or typical < 1:
+        return seasonal
+    warm_base = sum(rates[i] for i in (5, 6, 7)) / 3
+    base = min(warm_base, seasonal)
+    factor = min(2.5, max(0, hdd / typical))
+    return base + (seasonal - base) * factor
+
+
+def forecast(data, today, weather_rows=None):
     readings = sorted((r for r in data.get("readings", []) if str(r.get("date", "")) <= today.isoformat()), key=lambda r: (r["date"], str(r.get("time") or "")), reverse=True)
     if not readings:
         return None
@@ -59,12 +98,25 @@ def forecast(data, today):
     if not any(rates):
         return None
     deliveries = data.get("deliveries", [])
+    if weather_rows is None:
+        try:
+            weather_rows = fetch_daily_weather(start, today)
+        except (OSError, ValueError, KeyError) as error:
+            print(f"Daily weather unavailable; using historical seasonal rates: {error}", file=sys.stderr)
+            weather_rows = {}
     day = start
     while day < today:
+        if day > start:
+            level = min(CAPACITY, level + sum(float(r.get("gallons") or 0) for r in deliveries if r.get("date") == day.isoformat()))
+        reading_time = str(reading.get("time") or "")
+        try:
+            hour, minute = map(int, reading_time.split(":")) if day == start and reading_time else (0, 0)
+            day_fraction = max(0, (24 - hour - minute / 60) / 24) if day == start else 1
+        except ValueError:
+            day_fraction = 1
+        level -= min(max(0, level), estimated_daily_use(day, rates, weather_rows) * day_fraction)
         day += timedelta(days=1)
-        level = min(CAPACITY, level + sum(float(r.get("gallons") or 0) for r in deliveries if r.get("date") == day.isoformat()))
-        if day < today:
-            level -= rates[day.month - 1]
+    level = min(CAPACITY, level + sum(float(r.get("gallons") or 0) for r in deliveries if r.get("date") == today.isoformat() and r.get("date") > start.isoformat()))
     current = max(0, min(CAPACITY, level))
     latest_delivery = max((str(item.get("date")) for item in deliveries if str(item.get("date", "")) <= today.isoformat()), default="none")
     return {"gallons": current, "percent": current / CAPACITY * 100, "cycle": latest_delivery, "reading_date": reading["date"], "age": age}

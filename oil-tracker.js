@@ -17,6 +17,8 @@ let oilRegionalPrice = { status: "idle", price: null, date: "", checkedAt: 0, er
 let oilPriceHistory = { status: "idle", rows: [], checkedAt: 0, error: "" };
 let oilHistoryRange = "month";
 let oilHistorySelectedDate = "";
+const OIL_DAILY_WEATHER_SOURCE = "https://data.rcc-acis.org/StnData";
+let oilDailyWeather = { status: "idle", rows: new Map(), checkedAt: 0, start: "", error: "" };
 
 function oilHistoryVisibleRows() {
   const rows = oilPriceHistory.rows;
@@ -239,6 +241,45 @@ function oilMonthlyUsageForYear(deliveries, year) {
   return gallons.map((value, month) => days[month] >= 14 ? value / days[month] : null);
 }
 
+function oilTypicalDailyHdd(month) {
+  const values = (window.HOME_OIL_WEATHER || []).filter(([period, hdd]) => Number(period.slice(5)) === month + 1 && Number.isFinite(Number(hdd)));
+  if (!values.length) return null;
+  return values.reduce((sum, [period, hdd]) => sum + Number(hdd) / new Date(Number(period.slice(0, 4)), month + 1, 0).getDate(), 0) / values.length;
+}
+
+function oilDailyUse(day, rates, weatherRows) {
+  const month = day.getMonth(), seasonal = rates[month];
+  const warmBase = [5, 6, 7].reduce((sum, index) => sum + rates[index], 0) / 3;
+  const observed = weatherRows.get(getLocalIsoDate(day));
+  const typicalHdd = oilTypicalDailyHdd(month);
+  if (!observed || !Number.isFinite(observed.hdd) || !typicalHdd || typicalHdd < 1) return { gallons: seasonal, weather: observed || null, source: "seasonal average" };
+  const base = Math.min(warmBase, seasonal);
+  const factor = Math.min(2.5, Math.max(0, observed.hdd / typicalHdd));
+  return { gallons: base + (seasonal - base) * factor, weather: observed, source: "observed weather" };
+}
+
+async function oilLoadDailyWeather(force = false) {
+  const data = oilData();
+  const latest = [...data.readings].sort((a, b) => `${b.date}T${b.time || ""}`.localeCompare(`${a.date}T${a.time || ""}`))[0];
+  if (!latest || oilDailyWeather.status === "loading") return;
+  const start = latest.date;
+  if (!force && oilDailyWeather.start === start && Date.now() - oilDailyWeather.checkedAt < 2 * 3600000) return;
+  oilDailyWeather = { ...oilDailyWeather, status: "loading", start, error: "" };
+  try {
+    const url = `${OIL_DAILY_WEATHER_SOURCE}?${new URLSearchParams({ sid: "KHPN", sdate: start, edate: oilIsoToday(), elems: "avgt,hdd", output: "json" })}`;
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) throw new Error(`Weather request returned ${response.status}`);
+    const result = await response.json();
+    if (!Array.isArray(result.data)) throw new Error(result.error || "Daily weather data unavailable");
+    const rows = new Map(result.data.map(([date, temp, hdd]) => [date, { temp: temp === "M" ? null : Number(temp), hdd: hdd === "M" ? null : Number(hdd) }]));
+    oilDailyWeather = { status: "ready", rows, checkedAt: Date.now(), start, error: "" };
+  } catch (error) {
+    oilDailyWeather = { ...oilDailyWeather, status: "error", checkedAt: Date.now(), error: error.message || "Weather unavailable" };
+  }
+  if (document.querySelector("#homeHeatingOilDialog")?.open) renderHomeHeatingOil();
+  if (document.querySelector("#oilDailyUsageDialog")?.open) renderOilDailyUsageDialog();
+}
+
 function oilProjection(data, today = oilIsoToday()) {
   const latest = [...data.readings].filter(item => item.date <= today).sort((a, b) => `${b.date}T${b.time || "00:00"}`.localeCompare(`${a.date}T${a.time || "00:00"}`))[0];
   if (!latest) return { status: "missing" };
@@ -248,13 +289,23 @@ function oilProjection(data, today = oilIsoToday()) {
   if (!rates.some(rate => rate > 0)) return { status: "no-history", latest };
   let gallons = data.capacity * latest.percent / 100;
   const futureDeliveries = data.deliveries.filter(item => item.date > latest.date && item.date <= today);
+  const daily = [];
   const date = oilDate(latest.date);
-  while (date <= oilDate(today)) {
+  while (date < oilDate(today)) {
     const iso = getLocalIsoDate(date);
-    if (iso !== latest.date) gallons = Math.min(data.capacity, gallons + futureDeliveries.filter(item => item.date === iso).reduce((sum, item) => sum + item.gallons, 0));
-    if (iso !== today) gallons -= rates[date.getMonth()];
+    const starting = Math.max(0, Math.min(data.capacity, gallons));
+    const delivery = iso === latest.date ? 0 : futureDeliveries.filter(item => item.date === iso).reduce((sum, item) => sum + item.gallons, 0);
+    gallons = Math.min(data.capacity, gallons + delivery);
+    const usage = oilDailyUse(date, rates, oilDailyWeather.rows);
+    const readingHour = latest.time && /^\d{2}:\d{2}$/.test(latest.time) ? Number(latest.time.slice(0, 2)) + Number(latest.time.slice(3)) / 60 : 0;
+    const dayFraction = iso === latest.date ? Math.max(0, (24 - readingHour) / 24) : 1;
+    const used = Math.min(Math.max(0, gallons), usage.gallons * dayFraction);
+    gallons -= used;
+    daily.push({ date: iso, starting, delivery, used, ending: Math.max(0, gallons), percent: Math.max(0, gallons) / data.capacity * 100, weather: usage.weather, source: usage.source, dayFraction });
     date.setDate(date.getDate() + 1);
   }
+  const todayDelivery = futureDeliveries.filter(item => item.date === today).reduce((sum, item) => sum + item.gallons, 0);
+  if (todayDelivery) { gallons = Math.min(data.capacity, gallons + todayDelivery); daily.push({ date: today, starting: Math.max(0, gallons - todayDelivery), delivery: todayDelivery, used: 0, ending: gallons, percent: gallons / data.capacity * 100, weather: null, source: "delivery", dayFraction: 0 }); }
   const current = Math.max(0, Math.min(data.capacity, gallons));
   let refillDate = ""; let daysToRefill = 0;
   if (gallons <= data.capacity * 0.25) refillDate = today;
@@ -264,7 +315,7 @@ function oilProjection(data, today = oilIsoToday()) {
     if (gallons <= data.capacity * 0.25) refillDate = getLocalIsoDate(date);
     date.setDate(date.getDate() + 1);
   }
-  return { status: age > 30 ? "stale-estimate" : "ready", latest, age, current, percent: current / data.capacity * 100, refillDate, daysToRefill, rates };
+  return { status: age > 30 ? "stale-estimate" : "ready", latest, age, current, percent: current / data.capacity * 100, refillDate, daysToRefill, rates, daily };
 }
 
 function oilBarChart(rates, label = "seasonal average") {
@@ -321,6 +372,34 @@ function oilEfficiencyView(deliveries) {
   </div>`;
 }
 
+function renderOilDailyUsageDialog() {
+  const dialog = document.querySelector("#oilDailyUsageDialog");
+  if (!dialog) return;
+  const data = oilData(), projection = oilProjection(data);
+  const daily = projection.daily || [];
+  const used = daily.reduce((sum, row) => sum + row.used, 0);
+  const weatherDays = daily.filter(row => row.source === "observed weather").length;
+  dialog.innerHTML = `<div class="oil-daily-head"><div><h2>Daily tank-level estimate</h2><p>Starting from the latest physical gauge reading, ${projection.latest?.date || "not recorded"}${projection.latest?.time ? ` at ${projection.latest.time}` : ""}.</p></div><button type="button" class="icon-button" id="oilDailyClose" aria-label="Close daily usage">×</button></div>
+    ${projection.status === "missing" || projection.status === "stale" || projection.status === "no-history" ? `<p class="oil-info">A recent gauge reading and delivery history are needed to simulate daily tank use.</p>` : `<div class="oil-daily-summary"><div><small>Estimated now</small><strong>${oilNumber(projection.current, 1)} gal · ${projection.percent.toFixed(1)}%</strong></div><div><small>Modeled use since reading</small><strong>${oilNumber(used, 1)} gal</strong></div><div><small>Observed-weather days</small><strong>${weatherDays} of ${daily.length}</strong></div></div>
+    <p class="oil-daily-explain">Each completed day subtracts an estimate based on historical delivery intervals and that day's Westchester Airport heating degree days. A missing observation uses the seasonal average. This is a simulation, not a new gauge reading.</p>
+    <div class="oil-table-wrap oil-daily-table-wrap"><table class="oil-table oil-daily-table"><thead><tr><th>Day modeled</th><th>Temp</th><th>HDD</th><th>Start</th><th>Delivered</th><th>Used</th><th>End</th><th>Change</th><th>Tank</th><th>Basis</th></tr></thead><tbody>${daily.length ? [...daily].reverse().map(row => `<tr><td>${row.date}</td><td>${Number.isFinite(row.weather?.temp) ? `${oilNumber(row.weather.temp, 1)}°F` : "—"}</td><td>${Number.isFinite(row.weather?.hdd) ? oilNumber(row.weather.hdd, 1) : "—"}</td><td>${oilNumber(row.starting, 1)}</td><td>${row.delivery ? `+${oilNumber(row.delivery, 1)}` : "—"}</td><td>${row.used ? `−${oilNumber(row.used, 2)}` : "—"}</td><td>${oilNumber(row.ending, 1)}</td><td>${row.ending - row.starting >= 0 ? "+" : "−"}${oilNumber(Math.abs(row.ending - row.starting), 2)} gal</td><td>${row.percent.toFixed(1)}%</td><td>${row.source}${row.dayFraction > 0 && row.dayFraction < 1 ? " · partial day" : ""}</td></tr>`).join("") : `<tr><td colspan="10">No completed day since the latest gauge reading. The next day's estimate will appear here.</td></tr>`}</tbody></table></div>`}
+    <div class="oil-daily-actions"><a href="${OIL_DAILY_WEATHER_SOURCE}?sid=KHPN&date=${oilIsoToday()}&elems=avgt,hdd&output=json" target="_blank" rel="noopener">ACIS weather source</a><button type="button" id="oilDailyRefresh" class="ghost">Refresh weather</button></div>${oilDailyWeather.error ? `<p class="oil-price-error">Weather request failed: ${escapeHtml(oilDailyWeather.error)}. Seasonal estimates are shown where observations are unavailable.</p>` : ""}`;
+  dialog.querySelector("#oilDailyClose")?.addEventListener("click", () => dialog.close());
+  dialog.querySelector("#oilDailyRefresh")?.addEventListener("click", () => oilLoadDailyWeather(true));
+}
+
+function openOilDailyUsageDialog() {
+  let dialog = document.querySelector("#oilDailyUsageDialog");
+  if (!dialog) {
+    dialog = document.createElement("dialog");
+    dialog.id = "oilDailyUsageDialog";
+    document.body.append(dialog);
+  }
+  renderOilDailyUsageDialog();
+  if (!dialog.open) dialog.showModal();
+  oilLoadDailyWeather();
+}
+
 function renderHomeHeatingOil() {
   const root = document.querySelector("#homeHeatingOilBody"); if (!root) return;
   const data = oilData(), rows = [...data.deliveries].sort((a, b) => b.date.localeCompare(a.date));
@@ -335,7 +414,7 @@ function renderHomeHeatingOil() {
   const rate = oilUsageYear === "average" ? oilSeasonalRates(rows) : oilMonthlyUsageForYear(rows, oilUsageYear);
   root.innerHTML = `<div class="oil-tabs" role="tablist">${[["overview","Overview"],["prices","Local Prices"],["priceHistory","Price Changes"],["efficiency","Efficiency Review"],["investment","Siding Investment"],["deliveries","Deliveries"],["readings","Tank Readings"],["savings","Save Energy"]].map(([key,label]) => `<button type="button" data-oil-tab="${key}" class="${oilTab === key ? "active" : "ghost"}" aria-selected="${oilTab === key}">${label}</button>`).join("")}</div>
   <div class="oil-kpis">
-    <div class="oil-refill-group"><span class="oil-remaining-label">Remaining oil in tank</span><article class="${projection.status === "ready" && projection.daysToRefill <= 14 ? "oil-alert" : ""}"><div class="oil-tank-card-main"><div><small>Estimated tank level</small><strong>${hasTankEstimate ? `${oilNumber(projection.current)} gal · ${Math.round(projection.percent)}%` : "Reading needed"}</strong></div><div class="oil-tank-dial" role="img" aria-label="${hasTankEstimate ? `Estimated tank level ${Math.round(projection.percent)} percent, from Empty to Full` : "Tank level unknown; gauge reading needed"}"><svg viewBox="0 0 120 76" aria-hidden="true"><path class="oil-dial-background" d="M 15 58 A 45 45 0 0 1 105 58"/><path class="oil-dial-fill" d="M 15 58 A 45 45 0 0 1 105 58" pathLength="100" style="stroke-dasharray:${hasTankEstimate ? Math.max(0, Math.min(100, projection.percent)) : 0} 100"/>${hasTankEstimate ? `<line class="oil-dial-needle" x1="60" y1="58" x2="60" y2="20" transform="rotate(${-90 + Math.max(0, Math.min(100, projection.percent)) * 1.8} 60 58)"/>` : ""}<circle class="oil-dial-center" cx="60" cy="58" r="4"/><text x="3" y="73">E</text><text x="26" y="30">1/4</text><text x="60" y="9" text-anchor="middle">1/2</text><text x="94" y="30" text-anchor="middle">3/4</text><text x="108" y="73">F</text></svg></div></div>${hasTankEstimate ? `<div class="oil-tank-level-track" role="meter" aria-label="Estimated tank level" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(projection.percent)}"><b style="width:${projection.percent}%"></b></div>` : ""}<span class="oil-tank-estimate-note">${projection.status === "ready" ? `25% reserve around ${projection.refillDate || "later"} · last gauge ${projection.age} days ago` : projection.status === "stale-estimate" ? `Estimate from a ${projection.age}-day-old gauge reading. Check the gauge before ordering.` : projection.status === "stale" ? `Last reading ${projection.age} days old; update the gauge for an estimate.` : "Record a tank gauge reading to start estimating."}</span></article></div>
+    <div class="oil-refill-group"><span class="oil-remaining-label">Remaining oil in tank</span><article class="${projection.status === "ready" && projection.daysToRefill <= 14 ? "oil-alert" : ""}"><div class="oil-tank-card-main"><div><small>Estimated tank level</small><button type="button" id="oilTankPercentButton" class="oil-tank-percent-button" title="Show daily tank usage"><strong>${hasTankEstimate ? `${oilNumber(projection.current)} gal · ${Math.round(projection.percent)}%` : "Reading needed"}</strong></button></div><div class="oil-tank-dial" id="oilTankDetailButton" type="button" title="Show daily tank usage" aria-label="Show daily tank usage and tank-level changes"><svg viewBox="0 0 120 76" aria-hidden="true"><path class="oil-dial-background" d="M 15 58 A 45 45 0 0 1 105 58"/><path class="oil-dial-fill" d="M 15 58 A 45 45 0 0 1 105 58" pathLength="100" style="stroke-dasharray:${hasTankEstimate ? Math.max(0, Math.min(100, projection.percent)) : 0} 100"/>${hasTankEstimate ? `<line class="oil-dial-needle" x1="60" y1="58" x2="60" y2="20" transform="rotate(${-90 + Math.max(0, Math.min(100, projection.percent)) * 1.8} 60 58)"/>` : ""}<circle class="oil-dial-center" cx="60" cy="58" r="4"/><text x="3" y="73">E</text><text x="26" y="30">1/4</text><text x="60" y="9" text-anchor="middle">1/2</text><text x="94" y="30" text-anchor="middle">3/4</text><text x="108" y="73">F</text></svg></button></div>${hasTankEstimate ? `<div class="oil-tank-level-track" role="meter" aria-label="Estimated tank level" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(projection.percent)}"><b style="width:${projection.percent}%"></b></div>` : ""}<span class="oil-tank-estimate-note">${projection.status === "ready" ? `25% reserve around ${projection.refillDate || "later"} · last gauge ${projection.age} days ago` : projection.status === "stale-estimate" ? `Estimate from a ${projection.age}-day-old gauge reading. Check the gauge before ordering.` : projection.status === "stale" ? `Last reading ${projection.age} days old; update the gauge for an estimate.` : "Record a tank gauge reading to start estimating."}</span></article></div>
     <article><small>Tank capacity</small><strong>${oilNumber(data.capacity)} gal</strong></article>
     <article><small>Latest delivery</small><strong>${latest ? `${oilNumber(latest.gallons)} gal` : "—"}</strong><span>${latest?.date || "No deliveries"}</span></article>
     <article><small>${year} delivered</small><strong>${oilNumber(yearRows.reduce((n,r)=>n+r.gallons,0))} gal</strong><span>${oilMoney(yearRows.reduce((n,r)=>n+(r.amount ?? r.gallons*r.price),0))}</span></article>
@@ -360,6 +439,8 @@ function renderHomeHeatingOil() {
       if (displayRows[index]) tr.cells[0].textContent = `${displayRows[index].date} ${displayRows[index].time || ""}`.trim();
     });
   }
+  root.querySelector("#oilTankDetailButton")?.addEventListener("click", openOilDailyUsageDialog);
+  root.querySelector("#oilTankPercentButton")?.addEventListener("click", openOilDailyUsageDialog);
   root.querySelectorAll("[data-oil-tab]").forEach(button => button.addEventListener("click", () => { oilTab = button.dataset.oilTab; oilEditingId = ""; renderHomeHeatingOil(); if (oilTab === "prices") checkOilRegionalPrice(); if (oilTab === "priceHistory") checkOilPriceHistory(); }));
   root.querySelector("#oilCheckPrice")?.addEventListener("click", () => checkOilRegionalPrice(true));
   root.querySelector("#oilRefreshHistory")?.addEventListener("click", () => checkOilPriceHistory(true));
@@ -386,6 +467,7 @@ function renderHomeHeatingOil() {
   root.querySelectorAll(".oil-edit-reading").forEach(button => button.addEventListener("click", () => { oilEditingReadingId = button.dataset.id; renderHomeHeatingOil(); root.querySelector("#oilReadingForm [name='date']")?.focus(); }));
   root.querySelector("#oilCancelReading")?.addEventListener("click", () => { oilEditingReadingId = ""; renderHomeHeatingOil(); });
   root.querySelector("#oilReadingForm")?.addEventListener("submit", event => { event.preventDefault(); if (!ensureCurrentUser("save a tank reading")) return; const form = event.currentTarget; const record = { id: oilEditingReadingId || crypto.randomUUID(), date: form.elements.date.value, time: form.elements.time.value, percent: Number(form.elements.percent.value), note: form.elements.note.value.trim() }; if (oilEditingReadingId) { const index = data.readings.findIndex(item => item.id === oilEditingReadingId); if (index >= 0) data.readings[index] = record; } else data.readings.push(record); oilEditingReadingId = ""; saveState(); renderHomeHeatingOil(); });
+  if (document.querySelector("#homeHeatingOilDialog")?.open) oilLoadDailyWeather();
 }
 
 function renderOilEditor() {
@@ -396,5 +478,13 @@ function renderOilEditor() {
   target.querySelector("#oilDeliveryForm").addEventListener("submit", event => { event.preventDefault(); if (!ensureCurrentUser("save an oil delivery")) return; const form = event.currentTarget, e = form.elements; const record = normalizeHomeHeatingOil({ deliveries: [{ id: oilEditingId === "new" ? crypto.randomUUID() : oilEditingId, date: e.date.value, gallons: e.gallons.value, price: e.price.value, amount: e.amount.value, company: e.company.value, paidBy: e.paidBy.value, levelNote: e.levelNote.value, notes: e.notes.value }] }).deliveries[0]; if (!record) return; const data = oilData(); if (oilEditingId === "new") data.deliveries.push(record); else { const i = data.deliveries.findIndex(row => row.id === oilEditingId); if (i >= 0) data.deliveries[i] = record; } oilEditingId = ""; saveState(); renderHomeHeatingOil(); });
 }
 
-document.querySelector("#homeHeatingOilBtn")?.addEventListener("click", () => { if (!isAdminClient()) return; oilTab = "overview"; renderHomeHeatingOil(); document.querySelector("#homeHeatingOilDialog").showModal(); });
+document.querySelector("#homeHeatingOilBtn")?.addEventListener("click", () => { if (!isAdminClient()) return; oilTab = "overview"; renderHomeHeatingOil(); document.querySelector("#homeHeatingOilDialog").showModal(); oilLoadDailyWeather(); });
 document.querySelector("#closeHomeHeatingOilDialog")?.addEventListener("click", () => document.querySelector("#homeHeatingOilDialog").close());
+let oilLastDisplayedDate = oilIsoToday();
+setInterval(() => {
+  const currentDate = oilIsoToday();
+  if (currentDate === oilLastDisplayedDate) return;
+  oilLastDisplayedDate = currentDate;
+  if (document.querySelector("#homeHeatingOilDialog")?.open) { renderHomeHeatingOil(); oilLoadDailyWeather(true); }
+  if (document.querySelector("#oilDailyUsageDialog")?.open) renderOilDailyUsageDialog();
+}, 60000);

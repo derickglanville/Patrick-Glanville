@@ -140,6 +140,11 @@ html[data-theme="dark"] .oil-tank-level-track b { background: #59c998; }
 html[data-theme="dark"] .oil-dial-background { stroke: #344a60; }
 html[data-theme="dark"] .oil-dial-fill { stroke: #59c998; }
 html[data-theme="dark"] .oil-tank-dial text { fill: #d6e7f2; }
+html[data-theme="dark"] .oil-kpis article .oil-tank-percent-button strong { color: #e9f4ff; }
+html[data-theme="dark"] #oilDailyUsageDialog { background: #14283d; color: #e8f3ff; border-color: #52718e; }
+html[data-theme="dark"] .oil-daily-summary div { background: #203b55; border-color: #52718e; }
+html[data-theme="dark"] .oil-daily-summary strong { color: #e8f3ff; }
+html[data-theme="dark"] .oil-daily-head p, html[data-theme="dark"] .oil-daily-explain { color: #b9cede; }
 
 /* Phone and tablet bill browser. */
 html[data-theme="dark"] :where(.mobile-bill-navigator, .mobile-bill-grid-head,
