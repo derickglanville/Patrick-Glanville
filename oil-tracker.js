@@ -411,6 +411,7 @@ async function oilSaveTankReading(form, editingId = "") {
   button.disabled = true;
   button.textContent = "Saving…";
   if (status) { status.textContent = "Saving to Firebase…"; status.className = "oil-reading-save-status"; }
+  let cloudSaved = false;
   try {
     if (!supabaseEnabled || !supabaseClient || activeClientId !== "admin") throw new Error("Admin Firebase is not connected. Your entry remains in the form; reconnect and try again.");
     const clientId = activeClientId;
@@ -433,6 +434,7 @@ async function oilSaveTankReading(form, editingId = "") {
       else mergedReadings[index] = record;
       transaction.update(docRef, { "state.homeHeatingOil.readings": mergedReadings, "state.lastSavedAt": savedAt, updated_at: savedAt });
     });
+    cloudSaved = true;
     if (activeClientId !== clientId) return;
     oilData().readings = mergedReadings;
     state.lastSavedAt = savedAt;
@@ -443,7 +445,7 @@ async function oilSaveTankReading(form, editingId = "") {
     oilReadingSaveStatus = { kind: "success", text: `Saved to Firebase: ${record.date} at ${record.time}. ${mergedReadings.length} reading${mergedReadings.length === 1 ? "" : "s"} retained.` };
     renderHomeHeatingOil();
   } catch (error) {
-    oilReadingSaveStatus = { kind: "error", text: `Not saved to Firebase: ${error.message || error}` };
+    oilReadingSaveStatus = { kind: "error", text: `${cloudSaved ? "Saved to Firebase, but this device could not finish updating: " : "Not saved to Firebase: "}${error.message || error}` };
     if (status) { status.textContent = oilReadingSaveStatus.text; status.className = "oil-reading-save-status is-error"; }
     button.disabled = false;
     button.textContent = editingId ? "Update Reading" : "Save Reading";
