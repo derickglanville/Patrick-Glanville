@@ -145,6 +145,8 @@ html[data-theme="dark"] #oilDailyUsageDialog { background: #14283d; color: #e8f3
 html[data-theme="dark"] .oil-daily-summary div { background: #203b55; border-color: #52718e; }
 html[data-theme="dark"] .oil-daily-summary strong { color: #e8f3ff; }
 html[data-theme="dark"] .oil-daily-head p, html[data-theme="dark"] .oil-daily-explain { color: #b9cede; }
+html[data-theme="dark"] .oil-reading-save-status.is-success { color: #78ddb0; }
+html[data-theme="dark"] .oil-reading-save-status.is-error { color: #ff9999; }
 
 /* Phone and tablet bill browser. */
 html[data-theme="dark"] :where(.mobile-bill-navigator, .mobile-bill-grid-head,

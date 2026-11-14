@@ -17,6 +17,7 @@ let oilRegionalPrice = { status: "idle", price: null, date: "", checkedAt: 0, er
 let oilPriceHistory = { status: "idle", rows: [], checkedAt: 0, error: "" };
 let oilHistoryRange = "month";
 let oilHistorySelectedDate = "";
+let oilReadingSaveStatus = { kind: "", text: "" };
 const OIL_DAILY_WEATHER_SOURCE = "https://data.rcc-acis.org/StnData";
 let oilDailyWeather = { status: "idle", rows: new Map(), checkedAt: 0, start: "", error: "" };
 
@@ -400,6 +401,55 @@ function openOilDailyUsageDialog() {
   oilLoadDailyWeather();
 }
 
+async function oilSaveTankReading(form, editingId = "") {
+  if (!ensureCurrentUser("save a tank reading")) return;
+  const button = form.querySelector('button[type="submit"]');
+  const status = document.querySelector("#oilReadingSaveStatus");
+  const record = { id: editingId || crypto.randomUUID(), date: form.elements.date.value, time: form.elements.time.value,
+    percent: Number(form.elements.percent.value), note: form.elements.note.value.trim() };
+  if (!record.date || !/^\d{2}:\d{2}$/.test(record.time) || !Number.isFinite(record.percent)) return;
+  button.disabled = true;
+  button.textContent = "Saving…";
+  if (status) { status.textContent = "Saving to Firebase…"; status.className = "oil-reading-save-status"; }
+  try {
+    if (!supabaseEnabled || !supabaseClient || activeClientId !== "admin") throw new Error("Admin Firebase is not connected. Your entry remains in the form; reconnect and try again.");
+    const clientId = activeClientId;
+    const priorBaseline = remoteUpdatedAt || "";
+    const docRef = supabaseClient.doc(supabaseClient.db, SUPABASE_TABLE, getSupabaseStateId());
+    const savedAt = new Date().toISOString();
+    let mergedReadings = [], liveBaseline = "";
+    await supabaseClient.runTransaction(supabaseClient.db, async transaction => {
+      const snapshot = await transaction.get(docRef);
+      if (!snapshot.exists()) throw new Error("Admin Firebase record is missing. No reading was saved.");
+      const live = snapshot.data() || {};
+      liveBaseline = String(live.updated_at || "");
+      const readings = Array.isArray(live.state?.homeHeatingOil?.readings) ? live.state.homeHeatingOil.readings : [];
+      mergedReadings = readings.map(item => ({ ...item }));
+      const sameTime = mergedReadings.find(item => item.date === record.date && item.time === record.time && item.id !== record.id);
+      if (sameTime) throw new Error(`A reading for ${record.date} at ${record.time} already exists. Select Edit on that row instead.`);
+      const index = mergedReadings.findIndex(item => item.id === record.id);
+      if (editingId && index < 0) throw new Error("This reading is no longer in Firebase. Refresh the page and try again.");
+      if (index < 0) mergedReadings.push(record);
+      else mergedReadings[index] = record;
+      transaction.update(docRef, { "state.homeHeatingOil.readings": mergedReadings, "state.lastSavedAt": savedAt, updated_at: savedAt });
+    });
+    if (activeClientId !== clientId) return;
+    oilData().readings = mergedReadings;
+    state.lastSavedAt = savedAt;
+    if (!pendingLocalSharedSaveAt && !sharedSaveInFlight && priorBaseline === liveBaseline) cacheRemoteUpdatedAt(savedAt);
+    if (getStorageKey()) tryWriteLocalState(getStorageKey());
+    queueJsonBackupSave("tank reading saved");
+    oilEditingReadingId = "";
+    oilReadingSaveStatus = { kind: "success", text: `Saved to Firebase: ${record.date} at ${record.time}. ${mergedReadings.length} reading${mergedReadings.length === 1 ? "" : "s"} retained.` };
+    renderHomeHeatingOil();
+  } catch (error) {
+    oilReadingSaveStatus = { kind: "error", text: `Not saved to Firebase: ${error.message || error}` };
+    if (status) { status.textContent = oilReadingSaveStatus.text; status.className = "oil-reading-save-status is-error"; }
+    button.disabled = false;
+    button.textContent = editingId ? "Update Reading" : "Save Reading";
+  }
+}
+
 function renderHomeHeatingOil() {
   const root = document.querySelector("#homeHeatingOilBody"); if (!root) return;
   const data = oilData(), rows = [...data.deliveries].sort((a, b) => b.date.localeCompare(a.date));
@@ -425,7 +475,7 @@ function renderHomeHeatingOil() {
   ${oilTab === "priceHistory" ? oilPriceHistoryView() : ""}
   ${oilTab === "investment" ? oilInvestmentView(data) : ""}
   ${oilTab === "deliveries" ? `<div class="oil-toolbar"><label>Search deliveries<input id="oilSearch" type="search" value="${escapeAttribute(oilSearch)}" placeholder="Company, payer, notes, date"></label><button id="oilAddDelivery" type="button">Add Delivery</button></div><div id="oilEditor"></div><div class="oil-table-wrap"><table class="oil-table"><thead><tr><th>Date</th><th>Gallons</th><th>Price / gal</th><th>Amount</th><th>Company</th><th>Paid by</th><th>Gauge note</th><th>Notes</th><th>Actions</th></tr></thead><tbody>${rows.filter(row => `${row.date} ${row.company} ${row.paidBy} ${row.notes}`.toLowerCase().includes(oilSearch.toLowerCase())).map(row => `<tr><td>${escapeHtml(row.date)}</td><td>${oilNumber(row.gallons,1)}</td><td>${oilMoney(row.price)}</td><td>${row.amount == null ? "—" : oilMoney(row.amount)}</td><td>${escapeHtml(row.company)}</td><td>${escapeHtml(row.paidBy)}</td><td>${escapeHtml(row.levelNote)}</td><td>${escapeHtml(row.notes)}</td><td><button type="button" class="ghost oil-edit" data-id="${escapeAttribute(row.id)}">Edit</button><button type="button" class="ghost oil-delete" data-id="${escapeAttribute(row.id)}">Delete</button></td></tr>`).join("")}</tbody></table></div><p class="oil-footnote">Source: Home Heating Oil.xlsx. Blank invoice amounts stay blank; historic gauge notes are preserved as written where recognizable.</p>` : ""}
-  ${oilTab === "readings" ? `<section class="oil-card"><h3>${editingReading ? "Update tank gauge" : "Record tank gauge"}</h3><p>Read the physical gauge and enter its percentage. A daily check on this computer uses the newest reading when it is at most 90 days old. At or below 1/2, 1/4, and 1/8 tank, it sends an email and attempts a Verizon text once per level until the next delivery. Check the physical gauge before ordering; Verizon's legacy email-to-text delivery is not guaranteed.</p><form id="oilReadingForm" class="oil-reading-form"><label>Date<input name="date" type="date" value="${editingReading?.date || oilIsoToday()}" max="${oilIsoToday()}" required></label><label>Tank level<select name="percent">${[100,87.5,75,62.5,50,37.5,25,12.5,0].map(p => `<option value="${p}"${editingReading?.percent === p ? " selected" : ""}>${p}% · ${oilNumber(data.capacity*p/100)} gal</option>`).join("")}</select></label><label>Note<input name="note" value="${escapeAttribute(editingReading?.note || "")}" placeholder="Gauge check or service note"></label><button type="submit">${editingReading ? "Update Reading" : "Save Reading"}</button>${editingReading ? '<button type="button" id="oilCancelReading" class="ghost">Cancel</button>' : ""}</form></section><div class="oil-table-wrap"><table class="oil-table"><thead><tr><th>Date</th><th>Gauge</th><th>Approx. gallons</th><th>Note</th><th>Actions</th></tr></thead><tbody>${[...data.readings].sort((a,b)=>b.date.localeCompare(a.date)).map(row=>`<tr><td>${row.date}</td><td>${row.percent}%</td><td>${oilNumber(data.capacity*row.percent/100)}</td><td>${escapeHtml(row.note)}</td><td><button type="button" class="ghost oil-edit-reading" data-id="${escapeAttribute(row.id)}">Edit</button><button type="button" class="ghost oil-delete-reading" data-id="${escapeAttribute(row.id)}">Delete</button></td></tr>`).join("")}</tbody></table></div>` : ""}
+  ${oilTab === "readings" ? `<section class="oil-card"><h3>${editingReading ? "Update tank gauge" : "Record tank gauge"}</h3><p>Read the physical gauge and enter its percentage. A daily check on this computer uses the newest reading when it is at most 90 days old. At or below 1/2, 1/4, and 1/8 tank, it sends an email and attempts a Verizon text once per level until the next delivery. Check the physical gauge before ordering; Verizon's legacy email-to-text delivery is not guaranteed.</p><form id="oilReadingForm" class="oil-reading-form"><label>Date<input name="date" type="date" value="${editingReading?.date || oilIsoToday()}" max="${oilIsoToday()}" required></label><label>Tank level<select name="percent">${[100,87.5,75,62.5,50,37.5,25,12.5,0].map(p => `<option value="${p}"${editingReading?.percent === p ? " selected" : ""}>${p}% · ${oilNumber(data.capacity*p/100)} gal</option>`).join("")}</select></label><label>Note<input name="note" value="${escapeAttribute(editingReading?.note || "")}" placeholder="Gauge check or service note"></label><button type="submit">${editingReading ? "Update Reading" : "Save Reading"}</button>${editingReading ? '<button type="button" id="oilCancelReading" class="ghost">Cancel</button>' : ""}</form><p id="oilReadingSaveStatus" class="oil-reading-save-status ${oilReadingSaveStatus.kind === "error" ? "is-error" : oilReadingSaveStatus.kind === "success" ? "is-success" : ""}" role="status">${escapeHtml(oilReadingSaveStatus.text)}</p></section><div class="oil-table-wrap"><table class="oil-table"><thead><tr><th>Date</th><th>Gauge</th><th>Approx. gallons</th><th>Note</th><th>Actions</th></tr></thead><tbody>${[...data.readings].sort((a,b)=>b.date.localeCompare(a.date)).map(row=>`<tr><td>${row.date}</td><td>${row.percent}%</td><td>${oilNumber(data.capacity*row.percent/100)}</td><td>${escapeHtml(row.note)}</td><td><button type="button" class="ghost oil-edit-reading" data-id="${escapeAttribute(row.id)}">Edit</button><button type="button" class="ghost oil-delete-reading" data-id="${escapeAttribute(row.id)}">Delete</button></td></tr>`).join("")}</tbody></table></div>` : ""}
   ${oilTab === "savings" ? `<div class="oil-savings"><article><h3>Set a comfortable schedule</h3><p>Lower the thermostat when asleep or away, then restore comfort before the home is occupied. Avoid turning it down so far that pipes could freeze.</p></article><article><h3>Service the heating system</h3><p>Schedule annual burner/boiler service, replace filters as recommended, and address short cycling or unusual shutdowns promptly.</p></article><article><h3>Keep heat inside</h3><p>Seal drafts around doors and windows, insulate accessible hot-water pipes, and check attic insulation and weatherstripping.</p></article><article><h3>Compare delivery costs</h3><p>Track dollars per gallon and supplier differences here. Confirm total invoice charges before assuming the quoted unit price is the full cost.</p></article></div>` : ""}`;
   const annualChart = root.querySelector(".oil-annual-bars");
   if (annualChart) annualChart.scrollTop = annualChart.scrollHeight;
@@ -441,7 +491,7 @@ function renderHomeHeatingOil() {
   }
   root.querySelector("#oilTankDetailButton")?.addEventListener("click", openOilDailyUsageDialog);
   root.querySelector("#oilTankPercentButton")?.addEventListener("click", openOilDailyUsageDialog);
-  root.querySelectorAll("[data-oil-tab]").forEach(button => button.addEventListener("click", () => { oilTab = button.dataset.oilTab; oilEditingId = ""; renderHomeHeatingOil(); if (oilTab === "prices") checkOilRegionalPrice(); if (oilTab === "priceHistory") checkOilPriceHistory(); }));
+  root.querySelectorAll("[data-oil-tab]").forEach(button => button.addEventListener("click", () => { oilTab = button.dataset.oilTab; oilEditingId = ""; oilReadingSaveStatus = { kind: "", text: "" }; renderHomeHeatingOil(); if (oilTab === "prices") checkOilRegionalPrice(); if (oilTab === "priceHistory") checkOilPriceHistory(); }));
   root.querySelector("#oilCheckPrice")?.addEventListener("click", () => checkOilRegionalPrice(true));
   root.querySelector("#oilRefreshHistory")?.addEventListener("click", () => checkOilPriceHistory(true));
   root.querySelectorAll("[data-oil-range]").forEach(button => button.addEventListener("click", () => { oilHistoryRange = button.dataset.oilRange; oilHistorySelectedDate = ""; renderHomeHeatingOil(); }));
@@ -464,9 +514,9 @@ function renderHomeHeatingOil() {
   root.querySelectorAll(".oil-edit").forEach(button => button.addEventListener("click", () => { oilEditingId = button.dataset.id; renderOilEditor(); }));
   root.querySelectorAll(".oil-delete").forEach(button => button.addEventListener("click", () => { const row = data.deliveries.find(item => item.id === button.dataset.id); if (!row || !ensureCurrentUser("delete an oil delivery") || !confirm(`Delete the ${row.date} oil delivery?`)) return; data.deliveries = data.deliveries.filter(item => item.id !== row.id); saveState(); renderHomeHeatingOil(); }));
   root.querySelectorAll(".oil-delete-reading").forEach(button => button.addEventListener("click", () => { if (!ensureCurrentUser("delete a tank reading") || !confirm("Delete this tank reading?")) return; data.readings = data.readings.filter(item => item.id !== button.dataset.id); saveState(); renderHomeHeatingOil(); }));
-  root.querySelectorAll(".oil-edit-reading").forEach(button => button.addEventListener("click", () => { oilEditingReadingId = button.dataset.id; renderHomeHeatingOil(); root.querySelector("#oilReadingForm [name='date']")?.focus(); }));
+  root.querySelectorAll(".oil-edit-reading").forEach(button => button.addEventListener("click", () => { oilEditingReadingId = button.dataset.id; oilReadingSaveStatus = { kind: "", text: "" }; renderHomeHeatingOil(); root.querySelector("#oilReadingForm [name='date']")?.focus(); }));
   root.querySelector("#oilCancelReading")?.addEventListener("click", () => { oilEditingReadingId = ""; renderHomeHeatingOil(); });
-  root.querySelector("#oilReadingForm")?.addEventListener("submit", event => { event.preventDefault(); if (!ensureCurrentUser("save a tank reading")) return; const form = event.currentTarget; const record = { id: oilEditingReadingId || crypto.randomUUID(), date: form.elements.date.value, time: form.elements.time.value, percent: Number(form.elements.percent.value), note: form.elements.note.value.trim() }; if (oilEditingReadingId) { const index = data.readings.findIndex(item => item.id === oilEditingReadingId); if (index >= 0) data.readings[index] = record; } else data.readings.push(record); oilEditingReadingId = ""; saveState(); renderHomeHeatingOil(); });
+  root.querySelector("#oilReadingForm")?.addEventListener("submit", event => { event.preventDefault(); oilSaveTankReading(event.currentTarget, oilEditingReadingId); });
   if (document.querySelector("#homeHeatingOilDialog")?.open) oilLoadDailyWeather();
 }
 
