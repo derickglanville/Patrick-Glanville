@@ -143,8 +143,10 @@ html[data-theme="dark"] .oil-tank-dial text { fill: #d6e7f2; }
 html[data-theme="dark"] .oil-tank-trend-baseline { stroke: #45617b; }
 html[data-theme="dark"] .oil-tank-trend-line { stroke: #ffc06b; }
 html[data-theme="dark"] .oil-tank-trend-dot { fill: #ffc06b; }
-html[data-theme="dark"] .oil-kpis article .oil-tank-trend small, html[data-theme="dark"] .oil-tank-trend-empty { color: #f4cd94; }
+html[data-theme="dark"] .oil-tank-trend small, html[data-theme="dark"] .oil-tank-trend-empty { color: #f4cd94; }
 html[data-theme="dark"] .oil-kpis article .oil-tank-percent-button strong { color: #e9f4ff; }
+html[data-theme="dark"] .oil-kpis article .oil-tank-gallons { color: #c5d9e9; }
+html[data-theme="dark"] .oil-daily-trend-panel { background: #203b55; border-color: #52718e; }
 html[data-theme="dark"] #oilDailyUsageDialog { background: #14283d; color: #e8f3ff; border-color: #52718e; }
 html[data-theme="dark"] .oil-daily-summary div { background: #203b55; border-color: #52718e; }
 html[data-theme="dark"] .oil-daily-summary strong { color: #e8f3ff; }
