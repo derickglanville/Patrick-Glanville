@@ -1,6 +1,7 @@
-"""Daily low-oil text check using the Admin tracker in Firebase."""
+"""Daily 1/2, 1/4, and 1/8 tank alerts from the Admin Firebase tracker."""
 import argparse
 import json
+import os
 import smtplib
 import sys
 from datetime import date, datetime, timedelta
@@ -13,7 +14,12 @@ from firestore_report_data import fetch_tracker_state  # noqa: E402
 from send_daily_email import resolve_mail_credentials  # noqa: E402
 
 CHECKPOINT = ROOT / "Email" / "home-heating-oil-sms-state.json"
-RECIPIENT = "9146722393@vtext.com"
+CAPACITY = 275.0
+SMS_RECIPIENT = "9146722393@vtext.com"
+EMAIL_RECIPIENT = os.environ.get("HOME_OIL_EMAIL_TO", "dglanville@gmail.com").strip()
+# The Verizon gateway is temporary. Set this earlier if it stops delivering sooner.
+SMS_END_DATE = date.fromisoformat(os.environ.get("HOME_OIL_SMS_END_DATE", "2027-03-31"))
+THRESHOLDS = ((12.5, "1/8"), (25.0, "1/4"), (50.0, "1/2"))
 
 
 def seasonal_rates(rows):
@@ -44,10 +50,10 @@ def forecast(data, today):
     try:
         start = date.fromisoformat(reading["date"])
         age = (today - start).days
-        level = float(reading["percent"]) * 2.7
+        level = CAPACITY * float(reading["percent"]) / 100
     except (ValueError, TypeError, KeyError):
         return None
-    if not (0 <= age <= 30 and 0 <= level <= 270):
+    if not (0 <= age <= 90 and 0 <= level <= CAPACITY):
         return None
     rates = seasonal_rates(data.get("deliveries", []))
     if not any(rates):
@@ -56,27 +62,27 @@ def forecast(data, today):
     day = start
     while day < today:
         day += timedelta(days=1)
-        level = min(270, level + sum(float(r.get("gallons") or 0) for r in deliveries if r.get("date") == day.isoformat()))
+        level = min(CAPACITY, level + sum(float(r.get("gallons") or 0) for r in deliveries if r.get("date") == day.isoformat()))
         if day < today:
             level -= rates[day.month - 1]
-    current = max(0, min(270, level))
-    count = 0
-    while level > 67.5 and count < 366:
-        day += timedelta(days=1)
-        level -= rates[day.month - 1]
-        count += 1
-    return {"gallons": current, "days": count, "refill_date": day.isoformat(), "reading_id": reading.get("id", reading["date"])}
+    current = max(0, min(CAPACITY, level))
+    latest_delivery = max((str(item.get("date")) for item in deliveries if str(item.get("date", "")) <= today.isoformat()), default="none")
+    return {"gallons": current, "percent": current / CAPACITY * 100, "cycle": latest_delivery, "reading_date": reading["date"], "age": age}
 
 
-def send_text(message):
+def reached_threshold(outlook):
+    return next(((percent, label) for percent, label in THRESHOLDS if outlook["percent"] <= percent), None)
+
+
+def send_message(recipient, subject, message):
     sender, password = resolve_mail_credentials()
     if not password:
         raise RuntimeError("Gmail app password is not configured")
     mail = MIMEText(message, "plain", "utf-8")
-    mail["From"], mail["To"], mail["Subject"] = sender, RECIPIENT, "Heating oil refill reminder"
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+    mail["From"], mail["To"], mail["Subject"] = sender, recipient, subject
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as server:
         server.login(sender, password)
-        server.sendmail(sender, [RECIPIENT], mail.as_string())
+        server.sendmail(sender, [recipient], mail.as_string())
 
 
 def run(today, dry_run=False, state_file=""):
@@ -87,30 +93,42 @@ def run(today, dry_run=False, state_file=""):
     state = payload.get("state", payload)
     outlook = forecast(state.get("homeHeatingOil") or {}, today)
     if not outlook:
-        print("No recent tank reading or usable history; no oil text sent.")
+        print("No tank reading within 90 days or usable history; no oil alert sent.")
         return
-    days = outlook["days"]
-    window = "low" if days <= 0 else "14" if days <= 14 else "none"
-    if window == "none":
-        print(f"Oil above alert window: about {outlook['gallons']:.0f} gallons, {days} days to 25%.")
+    threshold = reached_threshold(outlook)
+    if not threshold:
+        print(f"Oil above 1/2 tank: about {outlook['gallons']:.0f} of {CAPACITY:.0f} gallons.")
         return
-    key = f"{outlook['reading_id']}:{window}"
+    _, label = threshold
+    key = f"{outlook['cycle']}:{label}"
     try:
         sent = json.loads(CHECKPOINT.read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError):
         sent = {}
-    if sent.get(key):
-        print("Oil alert already sent for this reading/window.")
-        return
-    message = f"3G Oil: ~{outlook['gallons']:.0f}/270 gal. 25% reserve ~{outlook['refill_date']}. Check gauge and order oil."
+    sent_entry = sent.get(key) if isinstance(sent.get(key), dict) else {}
+    message = (f"Heating oil is estimated at {outlook['gallons']:.0f} of {CAPACITY:.0f} gallons "
+               f"({outlook['percent']:.0f}%), at or below {label} tank. "
+               f"Last gauge reading: {outlook['reading_date']} ({outlook['age']} days ago). "
+               "Check the physical gauge before ordering oil.")
     print(message)
-    if dry_run:
-        print("Dry run: no text sent.")
-        return
-    send_text(message)
-    sent[key] = datetime.now().isoformat()
-    CHECKPOINT.write_text(json.dumps(sent, indent=2), encoding="utf-8")
-    print("Oil reminder sent.")
+    channels = [("email", EMAIL_RECIPIENT)]
+    if today <= SMS_END_DATE:
+        channels.append(("text", SMS_RECIPIENT))
+    for channel, recipient in channels:
+        if not recipient or sent_entry.get(channel):
+            continue
+        if dry_run:
+            print(f"Dry run: would send {channel} to {recipient}.")
+            continue
+        try:
+            send_message(recipient, f"Heating oil at {label} tank", message)
+        except Exception as exc:
+            print(f"Could not send {channel}: {exc}", file=sys.stderr)
+            continue
+        sent_entry[channel] = datetime.now().isoformat()
+        sent[key] = sent_entry
+        CHECKPOINT.write_text(json.dumps(sent, indent=2), encoding="utf-8")
+        print(f"Oil {channel} alert sent.")
 
 
 if __name__ == "__main__":
