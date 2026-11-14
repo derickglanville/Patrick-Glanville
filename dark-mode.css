@@ -135,6 +135,11 @@ html[data-theme="dark"] :where(.oil-table tbody tr:nth-child(even),
   .car-table-wrap tr:nth-child(even), .admin-bill-notes-grid tr:nth-child(even)
 ) { background: #22384f; }
 html[data-theme="dark"] :where(.oil-investment-chart svg) { background: #16283c; }
+html[data-theme="dark"] .oil-tank-level-track { background: #344a60; }
+html[data-theme="dark"] .oil-tank-level-track b { background: #59c998; }
+html[data-theme="dark"] .oil-dial-background { stroke: #344a60; }
+html[data-theme="dark"] .oil-dial-fill { stroke: #59c998; }
+html[data-theme="dark"] .oil-tank-dial text { fill: #d6e7f2; }
 
 /* Phone and tablet bill browser. */
 html[data-theme="dark"] :where(.mobile-bill-navigator, .mobile-bill-grid-head,
