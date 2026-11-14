@@ -9,22 +9,21 @@
 
   const updateControls = () => {
     const dark = root.dataset.theme === "dark";
-    const button = document.querySelector("#themeToggleBtn");
-    if (button) {
+    document.querySelectorAll("#themeToggleBtn, [data-theme-toggle]").forEach(button => {
       button.textContent = dark ? "Light mode" : "Dark mode";
       button.setAttribute("aria-label", dark ? "Turn off dark mode" : "Turn on dark mode");
       button.setAttribute("aria-pressed", String(dark));
       button.title = dark ? "Switch to the light color scheme" : "Switch to the dark color scheme";
-    }
+    });
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#0b1422" : "#123b5d");
   };
 
   document.addEventListener("DOMContentLoaded", () => {
     updateControls();
-    document.querySelector("#themeToggleBtn")?.addEventListener("click", () => {
+    document.querySelectorAll("#themeToggleBtn, [data-theme-toggle]").forEach(button => button.addEventListener("click", () => {
       root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
       try { localStorage.setItem(storageKey, root.dataset.theme); } catch { /* Keep the choice for this page. */ }
       updateControls();
-    });
+    }));
   });
 })();

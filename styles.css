@@ -6267,6 +6267,7 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .oil-kpis { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 14px; }
 .oil-refill-group { display: flex; flex-direction: column; min-width: 0; gap: 5px; }
 .oil-refill-group article { flex: 1; }
+.oil-dialog-actions { display: flex; align-items: center; gap: 8px; }
 .oil-tank-card-main { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .oil-tank-card-main > div:first-child { min-width: 0; }
 .oil-tank-dial { flex: 0 0 96px; width: 96px; }
