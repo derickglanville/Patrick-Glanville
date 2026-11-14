@@ -11,5 +11,5 @@ if (-not (Test-Path -LiteralPath $runner)) {
 $action = New-ScheduledTaskAction -Execute $runner
 $trigger = New-ScheduledTaskTrigger -Daily -At 9:00AM
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 5)
-Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -Force | Out-Null
-Write-Host "Installed $taskName for 9:00 AM America/New_York."
+Register-ScheduledTask -TaskName $taskName -Description "Admin Notes & Reminders: Gmail before due dates and Verizon text on due dates until shutdown." -Action $action -Trigger $trigger -Settings $settings -Force | Out-Null
+Write-Host "Installed $taskName for 9:00 AM local time: Gmail before due dates, Verizon text until shutdown."

@@ -52,6 +52,18 @@ vm.runInContext([
   const restored = await c.hydrateFirebaseArchivedState(payload.main, 'admin-glanville');
   assert.deepEqual(restored, state);
 
+  // A rejected second save must not overwrite a published archive version.
+  const nextPayload = c.buildFirebaseSavePayload('2026-10-01T21:01:00.000Z');
+  await c.saveFirebaseArchiveDocuments(nextPayload.main.id, nextPayload.archiveDocuments);
+  assert.deepEqual(await c.hydrateFirebaseArchivedState(payload.main, 'admin-glanville'), state);
+
+  // Existing Firebase documents still load through their older shared names.
+  for (const archive of payload.archiveDocuments) {
+    archives.set(`tracker_state/admin-glanville/archives/${archive.field}-${archive.index}`, structuredClone(archive));
+    archives.delete(`tracker_state/admin-glanville/archives/${payload.main.archive_version}-${archive.field}-${archive.index}`);
+  }
+  assert.deepEqual(await c.hydrateFirebaseArchivedState(payload.main, 'admin-glanville'), state);
+
   archives.delete('tracker_state/admin-glanville/archives/history-0');
   await assert.rejects(c.hydrateFirebaseArchivedState(payload.main, 'admin-glanville'), /archive is incomplete/);
   console.log('PASS: Admin Firebase history is split into bounded versioned documents and incomplete archives never replace local state.');
