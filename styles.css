@@ -6278,6 +6278,11 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .oil-tank-dial { padding: 0; border: 0; background: transparent; cursor: pointer; }
 .oil-tank-dial:focus-visible { outline: 3px solid #1b6fa6; border-radius: 8px; }
 .oil-tank-dial svg { display: block; width: 100%; height: auto; overflow: visible; }
+.oil-tank-icon-body { fill: #dce8ef; stroke: #315671; stroke-width: 3; }
+.oil-tank-icon-top, .oil-tank-icon-pipe, .oil-tank-icon-legs { fill: none; stroke: #315671; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.oil-tank-icon-gauge { fill: #fff; stroke: #315671; stroke-width: 3; }
+.oil-tank-icon-label { fill: #163d59; font-size: 15px; font-weight: 900; }
+.oil-tank-icon-sub { fill: #315671; font-size: 8px; font-weight: 800; letter-spacing: 1px; }
 .oil-tank-dial path { fill: none; stroke-width: 8; stroke-linecap: round; }
 .oil-dial-background { stroke: #d7e2eb; }
 .oil-dial-fill { stroke: #23835d; }
@@ -6301,6 +6306,25 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .oil-reading-save-status.is-success { color: #146b48; }
 .oil-reading-save-status.is-error { color: #a82929; }
 #oilDailyUsageDialog { width: min(1050px, 96vw); max-height: 90vh; border: 1px solid #aac3d7; border-radius: 14px; padding: 20px; color: #203449; background: #f9fcff; }
+#oilProjectionChartDialog { width: min(1280px, 98vw); max-height: 94vh; overflow: auto; border: 1px solid #aac3d7; border-radius: 14px; padding: 20px; color: #203449; background: #f9fcff; }
+.oil-chart-open-button { width: 100%; margin: 6px 0 12px; padding: 10px 14px; border: 1px solid #3786bd; border-radius: 8px; background: #dceffc; color: #124b70; font-weight: 800; cursor: pointer; }
+.oil-projection-summary { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin: 14px 0; }
+.oil-projection-summary > div { padding: 10px; border: 1px solid #bbd2e1; border-radius: 8px; background: #e8f2f8; }
+.oil-projection-summary small, .oil-projection-summary strong, .oil-projection-summary span { display: block; }
+.oil-projection-summary strong { margin: 3px 0; color: #123d5c; }
+.oil-projection-chart-wrap { overflow-x: auto; border: 1px solid #bbd2e1; border-radius: 10px; background: #fff; }
+.oil-projection-chart { display: block; width: 100%; min-width: 660px; height: auto; touch-action: none; }
+.oil-projection-chart text { fill: #35536a; font-size: 13px; font-weight: 700; }
+.oil-chart-low-zone { fill: #fbe2e7; }
+.oil-chart-reference { stroke: #8496a5; stroke-width: 1.5; stroke-dasharray: 7 5; }
+.oil-chart-axis { stroke: #385a70; stroke-width: 2; }
+.oil-chart-grid { stroke: #d5e2ed; stroke-width: 1; }
+.oil-chart-projection-line { fill: none; stroke: #e28122; stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
+.oil-chart-projection-dot { fill: #fff; stroke: #e28122; stroke-width: 2.5; }
+.oil-chart-actual-dot { fill: #fff; stroke: #1668a0; stroke-width: 4; }
+.oil-chart-cursor { stroke: #1e628e; stroke-width: 2; stroke-dasharray: 5 4; pointer-events: none; }
+.oil-chart-readout { padding: 9px 12px; border-radius: 7px; background: #e0f0fb; color: #124b70; font-weight: 800; }
+.oil-chart-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 10px 2px; color: #385a70; font-size: .8rem; }
 .oil-daily-head { display: flex; justify-content: space-between; gap: 15px; align-items: flex-start; }
 .oil-daily-head h2 { margin: 0; font-size: 1.3rem; }
 .oil-daily-head p, .oil-daily-explain { color: #526d82; font-size: .84rem; line-height: 1.4; }
@@ -6312,7 +6336,7 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .oil-daily-table th { position: sticky; top: 0; z-index: 1; white-space: nowrap; }
 .oil-daily-table td { white-space: nowrap; }
 .oil-daily-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; font-size: .84rem; }
-@media (max-width: 600px) { .oil-daily-summary { grid-template-columns: 1fr; } #oilDailyUsageDialog { padding: 12px; } }
+@media (max-width: 600px) { .oil-daily-summary, .oil-projection-summary { grid-template-columns: 1fr; } #oilDailyUsageDialog, #oilProjectionChartDialog { padding: 12px; } }
 .oil-remaining-label { display: block; padding: 5px 8px; border: 1px solid #bd9017; border-radius: 7px; background: #f4d45f; color: #4b3600; font-size: .79rem; font-weight: 900; text-align: center; }
 .oil-kpis article, .oil-card, .oil-savings article { border: 1px solid #ccdce9; border-radius: 11px; background: #f9fcff; padding: 13px 15px; }
 .oil-kpis article small, .oil-kpis article span { display: block; color: #60768a; font-size: .78rem; }

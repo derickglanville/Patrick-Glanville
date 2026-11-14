@@ -399,6 +399,58 @@ function oilEfficiencyView(deliveries) {
   </div>`;
 }
 
+function oilProjectionChartPoints(data, projection) {
+  if (!Number.isFinite(projection.percent)) return [];
+  const points = [{ date: oilIsoToday(), gallons: projection.current, actual: true }];
+  const day = oilDate(oilIsoToday());
+  for (let index = 1, gallons = projection.current; index <= 30; index++) {
+    gallons = Math.max(0, gallons - Math.max(0, projection.rates[day.getMonth()] || 0));
+    day.setDate(day.getDate() + 1);
+    points.push({ date: getLocalIsoDate(day), gallons, actual: false });
+  }
+  return points;
+}
+
+function renderOilProjectionChart() {
+  const dialog = document.querySelector("#oilProjectionChartDialog");
+  if (!dialog) return;
+  const data = oilData(), projection = oilProjection(data), points = oilProjectionChartPoints(data, projection);
+  if (!points.length) { dialog.innerHTML = `<div class="oil-daily-head"><h2>Tank level projection</h2><button type="button" class="icon-button" id="oilChartClose">×</button></div><p>Record a recent gauge reading and delivery history to see a projection.</p>`; dialog.querySelector("#oilChartClose").onclick = () => dialog.close(); return; }
+  const width = 1040, height = 410, left = 68, right = 90, top = 25, bottom = 60;
+  const plotWidth = width - left - right, plotHeight = height - top - bottom;
+  const x = index => left + index / 30 * plotWidth;
+  const y = gallons => top + (1 - gallons / data.capacity) * plotHeight;
+  const trace = points.map((point, index) => `${index ? "L" : "M"}${x(index).toFixed(1)},${y(point.gallons).toFixed(1)}`).join(" ");
+  const zoneY = y(data.capacity * .25);
+  const threshold = ratio => { const index = points.findIndex(point => point.gallons <= data.capacity * ratio); return index < 0 ? "Beyond 30 days" : `${index} days · ${points[index].date}`; };
+  const display = index => `${points[index].date} · ${oilNumber(points[index].gallons, 1)} gal (${(points[index].gallons / data.capacity * 100).toFixed(1)}%)`;
+  dialog.innerHTML = `<div class="oil-daily-head"><div><h2>Tank level trend · 31-day projection</h2><p>Starts at the latest physical reading and uses historical seasonal usage. Future weather and deliveries may change the result.</p></div><button type="button" class="icon-button" id="oilChartClose" aria-label="Close chart">×</button></div>
+    <div class="oil-projection-summary"><div><small>Estimated now</small><strong>${oilNumber(projection.current, 1)} gal · ${projection.percent.toFixed(1)}%</strong></div><div><small>25% reserve</small><strong>${oilNumber(data.capacity * .25, 1)} gal</strong><span>${threshold(.25)}</span></div><div><small>20% tank level</small><strong>${oilNumber(data.capacity * .2, 1)} gal</strong><span>${threshold(.2)}</span></div></div>
+    <div class="oil-projection-chart-wrap"><svg class="oil-projection-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Projected tank gallons over 31 days, with 25, 50 and 75 percent reference lines">
+      <rect x="${left}" y="${zoneY}" width="${plotWidth}" height="${top + plotHeight - zoneY}" class="oil-chart-low-zone"/>
+      ${[0,.25,.5,.75,1].map(ratio => `<line x1="${left}" x2="${left + plotWidth}" y1="${y(data.capacity * ratio)}" y2="${y(data.capacity * ratio)}" class="${ratio ? "oil-chart-reference" : "oil-chart-axis"}"/><text x="${left - 10}" y="${y(data.capacity * ratio) + 5}" text-anchor="end">${oilNumber(data.capacity * ratio)} gal</text><text x="${left + plotWidth + 10}" y="${y(data.capacity * ratio) + 5}">${ratio * 100}%</text>`).join("")}
+      ${[0,5,10,15,20,25,30].map(index => `<line x1="${x(index)}" x2="${x(index)}" y1="${top}" y2="${top + plotHeight}" class="oil-chart-grid"/><text x="${x(index)}" y="${height - 22}" text-anchor="middle">${points[index].date.slice(5)}</text>`).join("")}
+      <path d="${trace}" class="oil-chart-projection-line"/>
+      ${points.filter((_, index) => index % 3 === 0 || index === 30).map(point => { const index = points.indexOf(point); return `<circle cx="${x(index)}" cy="${y(point.gallons)}" r="4" class="oil-chart-projection-dot"/>`; }).join("")}
+      <circle cx="${x(0)}" cy="${y(points[0].gallons)}" r="7" class="oil-chart-actual-dot"/>
+      <line class="oil-chart-cursor" x1="${x(0)}" x2="${x(0)}" y1="${top}" y2="${top + plotHeight}"/>
+      <rect class="oil-chart-hit" x="${left}" y="${top}" width="${plotWidth}" height="${plotHeight}" fill="transparent"/>
+    </svg></div><div class="oil-chart-readout" id="oilChartReadout" aria-live="polite">${display(0)}</div>
+    <div class="oil-chart-legend"><span>● Current tank estimate</span><span>● Projected tank level</span><span>-- 25%, 50%, 75% reference</span><span>Low fuel zone (≤25%)</span></div>
+    <p class="oil-daily-explain">Touch or move across the chart to inspect a day. This is a projection, not a physical reading. Check the tank gauge before ordering.</p>`;
+  dialog.querySelector("#oilChartClose").onclick = () => dialog.close();
+  const svg = dialog.querySelector(".oil-projection-chart"), cursor = dialog.querySelector(".oil-chart-cursor"), readout = dialog.querySelector("#oilChartReadout");
+  const inspect = event => { const box = svg.getBoundingClientRect(), px = (event.clientX - box.left) / box.width * width; const index = Math.max(0, Math.min(30, Math.round((px - left) / plotWidth * 30))); cursor.setAttribute("x1", x(index)); cursor.setAttribute("x2", x(index)); readout.textContent = display(index); };
+  svg.addEventListener("pointermove", inspect); svg.addEventListener("pointerdown", inspect);
+}
+
+function openOilProjectionChart() {
+  let dialog = document.querySelector("#oilProjectionChartDialog");
+  if (!dialog) { dialog = document.createElement("dialog"); dialog.id = "oilProjectionChartDialog"; document.body.append(dialog); }
+  renderOilProjectionChart();
+  if (!dialog.open) dialog.showModal();
+}
+
 function renderOilDailyUsageDialog() {
   const dialog = document.querySelector("#oilDailyUsageDialog");
   if (!dialog) return;
@@ -408,11 +460,12 @@ function renderOilDailyUsageDialog() {
   const weatherDays = daily.filter(row => row.source === "observed weather").length;
   dialog.innerHTML = `<div class="oil-daily-head"><div><h2>Daily tank-level estimate</h2><p>Starting from the latest physical gauge reading, ${projection.latest?.date || "not recorded"}${projection.latest?.time ? ` at ${projection.latest.time}` : ""}.</p></div><button type="button" class="icon-button" id="oilDailyClose" aria-label="Close daily usage">×</button></div>
     ${projection.status === "missing" || projection.status === "stale" || projection.status === "no-history" ? `<p class="oil-info">A recent gauge reading and delivery history are needed to simulate daily tank use.</p>` : `<div class="oil-daily-summary"><div><small>Estimated now</small><strong>${oilNumber(projection.current, 1)} gal · ${projection.percent.toFixed(1)}%</strong></div><div><small>Modeled use since reading</small><strong>${oilNumber(used, 1)} gal</strong></div><div><small>Observed-weather days</small><strong>${weatherDays} of ${daily.length}</strong></div></div>
-    <div class="oil-daily-trend-panel"><h3>Tank level trend</h3>${oilTankMiniTrend(projection, data)}</div>
+    <button type="button" id="oilOpenProjectionChart" class="oil-chart-open-button">View 31-day tank projection chart ↗</button>
     <p class="oil-daily-explain">Each completed day subtracts an estimate based on historical delivery intervals and that day's Westchester Airport heating degree days. A missing observation uses the seasonal average. This is a simulation, not a new gauge reading.</p>
     <div class="oil-table-wrap oil-daily-table-wrap"><table class="oil-table oil-daily-table"><thead><tr><th>Day modeled</th><th>Temp</th><th>HDD</th><th>Start</th><th>Delivered</th><th>Used</th><th>End</th><th>Change</th><th>Tank</th><th>Basis</th></tr></thead><tbody>${daily.length ? [...daily].reverse().map(row => `<tr><td>${row.date}</td><td>${Number.isFinite(row.weather?.temp) ? `${oilNumber(row.weather.temp, 1)}°F` : "—"}</td><td>${Number.isFinite(row.weather?.hdd) ? oilNumber(row.weather.hdd, 1) : "—"}</td><td>${oilNumber(row.starting, 1)}</td><td>${row.delivery ? `+${oilNumber(row.delivery, 1)}` : "—"}</td><td>${row.used ? `−${oilNumber(row.used, 2)}` : "—"}</td><td>${oilNumber(row.ending, 1)}</td><td>${row.ending - row.starting >= 0 ? "+" : "−"}${oilNumber(Math.abs(row.ending - row.starting), 2)} gal</td><td>${row.percent.toFixed(1)}%</td><td>${row.source}${row.dayFraction > 0 && row.dayFraction < 1 ? " · partial day" : ""}</td></tr>`).join("") : `<tr><td colspan="10">No completed day since the latest gauge reading. The next day's estimate will appear here.</td></tr>`}</tbody></table></div>`}
     <div class="oil-daily-actions"><a href="${OIL_DAILY_WEATHER_SOURCE}?sid=KHPN&date=${oilIsoToday()}&elems=avgt,hdd&output=json" target="_blank" rel="noopener">ACIS weather source</a><button type="button" id="oilDailyRefresh" class="ghost">Refresh weather</button></div>${oilDailyWeather.error ? `<p class="oil-price-error">Weather request failed: ${escapeHtml(oilDailyWeather.error)}. Seasonal estimates are shown where observations are unavailable.</p>` : ""}`;
   dialog.querySelector("#oilDailyClose")?.addEventListener("click", () => dialog.close());
+  dialog.querySelector("#oilOpenProjectionChart")?.addEventListener("click", openOilProjectionChart);
   dialog.querySelector("#oilDailyRefresh")?.addEventListener("click", () => oilLoadDailyWeather(true));
 }
 
@@ -493,7 +546,7 @@ function renderHomeHeatingOil() {
   const rate = oilUsageYear === "average" ? oilSeasonalRates(rows) : oilMonthlyUsageForYear(rows, oilUsageYear);
   root.innerHTML = `<div class="oil-tabs" role="tablist">${[["overview","Overview"],["prices","Local Prices"],["priceHistory","Price Changes"],["efficiency","Efficiency Review"],["investment","Siding Investment"],["deliveries","Deliveries"],["readings","Tank Readings"],["savings","Save Energy"]].map(([key,label]) => `<button type="button" data-oil-tab="${key}" class="${oilTab === key ? "active" : "ghost"}" aria-selected="${oilTab === key}">${label}</button>`).join("")}</div>
   <div class="oil-kpis">
-    <div class="oil-refill-group"><span class="oil-remaining-label">Remaining oil in tank</span><article class="${projection.status === "ready" && projection.daysToRefill <= 14 ? "oil-alert" : ""}"><div class="oil-tank-card-main"><div><small>Estimated tank level</small><button type="button" id="oilTankPercentButton" class="oil-tank-percent-button" title="Show daily tank usage"><strong>${hasTankEstimate ? `${Math.round(projection.percent)}%` : "Reading needed"}</strong>${hasTankEstimate ? `<span class="oil-tank-gallons">${oilNumber(projection.current)} gal estimated</span>` : ""}</button></div><div class="oil-tank-dial" id="oilTankDetailButton" type="button" title="Show daily tank usage" aria-label="Show daily tank usage and tank-level changes"><svg viewBox="0 0 120 76" aria-hidden="true"><path class="oil-dial-background" d="M 15 58 A 45 45 0 0 1 105 58"/><path class="oil-dial-fill" d="M 15 58 A 45 45 0 0 1 105 58" pathLength="100" style="stroke-dasharray:${hasTankEstimate ? Math.max(0, Math.min(100, projection.percent)) : 0} 100"/>${hasTankEstimate ? `<line class="oil-dial-needle" x1="60" y1="58" x2="60" y2="20" transform="rotate(${-90 + Math.max(0, Math.min(100, projection.percent)) * 1.8} 60 58)"/>` : ""}<circle class="oil-dial-center" cx="60" cy="58" r="4"/><text x="3" y="73">E</text><text x="26" y="30">1/4</text><text x="60" y="9" text-anchor="middle">1/2</text><text x="94" y="30" text-anchor="middle">3/4</text><text x="108" y="73">F</text></svg></button></div>${hasTankEstimate ? `<div class="oil-tank-level-track" role="meter" aria-label="Estimated tank level" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(projection.percent)}"><b style="width:${projection.percent}%"></b></div>` : ""}<span class="oil-tank-estimate-note">${projection.status === "ready" ? `25% reserve around ${projection.refillDate || "later"} · last gauge ${projection.age} days ago` : projection.status === "stale-estimate" ? `Estimate from a ${projection.age}-day-old gauge reading. Check the gauge before ordering.` : projection.status === "stale" ? `Last reading ${projection.age} days old; update the gauge for an estimate.` : "Record a tank gauge reading to start estimating."}</span></article></div>
+    <div class="oil-refill-group"><span class="oil-remaining-label">Remaining oil in tank</span><article class="${projection.status === "ready" && projection.daysToRefill <= 14 ? "oil-alert" : ""}"><div class="oil-tank-card-main"><div><small>Estimated tank level</small><button type="button" id="oilTankPercentButton" class="oil-tank-percent-button" title="Show daily tank usage"><strong>${hasTankEstimate ? `${Math.round(projection.percent)}%` : "Reading needed"}</strong>${hasTankEstimate ? `<span class="oil-tank-gallons">${oilNumber(projection.current)} gal estimated</span>` : ""}</button></div><button class="oil-tank-dial" id="oilTankDetailButton" type="button" title="Show daily tank usage" aria-label="Show daily tank usage and tank-level changes"><svg viewBox="0 0 140 100" aria-hidden="true"><path class="oil-tank-icon-body" d="M26 30 Q12 30 12 44 V72 Q12 84 26 84 H114 Q128 84 128 72 V44 Q128 30 114 30 Z"/><path class="oil-tank-icon-top" d="M26 30 Q70 18 114 30"/><path class="oil-tank-icon-pipe" d="M31 30 V12 H43 V30 M97 30 V17 H108 V30"/><circle class="oil-tank-icon-gauge" cx="70" cy="35" r="7"/><path class="oil-tank-icon-legs" d="M32 84 V93 H45 V84 M95 84 V93 H108 V84"/><text x="70" y="60" text-anchor="middle" class="oil-tank-icon-label">No. 2</text><text x="70" y="75" text-anchor="middle" class="oil-tank-icon-sub">HEATING OIL</text></svg></button></div>${hasTankEstimate ? `<div class="oil-tank-level-track" role="meter" aria-label="Estimated tank level" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(projection.percent)}"><b style="width:${projection.percent}%"></b></div>` : ""}<span class="oil-tank-estimate-note">${projection.status === "ready" ? `25% reserve around ${projection.refillDate || "later"} · last gauge ${projection.age} days ago` : projection.status === "stale-estimate" ? `Estimate from a ${projection.age}-day-old gauge reading. Check the gauge before ordering.` : projection.status === "stale" ? `Last reading ${projection.age} days old; update the gauge for an estimate.` : "Record a tank gauge reading to start estimating."}</span></article></div>
     <article><small>Tank capacity</small><strong>${oilNumber(data.capacity)} gal</strong></article>
     <article><small>Latest delivery</small><strong>${latest ? `${oilNumber(latest.gallons)} gal` : "—"}</strong><span>${latest?.date || "No deliveries"}</span></article>
     <article><small>${year} delivered</small><strong>${oilNumber(yearRows.reduce((n,r)=>n+r.gallons,0))} gal</strong><span>${oilMoney(yearRows.reduce((n,r)=>n+(r.amount ?? r.gallons*r.price),0))}</span></article>
