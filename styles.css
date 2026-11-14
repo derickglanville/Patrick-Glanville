@@ -6278,11 +6278,6 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .oil-tank-dial { padding: 0; border: 0; background: transparent; cursor: pointer; }
 .oil-tank-dial:focus-visible { outline: 3px solid #1b6fa6; border-radius: 8px; }
 .oil-tank-dial svg { display: block; width: 100%; height: auto; overflow: visible; }
-.oil-tank-icon-body { fill: #dce8ef; stroke: #315671; stroke-width: 3; }
-.oil-tank-icon-top, .oil-tank-icon-pipe, .oil-tank-icon-legs { fill: none; stroke: #315671; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
-.oil-tank-icon-gauge { fill: #fff; stroke: #315671; stroke-width: 3; }
-.oil-tank-icon-label { fill: #163d59; font-size: 15px; font-weight: 900; }
-.oil-tank-icon-sub { fill: #315671; font-size: 8px; font-weight: 800; letter-spacing: 1px; }
 .oil-tank-dial path { fill: none; stroke-width: 8; stroke-linecap: round; }
 .oil-dial-background { stroke: #d7e2eb; }
 .oil-dial-fill { stroke: #23835d; }

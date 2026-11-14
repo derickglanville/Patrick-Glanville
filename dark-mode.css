@@ -147,9 +147,6 @@ html[data-theme="dark"] .oil-tank-trend small, html[data-theme="dark"] .oil-tank
 html[data-theme="dark"] .oil-kpis article .oil-tank-percent-button strong { color: #e9f4ff; }
 html[data-theme="dark"] .oil-kpis article .oil-tank-gallons { color: #c5d9e9; }
 html[data-theme="dark"] .oil-daily-trend-panel { background: #203b55; border-color: #52718e; }
-html[data-theme="dark"] .oil-tank-icon-body { fill: #294760; stroke: #b8d8ed; }
-html[data-theme="dark"] .oil-tank-icon-top, html[data-theme="dark"] .oil-tank-icon-pipe, html[data-theme="dark"] .oil-tank-icon-legs, html[data-theme="dark"] .oil-tank-icon-gauge { stroke: #b8d8ed; }
-html[data-theme="dark"] .oil-tank-icon-label, html[data-theme="dark"] .oil-tank-icon-sub { fill: #e8f3ff; }
 html[data-theme="dark"] #oilProjectionChartDialog { background: #14283d; color: #e8f3ff; border-color: #52718e; }
 html[data-theme="dark"] .oil-projection-summary > div, html[data-theme="dark"] .oil-projection-chart-wrap { background: #203b55; border-color: #52718e; }
 html[data-theme="dark"] .oil-projection-summary strong, html[data-theme="dark"] .oil-projection-chart text, html[data-theme="dark"] .oil-chart-legend { color: #e8f3ff; fill: #e8f3ff; }
