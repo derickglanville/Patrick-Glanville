@@ -6285,6 +6285,13 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .oil-tank-dial text { fill: #35536a; font-size: 11px; font-weight: 800; }
 .oil-tank-level-track { height: 9px; margin: 8px 0 5px; overflow: hidden; border-radius: 999px; background: #d7e2eb; }
 .oil-tank-level-track b { display: block; height: 100%; border-radius: inherit; background: #23835d; }
+.oil-tank-trend { margin-top: 5px; color: #9c5c17; }
+.oil-tank-trend svg { display: block; width: 100%; height: 29px; }
+.oil-tank-trend-baseline { fill: none; stroke: #cbdce7; stroke-width: 1; stroke-dasharray: 3 3; }
+.oil-tank-trend-line { fill: none; stroke: #cf811f; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.oil-tank-trend-dot { fill: #cf811f; }
+.oil-kpis article .oil-tank-trend small { color: #785220; font-size: .69rem; font-weight: 700; line-height: 1.25; }
+.oil-tank-trend-empty { margin-top: 5px; color: #60768a; font-size: .7rem; }
 .oil-refill-group .oil-tank-estimate-note { font-size: .73rem; line-height: 1.3; }
 .oil-reading-save-status { min-height: 1.4em; margin: 8px 0 0; font-size: .82rem; font-weight: 700; color: #385c75; }
 .oil-reading-save-status.is-success { color: #146b48; }
