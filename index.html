@@ -15,9 +15,9 @@
   <link rel="apple-touch-icon" sizes="180x180" href="icons/budget-notifications-180.png?v=2026-10-16">
   <link rel="manifest" href="app.webmanifest?v=2026-10-16">
     <script src="theme.js?v=2026-11-14-oil-dialog-theme-002"></script>
-    <link rel="stylesheet" href="styles.css?v=2026-11-14-oil-projection-028">
+    <link rel="stylesheet" href="styles.css?v=2026-11-15-bill-menu-029">
     <link rel="stylesheet" href="mobile-bills.css?v=2026-11-06-mobile-charts-001">
-    <link rel="stylesheet" href="dark-mode.css?v=2026-11-14-oil-projection-007">
+    <link rel="stylesheet" href="dark-mode.css?v=2026-11-15-bill-menu-008">
 </head>
 <body>
   <section class="collaboration-panel" aria-label="Collaboration access">
@@ -313,25 +313,38 @@
           </div>
           <button id="copyBillsToNextMonthBtn" type="button" class="ghost">Copy To Next Month</button>
           <button id="calculateBillsBtn" type="button" class="ghost">Calculate</button>
-          <button id="pullLatestDevicesBtn" type="button" class="ghost" title="Load the latest saved version for this account from Firebase.">Pull Latest From Firebase</button>
-          <button id="adminBillSimulationBtn" type="button" class="ghost" hidden>Balance Simulation</button>
-          <button id="adminCreditCardFinderBtn" type="button" class="ghost" hidden>Card Finder</button>
-          <button id="adminMonthlyExpendituresBtn" type="button" class="ghost" hidden>Monthly Expenditures</button>
-          <button id="cellphoneBillingHistoryBtn" type="button" class="ghost" hidden>Cellphone History</button>
-          <button id="adminNotesRemindersBtn" type="button" class="ghost" hidden>Notes &amp; Reminders</button>
-          <button id="hospitalBillBtn" type="button" class="ghost" hidden>Hospital Payment Plan</button>
-          <button id="carServiceBtn" type="button" class="ghost" hidden>Car Service &amp; Maintenance</button>
-          <button id="homeMaintenanceBtn" type="button" class="ghost" hidden>Home Maintenance</button>
-          <button id="homeHeatingOilBtn" type="button" class="ghost" hidden>Heating Oil</button>
-          <button id="assignDueDatesBtn" type="button" class="ghost">Assign Due Dates</button>
-          <button id="undoCopyBillsToNextMonthBtn" type="button" class="ghost">Undo Next Month Copy</button>
-          <button id="toggleBillsCompactBtn" type="button" class="ghost" aria-pressed="false">Compact View</button>
-          <button id="adminTabletGridViewBtn" type="button" class="ghost" hidden aria-pressed="false">iPad Grid View</button>
-          <button id="toggleBillsPopoutBtn" type="button" class="ghost">Pop Out</button>
-          <button id="monthlyBillsReportBtn" type="button" class="ghost">Monthly Report</button>
-          <button id="balanceProgressReportBtn" type="button" class="ghost">Balance Progress</button>
           <button id="saveBudgetSnapshotBtn" type="button">Save Month</button>
-          <button id="hideBillsBtn" type="button" class="ghost">Hide Monthly Bills</button>
+          <details class="bill-action-menu" id="billActionMenu">
+            <summary>More actions</summary>
+            <div class="bill-action-menu-panel" aria-label="Monthly Bills actions">
+              <div class="bill-action-menu-group"><strong>Data and dates</strong>
+                <button id="pullLatestDevicesBtn" type="button" class="ghost" title="Load the latest saved version for this account from Firebase.">Pull Latest From Firebase</button>
+                <button id="assignDueDatesBtn" type="button" class="ghost">Assign Due Dates</button>
+                <button id="undoCopyBillsToNextMonthBtn" type="button" class="ghost">Undo Next Month Copy</button>
+              </div>
+              <div class="bill-action-menu-group"><strong>Reports and views</strong>
+                <button id="toggleBillsCompactBtn" type="button" class="ghost" aria-pressed="false">Compact View</button>
+                <button id="adminTabletGridViewBtn" type="button" class="ghost" hidden aria-pressed="false">iPad Grid View</button>
+                <button id="toggleBillsPopoutBtn" type="button" class="ghost">Pop Out</button>
+                <button id="monthlyBillsReportBtn" type="button" class="ghost">Monthly Report</button>
+                <button id="balanceProgressReportBtn" type="button" class="ghost">Balance Progress</button>
+                <button id="adminMonthlyExpendituresBtn" type="button" class="ghost" hidden>Monthly Expenditures</button>
+              </div>
+              <div class="bill-action-menu-group"><strong>Planning and records</strong>
+                <button id="adminBillSimulationBtn" type="button" class="ghost" hidden>Balance Simulation</button>
+                <button id="adminCreditCardFinderBtn" type="button" class="ghost" hidden>Card Finder</button>
+                <button id="cellphoneBillingHistoryBtn" type="button" class="ghost" hidden>Cellphone History</button>
+                <button id="adminNotesRemindersBtn" type="button" class="ghost" hidden>Notes &amp; Reminders</button>
+                <button id="hospitalBillBtn" type="button" class="ghost" hidden>Hospital Payment Plan</button>
+                <button id="carServiceBtn" type="button" class="ghost" hidden>Car Service &amp; Maintenance</button>
+                <button id="homeMaintenanceBtn" type="button" class="ghost" hidden>Home Maintenance</button>
+                <button id="homeHeatingOilBtn" type="button" class="ghost" hidden>Heating Oil</button>
+              </div>
+              <div class="bill-action-menu-group"><strong>Display</strong>
+                <button id="hideBillsBtn" type="button" class="ghost">Hide Monthly Bills</button>
+              </div>
+            </div>
+          </details>
         </div>
       </header>
         <div id="adminBillSmsControls" class="admin-bill-sms-controls" hidden aria-label="Admin bill text reminder controls">
@@ -935,7 +948,7 @@
   <script src="oil-investment.js?v=2026-10-14-001"></script>
   <script src="oil-tracker.js?v=2026-11-14-oil-gauge-restored-013"></script>
   <script src="notes-dialog.js?v=2026-11-11-inline-fields-002"></script>
-  <script src="app.js?v=2026-11-14-tank-275-002"></script>
+  <script src="app.js?v=2026-11-15-bill-menu-003"></script>
   <script src="hospital-bill.js?v=2026-10-21-002"></script>
   <script src="car-service.js?v=2026-10-27-006"></script>
   <script src="home-maintenance.js?v=2026-11-03-sync-conflict-001"></script>

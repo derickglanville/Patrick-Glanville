@@ -23,6 +23,11 @@ html[data-theme="dark"] :where(input, select, textarea) { color-scheme: dark; ba
 html[data-theme="dark"] :where(input, textarea)::placeholder { color: #8ea3b9; }
 html[data-theme="dark"] :where(.ghost, .icon-button) { background: #283c53; color: #e7f2ff; border-color: #506780; }
 html[data-theme="dark"] :where(.ghost, .icon-button):hover { background: #33516e; }
+html[data-theme="dark"] #budgetPanel .bill-action-menu > summary { background: #244969; color: #eef7ff; border-color: #638db0; }
+html[data-theme="dark"] #budgetPanel .bill-action-menu-panel { background: #172a3d; border-color: #52718e; }
+html[data-theme="dark"] #budgetPanel .bill-action-menu-group + .bill-action-menu-group { border-color: #39566e; }
+html[data-theme="dark"] #budgetPanel .bill-action-menu-group > strong { color: #bfd5e8; }
+html[data-theme="dark"] #budgetPanel .bill-action-menu-panel button:hover, html[data-theme="dark"] #budgetPanel .bill-action-menu-panel button:focus-visible { background: #33516e !important; color: #fff !important; }
 html[data-theme="dark"] a { color: #8cc9ff; }
 
 /* Main dashboard, cards, reports, and recovery controls. */

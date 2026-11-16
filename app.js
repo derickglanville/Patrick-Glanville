@@ -291,6 +291,19 @@ function getAttPhoneReturns() {
     : ATT_PHONE_RETURNS_DEFAULT;
 }
 
+const billActionMenu = document.querySelector("#billActionMenu");
+if (billActionMenu) {
+  billActionMenu.addEventListener("click", event => {
+    if (event.target.closest(".bill-action-menu-panel button")) billActionMenu.open = false;
+  });
+  document.addEventListener("click", event => {
+    if (billActionMenu.open && !billActionMenu.contains(event.target)) billActionMenu.open = false;
+  });
+  billActionMenu.addEventListener("keydown", event => {
+    if (event.key === "Escape") { billActionMenu.open = false; billActionMenu.querySelector("summary")?.focus(); }
+  });
+}
+
 function getBillHoverDescription(bill) {
   return String(bill.name || "Untitled bill").trim();
 }
