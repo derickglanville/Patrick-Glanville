@@ -67,6 +67,30 @@ html[data-theme="dark"] :where(.work-schedule-table tbody tr:nth-child(even),
 ) { background: #22354a; }
 html[data-theme="dark"] :where(table td, table th) { border-color: #41566e; }
 
+/* Patrick's schedule and bills use light row colors in the base theme. Override
+   those rows and their text together so dark mode keeps the figures readable. */
+html[data-theme="dark"] .work-schedule-table tbody tr:nth-child(odd) { background: #1c2d40; }
+html[data-theme="dark"] .work-schedule-table tbody tr:nth-child(even) { background: #28394d; }
+html[data-theme="dark"] .work-schedule-table tbody td { color: #f1f6fc; border-color: #496078; }
+html[data-theme="dark"] .work-schedule-table thead,
+html[data-theme="dark"] .work-schedule-table tfoot { background: #8f0000; color: #fff; }
+html[data-theme="dark"] #budgetPanel .budget-metrics article { background: #20344b; color: #f2f7ff; border-color: #536b83; }
+html[data-theme="dark"] #budgetPanel .budget-metrics article.is-positive { background: #174333; color: #e7fff1; border-color: #4eac7e; }
+html[data-theme="dark"] #budgetPanel .budget-metrics article.is-negative { background: #512a35; color: #fff0f2; border-color: #d38391; }
+html[data-theme="dark"] #budgetPanel .budget-metrics article span { color: #c7d8e8; }
+html[data-theme="dark"] #budgetPanel .budget-bill-list-header.is-simple { background: #263e56; color: #e8f3ff; border-color: #58728e; }
+html[data-theme="dark"] #budgetPanel .budget-bill-list-simple { background: #17283b; border-color: #4e6680; }
+html[data-theme="dark"] #budgetPanel .budget-bill-item-simple { background: #1d3045; border-color: #405a73; }
+html[data-theme="dark"] #budgetPanel .budget-bill-item-simple:nth-child(even) { background: #243950; }
+html[data-theme="dark"] #budgetPanel .budget-bill-item-simple .bill-current-balance { background: #263d55; color: #f2f7ff; border-color: #5c7793; }
+html[data-theme="dark"] #budgetPanel .budget-bill-item-simple .bill-paid-date { background: #214c3d; color: #e8fff1; border-color: #509775; }
+html[data-theme="dark"] .budget-snapshot-card { background: #20344b; color: #f2f7ff; border-color: #536b83; }
+html[data-theme="dark"] .budget-snapshot-card.is-negative { background: #472c36; color: #fff0f2; border-color: #b66b79; }
+html[data-theme="dark"] .budget-snapshot-card-header strong,
+html[data-theme="dark"] .budget-snapshot-card-header span { color: inherit; }
+html[data-theme="dark"] .budget-snapshot-grid,
+html[data-theme="dark"] .budget-snapshot-card p { color: #cad9e8; }
+
 /* Monthly bill table retains its paid, due, APR, and priority accent colors. */
 html[data-theme="dark"] #budgetPanel :where(input, select, textarea),
 html[data-theme="dark"] :where(.gather-notes-table input, .gather-notes-table select,
