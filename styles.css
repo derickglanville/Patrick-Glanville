@@ -6304,16 +6304,17 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .oil-tank-percent-button:focus-visible { outline: 3px solid #1b6fa6; border-radius: 5px; }
 .oil-kpis article .oil-tank-percent-button strong { display: block; color: #123d5c; font-size: 1.35rem; line-height: 1.2; margin: 4px 0 0; }
 .oil-kpis article .oil-tank-gallons { display: block; color: #48637a; font-size: .78rem; font-weight: 700; white-space: nowrap; }
-.oil-tank-dial { align-self: center; flex: 0 0 auto; width: 110px; max-width: 100%; }
+.oil-tank-dial { align-self: center; flex: 0 0 auto; width: 170px; max-width: 100%; }
 .oil-tank-dial { padding: 0; border: 0; background: transparent; cursor: pointer; }
 .oil-tank-dial:focus-visible { outline: 3px solid #1b6fa6; border-radius: 8px; }
 .oil-tank-dial svg { display: block; width: 100%; height: auto; overflow: visible; }
 .oil-tank-dial path { fill: none; stroke-width: 8; stroke-linecap: round; }
 .oil-dial-background { stroke: #d7e2eb; }
 .oil-dial-fill { stroke: #23835d; }
+.oil-dial-tick { stroke: #527187; stroke-width: 1.6; stroke-linecap: round; }
 .oil-dial-needle { stroke: #b33129; stroke-width: 3; stroke-linecap: round; }
 .oil-dial-center { fill: #b33129; }
-.oil-tank-dial text { fill: #35536a; font-size: 11px; font-weight: 800; }
+.oil-tank-dial text { fill: #35536a; font-size: 9px; font-weight: 800; }
 .oil-tank-level-track { height: 9px; margin: 8px 0 5px; overflow: hidden; border-radius: 999px; background: #d7e2eb; }
 .oil-tank-level-track b { display: block; height: 100%; border-radius: inherit; background: #23835d; }
 .oil-tank-trend { margin-top: 5px; color: #9c5c17; }
