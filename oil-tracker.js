@@ -469,6 +469,59 @@ function renderOilDailyUsageDialog() {
   dialog.querySelector("#oilDailyRefresh")?.addEventListener("click", () => oilLoadDailyWeather(true));
 }
 
+function openOilGaugePhotoDialog() {
+  let dialog = document.querySelector("#oilGaugePhotoDialog");
+  if (!dialog) { dialog = document.createElement("dialog"); dialog.id = "oilGaugePhotoDialog"; document.body.append(dialog); }
+  dialog.innerHTML = `<div class="oil-daily-head"><div><h2>Read a tank gauge photo</h2><p>Choose a clear photo, then mark the dial so the app can calculate a level.</p></div><button type="button" class="icon-button" id="oilPhotoClose" aria-label="Close gauge photo">×</button></div>
+    <label class="oil-photo-choose">Gauge photo<input id="oilGaugePhotoFile" type="file" accept="image/*"></label>
+    <p class="oil-photo-help">Tap these four points on the photo in order: <b>center of the needle pivot</b>, <b>Empty (E)</b>, <b>Full (F)</b>, then <b>the needle tip</b>. The photo is used on this device to calculate the level; the image itself is not saved to Firebase.</p>
+    <div class="oil-photo-stage" id="oilPhotoStage" hidden><div class="oil-photo-image-wrap" id="oilPhotoImageWrap"><img id="oilPhotoImage" alt="Uploaded oil tank gauge"></div></div>
+    <div class="oil-photo-controls"><strong id="oilPhotoStep" role="status">Choose a photo to begin.</strong><button type="button" class="ghost" id="oilPhotoReset" disabled>Start markings over</button></div>
+    <div class="oil-photo-result" id="oilPhotoResult" hidden><strong id="oilPhotoEstimate"></strong><p>Check the suggested level against the physical gauge before saving. The nearest 1/8-tank setting will be selected in the reading form.</p><button type="button" id="oilPhotoUseReading">Use this level in a new reading</button></div>`;
+  const steps = ["needle pivot", "Empty (E)", "Full (F)", "needle tip"];
+  const fileInput = dialog.querySelector("#oilGaugePhotoFile"), image = dialog.querySelector("#oilPhotoImage"), wrap = dialog.querySelector("#oilPhotoImageWrap"), stage = dialog.querySelector("#oilPhotoStage"), step = dialog.querySelector("#oilPhotoStep"), reset = dialog.querySelector("#oilPhotoReset"), result = dialog.querySelector("#oilPhotoResult"), estimate = dialog.querySelector("#oilPhotoEstimate");
+  let photoUrl = "", points = [], suggested = null;
+  const resetPoints = () => { points = []; suggested = null; wrap.querySelectorAll(".oil-photo-marker").forEach(marker => marker.remove()); result.hidden = true; step.textContent = `Tap the ${steps[0]}.`; };
+  const cleanup = () => { if (photoUrl) URL.revokeObjectURL(photoUrl); photoUrl = ""; };
+  dialog.querySelector("#oilPhotoClose").onclick = () => dialog.close();
+  dialog.addEventListener("close", cleanup, { once: true });
+  fileInput.onchange = () => {
+    cleanup(); const file = fileInput.files?.[0]; if (!file) return;
+    if (!file.type.startsWith("image/")) { step.textContent = "Choose an image file."; return; }
+    photoUrl = URL.createObjectURL(file); image.src = photoUrl; stage.hidden = false; reset.disabled = false; resetPoints();
+    image.onerror = () => { step.textContent = "This image could not be displayed. Try a JPEG or PNG photo."; stage.hidden = true; };
+  };
+  reset.onclick = resetPoints;
+  wrap.onclick = event => {
+    if (!image.complete || !image.naturalWidth || points.length >= 4) return;
+    const rect = image.getBoundingClientRect();
+    const x = (event.clientX - rect.left) / rect.width, y = (event.clientY - rect.top) / rect.height;
+    if (x < 0 || x > 1 || y < 0 || y > 1) return;
+    points.push({ x, y });
+    const marker = document.createElement("span"); marker.className = "oil-photo-marker"; marker.textContent = String(points.length); marker.style.left = `${x * 100}%`; marker.style.top = `${y * 100}%`; marker.title = steps[points.length - 1]; wrap.append(marker);
+    if (points.length < 4) { step.textContent = `Tap the ${steps[points.length]}.`; return; }
+    const angle = point => Math.atan2(-(point.y - points[0].y), point.x - points[0].x);
+    const turn = (from, to) => (from - to + Math.PI * 2) % (Math.PI * 2);
+    const span = turn(angle(points[1]), angle(points[2]));
+    const position = turn(angle(points[1]), angle(points[3]));
+    if (span < .35 || span > 5.5 || position > span + .25) { step.textContent = "The marks do not describe the gauge arc. Start over and mark E, F, and the needle tip carefully."; reset.disabled = false; return; }
+    const percent = Math.max(0, Math.min(100, position / span * 100));
+    suggested = Math.round(percent / 12.5) * 12.5;
+    estimate.textContent = `Photo estimate: ${percent.toFixed(1)}% · ${oilNumber(oilData().capacity * percent / 100)} gal. Nearest reading setting: ${suggested}% · ${oilNumber(oilData().capacity * suggested / 100)} gal.`;
+    step.textContent = "Review the estimate, or start the markings over."; result.hidden = false;
+  };
+  dialog.querySelector("#oilPhotoUseReading").onclick = () => {
+    if (suggested == null) return;
+    dialog.close(); oilTab = "readings"; oilEditingReadingId = ""; oilReadingSaveStatus = { kind: "", text: "" }; renderHomeHeatingOil();
+    const form = document.querySelector("#oilReadingForm"); if (!form) return;
+    form.elements.percent.value = String(suggested);
+    const now = new Date(); form.elements.time.value = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    form.elements.note.value = `Gauge photo estimate: ${suggested}%; verify against physical gauge`;
+    form.elements.percent.focus();
+  };
+  if (!dialog.open) dialog.showModal();
+}
+
 function openOilDailyUsageDialog() {
   let dialog = document.querySelector("#oilDailyUsageDialog");
   if (!dialog) {
@@ -544,7 +597,7 @@ function renderHomeHeatingOil() {
   if (!usageYears.includes(oilUsageYear) && oilUsageYear !== "average") oilUsageYear = usageYears.filter(value => value < year).at(-1) || usageYears.at(-1) || "average";
   const usageYearIndex = usageYears.indexOf(oilUsageYear);
   const rate = oilUsageYear === "average" ? oilSeasonalRates(rows) : oilMonthlyUsageForYear(rows, oilUsageYear);
-  root.innerHTML = `<div class="oil-tabs" role="tablist">${[["overview","Overview"],["prices","Local Prices"],["priceHistory","Price Changes"],["efficiency","Efficiency Review"],["investment","Siding Investment"],["deliveries","Deliveries"],["readings","Tank Readings"],["savings","Save Energy"]].map(([key,label]) => `<button type="button" data-oil-tab="${key}" class="${oilTab === key ? "active" : "ghost"}" aria-selected="${oilTab === key}">${label}</button>`).join("")}</div>
+  root.innerHTML = `<div class="oil-tabs" role="tablist">${[["overview","Overview"],["prices","Local Prices"],["priceHistory","Price Changes"],["efficiency","Efficiency Review"],["investment","Siding Investment"],["deliveries","Deliveries"],["readings","Tank Readings"],["savings","Save Energy"]].map(([key,label]) => `<button type="button" data-oil-tab="${key}" class="${oilTab === key ? "active" : "ghost"}" aria-selected="${oilTab === key}">${label}</button>`).join("")}<button type="button" id="oilGaugePhotoBtn" class="oil-gauge-photo-button">Read Gauge Photo</button></div>
   <div class="oil-kpis">
     <div class="oil-refill-group"><span class="oil-remaining-label">Remaining oil in tank</span><article class="${projection.status === "ready" && projection.daysToRefill <= 14 ? "oil-alert" : ""}"><div class="oil-tank-card-main"><div><small>Estimated tank level</small><button type="button" id="oilTankPercentButton" class="oil-tank-percent-button" title="Show daily tank usage"><strong>${hasTankEstimate ? `${Math.round(projection.percent)}%` : "Reading needed"}</strong>${hasTankEstimate ? `<span class="oil-tank-gallons">${oilNumber(projection.current)} gal estimated</span>` : ""}</button></div><button class="oil-tank-dial" id="oilTankDetailButton" type="button" title="Show daily tank usage" aria-label="Show daily tank usage and tank-level changes"><svg viewBox="0 0 120 76" aria-hidden="true"><path class="oil-dial-background" d="M 15 58 A 45 45 0 0 1 105 58"/><path class="oil-dial-fill" d="M 15 58 A 45 45 0 0 1 105 58" pathLength="100" style="stroke-dasharray:${hasTankEstimate ? Math.max(0, Math.min(100, projection.percent)) : 0} 100"/>${hasTankEstimate ? `<line class="oil-dial-needle" x1="60" y1="58" x2="60" y2="20" transform="rotate(${-90 + Math.max(0, Math.min(100, projection.percent)) * 1.8} 60 58)"/>` : ""}<circle class="oil-dial-center" cx="60" cy="58" r="4"/><text x="3" y="73">E</text><text x="26" y="30">1/4</text><text x="60" y="9" text-anchor="middle">1/2</text><text x="94" y="30" text-anchor="middle">3/4</text><text x="108" y="73">F</text></svg></button></div>${hasTankEstimate ? `<div class="oil-tank-level-track" role="meter" aria-label="Estimated tank level" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(projection.percent)}"><b style="width:${projection.percent}%"></b></div>` : ""}<span class="oil-tank-estimate-note">${projection.status === "ready" ? `25% reserve around ${projection.refillDate || "later"} · last gauge ${projection.age} days ago` : projection.status === "stale-estimate" ? `Estimate from a ${projection.age}-day-old gauge reading. Check the gauge before ordering.` : projection.status === "stale" ? `Last reading ${projection.age} days old; update the gauge for an estimate.` : "Record a tank gauge reading to start estimating."}</span></article></div>
     <article><small>Tank capacity</small><strong>${oilNumber(data.capacity)} gal</strong></article>
@@ -573,6 +626,7 @@ function renderHomeHeatingOil() {
   }
   root.querySelector("#oilTankDetailButton")?.addEventListener("click", openOilDailyUsageDialog);
   root.querySelector("#oilTankPercentButton")?.addEventListener("click", openOilDailyUsageDialog);
+  root.querySelector("#oilGaugePhotoBtn")?.addEventListener("click", openOilGaugePhotoDialog);
   root.querySelectorAll("[data-oil-tab]").forEach(button => button.addEventListener("click", () => { oilTab = button.dataset.oilTab; oilEditingId = ""; oilReadingSaveStatus = { kind: "", text: "" }; renderHomeHeatingOil(); if (oilTab === "prices") checkOilRegionalPrice(); if (oilTab === "priceHistory") checkOilPriceHistory(); }));
   root.querySelector("#oilCheckPrice")?.addEventListener("click", () => checkOilRegionalPrice(true));
   root.querySelector("#oilRefreshHistory")?.addEventListener("click", () => checkOilPriceHistory(true));

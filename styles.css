@@ -6280,6 +6280,20 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .home-oil-dialog .dialog-head p { margin: 4px 0 0; color: #63788c; }
 .oil-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 18px 0; border-bottom: 1px solid #cbd9e6; padding-bottom: 9px; }
 .oil-tabs button.active { background: #164e72; color: white; }
+.oil-tabs .oil-gauge-photo-button { margin-left: auto; background: #d9f1e7; color: #13553d; border: 1px solid #82c5a6; font-weight: 800; }
+#oilGaugePhotoDialog { width: min(900px, 96vw); max-height: 92vh; overflow: auto; padding: 18px; border: 1px solid #aac3d7; border-radius: 14px; background: #f9fcff; color: #203449; }
+.oil-photo-choose { display: grid; gap: 5px; margin: 12px 0; font-weight: 800; }
+.oil-photo-choose input { max-width: 100%; }
+.oil-photo-help { margin: 10px 0; font-size: .88rem; line-height: 1.45; }
+.oil-photo-stage { padding: 10px; border: 1px solid #bbd2e1; border-radius: 9px; background: #e8f2f8; text-align: center; }
+.oil-photo-image-wrap { position: relative; display: inline-block; max-width: 100%; line-height: 0; cursor: crosshair; }
+.oil-photo-image-wrap img { display: block; max-width: 100%; max-height: 60vh; width: auto; height: auto; }
+.oil-photo-marker { position: absolute; display: grid; place-items: center; width: 25px; height: 25px; transform: translate(-50%, -50%); border: 2px solid #fff; border-radius: 50%; background: #d83b31; color: #fff; font-size: .75rem; font-weight: 900; line-height: 1; box-shadow: 0 1px 6px #0009; pointer-events: none; }
+.oil-photo-controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 10px 0; }
+.oil-photo-result { padding: 12px; border: 1px solid #82c5a6; border-radius: 9px; background: #ecf9f2; }
+.oil-photo-result strong { display: block; color: #13553d; }
+.oil-photo-result p { margin: 7px 0; font-size: .84rem; }
+@media (max-width: 600px) { #oilGaugePhotoDialog { padding: 12px; } .oil-photo-controls { flex-direction: column; align-items: stretch; } .oil-tabs .oil-gauge-photo-button { width: 100%; margin-left: 0; } }
 .oil-kpis { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 14px; }
 .oil-refill-group { display: flex; flex-direction: column; min-width: 0; gap: 5px; }
 .oil-refill-group article { flex: 1; }
