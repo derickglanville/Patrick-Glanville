@@ -18,6 +18,7 @@ let oilPriceHistory = { status: "idle", rows: [], checkedAt: 0, error: "" };
 let oilHistoryRange = "month";
 let oilHistorySelectedDate = "";
 let oilReadingSaveStatus = { kind: "", text: "" };
+let oilReadingRefreshInFlight = null;
 const OIL_DAILY_WEATHER_SOURCE = "https://data.rcc-acis.org/StnData";
 let oilDailyWeather = { status: "idle", rows: new Map(), checkedAt: 0, start: "", error: "" };
 
@@ -198,6 +199,31 @@ function normalizeHomeHeatingOil(value, fallback = {}) {
 function oilData() {
   if (!state.homeHeatingOil) state.homeHeatingOil = normalizeHomeHeatingOil(null, { deliveries: window.HOME_HEATING_OIL_HISTORY || [] });
   return state.homeHeatingOil;
+}
+
+async function oilRefreshReadingsFromFirebase() {
+  if (oilReadingRefreshInFlight) return oilReadingRefreshInFlight;
+  if (!supabaseEnabled || !supabaseClient || activeClientId !== "admin") return;
+  const clientId = activeClientId;
+  oilReadingRefreshInFlight = (async () => {
+    try {
+      const ref = supabaseClient.doc(supabaseClient.db, SUPABASE_TABLE, getSupabaseStateId());
+      const snapshot = await supabaseClient.getDocFromServer(ref);
+      if (!snapshot.exists()) throw new Error("Admin Firebase record is missing.");
+      const readings = snapshot.data()?.state?.homeHeatingOil?.readings;
+      if (!Array.isArray(readings)) throw new Error("Firebase did not return tank readings.");
+      if (activeClientId !== clientId) return;
+      oilData().readings = normalizeHomeHeatingOil({ seedVersion: 1, readings }).readings;
+      if (getStorageKey()) tryWriteLocalState(getStorageKey());
+      oilReadingSaveStatus = { kind: "success", text: `Tank readings updated from Firebase (${readings.length} records).` };
+      if (document.querySelector("#homeHeatingOilDialog")?.open) renderHomeHeatingOil();
+      if (document.querySelector("#oilDailyUsageDialog")?.open) renderOilDailyUsageDialog();
+    } catch (error) {
+      oilReadingSaveStatus = { kind: "error", text: `Could not refresh tank readings from Firebase: ${error.message || error}` };
+      if (document.querySelector("#homeHeatingOilDialog")?.open) renderHomeHeatingOil();
+    }
+  })();
+  try { await oilReadingRefreshInFlight; } finally { oilReadingRefreshInFlight = null; }
 }
 
 function oilGallonsBetweenReadings(newer, older, data) {
@@ -616,7 +642,7 @@ function renderHomeHeatingOil() {
   if (!usageYears.includes(oilUsageYear) && oilUsageYear !== "average") oilUsageYear = usageYears.filter(value => value < year).at(-1) || usageYears.at(-1) || "average";
   const usageYearIndex = usageYears.indexOf(oilUsageYear);
   const rate = oilUsageYear === "average" ? oilSeasonalRates(rows) : oilMonthlyUsageForYear(rows, oilUsageYear);
-  root.innerHTML = `<div class="oil-tabs" role="tablist">${[["overview","Overview"],["prices","Local Prices"],["priceHistory","Price Changes"],["efficiency","Efficiency Review"],["investment","Siding Investment"],["deliveries","Deliveries"],["readings","Tank Readings"],["savings","Save Energy"]].map(([key,label]) => `<button type="button" data-oil-tab="${key}" class="${oilTab === key ? "active" : "ghost"}" aria-selected="${oilTab === key}">${label}</button>`).join("")}<button type="button" id="oilGaugePhotoBtn" class="oil-gauge-photo-button">Read Gauge Photo</button></div>
+  root.innerHTML = `<div class="oil-tabs" role="tablist">${[["overview","Overview"],["prices","Local Prices"],["priceHistory","Price Changes"],["efficiency","Efficiency Review"],["investment","Siding Investment"],["deliveries","Deliveries"],["readings","Tank Readings"],["savings","Save Energy"]].map(([key,label]) => `<button type="button" data-oil-tab="${key}" class="${oilTab === key ? "active" : "ghost"}" aria-selected="${oilTab === key}">${label}</button>`).join("")}<button type="button" id="oilGaugePhotoBtn" class="oil-gauge-photo-button">Read Gauge Photo</button><button type="button" id="oilRefreshReadingsBtn" class="ghost">Refresh tank readings</button></div>
   <div class="oil-kpis">
     <div class="oil-refill-group"><span class="oil-remaining-label">Remaining oil in tank</span><article class="${projection.status === "ready" && projection.daysToRefill <= 14 ? "oil-alert" : ""}"><div class="oil-tank-card-main"><div><small>Estimated tank level</small><button type="button" id="oilTankPercentButton" class="oil-tank-percent-button" title="Show daily tank usage"><strong>${hasTankEstimate ? `${projection.percent.toFixed(1)}%` : "Reading needed"}</strong>${hasTankEstimate ? `<span class="oil-tank-gallons">${oilNumber(projection.current)} gal estimated</span>` : ""}</button></div><button class="oil-tank-dial" id="oilTankDetailButton" type="button" title="Show daily tank usage" aria-label="Show daily tank usage and tank-level changes"><svg viewBox="0 0 170 104" aria-hidden="true"><path class="oil-dial-background" d="M 31 84 A 54 54 0 0 1 139 84"/><path class="oil-dial-fill" d="M 31 84 A 54 54 0 0 1 139 84" pathLength="100" style="stroke-dasharray:${hasTankEstimate ? Math.max(0, Math.min(100, projection.percent)) : 0} 100"/>${oilTankDialMarks()}${hasTankEstimate ? `<line class="oil-dial-needle" x1="85" y1="84" x2="85" y2="37" transform="rotate(${-90 + Math.max(0, Math.min(100, projection.percent)) * 1.8} 85 84)"/>` : ""}<circle class="oil-dial-center" cx="85" cy="84" r="4"/></svg></button></div>${hasTankEstimate ? `<div class="oil-tank-level-track" role="meter" aria-label="Estimated tank level" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${projection.percent.toFixed(1)}"><b style="width:${projection.percent}%"></b></div>` : ""}<span class="oil-tank-estimate-note">${projection.status === "ready" ? `25% reserve around ${projection.refillDate || "later"} · last gauge ${projection.age} days ago` : projection.status === "stale-estimate" ? `Estimate from a ${projection.age}-day-old gauge reading. Check the gauge before ordering.` : projection.status === "stale" ? `Last reading ${projection.age} days old; update the gauge for an estimate.` : "Record a tank gauge reading to start estimating."}</span></article></div>
     <article><small>Tank capacity</small><strong>${oilNumber(data.capacity)} gal</strong></article>
@@ -646,6 +672,7 @@ function renderHomeHeatingOil() {
   root.querySelector("#oilTankDetailButton")?.addEventListener("click", openOilDailyUsageDialog);
   root.querySelector("#oilTankPercentButton")?.addEventListener("click", openOilDailyUsageDialog);
   root.querySelector("#oilGaugePhotoBtn")?.addEventListener("click", openOilGaugePhotoDialog);
+  root.querySelector("#oilRefreshReadingsBtn")?.addEventListener("click", oilRefreshReadingsFromFirebase);
   root.querySelectorAll("[data-oil-tab]").forEach(button => button.addEventListener("click", () => { oilTab = button.dataset.oilTab; oilEditingId = ""; oilReadingSaveStatus = { kind: "", text: "" }; renderHomeHeatingOil(); if (oilTab === "prices") checkOilRegionalPrice(); if (oilTab === "priceHistory") checkOilPriceHistory(); }));
   root.querySelector("#oilCheckPrice")?.addEventListener("click", () => checkOilRegionalPrice(true));
   root.querySelector("#oilRefreshHistory")?.addEventListener("click", () => checkOilPriceHistory(true));
@@ -683,7 +710,7 @@ function renderOilEditor() {
   target.querySelector("#oilDeliveryForm").addEventListener("submit", event => { event.preventDefault(); if (!ensureCurrentUser("save an oil delivery")) return; const form = event.currentTarget, e = form.elements; const record = normalizeHomeHeatingOil({ deliveries: [{ id: oilEditingId === "new" ? crypto.randomUUID() : oilEditingId, date: e.date.value, gallons: e.gallons.value, price: e.price.value, amount: e.amount.value, company: e.company.value, paidBy: e.paidBy.value, levelNote: e.levelNote.value, notes: e.notes.value }] }).deliveries[0]; if (!record) return; const data = oilData(); if (oilEditingId === "new") data.deliveries.push(record); else { const i = data.deliveries.findIndex(row => row.id === oilEditingId); if (i >= 0) data.deliveries[i] = record; } oilEditingId = ""; saveState(); renderHomeHeatingOil(); });
 }
 
-document.querySelector("#homeHeatingOilBtn")?.addEventListener("click", () => { if (!isAdminClient()) return; oilTab = "overview"; renderHomeHeatingOil(); document.querySelector("#homeHeatingOilDialog").showModal(); oilLoadDailyWeather(); });
+document.querySelector("#homeHeatingOilBtn")?.addEventListener("click", () => { if (!isAdminClient()) return; oilTab = "overview"; renderHomeHeatingOil(); document.querySelector("#homeHeatingOilDialog").showModal(); oilRefreshReadingsFromFirebase(); oilLoadDailyWeather(); });
 document.querySelector("#closeHomeHeatingOilDialog")?.addEventListener("click", () => document.querySelector("#homeHeatingOilDialog").close());
 let oilLastDisplayedDate = oilIsoToday();
 setInterval(() => {
