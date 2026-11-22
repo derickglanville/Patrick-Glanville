@@ -6311,6 +6311,7 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .oil-tank-dial path { fill: none; stroke-width: 8; stroke-linecap: round; }
 .oil-dial-background { stroke: #d7e2eb; }
 .oil-dial-fill { stroke: #23835d; }
+.oil-dial-low { stroke: #c52b2b; }
 .oil-dial-tick { stroke: #527187; stroke-width: 1.6; stroke-linecap: round; }
 .oil-dial-needle { stroke: #b33129; stroke-width: 3; stroke-linecap: round; }
 .oil-dial-center { fill: #b33129; }
