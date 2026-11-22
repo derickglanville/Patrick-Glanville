@@ -6671,3 +6671,6 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
   .data-management-panel .sync-action-list li button { width: 100%; margin: 0 0 4px; }
   .data-management-panel .sync-action-list li span { display: block; }
 }
+
+.oil-delivery-cumulative { display: block; color: #526d82; font-size: .7rem; margin-top: 2px; }
+html[data-theme="dark"] .oil-delivery-cumulative { color: #abc4d8; }
