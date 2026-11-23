@@ -255,6 +255,7 @@
       "current proposed"
       "diff priority"
       "credit-line credit-percent"
+      "available-credit available-credit"
       "amount paid"
       "recommended payoff"
       "payoff-due tran"
@@ -285,6 +286,7 @@
   body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-diff { grid-area: diff; }
   body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-payment-priority { grid-area: priority; }
   body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-credit-line { grid-area: credit-line; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-available-credit { grid-area: available-credit; }
   body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-due-amt { grid-area: amount; }
   body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-paid-amt { grid-area: paid; }
   body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-recommended { grid-area: recommended; }
@@ -306,14 +308,14 @@
 
   body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item:not(.mobile-bill-details-open) > :is(
     .bill-col-type, .bill-col-apr, .bill-col-interest-paid, .bill-col-prev-bal,
-    .bill-col-proposed, .bill-col-diff, .bill-col-payment-priority, .bill-col-credit-line,
+    .bill-col-proposed, .bill-col-diff, .bill-col-payment-priority, .bill-col-credit-line, .bill-col-available-credit,
     .bill-col-payoff-date, .bill-col-payoff-date-due, .bill-col-tran, .bill-col-date-paid,
     .bill-col-credit-percent, .bill-col-notes, .bill-col-observation
   ) { display: none !important; }
 
   body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item.mobile-bill-details-open > :is(
     .bill-col-type, .bill-col-apr, .bill-col-interest-paid, .bill-col-prev-bal,
-    .bill-col-proposed, .bill-col-diff, .bill-col-payment-priority, .bill-col-credit-line,
+    .bill-col-proposed, .bill-col-diff, .bill-col-payment-priority, .bill-col-credit-line, .bill-col-available-credit,
     .bill-col-payoff-date, .bill-col-payoff-date-due, .bill-col-tran, .bill-col-date-paid,
     .bill-col-credit-percent, .bill-col-notes, .bill-col-observation
   ) { display: block !important; }

@@ -2263,6 +2263,10 @@ const BILL_COLUMN_SUM_CONFIG = {
     label: "Credit line",
     getValue: bill => normalizeMoney(bill.creditLimit)
   },
+  "bill-col-available-credit": {
+    label: "Available credit",
+    getValue: bill => getAvailableBillCredit(bill) ?? 0
+  },
   "bill-col-due-amt": {
     label: "Due amount",
     getValue: bill => getEffectiveBillAmount(bill)
@@ -2288,6 +2292,7 @@ const BILL_HEADER_TOOLTIPS = {
   "Diff": "Current Balance minus Previous Balance. A negative value shows the balance fell. Click to view the column total.",
   "Pay More": "Payment guidance. It identifies paid bills where estimated interest consumes more than the principal-reducing portion of the payment.",
   "Credit Line": "Hover a bill's Credit Line value to see its available amount and percentage. Click to view the column total.",
+  "Available Credit": "Credit Line minus Current Balance, limited to the credit line and never below zero. Proposed reduction preview is reflected here. Click to view the column total.",
   "Amount": "Scheduled amount due for this bill in the selected month.",
   "Due Amt": "Scheduled amount due for this bill in the selected month. Click to view the column total.",
   "Paid Amt": "Amount recorded as paid in the selected month. Click to view the column total.",
@@ -4853,6 +4858,12 @@ function calculateCreditRemainingPercent(bill) {
   if (!limit) return null;
   const remaining = Math.max(0, limit - balance);
   return Math.max(0, Math.min(100, Math.round((remaining / limit) * 1000) / 10));
+}
+
+function getAvailableBillCredit(bill) {
+  const limit = normalizeMoney(bill?.creditLimit);
+  if (!limit) return null;
+  return Math.max(0, Math.min(limit, limit - Math.max(0, getEffectiveBillCurrentBalance(bill))));
 }
 
 function getCreditLineAvailabilityTooltip(creditLine, currentBalance, preview = false) {
@@ -7699,6 +7710,7 @@ function renderBills() {
       acc.proposed += normalizeMoney(bill.proposedAmount);
       acc.balanceDiff += getEffectiveBillCurrentBalance(bill) - getEffectiveBillPreviousBalance(bill);
       acc.creditLimit += normalizeMoney(bill.creditLimit);
+      acc.availableCredit += getAvailableBillCredit(bill) ?? 0;
       acc.amount += getEffectiveBillAmount(bill);
       acc.paidAmount += normalizeMoney(bill.paidAmount);
       acc.recommended += normalizeMoney(recommendedPayments.get(bill.id) ?? getEffectiveBillAmount(bill));
@@ -7710,6 +7722,7 @@ function renderBills() {
       proposed: 0,
       balanceDiff: 0,
       creditLimit: 0,
+      availableCredit: 0,
       amount: 0,
       paidAmount: 0,
       recommended: 0
@@ -7734,6 +7747,7 @@ function renderBills() {
       <div class="budget-bill-total-cell bill-col-diff">${escapeHtml(formatSignedCurrency(totals.balanceDiff))}</div>
       <div class="budget-bill-total-cell bill-col-payment-priority">-</div>
       <div class="budget-bill-total-cell bill-col-credit-line" title="${escapeAttribute(getCombinedCreditLineAvailabilityTooltip(billsForTotals))}">${escapeHtml(formatCurrency(totals.creditLimit))}</div>
+      <div class="budget-bill-total-cell bill-col-available-credit" title="${escapeAttribute(getCombinedCreditLineAvailabilityTooltip(billsForTotals))}">${escapeHtml(formatCurrency(totals.availableCredit))}</div>
       <div class="budget-bill-total-cell bill-col-due-amt">${escapeHtml(formatCurrency(totals.amount))}</div>
       <div class="budget-bill-total-cell bill-col-paid-amt">${escapeHtml(formatCurrency(totals.paidAmount))}</div>
       <div class="budget-bill-total-cell bill-col-recommended">${escapeHtml(formatCurrency(totals.recommended))}</div>
@@ -7824,6 +7838,10 @@ function renderBills() {
       <label class="budget-bill-field bill-col-credit-line" title="${escapeAttribute(creditLineTooltip)}">
         <span>Credit line</span>
         <input class="bill-credit-limit" type="text" inputmode="decimal" value="${escapeAttribute(formatCurrencyInputValue(bill.creditLimit))}" aria-label="Credit line" aria-description="${escapeAttribute(creditLineTooltip)}" title="${escapeAttribute(creditLineTooltip)}">
+      </label>
+      <label class="budget-bill-field bill-col-available-credit" title="${escapeAttribute(creditLineTooltip)}">
+        <span>Available credit</span>
+        <input class="bill-available-credit" type="text" value="${escapeAttribute(getAvailableBillCredit(bill) === null ? "—" : formatCurrency(getAvailableBillCredit(bill)))}" aria-label="Available credit" readonly>
       </label>
       <label class="budget-bill-field bill-col-due-amt">
         <span>Due amt</span>
@@ -8025,7 +8043,7 @@ function renderBills() {
     billListHeader.classList.toggle("is-simple", usesSimpleBills);
     billListHeader.innerHTML = usesSimpleBills
       ? "<span class=\"budget-bill-selector-header\"></span><span>Bill</span><span>Prev Bal</span><span>Current Bal</span><span>Amount</span><span>Due</span><span>Date Paid</span><span>Status</span><span>Notes</span><span>Actions</span>"
-      : "<span class=\"budget-bill-selector-header bill-col-selector\"></span><span class=\"bill-col bill-col-name\">Bill</span><span class=\"bill-col bill-col-type\">Type</span><span class=\"bill-col bill-col-apr\">APR</span><span class=\"bill-col bill-col-interest-paid is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum interest paid column\">Interest Paid</span><span class=\"bill-col bill-col-prev-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum previous balance column\">Prev Bal</span><span class=\"bill-col bill-col-current-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum current balance column\">Current Bal</span><span class=\"bill-col bill-col-proposed is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum proposed reductions column\">Proposed</span><span class=\"bill-col bill-col-diff is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum difference column\">Diff</span><span class=\"bill-col bill-col-payment-priority\" title=\"Paid bills where interest consumes more than the principal portion\">Pay More</span><span class=\"bill-col bill-col-credit-line is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum credit line column\">Credit Line</span><span class=\"bill-col bill-col-due-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum due amount column\">Due Amt</span><span class=\"bill-col bill-col-paid-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum paid amount column\">Paid Amt</span><span class=\"bill-col bill-col-recommended is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum recommended payment column\">Recommended</span><span class=\"bill-col bill-col-payoff-date\">Expected Paid Off Date</span><span class=\"bill-col bill-col-tran\">Tran #</span><span class=\"bill-col bill-col-due-date\">Due</span><span class=\"bill-col bill-col-date-paid\">Date Paid</span><span class=\"bill-col bill-col-credit-percent\">% Credit</span><span class=\"bill-col bill-col-status\">Status</span><span class=\"bill-col bill-col-notes\">Notes</span><span class=\"bill-col bill-col-observation\">Saved Balances <button type=\"button\" class=\"all-bill-history-launch\" aria-label=\"Open all bill charts for balance progress, interest impact, payments made, and payoff scenarios\" title=\"Open all bill charts: balance trends, interest impact, payments made, and payoff scenarios\"><span aria-hidden=\"true\">▥</span><span>All Bills<br>Charts</span></button></span><span class=\"bill-col bill-col-actions\">Actions</span>";
+      : "<span class=\"budget-bill-selector-header bill-col-selector\"></span><span class=\"bill-col bill-col-name\">Bill</span><span class=\"bill-col bill-col-type\">Type</span><span class=\"bill-col bill-col-apr\">APR</span><span class=\"bill-col bill-col-interest-paid is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum interest paid column\">Interest Paid</span><span class=\"bill-col bill-col-prev-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum previous balance column\">Prev Bal</span><span class=\"bill-col bill-col-current-bal is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum current balance column\">Current Bal</span><span class=\"bill-col bill-col-proposed is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum proposed reductions column\">Proposed</span><span class=\"bill-col bill-col-diff is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum difference column\">Diff</span><span class=\"bill-col bill-col-payment-priority\" title=\"Paid bills where interest consumes more than the principal portion\">Pay More</span><span class=\"bill-col bill-col-credit-line is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum credit line column\">Credit Line</span><span class=\"bill-col bill-col-available-credit is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum available credit column\">Available Credit</span><span class=\"bill-col bill-col-due-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum due amount column\">Due Amt</span><span class=\"bill-col bill-col-paid-amt is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum paid amount column\">Paid Amt</span><span class=\"bill-col bill-col-recommended is-summable\" tabindex=\"0\" role=\"button\" aria-label=\"Sum recommended payment column\">Recommended</span><span class=\"bill-col bill-col-payoff-date\">Expected Paid Off Date</span><span class=\"bill-col bill-col-tran\">Tran #</span><span class=\"bill-col bill-col-due-date\">Due</span><span class=\"bill-col bill-col-date-paid\">Date Paid</span><span class=\"bill-col bill-col-credit-percent\">% Credit</span><span class=\"bill-col bill-col-status\">Status</span><span class=\"bill-col bill-col-notes\">Notes</span><span class=\"bill-col bill-col-observation\">Saved Balances <button type=\"button\" class=\"all-bill-history-launch\" aria-label=\"Open all bill charts for balance progress, interest impact, payments made, and payoff scenarios\" title=\"Open all bill charts: balance trends, interest impact, payments made, and payoff scenarios\"><span aria-hidden=\"true\">▥</span><span>All Bills<br>Charts</span></button></span><span class=\"bill-col bill-col-actions\">Actions</span>";
     if (!usesSimpleBills) {
       billListHeader.querySelector(".bill-col-payoff-date")?.insertAdjacentHTML(
         "afterend",
@@ -9669,12 +9687,18 @@ function updateBillFromRow(row, options = {}) {
     }
     const creditStatus = row.querySelector(".bill-col-credit-percent .budget-bill-status-note");
     const creditLineInput = getField(".bill-credit-limit");
+    const availableCreditInput = getField(".bill-available-credit");
     if (creditLineInput) {
       const displayedBalance = normalizeCurrencyCell(getField(".bill-current-balance")?.value ?? bill.currentBalance);
       const tooltip = getCreditLineAvailabilityTooltip(bill.creditLimit, displayedBalance, isAdminProposedPreviewActive() && normalizeMoney(bill.proposedAmount) > 0);
       creditLineInput.title = tooltip;
       creditLineInput.setAttribute("aria-description", tooltip);
       creditLineInput.closest(".bill-col-credit-line")?.setAttribute("title", tooltip);
+    }
+    if (availableCreditInput) {
+      const available = getAvailableBillCredit(bill);
+      availableCreditInput.value = available === null ? "—" : formatCurrency(available);
+      availableCreditInput.closest(".bill-col-available-credit")?.setAttribute("title", getCreditLineAvailabilityTooltip(bill.creditLimit, getEffectiveBillCurrentBalance(bill), isAdminProposedPreviewActive() && normalizeMoney(bill.proposedAmount) > 0));
     }
     if (creditStatus) {
       creditStatus.textContent = creditPercent === null ? "N/A" : formatPercentLabel(creditPercent);

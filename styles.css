@@ -6134,7 +6134,7 @@ body[data-device-layout="tablet"] #budgetPanel .budget-bill-list-admin .budget-b
 #budgetPanel .budget-bill-list-header:not(.is-simple),
 #budgetPanel .budget-bill-item:not(.budget-bill-item-simple),
 #budgetPanel .budget-bill-total-row {
-  grid-template-columns: 24px minmax(148px, 1fr) minmax(88px, .55fr) 48px minmax(78px, .4fr) minmax(92px, .42fr) minmax(92px, .4fr) minmax(88px, .4fr) minmax(82px, .42fr) minmax(66px, .36fr) minmax(92px, .38fr) minmax(78px, .36fr) minmax(78px, .4fr) minmax(96px, .58fr) minmax(142px, .82fr) minmax(142px, .82fr) minmax(68px, .38fr) minmax(108px, .68fr) minmax(108px, .68fr) 56px 64px minmax(156px, .9fr) minmax(156px, .9fr) 78px;
+  grid-template-columns: 24px minmax(148px, 1fr) minmax(88px, .55fr) 48px minmax(78px, .4fr) minmax(92px, .42fr) minmax(92px, .4fr) minmax(88px, .4fr) minmax(82px, .42fr) minmax(66px, .36fr) minmax(92px, .38fr) minmax(78px, .36fr) minmax(92px, .42fr) minmax(78px, .4fr) minmax(96px, .58fr) minmax(142px, .82fr) minmax(142px, .82fr) minmax(68px, .38fr) minmax(108px, .68fr) minmax(108px, .68fr) 56px 64px minmax(156px, .9fr) minmax(156px, .9fr) 78px;
 }
 
 #budgetPanel .budget-bill-list-header:not(.is-simple) .bill-col-recommended,
@@ -6183,8 +6183,8 @@ body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple),
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-total-row,
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-total-row {
-  grid-template-columns: 24px 160px 96px 52px 82px 96px 96px 88px 86px 74px 94px 86px 86px 100px 132px 132px 68px 108px 108px 56px 64px 128px 128px 70px;
-  min-width: 2214px;
+  grid-template-columns: 24px 160px 96px 52px 82px 96px 96px 88px 86px 74px 94px 94px 86px 86px 100px 132px 132px 68px 108px 108px 56px 64px 128px 128px 70px;
+  min-width: 2308px;
 }
 
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-header:not(.is-simple),
@@ -6247,8 +6247,8 @@ body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-scroll-shell > .budget-bill-list-header:not(.is-simple),
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid #billList,
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid #billList {
-  width: 2214px;
-  min-width: 2214px;
+  width: 2308px;
+  min-width: 2308px;
 }
 
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin,
@@ -6680,3 +6680,6 @@ html[data-theme="dark"] .oil-delivery-cumulative { color: #abc4d8; }
 
 .bill-balance-transfer-badge, .mobile-grid-transfer-requested { display: block; width: fit-content; max-width: 100%; margin-top: 2px; padding: 1px 4px; border: 1px solid #bd8c23; border-radius: 4px; background: #ffe69a; color: #3d2a07; font-size: .64rem; font-weight: 800; line-height: 1.2; white-space: normal; }
 .mobile-grid-transfer-requested { margin-left: auto; margin-right: auto; }
+
+#budgetPanel .bill-col-available-credit .bill-available-credit { color: #12523a; background: #e8f6ed; border-color: #8bc9a1; font-weight: 800; }
+.budget-panel-admin-mini .bill-col-available-credit { display: none !important; }
