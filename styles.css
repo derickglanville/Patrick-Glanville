@@ -6677,3 +6677,6 @@ html[data-theme="dark"] .oil-delivery-cumulative { color: #abc4d8; }
 
 .oil-delivery-days-cell { cursor: help; }
 .oil-delivery-days-cell:focus-visible { outline: 2px solid #1b6fa6; outline-offset: -2px; }
+
+.bill-balance-transfer-badge, .mobile-grid-transfer-requested { display: block; width: fit-content; max-width: 100%; margin-top: 2px; padding: 1px 4px; border: 1px solid #bd8c23; border-radius: 4px; background: #ffe69a; color: #3d2a07; font-size: .64rem; font-weight: 800; line-height: 1.2; white-space: normal; }
+.mobile-grid-transfer-requested { margin-left: auto; margin-right: auto; }

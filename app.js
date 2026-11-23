@@ -305,7 +305,8 @@ if (billActionMenu) {
 }
 
 function getBillHoverDescription(bill) {
-  return String(bill.name || "Untitled bill").trim();
+  const name = String(bill.name || "Untitled bill").trim();
+  return bill.balanceTransferRequested ? `${name}\nBalance transfer requested (not yet confirmed)` : name;
 }
 
 function getAttCancellationTransactions() {
@@ -3838,6 +3839,7 @@ function normalizeBill(bill) {
     status: normalizedStatus,
     notes: normalizeBillNotes(legacyMetadata.notes || "", normalizedStatus),
     observation: String(bill.observation || "").trim().slice(0, 500),
+    balanceTransferRequested: Boolean(bill.balanceTransferRequested),
     apr,
     previousBalance: normalizeMoney(
       bill.previousBalance !== undefined && bill.previousBalance !== null
@@ -7471,7 +7473,7 @@ function renderMobileBillGrid() {
   dialog.querySelector("#mobileBillGridTotal").textContent = formatCurrency(total);
   dialog.querySelector("#mobileBillGridBalanceTotal").textContent = formatCurrency(balanceTotal);
   dialog.querySelector("#mobileBillGridBody").innerHTML = bills.length
-    ? bills.map(bill => `<tr${isBillPastDue(bill) ? ' class="is-past-due"' : ""}><td><button type="button"${isMobileBillPaid(bill) ? ' class="mobile-grid-bill-paid" title="Paid"' : ""} data-mobile-grid-bill-id="${escapeAttribute(bill.id)}">${escapeHtml(bill.name || "Untitled bill")}</button></td><td class="${isAdminClient() ? getAdminAprHighlightClass(bill.apr).trim() : ""}">${escapeHtml(formatApr(bill.apr) || "—")}</td><td>${escapeHtml(formatBillCurrentBalanceForDisplay(bill))}</td><td>${escapeHtml(formatCurrency(getEffectiveBillAmount(bill)))}</td><td>${bill.due ? escapeHtml(formatShortDate(bill.due)) : "—"}</td></tr>`).join("")
+    ? bills.map(bill => `<tr${isBillPastDue(bill) ? ' class="is-past-due"' : ""}><td><button type="button"${isMobileBillPaid(bill) ? ' class="mobile-grid-bill-paid" title="Paid"' : ""} data-mobile-grid-bill-id="${escapeAttribute(bill.id)}">${escapeHtml(bill.name || "Untitled bill")}${bill.balanceTransferRequested ? '<small class="mobile-grid-transfer-requested">Balance transfer requested</small>' : ""}</button></td><td class="${isAdminClient() ? getAdminAprHighlightClass(bill.apr).trim() : ""}">${escapeHtml(formatApr(bill.apr) || "—")}</td><td>${escapeHtml(formatBillCurrentBalanceForDisplay(bill))}</td><td>${escapeHtml(formatCurrency(getEffectiveBillAmount(bill)))}</td><td>${bill.due ? escapeHtml(formatShortDate(bill.due)) : "—"}</td></tr>`).join("")
     : '<tr><td colspan="5">No bills for this month.</td></tr>';
 }
 
@@ -7783,6 +7785,7 @@ function renderBills() {
       <label class="budget-bill-field budget-bill-name-box bill-col-name">
         <span>Bill</span>
         <input class="bill-name" value="${escapeAttribute(bill.name)}" aria-label="Bill name" title="${escapeAttribute(getBillHoverDescription(bill))}">
+        ${bill.balanceTransferRequested ? '<small class="bill-balance-transfer-badge" title="A balance transfer was requested; completion has not been confirmed.">Balance transfer requested</small>' : ""}
       </label>
       <label class="budget-bill-field bill-col-type">
         <span>Type</span>
