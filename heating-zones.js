@@ -46,6 +46,10 @@ function heatingSystemData(oil) {
     if (!system.history.some(entry => entry.id === "honeywell-photo-20261124")) system.history.push({ id: "honeywell-photo-20261124", date: "2026-11-24", description: "Thermostat photos show a Honeywell Home battery-powered programmable wall thermostat with Set, Hold, and Run buttons, heat/off/cool and fan auto/on switches, two AAA batteries, and a gas/oil fan setting. Its exact model and zone location are not established by the photos." });
     system.schemaVersion = 3;
   }
+  if (Number(system.schemaVersion || 0) < 4) {
+    if (!system.history.some(entry => entry.id === "boiler-photo-20261124")) system.history.push({ id: "boiler-photo-20261124", date: "2026-11-24", description: "Boiler photo confirms Weil-McLain GOLD OIL cabinet. Visible: Taco circulator, front temperature/pressure gauge, service switch, Honeywell-labeled burner control, oil-burner assembly, flue, and hydronic piping. Exact WGO/WTGO model, series, burner model, controller model, and zone-valve connections are not readable in this photo." });
+    system.schemaVersion = 4;
+  }
   return system;
 }
 
@@ -87,6 +91,10 @@ function wireHeatingZones(root, oil) {
     identification.className = "heating-photo-identification";
     identification.innerHTML = `<strong>Thermostat identified from photos</strong><span>Honeywell Home battery-powered programmable thermostat. The front has Set, Hold, and Run buttons; up/down controls; and Heat/Off/Cool and Fan Auto/On switches. The back has two AAA batteries and a Gas or Oil / Electric or Heat Pump fan-setting switch.</span><span>It resembles Honeywell’s RTH2300/RTH221 family, but similar models share this housing. The exact model number and which house zone this photographed unit serves are unconfirmed. <a href="https://customer.resideo.com/resources/techlit/TechLitDocuments/33-00000s/33-00102ES.pdf" target="_blank" rel="noopener noreferrer">Compare the official Honeywell/Resideo manual</a>.</span>`;
     brief.querySelector("h3")?.after(identification);
+    const boilerPhoto = document.createElement("details");
+    boilerPhoto.className = "heating-boiler-photo";
+    boilerPhoto.innerHTML = `<summary>Boiler photo observations</summary><div class="heating-boiler-photo-content"><strong>Visible in your photo</strong><ul><li>Weil-McLain <strong>GOLD OIL</strong> badge on the boiler cabinet.</li><li><strong>Taco circulator</strong> on the left-side piping.</li><li>Front <strong>temperature/pressure gauge</strong> and <strong>service switch</strong>.</li><li><strong>Honeywell-labeled burner control</strong> at the right and oil-burner assembly below.</li><li>Flue and heating-water piping.</li></ul><p>The rating plate is too small to read. The exact model and series, WGO versus WTGO configuration, burner and control model numbers, and the four zones’ valve wiring remain unverified. A close-up of the boiler rating plate and zone controls would resolve those details.</p><a href="https://www.weil-mclain.com/wp-content/uploads/Weil-McLain_WTGO-Brochure_Series3.pdf" target="_blank" rel="noopener noreferrer">Weil-McLain GOLD OIL manual for model-identification reference</a></div>`;
+    brief.appendChild(boilerPhoto);
   }
   const zoneTable = root.querySelector(".heating-zones-table")?.closest(".oil-table-wrap");
   if (zoneTable) {

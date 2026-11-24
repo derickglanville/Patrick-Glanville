@@ -6826,6 +6826,12 @@ html[data-theme="dark"] .heating-system-brief-grid strong, html[data-theme="dark
 .heating-photo-identification strong { color: #174866; }
 html[data-theme="dark"] .heating-photo-identification { background: #1c3448; border-color: #56758e; }
 html[data-theme="dark"] .heating-photo-identification strong { color: #d6ecfc; }
+.heating-boiler-photo { margin-top: 8px; border-top: 1px solid #b9d0df; padding-top: 7px; }
+.heating-boiler-photo summary { cursor: pointer; color: #174866; font-weight: 800; }
+.heating-boiler-photo-content { margin-top: 8px; }
+.heating-boiler-photo ul { margin: 5px 0; padding-left: 19px; }
+.heating-boiler-photo li { margin-bottom: 4px; font-size: .8rem; }
+html[data-theme="dark"] .heating-boiler-photo summary { color: #d6ecfc; }
 
 /* Keep section controls clear of the dashboard scrollbar at the right edge. */
 #toggleHiddenBillsBtn, #toggleBudgetSnapshotsBtn { margin-inline-end: clamp(24px, 2.5vw, 48px); }
