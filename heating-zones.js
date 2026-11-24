@@ -39,6 +39,13 @@ function heatingSystemData(oil) {
     if (!system.history.some(entry => entry.id === "thermostat-plan-20261124")) system.history.push({ id: "thermostat-plan-20261124", date: "2026-11-24", description: "Confirmed Honeywell thermostats in all four zones and Weil-McLain GOLD oil boiler. Planning a 3rd-generation Nest for the living-room zone after compatible 24 V power is provided; exact Honeywell model, black-wire function, and proposed relay arrangement remain unverified." });
     system.schemaVersion = 2;
   }
+  if (Number(system.schemaVersion || 0) < 3) {
+    system.zones.forEach(zone => {
+      if (zone.currentModel === "Honeywell (exact model unconfirmed)") zone.currentModel = "Honeywell Home programmable (exact model unconfirmed)";
+    });
+    if (!system.history.some(entry => entry.id === "honeywell-photo-20261124")) system.history.push({ id: "honeywell-photo-20261124", date: "2026-11-24", description: "Thermostat photos show a Honeywell Home battery-powered programmable wall thermostat with Set, Hold, and Run buttons, heat/off/cool and fan auto/on switches, two AAA batteries, and a gas/oil fan setting. Its exact model and zone location are not established by the photos." });
+    system.schemaVersion = 3;
+  }
   return system;
 }
 
@@ -48,8 +55,8 @@ function heatingPhotoLink(value, label) {
 }
 
 function heatingHouseSvg(activeZone) {
-  const room = (id, label, subtitle, x, y, width, height, fill) => `<g class="heating-house-zone ${activeZone === id ? "active" : ""}" data-heating-zone="${id}" role="button" tabindex="0" aria-label="Show ${label} zone"><title>Show ${label} zone</title><rect x="${x}" y="${y}" width="${width}" height="${height}" rx="9" fill="${fill}"/><text x="${x + 16}" y="${y + 31}" class="heating-house-room-title">${label}</text><text x="${x + 16}" y="${y + 53}" class="heating-house-room-subtitle">${subtitle}</text></g>`;
-  return `<svg class="heating-house-image" viewBox="0 0 760 430" role="group" aria-label="Three-floor house showing four selectable heating zones"><path d="M85 95 380 15 675 95" class="heating-house-roof"/><rect x="85" y="95" width="590" height="322" rx="10" class="heating-house-outline"/><text x="380" y="118" text-anchor="middle" class="heating-house-floor">TOP FLOOR</text>${room("master", "Zone 1 · Master bedroom", "3 wires · 2 used for heat", 103, 129, 269, 85, "#d8ecfc")}${room("bedrooms", "Zone 2 · Other bedrooms", "3 wires · 2 used for heat", 388, 129, 269, 85, "#e1ebff")}<text x="380" y="238" text-anchor="middle" class="heating-house-floor">MAIN FLOOR</text>${room("main", "Zone 3 · Living areas", "Living, dining, kitchen, hallway · 4 wires", 103, 247, 554, 75, "#e4f3df")}<text x="380" y="346" text-anchor="middle" class="heating-house-floor">BASEMENT</text>${room("basement", "Zone 4 · Basement", "3 wires · 2 used for heat", 103, 354, 554, 54, "#f9ead6")}</svg>`;
+  const room = (id, label, subtitle, x, y, width, height, fill) => `<g class="heating-house-zone ${activeZone === id ? "active" : ""}" data-heating-zone="${id}" role="button" tabindex="0" aria-label="Show ${label} zone"><title>Show ${label} zone</title><rect x="${x}" y="${y}" width="${width}" height="${height}" rx="9" fill="${fill}"/><text x="${x + 16}" y="${y + 31}" class="heating-house-room-title">${label}</text><text x="${x + 16}" y="${y + 53}" class="heating-house-room-subtitle">${subtitle}</text><rect x="${x + width - 35}" y="${y + 12}" width="19" height="25" rx="4" class="heating-house-thermostat"/><circle cx="${x + width - 25.5}" cy="${y + 24}" r="5" class="heating-house-thermostat-screen"/></g>`;
+  return `<svg class="heating-house-image" viewBox="0 0 760 430" role="group" aria-label="Three-floor house showing four selectable heating zones and thermostat information"><path d="M85 95 380 15 675 95" class="heating-house-roof"/><rect x="85" y="95" width="590" height="322" rx="10" class="heating-house-outline"/><text x="380" y="118" text-anchor="middle" class="heating-house-floor">TOP FLOOR</text>${room("master", "Zone 1 · Master bedroom", "Honeywell · 3 wires · model TBD", 103, 129, 269, 85, "#d8ecfc")}${room("bedrooms", "Zone 2 · Other bedrooms", "Honeywell · 3 wires · model TBD", 388, 129, 269, 85, "#e1ebff")}<text x="380" y="238" text-anchor="middle" class="heating-house-floor">MAIN FLOOR</text>${room("main", "Zone 3 · Living areas", "Honeywell now → Nest 3rd gen planned · 4 wires", 103, 247, 554, 75, "#e4f3df")}<text x="380" y="346" text-anchor="middle" class="heating-house-floor">BASEMENT</text>${room("basement", "Zone 4 · Basement", "Honeywell · 3 wires · model TBD", 103, 354, 554, 54, "#f9ead6")}</svg>`;
 }
 
 function heatingZonesView(oil) {
@@ -74,6 +81,13 @@ function wireHeatingZones(root, oil) {
   const zone = system.zones.find(item => item.id === selectedHeatingZone) || system.zones[0];
   const schema = root.querySelector(".heating-zone-schema");
   if (schema) schema.innerHTML = `${heatingHouseSvg(zone.id)}<div class="heating-mobile-zone-list">${HEATING_ZONE_SEED.map((item, index) => `<button type="button" data-heating-zone="${item.id}" class="${zone.id === item.id ? "active" : ""}">Zone ${index + 1} · ${item.rooms}</button>`).join("")}</div>`;
+  const brief = root.querySelector(".heating-system-brief");
+  if (brief) {
+    const identification = document.createElement("div");
+    identification.className = "heating-photo-identification";
+    identification.innerHTML = `<strong>Thermostat identified from photos</strong><span>Honeywell Home battery-powered programmable thermostat. The front has Set, Hold, and Run buttons; up/down controls; and Heat/Off/Cool and Fan Auto/On switches. The back has two AAA batteries and a Gas or Oil / Electric or Heat Pump fan-setting switch.</span><span>It resembles Honeywell’s RTH2300/RTH221 family, but similar models share this housing. The exact model number and which house zone this photographed unit serves are unconfirmed. <a href="https://customer.resideo.com/resources/techlit/TechLitDocuments/33-00000s/33-00102ES.pdf" target="_blank" rel="noopener noreferrer">Compare the official Honeywell/Resideo manual</a>.</span>`;
+    brief.querySelector("h3")?.after(identification);
+  }
   const zoneTable = root.querySelector(".heating-zones-table")?.closest(".oil-table-wrap");
   if (zoneTable) {
     const details = document.createElement("details");

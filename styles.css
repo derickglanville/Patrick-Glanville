@@ -6764,6 +6764,8 @@ html[data-theme="dark"] .heating-checklist label { border-color: #45617a; }
 .heating-house-zone:focus-visible rect { stroke: #e29124; stroke-width: 5; }
 .heating-house-room-title { fill: #163c58; font-size: 17px; font-weight: 800; }
 .heating-house-room-subtitle { fill: #395d74; font-size: 13px; }
+.heating-house-thermostat { fill: #f7fbff; stroke: #326580; stroke-width: 2; }
+.heating-house-thermostat-screen { fill: #8dbdc9; }
 .heating-zone-details { margin: 5px 0; }
 .heating-zone-details summary { cursor: pointer; font-weight: 700; color: #1d597a; }
 .heating-compact-details summary { cursor: pointer; font-weight: 800; color: #1d597a; padding: 5px 0; }
@@ -6820,6 +6822,10 @@ html[data-theme="dark"] .heating-compact-details summary { color: #c5d8e7; }
 @media (max-width: 650px) { .heating-system-brief-grid { grid-template-columns: 1fr; } }
 html[data-theme="dark"] .heating-system-brief-grid > div { background: #1c3448; border-color: #56758e; }
 html[data-theme="dark"] .heating-system-brief-grid strong, html[data-theme="dark"] .heating-system-brief h4 { color: #d6ecfc; }
+.heating-photo-identification { display: grid; gap: 4px; padding: 8px 10px; margin: 7px 0; border: 1px solid #a9c9db; border-radius: 7px; background: #f0f8fc; font-size: .8rem; line-height: 1.35; }
+.heating-photo-identification strong { color: #174866; }
+html[data-theme="dark"] .heating-photo-identification { background: #1c3448; border-color: #56758e; }
+html[data-theme="dark"] .heating-photo-identification strong { color: #d6ecfc; }
 
 /* Keep section controls clear of the dashboard scrollbar at the right edge. */
 #toggleHiddenBillsBtn, #toggleBudgetSnapshotsBtn { margin-inline-end: clamp(24px, 2.5vw, 48px); }
