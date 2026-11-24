@@ -564,6 +564,20 @@ textarea {
   padding-top: 12px;
   padding-bottom: 12px;
   gap: 7px;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Keep the wide bill spreadsheet inside its own horizontal scroll area. */
+#budgetPanel > *,
+#budgetPanel .budget-bill-group,
+#budgetPanel .budget-bill-scroll-shell {
+  min-width: 0;
+  max-width: 100%;
+}
+
+#budgetPanel .budget-bill-scroll-shell {
+  overflow-x: auto;
 }
 
 .budget-panel header {
