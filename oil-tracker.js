@@ -21,6 +21,8 @@ let oilHistoryRange = "month";
 let oilHistorySelectedDate = "";
 let oilReadingSaveStatus = { kind: "", text: "" };
 let oilReadingRefreshInFlight = null;
+let oilMaintenanceStatus = { kind: "", text: "" };
+let oilMaintenanceSyncInFlight = false;
 const OIL_DAILY_WEATHER_SOURCE = "https://data.rcc-acis.org/StnData";
 let oilDailyWeather = { status: "idle", rows: new Map(), checkedAt: 0, start: "", error: "" };
 
@@ -650,13 +652,92 @@ async function oilSaveTankReading(form, editingId = "") {
   }
 }
 
+function oilMaintenanceKey(row) {
+  return [row.date, row.work, row.provider, row.cost].map(value => String(value ?? "").trim().toLowerCase()).join("|");
+}
+
+async function oilWriteMaintenance(change, record = null) {
+  if (oilMaintenanceSyncInFlight || !ensureCurrentUser("sync boiler maintenance")) return;
+  oilMaintenanceSyncInFlight = true;
+  oilMaintenanceStatus = { kind: "", text: "Saving boiler service to Firebase…" };
+  renderHomeHeatingOil();
+  try {
+    if (!supabaseEnabled || !supabaseClient || activeClientId !== "admin") throw new Error("Admin Firebase is not connected. No changes were made.");
+    const clientId = activeClientId, priorBaseline = remoteUpdatedAt || "";
+    const docRef = supabaseClient.doc(supabaseClient.db, SUPABASE_TABLE, getSupabaseStateId());
+    const savedAt = new Date().toISOString();
+    const localRows = [...(oilData().maintenance || [])];
+    let mergedRows = [], liveBaseline = "", added = 0;
+    await supabaseClient.runTransaction(supabaseClient.db, async transaction => {
+      const snapshot = await transaction.get(docRef);
+      if (!snapshot.exists()) throw new Error("Admin Firebase record is missing. No changes were made.");
+      const live = snapshot.data() || {};
+      liveBaseline = String(live.updated_at || "");
+      mergedRows = normalizeHomeHeatingOil({ maintenance: live.state?.homeHeatingOil?.maintenance || [] }).maintenance;
+      if (change === "sync") {
+        const ids = new Set(mergedRows.map(row => row.id));
+        const keys = new Set(mergedRows.map(oilMaintenanceKey));
+        for (const row of localRows) {
+          if (ids.has(row.id) || keys.has(oilMaintenanceKey(row))) continue;
+          mergedRows.push(row); ids.add(row.id); keys.add(oilMaintenanceKey(row)); added++;
+        }
+      } else if (change === "save" && record) {
+        const index = mergedRows.findIndex(row => row.id === record.id);
+        if (index < 0) mergedRows.push(record); else mergedRows[index] = record;
+      } else if (change === "delete" && record) {
+        mergedRows = mergedRows.filter(row => row.id !== record.id);
+      }
+      transaction.update(docRef, { "state.homeHeatingOil.maintenance": mergedRows, "state.lastSavedAt": savedAt, updated_at: savedAt });
+    });
+    if (activeClientId !== clientId) return;
+    // Retain other entries that are still local only until the user explicitly syncs them.
+    const remoteIds = new Set(mergedRows.map(row => row.id));
+    const remoteKeys = new Set(mergedRows.map(oilMaintenanceKey));
+    const unsynced = change === "sync" ? [] : localRows.filter(row => !remoteIds.has(row.id) && !remoteKeys.has(oilMaintenanceKey(row)) && !(change === "delete" && row.id === record?.id));
+    oilData().maintenance = [...mergedRows, ...unsynced];
+    state.lastSavedAt = savedAt;
+    if (!pendingLocalSharedSaveAt && !sharedSaveInFlight && priorBaseline === liveBaseline) cacheRemoteUpdatedAt(savedAt);
+    if (getStorageKey()) tryWriteLocalState(getStorageKey());
+    queueJsonBackupSave("boiler maintenance saved");
+    oilEditingMaintenanceId = "";
+    oilMaintenanceStatus = { kind: "success", text: change === "sync" ? `${added} service record${added === 1 ? "" : "s"} uploaded; ${mergedRows.length} available in Firebase.` : `${change === "delete" ? "Deleted" : "Saved"} in Firebase. ${unsynced.length ? `${unsynced.length} other local record(s) still need syncing.` : "Records are available on your devices."}` };
+  } catch (error) {
+    oilMaintenanceStatus = { kind: "error", text: `Firebase sync failed: ${error.message || error}. Local records were preserved.` };
+  } finally {
+    oilMaintenanceSyncInFlight = false;
+    if (document.querySelector("#homeHeatingOilDialog")?.open) renderHomeHeatingOil();
+  }
+}
+
+async function oilRefreshMaintenanceFromFirebase() {
+  if (oilMaintenanceSyncInFlight) return;
+  oilMaintenanceSyncInFlight = true;
+  try {
+    if (!supabaseEnabled || !supabaseClient || activeClientId !== "admin") throw new Error("Admin Firebase is not connected.");
+    const snapshot = await supabaseClient.getDocFromServer(supabaseClient.doc(supabaseClient.db, SUPABASE_TABLE, getSupabaseStateId()));
+    if (!snapshot.exists()) throw new Error("Admin Firebase record is missing.");
+    const remote = normalizeHomeHeatingOil({ maintenance: snapshot.data()?.state?.homeHeatingOil?.maintenance || [] }).maintenance;
+    const local = oilData().maintenance || [];
+    const ids = new Set(remote.map(row => row.id)), keys = new Set(remote.map(oilMaintenanceKey));
+    const localOnly = local.filter(row => !ids.has(row.id) && !keys.has(oilMaintenanceKey(row)));
+    oilData().maintenance = [...remote, ...localOnly];
+    if (getStorageKey()) tryWriteLocalState(getStorageKey());
+    oilMaintenanceStatus = { kind: localOnly.length ? "error" : "success", text: localOnly.length ? `Loaded ${remote.length} Firebase records. ${localOnly.length} record(s) exist only on this device; use “Sync this device’s service records” to upload them.` : `Loaded ${remote.length} service record(s) from Firebase.` };
+  } catch (error) {
+    oilMaintenanceStatus = { kind: "error", text: `Could not refresh boiler service from Firebase: ${error.message || error}` };
+  } finally {
+    oilMaintenanceSyncInFlight = false;
+    if (document.querySelector("#homeHeatingOilDialog")?.open) renderHomeHeatingOil();
+  }
+}
+
 function oilMaintenanceView(data) {
   const records = [...(data.maintenance || [])].sort((a, b) => b.date.localeCompare(a.date));
   const editing = records.find(row => row.id === oilEditingMaintenanceId);
   const total = records.reduce((sum, row) => sum + (row.cost ?? 0), 0);
   const priced = records.filter(row => row.cost !== null).length;
   const next = records.filter(row => row.nextDate >= oilIsoToday()).sort((a, b) => a.nextDate.localeCompare(b.nextDate))[0];
-  return `<div class="oil-maintenance-summary"><article><small>Service records</small><strong>${records.length}</strong></article><article><small>Recorded costs</small><strong>${oilMoney(total)}</strong><span>${priced} priced ${priced === 1 ? "record" : "records"}; unknown costs excluded</span></article><article><small>Next planned service</small><strong>${next ? escapeHtml(next.nextDate) : "Not set"}</strong><span>${next ? escapeHtml(next.work) : "Add a next-service date to a record"}</span></article></div>
+  return `<div class="oil-form-actions"><button type="button" id="oilSyncMaintenance">Sync this device’s service records</button><button type="button" id="oilRefreshMaintenance" class="ghost">Refresh from Firebase</button></div><p class="oil-reading-save-status ${oilMaintenanceStatus.kind === "error" ? "is-error" : oilMaintenanceStatus.kind === "success" ? "is-success" : ""}" role="status">${escapeHtml(oilMaintenanceStatus.text)}</p><div class="oil-maintenance-summary"><article><small>Service records</small><strong>${records.length}</strong></article><article><small>Recorded costs</small><strong>${oilMoney(total)}</strong><span>${priced} priced ${priced === 1 ? "record" : "records"}; unknown costs excluded</span></article><article><small>Next planned service</small><strong>${next ? escapeHtml(next.nextDate) : "Not set"}</strong><span>${next ? escapeHtml(next.work) : "Add a next-service date to a record"}</span></article></div>
   <section class="oil-card"><h3>${editing ? "Update boiler service" : "Add boiler service"}</h3><form id="oilMaintenanceForm" class="oil-maintenance-form"><label>Service date<input name="date" type="date" value="${escapeAttribute(editing?.date || oilIsoToday())}" required></label><label>Work done<input name="work" value="${escapeAttribute(editing?.work || "")}" placeholder="Annual tune-up, burner repair…" required></label><label>Provider<input name="provider" value="${escapeAttribute(editing?.provider || "")}" placeholder="Company or technician"></label><label>Cost ($)<input name="cost" type="number" min="0" step="0.01" value="${editing?.cost ?? ""}" placeholder="Leave blank if unknown"></label><label>Next service date<input name="nextDate" type="date" value="${escapeAttribute(editing?.nextDate || "")}"></label><label class="oil-maintenance-notes">Notes<input name="notes" value="${escapeAttribute(editing?.notes || "")}" placeholder="Parts, invoice details, follow-up"></label><div class="oil-form-actions"><button type="submit">${editing ? "Save changes" : "Add service record"}</button>${editing ? '<button type="button" id="oilCancelMaintenance" class="ghost">Cancel</button>' : ""}</div></form><p class="oil-footnote">Leave cost blank if unknown. Records save with the Admin account and sync through its existing data store.</p></section>
   <section class="oil-card"><h3>Boiler maintenance history</h3><div class="oil-table-wrap"><table class="oil-table"><thead><tr><th>Date</th><th>Work done</th><th>Provider</th><th>Cost</th><th>Next service</th><th>Notes</th><th>Actions</th></tr></thead><tbody>${records.length ? records.map(row => `<tr><td>${escapeHtml(row.date)}</td><td>${escapeHtml(row.work)}</td><td>${escapeHtml(row.provider) || "—"}</td><td>${row.cost === null ? "—" : oilMoney(row.cost)}</td><td>${escapeHtml(row.nextDate) || "—"}</td><td>${escapeHtml(row.notes) || "—"}</td><td><button type="button" class="ghost oil-edit-maintenance" data-id="${escapeAttribute(row.id)}">Edit</button><button type="button" class="ghost oil-delete-maintenance" data-id="${escapeAttribute(row.id)}">Delete</button></td></tr>`).join("") : '<tr><td colspan="7">No boiler maintenance records yet.</td></tr>'}</tbody></table></div></section>`;
 }
@@ -712,7 +793,7 @@ function renderHomeHeatingOil() {
   root.querySelector("#oilTankPercentButton")?.addEventListener("click", openOilDailyUsageDialog);
   root.querySelector("#oilGaugePhotoBtn")?.addEventListener("click", openOilGaugePhotoDialog);
   root.querySelector("#oilRefreshReadingsBtn")?.addEventListener("click", oilRefreshReadingsFromFirebase);
-  root.querySelectorAll("[data-oil-tab]").forEach(button => button.addEventListener("click", () => { oilTab = button.dataset.oilTab; oilEditingId = ""; oilReadingSaveStatus = { kind: "", text: "" }; renderHomeHeatingOil(); if (oilTab === "prices") checkOilRegionalPrice(); if (oilTab === "priceHistory") checkOilPriceHistory(); }));
+  root.querySelectorAll("[data-oil-tab]").forEach(button => button.addEventListener("click", () => { oilTab = button.dataset.oilTab; oilEditingId = ""; oilReadingSaveStatus = { kind: "", text: "" }; renderHomeHeatingOil(); if (oilTab === "prices") checkOilRegionalPrice(); if (oilTab === "priceHistory") checkOilPriceHistory(); if (oilTab === "maintenance") oilRefreshMaintenanceFromFirebase(); }));
   root.querySelector("#oilCheckPrice")?.addEventListener("click", () => checkOilRegionalPrice(true));
   root.querySelector("#oilRefreshHistory")?.addEventListener("click", () => checkOilPriceHistory(true));
   root.querySelectorAll("[data-oil-range]").forEach(button => button.addEventListener("click", () => { oilHistoryRange = button.dataset.oilRange; oilHistorySelectedDate = ""; renderHomeHeatingOil(); }));
@@ -745,19 +826,15 @@ function renderHomeHeatingOil() {
     const fields = event.currentTarget.elements;
     const record = normalizeHomeHeatingOil({ maintenance: [{ id: oilEditingMaintenanceId || crypto.randomUUID(), date: fields.date.value, work: fields.work.value, provider: fields.provider.value, cost: fields.cost.value, nextDate: fields.nextDate.value, notes: fields.notes.value }] }).maintenance[0];
     if (!record) return;
-    if (!Array.isArray(data.maintenance)) data.maintenance = [];
-    const index = data.maintenance.findIndex(row => row.id === record.id);
-    if (index >= 0) data.maintenance[index] = record; else data.maintenance.push(record);
-    oilEditingMaintenanceId = "";
-    saveState();
-    renderHomeHeatingOil();
+    oilWriteMaintenance("save", record);
   });
+  root.querySelector("#oilSyncMaintenance")?.addEventListener("click", () => oilWriteMaintenance("sync"));
+  root.querySelector("#oilRefreshMaintenance")?.addEventListener("click", oilRefreshMaintenanceFromFirebase);
   root.querySelectorAll(".oil-edit-maintenance").forEach(button => button.addEventListener("click", () => { oilEditingMaintenanceId = button.dataset.id; renderHomeHeatingOil(); root.querySelector("#oilMaintenanceForm [name='work']")?.focus(); }));
   root.querySelectorAll(".oil-delete-maintenance").forEach(button => button.addEventListener("click", () => {
     const row = data.maintenance?.find(item => item.id === button.dataset.id);
     if (!row || !ensureCurrentUser("delete boiler maintenance") || !confirm(`Delete boiler service from ${row.date}?`)) return;
-    data.maintenance = data.maintenance.filter(item => item.id !== row.id);
-    saveState(); renderHomeHeatingOil();
+    oilWriteMaintenance("delete", row);
   }));
   root.querySelector("#oilCancelMaintenance")?.addEventListener("click", () => { oilEditingMaintenanceId = ""; renderHomeHeatingOil(); });
   if (document.querySelector("#homeHeatingOilDialog")?.open) oilLoadDailyWeather();
