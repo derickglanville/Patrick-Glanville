@@ -14,6 +14,25 @@
   const remaining = () => Math.max(0, Number(plan().openingBalance) + plan().records.reduce((sum, record) =>
     sum + (record.affectsBalance === false || record.type === "snapshot" ? 0 : record.type === "charge" ? record.amount : -record.amount), 0));
 
+  function balancesAfterRecords(bill) {
+    let running = Number(bill.openingBalance) || 0;
+    const balances = new Map();
+    for (const record of [...bill.records].sort((a, b) => a.date.localeCompare(b.date))) {
+      if (record.affectsBalance !== false && record.type !== "snapshot") {
+        running = Math.round((running + (record.type === "charge" ? record.amount : -record.amount)) * 100) / 100;
+        balances.set(record.id, { amount: Math.max(0, running), label: "Calculated", source: "Calculated from the plan starting balance and included records." });
+      } else if (record.type === "snapshot") {
+        balances.set(record.id, { amount: record.amount, label: "Snapshot", source: "Historical balance snapshot; excluded from the current payoff calculation." });
+      } else {
+        const reported = String(record.description).match(/email reported\s+\$([\d,]+(?:\.\d{1,2})?)\s+remaining/i);
+        balances.set(record.id, reported
+          ? { amount: Number(reported[1].replace(/,/g, "")), label: "Reported", source: "Balance reported in the historical email; excluded from the current payoff calculation." }
+          : { amount: null, label: "Not recorded", source: "No balance was recorded for this historical payment." });
+      }
+    }
+    return balances;
+  }
+
   function syncDueReminder() {
     state.adminNotesReminders ||= [];
     const index = state.adminNotesReminders.findIndex(item => item.id === reminderId);
@@ -52,6 +71,7 @@
     const progress = bill.openingBalance > 0 ? Math.min(100, Math.round(paid / bill.openingBalance * 100)) : 0;
     const dueLabel = !bill.dueDate ? "Set a due date" : bill.dueDate < today() && balance > 0 ? "Overdue" : bill.dueDate;
     const edit = bill.records.find(record => record.id === editingId);
+    const recordBalances = balancesAfterRecords(bill);
     body.innerHTML = `
       <div class="hospital-summary">
         <article><span>Remaining on plan</span><strong>${money(balance)}</strong><small>After recorded payments, credits, and charges</small></article>
@@ -88,8 +108,8 @@
           <div class="hospital-actions"><button type="submit">${edit ? "Save changes" : "Add record"}</button>${edit ? '<button type="button" id="hospitalCancelEdit" class="ghost">Cancel edit</button>' : ""}</div>
         </form>
       </div>
-      <section class="hospital-card hospital-ledger"><h3>Payment history and plan changes</h3><div class="hospital-table-wrap"><table><thead><tr><th>Date</th><th>Type</th><th>Description</th><th>Method</th><th>Amount</th><th>Payoff</th><th>Actions</th></tr></thead><tbody>
-      ${bill.records.length ? [...bill.records].sort((a, b) => b.date.localeCompare(a.date)).map(record => `<tr><td>${escapeHtml(record.date)}</td><td>${escapeHtml(record.type)}</td><td>${escapeHtml(record.description)}</td><td>${escapeHtml(record.method)}</td><td>${money(record.amount)}</td><td>${record.affectsBalance === false || record.type === "snapshot" ? "Historical" : "Included"}</td><td><button type="button" class="ghost" data-hospital-edit="${escapeHtml(record.id)}">Edit</button> <button type="button" class="ghost" data-hospital-delete="${escapeHtml(record.id)}">Delete</button></td></tr>`).join("") : '<tr><td colspan="7">No records yet.</td></tr>'}
+      <section class="hospital-card hospital-ledger"><h3>Payment history and plan changes</h3><div class="hospital-table-wrap"><table><thead><tr><th>Date</th><th>Type</th><th>Description</th><th>Method</th><th>Amount</th><th>Balance after</th><th>Payoff</th><th>Actions</th></tr></thead><tbody>
+      ${bill.records.length ? [...bill.records].sort((a, b) => b.date.localeCompare(a.date)).map(record => { const after = recordBalances.get(record.id); return `<tr><td>${escapeHtml(record.date)}</td><td>${escapeHtml(record.type)}</td><td>${escapeHtml(record.description)}</td><td>${escapeHtml(record.method)}</td><td>${money(record.amount)}</td><td title="${escapeHtml(after?.source || "Balance unavailable")}">${after?.amount == null ? "—" : money(after.amount)}<small class="hospital-balance-source">${escapeHtml(after?.label || "Unavailable")}</small></td><td>${record.affectsBalance === false || record.type === "snapshot" ? "Historical" : "Included"}</td><td><button type="button" class="ghost" data-hospital-edit="${escapeHtml(record.id)}">Edit</button> <button type="button" class="ghost" data-hospital-delete="${escapeHtml(record.id)}">Delete</button></td></tr>`; }).join("") : '<tr><td colspan="8">No records yet.</td></tr>'}
       </tbody></table></div></section>`;
   }
 

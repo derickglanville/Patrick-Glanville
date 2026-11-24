@@ -6683,3 +6683,8 @@ html[data-theme="dark"] .oil-delivery-cumulative { color: #abc4d8; }
 
 #budgetPanel .bill-col-available-credit .bill-available-credit { color: #12523a; background: #e8f6ed; border-color: #8bc9a1; font-weight: 800; }
 .budget-panel-admin-mini .bill-col-available-credit { display: none !important; }
+
+.hospital-balance-source { display: block; color: #526e84; font-size: .7rem; font-weight: 600; white-space: nowrap; }
+html[data-theme="dark"] .hospital-balance-source { color: #afc9dc; }
+
+.hospital-ledger table { min-width: 850px; }
