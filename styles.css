@@ -6688,3 +6688,6 @@ html[data-theme="dark"] .oil-delivery-cumulative { color: #abc4d8; }
 html[data-theme="dark"] .hospital-balance-source { color: #afc9dc; }
 
 .hospital-ledger table { min-width: 850px; }
+
+/* Keep section controls clear of the dashboard scrollbar at the right edge. */
+#toggleHiddenBillsBtn, #toggleBudgetSnapshotsBtn { margin-inline-end: clamp(24px, 2.5vw, 48px); }
