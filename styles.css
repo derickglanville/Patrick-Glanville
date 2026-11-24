@@ -6309,6 +6309,9 @@ body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bil
 .oil-photo-result p { margin: 7px 0; font-size: .84rem; }
 @media (max-width: 600px) { #oilGaugePhotoDialog { padding: 12px; } .oil-photo-controls { flex-direction: column; align-items: stretch; } .oil-tabs .oil-gauge-photo-button { width: 100%; margin-left: 0; } }
 .oil-kpis { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 14px; }
+.oil-kpis[hidden] { display: none; }
+.oil-summary-heading { display: flex; justify-content: flex-end; margin: 4px 0 8px; }
+.oil-summary-heading button { padding: 6px 10px; font-weight: 700; }
 .oil-refill-group { display: flex; flex-direction: column; min-width: 0; gap: 5px; }
 .oil-refill-group article { flex: 1; }
 .oil-dialog-actions { display: flex; align-items: center; gap: 8px; }

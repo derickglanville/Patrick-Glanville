@@ -3,6 +3,7 @@
 const OIL_TANK_CAPACITY = 275;
 const OIL_INITIAL_READING = { id: "oil-reading-20261014-0930", date: "2026-10-14", time: "09:30", percent: 50, note: "Physical gauge: half a tank" };
 let oilTab = "overview";
+let oilSummaryCollapsed = false;
 let oilEditingId = "";
 let oilEditingReadingId = "";
 let oilEditingMaintenanceId = "";
@@ -677,7 +678,8 @@ function renderHomeHeatingOil() {
   const usageYearIndex = usageYears.indexOf(oilUsageYear);
   const rate = oilUsageYear === "average" ? oilSeasonalRates(rows) : oilMonthlyUsageForYear(rows, oilUsageYear);
   root.innerHTML = `<div class="oil-tabs" role="tablist">${[["overview","Overview"],["prices","Local Prices"],["priceHistory","Price Changes"],["efficiency","Efficiency Review"],["investment","Siding Investment"],["deliveries","Deliveries"],["readings","Tank Readings"],["maintenance","Boiler Maintenance"],["zones","Heating System & Zones"],["savings","Save Energy"]].map(([key,label]) => `<button type="button" data-oil-tab="${key}" class="${oilTab === key ? "active" : "ghost"}" aria-selected="${oilTab === key}">${label}</button>`).join("")}<button type="button" id="oilGaugePhotoBtn" class="oil-gauge-photo-button">Read Gauge Photo</button><button type="button" id="oilRefreshReadingsBtn" class="ghost">Refresh tank readings</button></div>
-  <div class="oil-kpis">
+  <div class="oil-summary-heading"><button type="button" id="oilSummaryToggle" class="ghost" aria-controls="oilSummaryCards" aria-expanded="${!oilSummaryCollapsed}">${oilSummaryCollapsed ? "Show oil summary ▸" : "Hide oil summary ▾"}</button></div>
+  <div id="oilSummaryCards" class="oil-kpis" ${oilSummaryCollapsed ? "hidden" : ""}>
     <div class="oil-refill-group"><span class="oil-remaining-label">Remaining oil in tank</span><article class="${projection.status === "ready" && projection.daysToRefill <= 14 ? "oil-alert" : ""}"><div class="oil-tank-card-main"><div><small>Estimated tank level</small><button type="button" id="oilTankPercentButton" class="oil-tank-percent-button" title="Show daily tank usage"><strong>${hasTankEstimate ? `${projection.percent.toFixed(1)}%` : "Reading needed"}</strong>${hasTankEstimate ? `<span class="oil-tank-gallons">${oilNumber(projection.current)} gal estimated</span>` : ""}</button></div><button class="oil-tank-dial" id="oilTankDetailButton" type="button" title="Show daily tank usage" aria-label="Show daily tank usage and tank-level changes"><svg viewBox="0 0 170 104" aria-hidden="true"><path class="oil-dial-background" d="M 31 84 A 54 54 0 0 1 139 84"/><path class="oil-dial-fill" d="M 31 84 A 54 54 0 0 1 139 84" pathLength="100" style="stroke-dasharray:${hasTankEstimate ? Math.max(0, Math.min(100, projection.percent)) : 0} 100"/><path class="oil-dial-low" d="M 31 84 A 54 54 0 0 1 139 84" pathLength="100" stroke-dasharray="12.5 100"/>${oilTankDialMarks()}${hasTankEstimate ? `<line class="oil-dial-needle" x1="85" y1="84" x2="85" y2="37" transform="rotate(${-90 + Math.max(0, Math.min(100, projection.percent)) * 1.8} 85 84)"/>` : ""}<circle class="oil-dial-center" cx="85" cy="84" r="4"/></svg></button></div>${hasTankEstimate ? `<div class="oil-tank-level-track" role="meter" aria-label="Estimated tank level" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${projection.percent.toFixed(1)}"><b style="width:${projection.percent}%"></b></div>` : ""}<span class="oil-tank-estimate-note">${projection.status === "ready" ? `25% reserve around ${projection.refillDate || "later"} · last gauge ${projection.age} days ago` : projection.status === "stale-estimate" ? `Estimate from a ${projection.age}-day-old gauge reading. Check the gauge before ordering.` : projection.status === "stale" ? `Last reading ${projection.age} days old; update the gauge for an estimate.` : "Record a tank gauge reading to start estimating."}</span></article></div>
     <article><small>Tank capacity</small><strong>${oilNumber(data.capacity)} gal</strong></article>
     <article><small>Latest delivery</small><strong>${latest ? `${oilNumber(latest.gallons)} gal` : "—"}</strong><span>${latest?.date || "No deliveries"}</span></article>
@@ -706,6 +708,7 @@ function renderHomeHeatingOil() {
     });
   }
   root.querySelector("#oilTankDetailButton")?.addEventListener("click", openOilDailyUsageDialog);
+  root.querySelector("#oilSummaryToggle")?.addEventListener("click", () => { oilSummaryCollapsed = !oilSummaryCollapsed; renderHomeHeatingOil(); });
   root.querySelector("#oilTankPercentButton")?.addEventListener("click", openOilDailyUsageDialog);
   root.querySelector("#oilGaugePhotoBtn")?.addEventListener("click", openOilGaugePhotoDialog);
   root.querySelector("#oilRefreshReadingsBtn")?.addEventListener("click", oilRefreshReadingsFromFirebase);
