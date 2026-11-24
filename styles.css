@@ -6811,6 +6811,15 @@ html[data-theme="dark"] .heating-house-floor, html[data-theme="dark"] .heating-h
 html[data-theme="dark"] .heating-house-room-title { fill: #113850; }
 html[data-theme="dark"] .heating-zone-details summary, html[data-theme="dark"] .heating-wiring-table td::before { color: #c5d8e7; }
 html[data-theme="dark"] .heating-compact-details summary { color: #c5d8e7; }
+.heating-system-brief-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 8px 0; }
+.heating-system-brief-grid > div { display: grid; gap: 4px; padding: 9px; border: 1px solid #b9d0df; border-radius: 8px; background: #edf6fb; }
+.heating-system-brief-grid strong { color: #174866; }
+.heating-system-brief-grid span, .heating-system-brief li { font-size: .8rem; line-height: 1.35; }
+.heating-system-brief h4 { margin: 8px 0 3px; color: #174866; }
+.heating-system-brief ul { margin: 4px 0 8px; padding-left: 20px; }
+@media (max-width: 650px) { .heating-system-brief-grid { grid-template-columns: 1fr; } }
+html[data-theme="dark"] .heating-system-brief-grid > div { background: #1c3448; border-color: #56758e; }
+html[data-theme="dark"] .heating-system-brief-grid strong, html[data-theme="dark"] .heating-system-brief h4 { color: #d6ecfc; }
 
 /* Keep section controls clear of the dashboard scrollbar at the right edge. */
 #toggleHiddenBillsBtn, #toggleBudgetSnapshotsBtn { margin-inline-end: clamp(24px, 2.5vw, 48px); }
