@@ -6747,5 +6747,70 @@ html[data-theme="dark"] .heating-zone-schema-grid button.active { background: #1
 html[data-theme="dark"] .heating-zone-fields label { color: #c6d8e8; }
 html[data-theme="dark"] .heating-checklist label { border-color: #45617a; }
 
+/* Heating zones use a scaled house diagram and wrapping record cards instead of wide scroll tables. */
+.heating-zones-page { min-width: 0; overflow-x: clip; gap: 8px; }
+.heating-zones-page .oil-card { min-width: 0; padding: 10px 12px; }
+.heating-zones-page .oil-card h3 { margin-bottom: 5px; }
+.heating-zones-page .oil-card p { margin: 4px 0 8px; }
+.heating-zone-schema { display: block; max-width: 760px; margin: 0 auto; }
+.heating-house-image { display: block; width: 100%; height: auto; max-height: 430px; }
+.heating-house-roof { fill: none; stroke: #315d75; stroke-width: 12; stroke-linecap: round; stroke-linejoin: round; }
+.heating-house-outline { fill: #f8fbfe; stroke: #658da5; stroke-width: 4; }
+.heating-house-floor { fill: #395d74; font-size: 15px; font-weight: 800; letter-spacing: 2px; }
+.heating-house-zone { cursor: pointer; }
+.heating-house-zone rect { stroke: #9bb8c9; stroke-width: 2; }
+.heating-house-zone.active rect { stroke: #126b9d; stroke-width: 5; }
+.heating-house-zone:focus-visible { outline: none; }
+.heating-house-zone:focus-visible rect { stroke: #e29124; stroke-width: 5; }
+.heating-house-room-title { fill: #163c58; font-size: 17px; font-weight: 800; }
+.heating-house-room-subtitle { fill: #395d74; font-size: 13px; }
+.heating-zone-details { margin: 5px 0; }
+.heating-zone-details summary { cursor: pointer; font-weight: 700; color: #1d597a; }
+.heating-compact-details summary { cursor: pointer; font-weight: 800; color: #1d597a; padding: 5px 0; }
+.heating-compact-details[open] summary { margin-bottom: 7px; }
+.heating-mobile-zone-list { display: none; }
+.heating-zones-page .oil-table-wrap { max-height: none; overflow: visible; min-width: 0; }
+.heating-zones-page .oil-table { min-width: 0; table-layout: fixed; }
+.heating-zones-page .oil-table td, .heating-zones-page .oil-table th { white-space: normal; overflow-wrap: anywhere; }
+.heating-zone-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-bottom: 8px; }
+.heating-zone-fields textarea { max-height: 76px; }
+.heating-wiring-table, .heating-wiring-table tbody { display: block; width: 100%; }
+.heating-wiring-table thead { display: none; }
+.heating-wiring-table tbody { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.heating-wiring-table tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; padding: 8px; border: 1px solid #bfd3e1; border-radius: 7px; }
+.heating-wiring-table tr th { grid-column: 1 / -1; position: static; }
+.heating-wiring-table tr td, .heating-wiring-table tr td:last-child { display: grid; gap: 3px; border: 0; padding: 0; }
+.heating-wiring-table td::before { color: #38566d; font-size: .7rem; font-weight: 700; }
+.heating-wiring-table td:nth-child(2)::before { content: "Wire color"; }
+.heating-wiring-table td:nth-child(3)::before { content: "Thermostat terminal"; }
+.heating-wiring-table td:nth-child(4)::before { content: "Boiler/controller terminal"; }
+.heating-wiring-table td:nth-child(5)::before { content: "Observed function"; }
+.heating-wiring-table td:nth-child(6)::before { content: "Verified spare?"; }
+.heating-wiring-table input, .heating-wiring-table select { min-width: 0; }
+.heating-checklist { gap: 5px; margin: 7px 0; }
+.heating-checklist label { padding: 6px; }
+.heating-log-table td:last-child { display: table-cell; }
+@media (max-width: 650px) {
+  .heating-mobile-zone-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; margin: 5px 0; }
+  .heating-mobile-zone-list button { padding: 7px; text-align: left; font-size: .78rem; }
+  .heating-mobile-zone-list button.active { border-color: #126b9d; background: #dff1fc; color: #153e59; }
+  .heating-wiring-table tbody, .heating-zone-fields { grid-template-columns: 1fr; }
+  .heating-zone-fields .wide { grid-column: auto; }
+  .heating-zones-table thead { display: none; }
+  .heating-zones-table tbody { display: grid; gap: 6px; }
+  .heating-zones-table tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid #bfd3e1; border-radius: 6px; }
+  .heating-zones-table td { border: 0; }
+  .heating-zones-table td:nth-child(3) { grid-column: 1 / -1; }
+  .heating-zones-table td:last-child { display: block; }
+  .heating-log-table td { font-size: .7rem; }
+  .heating-house-room-title { font-size: 19px; }
+  .heating-house-room-subtitle { font-size: 14px; }
+}
+html[data-theme="dark"] .heating-house-outline { fill: #15293b; stroke: #6b91ad; }
+html[data-theme="dark"] .heating-house-floor, html[data-theme="dark"] .heating-house-room-subtitle { fill: #c5d8e7; }
+html[data-theme="dark"] .heating-house-room-title { fill: #113850; }
+html[data-theme="dark"] .heating-zone-details summary, html[data-theme="dark"] .heating-wiring-table td::before { color: #c5d8e7; }
+html[data-theme="dark"] .heating-compact-details summary { color: #c5d8e7; }
+
 /* Keep section controls clear of the dashboard scrollbar at the right edge. */
 #toggleHiddenBillsBtn, #toggleBudgetSnapshotsBtn { margin-inline-end: clamp(24px, 2.5vw, 48px); }

@@ -34,6 +34,11 @@ function heatingPhotoLink(value, label) {
   return /^https:\/\//i.test(url) ? `<a href="${escapeAttribute(url)}" target="_blank" rel="noopener noreferrer">${label}</a>` : "Not yet verified";
 }
 
+function heatingHouseSvg(activeZone) {
+  const room = (id, label, subtitle, x, y, width, height, fill) => `<g class="heating-house-zone ${activeZone === id ? "active" : ""}" data-heating-zone="${id}" role="button" tabindex="0" aria-label="Show ${label} zone"><title>Show ${label} zone</title><rect x="${x}" y="${y}" width="${width}" height="${height}" rx="9" fill="${fill}"/><text x="${x + 16}" y="${y + 31}" class="heating-house-room-title">${label}</text><text x="${x + 16}" y="${y + 53}" class="heating-house-room-subtitle">${subtitle}</text></g>`;
+  return `<svg class="heating-house-image" viewBox="0 0 760 430" role="group" aria-label="Three-floor house showing four selectable heating zones"><path d="M85 95 380 15 675 95" class="heating-house-roof"/><rect x="85" y="95" width="590" height="322" rx="10" class="heating-house-outline"/><text x="380" y="118" text-anchor="middle" class="heating-house-floor">TOP FLOOR</text>${room("master", "Zone 1 · Master bedroom", "3 wires · 2 used for heat", 103, 129, 269, 85, "#d8ecfc")}${room("bedrooms", "Zone 2 · Other bedrooms", "3 wires · 2 used for heat", 388, 129, 269, 85, "#e1ebff")}<text x="380" y="238" text-anchor="middle" class="heating-house-floor">MAIN FLOOR</text>${room("main", "Zone 3 · Living areas", "Living, dining, kitchen, hallway · 4 wires", 103, 247, 554, 75, "#e4f3df")}<text x="380" y="346" text-anchor="middle" class="heating-house-floor">BASEMENT</text>${room("basement", "Zone 4 · Basement", "3 wires · 2 used for heat", 103, 354, 554, 54, "#f9ead6")}</svg>`;
+}
+
 function heatingZonesView(oil) {
   const system = heatingSystemData(oil);
   const equipment = system.equipment;
@@ -53,8 +58,47 @@ function heatingZonesView(oil) {
 function wireHeatingZones(root, oil) {
   const system = heatingSystemData(oil);
   const zone = system.zones.find(item => item.id === selectedHeatingZone) || system.zones[0];
+  const schema = root.querySelector(".heating-zone-schema");
+  if (schema) schema.innerHTML = `${heatingHouseSvg(zone.id)}<div class="heating-mobile-zone-list">${HEATING_ZONE_SEED.map((item, index) => `<button type="button" data-heating-zone="${item.id}" class="${zone.id === item.id ? "active" : ""}">Zone ${index + 1} · ${item.rooms}</button>`).join("")}</div>`;
+  const zoneTable = root.querySelector(".heating-zones-table")?.closest(".oil-table-wrap");
+  if (zoneTable) {
+    const details = document.createElement("details");
+    details.className = "heating-zone-details";
+    details.innerHTML = "<summary>View four-zone reference table</summary>";
+    zoneTable.replaceWith(details);
+    details.appendChild(zoneTable);
+  }
+  const foldCard = (selector, label) => {
+    const card = root.querySelector(selector)?.closest(".oil-card");
+    if (!card) return;
+    const details = document.createElement("details");
+    details.className = "heating-compact-details";
+    details.innerHTML = `<summary>${label}</summary>`;
+    card.querySelector("h3")?.remove();
+    while (card.firstChild) details.appendChild(card.firstChild);
+    card.appendChild(details);
+  };
+  foldCard("#heatingEquipmentForm", "Boiler and control equipment · edit details");
+  foldCard("#heatingLogForm", `Dated change log · ${system.history.length} entries`);
+  const zoneCard = root.querySelector("#heatingZoneForm")?.closest(".oil-card");
+  if (zoneCard) {
+    const headings = [...zoneCard.querySelectorAll(":scope > h3")];
+    for (const heading of headings.slice(1)) {
+      const details = document.createElement("details");
+      details.className = "heating-compact-details";
+      details.innerHTML = `<summary>${heading.textContent}</summary>`;
+      let sibling = heading.nextElementSibling;
+      heading.replaceWith(details);
+      while (sibling && sibling.tagName !== "H3") {
+        const next = sibling.nextElementSibling;
+        details.appendChild(sibling);
+        sibling = next;
+      }
+    }
+  }
   const record = description => { system.history.push({ id: crypto.randomUUID(), date: oilIsoToday(), description }); saveState(); renderHomeHeatingOil(); };
   root.querySelectorAll("[data-heating-zone]").forEach(button => button.addEventListener("click", () => { selectedHeatingZone = button.dataset.heatingZone; renderHomeHeatingOil(); }));
+  root.querySelectorAll(".heating-house-zone").forEach(button => button.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectedHeatingZone = button.dataset.heatingZone; renderHomeHeatingOil(); } }));
   root.querySelector("#heatingEquipmentForm")?.addEventListener("submit", event => { event.preventDefault(); if (!ensureCurrentUser("save heating equipment")) return; const e = event.currentTarget.elements; for (const key of ["boilerModel", "controllerModel", "transformerRating", "controlType", "provider", "notes"]) system.equipment[key] = e[key].value.trim(); record("Updated boiler and zone-control equipment details."); });
   root.querySelector("#heatingZoneForm")?.addEventListener("submit", event => { event.preventDefault(); if (!ensureCurrentUser("save a heating zone")) return; const e = event.currentTarget.elements; for (const key of ["currentModel", "nestModel", "status", "thermostatPhoto", "controlPhoto", "notes"]) zone[key] = e[key].value.trim(); record(`Updated ${zone.rooms} thermostat details and installation status.`); });
   root.querySelector("#heatingWiringForm")?.addEventListener("submit", event => { event.preventDefault(); if (!ensureCurrentUser("save thermostat wiring")) return; const e = event.currentTarget.elements; zone.wiring = Array.from({ length: zone.conductors }, (_, i) => ({ color: e[`color-${i}`].value.trim(), terminal: e[`terminal-${i}`].value.trim(), controlTerminal: e[`controlTerminal-${i}`].value.trim(), function: e[`function-${i}`].value.trim(), spare: e[`spare-${i}`].value })); record(`Updated ${zone.rooms} conductor observations.`); });
