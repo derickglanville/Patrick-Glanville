@@ -6717,5 +6717,32 @@ html[data-theme="dark"] .oil-maintenance-summary article { background: #16283b; 
 html[data-theme="dark"] .oil-maintenance-summary strong { color: #f0f7ff; }
 html[data-theme="dark"] .oil-maintenance-summary small, html[data-theme="dark"] .oil-maintenance-summary span, html[data-theme="dark"] .oil-maintenance-form label { color: #c6d8e8; }
 
+.heating-zones-page { display: grid; gap: 12px; }
+.heating-zone-schema { display: grid; justify-items: center; gap: 18px; }
+.heating-boiler-node { padding: 12px 20px; border: 2px solid #1e658c; border-radius: 10px; background: #e3f3fc; color: #153e59; text-align: center; font-weight: 800; }
+.heating-boiler-node small { display: block; font-weight: 500; }
+.heating-zone-schema-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; width: 100%; position: relative; }
+.heating-zone-schema-grid::before { content: ""; position: absolute; top: -12px; left: 12.5%; right: 12.5%; border-top: 2px solid #7ea9c1; }
+.heating-zone-schema-grid button { position: relative; display: grid; gap: 5px; min-height: 104px; text-align: left; border: 1px solid #9ebdd0; background: #f3f9fd; color: #153e59; }
+.heating-zone-schema-grid button::before { content: ""; position: absolute; height: 12px; border-left: 2px solid #7ea9c1; left: 50%; top: -12px; }
+.heating-zone-schema-grid button.active { border: 2px solid #176b9e; background: #dff1fc; }
+.heating-zone-schema-grid button span, .heating-zone-schema-grid button small { font-weight: 500; }
+.heating-zone-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin-bottom: 12px; }
+.heating-zone-fields label { display: grid; gap: 4px; color: #38566d; font-size: .78rem; font-weight: 700; }
+.heating-zone-fields input, .heating-zone-fields select, .heating-zone-fields textarea { min-width: 0; width: 100%; }
+.heating-zone-fields .wide { grid-column: span 2; }
+.heating-zone-fields button { align-self: end; }
+.heating-zone-photo-links { font-size: .8rem; }
+.heating-wiring-table input, .heating-wiring-table select { min-width: 105px; width: 100%; }
+.heating-checklist { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin: 12px 0; }
+.heating-checklist label { display: flex; align-items: flex-start; gap: 7px; padding: 9px; border: 1px solid #bfd3e1; border-radius: 7px; }
+.heating-log-table { min-width: 600px; }
+@media (max-width: 750px) { .heating-zone-schema-grid, .heating-zone-fields, .heating-checklist { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .heating-zone-schema-grid, .heating-zone-fields, .heating-checklist { grid-template-columns: 1fr; } .heating-zone-schema-grid::before, .heating-zone-schema-grid button::before { display: none; } .heating-zone-fields .wide { grid-column: auto; } }
+html[data-theme="dark"] .heating-boiler-node, html[data-theme="dark"] .heating-zone-schema-grid button { background: #20374b; color: #eaf5ff; border-color: #668aa4; }
+html[data-theme="dark"] .heating-zone-schema-grid button.active { background: #174c70; border-color: #82caff; }
+html[data-theme="dark"] .heating-zone-fields label { color: #c6d8e8; }
+html[data-theme="dark"] .heating-checklist label { border-color: #45617a; }
+
 /* Keep section controls clear of the dashboard scrollbar at the right edge. */
 #toggleHiddenBillsBtn, #toggleBudgetSnapshotsBtn { margin-inline-end: clamp(24px, 2.5vw, 48px); }
