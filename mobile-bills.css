@@ -263,6 +263,7 @@
       "status status"
       "notes notes"
       "observation observation"
+      "special-note special-note"
       "details details"
       "actions actions" !important;
   }
@@ -299,6 +300,7 @@
   body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-status { grid-area: status; }
   body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-notes { grid-area: notes; }
   body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-observation { grid-area: observation; }
+  body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-special-note { grid-area: special-note; }
   body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .bill-col-actions { grid-area: actions; }
 
   body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item[data-bill-id] > :is(
@@ -310,14 +312,14 @@
     .bill-col-type, .bill-col-apr, .bill-col-interest-paid, .bill-col-prev-bal,
     .bill-col-proposed, .bill-col-diff, .bill-col-payment-priority, .bill-col-credit-line, .bill-col-available-credit,
     .bill-col-payoff-date, .bill-col-payoff-date-due, .bill-col-tran, .bill-col-date-paid,
-    .bill-col-credit-percent, .bill-col-notes, .bill-col-observation
+    .bill-col-credit-percent, .bill-col-notes, .bill-col-observation, .bill-col-special-note
   ) { display: none !important; }
 
   body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .budget-bill-item.mobile-bill-details-open > :is(
     .bill-col-type, .bill-col-apr, .bill-col-interest-paid, .bill-col-prev-bal,
     .bill-col-proposed, .bill-col-diff, .bill-col-payment-priority, .bill-col-credit-line, .bill-col-available-credit,
     .bill-col-payoff-date, .bill-col-payoff-date-due, .bill-col-tran, .bill-col-date-paid,
-    .bill-col-credit-percent, .bill-col-notes, .bill-col-observation
+    .bill-col-credit-percent, .bill-col-notes, .bill-col-observation, .bill-col-special-note
   ) { display: block !important; }
 
   body:is([data-device-layout="phone"],[data-device-layout="tablet"]) #budgetPanel.is-mobile-admin-cards #billList .mobile-bill-details-toggle {

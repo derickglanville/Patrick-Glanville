@@ -1429,6 +1429,7 @@ textarea {
 .budget-panel-admin-mini .bill-col-observation {
   display: none !important;
 }
+.budget-panel-admin-mini .bill-col-special-note { display: none !important; }
 
 .budget-panel-admin-mini .budget-bill-list-admin {
   max-height: calc(100vh - 210px);
@@ -5764,7 +5765,8 @@ body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(
     "selector due paid-date"
     "selector status actions"
     "selector notes notes"
-    "selector observation observation";
+    "selector observation observation"
+    "selector special-note special-note";
   gap: 9px 10px;
   padding: 12px;
   margin-bottom: 10px;
@@ -5797,6 +5799,8 @@ body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.
 body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-notes { grid-area: notes; }
 body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-observation,
 body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-observation { grid-area: observation; }
+body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-special-note,
+body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-special-note { grid-area: special-note; }
 body[data-device-layout="phone"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-actions,
 body[data-device-layout="tablet"] .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple) .bill-col-actions { grid-area: actions; }
 
@@ -6148,7 +6152,7 @@ body[data-device-layout="tablet"] #budgetPanel .budget-bill-list-admin .budget-b
 #budgetPanel .budget-bill-list-header:not(.is-simple),
 #budgetPanel .budget-bill-item:not(.budget-bill-item-simple),
 #budgetPanel .budget-bill-total-row {
-  grid-template-columns: 24px minmax(148px, 1fr) minmax(88px, .55fr) 48px minmax(78px, .4fr) minmax(92px, .42fr) minmax(92px, .4fr) minmax(88px, .4fr) minmax(82px, .42fr) minmax(66px, .36fr) minmax(92px, .38fr) minmax(78px, .36fr) minmax(92px, .42fr) minmax(78px, .4fr) minmax(96px, .58fr) minmax(142px, .82fr) minmax(142px, .82fr) minmax(68px, .38fr) minmax(108px, .68fr) minmax(108px, .68fr) 56px 64px minmax(156px, .9fr) minmax(156px, .9fr) 78px;
+  grid-template-columns: 24px minmax(148px, 1fr) minmax(88px, .55fr) 48px minmax(78px, .4fr) minmax(92px, .42fr) minmax(92px, .4fr) minmax(88px, .4fr) minmax(82px, .42fr) minmax(66px, .36fr) minmax(92px, .38fr) minmax(78px, .36fr) minmax(92px, .42fr) minmax(78px, .4fr) minmax(96px, .58fr) minmax(142px, .82fr) minmax(142px, .82fr) minmax(68px, .38fr) minmax(108px, .68fr) minmax(108px, .68fr) 56px 64px minmax(156px, .9fr) minmax(156px, .9fr) 78px minmax(180px, 1fr);
 }
 
 #budgetPanel .budget-bill-list-header:not(.is-simple) .bill-col-recommended,
@@ -6160,6 +6164,8 @@ body[data-device-layout="tablet"] #budgetPanel .budget-bill-list-admin .budget-b
   line-height: 1.1;
   white-space: normal;
 }
+#budgetPanel .budget-bill-item:not(.budget-bill-item-simple) .bill-col-special-note { min-width: 0; }
+#budgetPanel .budget-bill-item:not(.budget-bill-item-simple) .bill-special-note { width: 100%; min-width: 0; }
 
 .bill-proposed-amount {
   color: #173a63;
@@ -6197,7 +6203,7 @@ body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-item:not(.budget-bill-item-simple),
 body[data-device-layout="phone"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-total-row,
 body[data-device-layout="tablet"] .budget-panel.is-admin-tablet-grid .budget-bill-list-admin .budget-bill-total-row {
-  grid-template-columns: 24px 160px 96px 52px 82px 96px 96px 88px 86px 74px 94px 94px 86px 86px 100px 132px 132px 68px 108px 108px 56px 64px 128px 128px 70px;
+  grid-template-columns: 24px 160px 96px 52px 82px 96px 96px 88px 86px 74px 94px 94px 86px 86px 100px 132px 132px 68px 108px 108px 56px 64px 128px 128px 70px 180px;
   min-width: 2308px;
 }
 
