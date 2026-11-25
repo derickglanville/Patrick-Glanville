@@ -1858,6 +1858,34 @@ function showBillColumnSumDialog({ label, total, count, scope }) {
   billColumnSumDialog.showModal();
 }
 
+function openBillSpecialNoteDialog(row, bill) {
+  const dialog = document.querySelector("#billSpecialNoteDialog");
+  if (!dialog) return;
+  const editor = dialog.querySelector("#billSpecialNoteText");
+  dialog.dataset.billId = bill.id;
+  dialog.querySelector("#billSpecialNoteTitle").textContent = `${bill.name || "Bill"} · Special Note`;
+  editor.value = row.querySelector(".bill-special-note")?.value || "";
+  if (!dialog.dataset.wired) {
+    dialog.dataset.wired = "true";
+    dialog.querySelector("#closeBillSpecialNoteDialog").addEventListener("click", () => dialog.close());
+    dialog.querySelector("#cancelBillSpecialNoteDialog").addEventListener("click", () => dialog.close());
+    dialog.querySelector("#billSpecialNoteForm").addEventListener("submit", event => {
+      event.preventDefault();
+      if (!ensureCurrentUser("save a bill special note")) return;
+      const billId = dialog.dataset.billId;
+      const currentRow = [...document.querySelectorAll(".budget-bill-item[data-bill-id]")].find(item => item.dataset.billId === billId);
+      const inlineNote = currentRow?.querySelector(".bill-special-note");
+      if (!inlineNote) return;
+      inlineNote.value = editor.value.trim();
+      inlineNote.title = inlineNote.value;
+      updateBillFromRow(currentRow);
+      dialog.close();
+    });
+  }
+  dialog.showModal();
+  editor.focus();
+}
+
 function getSeedData() {
   return seedDataByClient[activeClientId] || buildUnselectedClientState();
 }
@@ -7911,7 +7939,7 @@ function renderBills() {
         <button type="button" class="toggle-bill-hidden" aria-label="${bill.hidden ? "Unhide" : "Hide"} bill">${bill.hidden ? "Unhide" : "Hide"}</button>
         <button type="button" class="delete-bill-button" aria-label="Delete bill" title="Delete bill">${usesSimpleBills ? "Delete" : "Del"}</button>
       </div>
-      <label class="budget-bill-field bill-col-special-note"><span>Special Note</span><input class="bill-special-note" type="text" value="${escapeAttribute(bill.specialNote || "")}" title="${escapeAttribute(bill.specialNote || "")}" aria-label="Special Note for ${escapeAttribute(bill.name || "bill")}" placeholder="Optional special note"></label>
+      <div class="budget-bill-field bill-col-special-note"><span>Special Note</span><div class="bill-special-note-controls"><input class="bill-special-note" type="text" value="${escapeAttribute(bill.specialNote || "")}" title="${escapeAttribute(bill.specialNote || "")}" aria-label="Special Note for ${escapeAttribute(bill.name || "bill")}" placeholder="Optional special note"><button type="button" class="bill-special-note-popout" aria-label="Open Special Note for ${escapeAttribute(bill.name || "bill")}" title="Open Special Note in a larger editor">↗</button></div></div>
     `;
 
     row.querySelector(".bill-name").addEventListener("input", event => {
@@ -7956,6 +7984,7 @@ function renderBills() {
     row.querySelector(".bill-notes").addEventListener("change", () => updateBillFromRow(row));
     row.querySelector(".bill-notes").addEventListener("blur", () => updateBillFromRow(row));
     row.querySelector(".bill-special-note").addEventListener("change", () => updateBillFromRow(row));
+    row.querySelector(".bill-special-note-popout").addEventListener("click", event => { event.stopPropagation(); openBillSpecialNoteDialog(row, bill); });
     row.querySelector(".mobile-bill-details-toggle").addEventListener("click", event => {
       event.stopPropagation();
       const expanded = row.classList.toggle("mobile-bill-details-open");

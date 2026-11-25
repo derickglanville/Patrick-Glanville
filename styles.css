@@ -6166,6 +6166,14 @@ body[data-device-layout="tablet"] #budgetPanel .budget-bill-list-admin .budget-b
 }
 #budgetPanel .budget-bill-item:not(.budget-bill-item-simple) .bill-col-special-note { min-width: 0; }
 #budgetPanel .budget-bill-item:not(.budget-bill-item-simple) .bill-special-note { width: 100%; min-width: 0; }
+.bill-special-note-controls { display: flex; gap: 3px; min-width: 0; }
+.bill-special-note-controls .bill-special-note { flex: 1 1 auto; }
+.bill-special-note-popout { flex: 0 0 27px; padding: 2px 4px; font-size: 1rem; line-height: 1; }
+#billSpecialNoteDialog { width: min(620px, calc(100vw - 24px)); max-height: min(80vh, 720px); padding: 18px; }
+#billSpecialNoteForm { display: grid; gap: 10px; }
+#billSpecialNoteForm label { font-weight: 700; }
+#billSpecialNoteText { width: 100%; min-height: 230px; resize: vertical; line-height: 1.45; }
+.bill-special-note-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
 .bill-proposed-amount {
   color: #173a63;
