@@ -7696,6 +7696,8 @@ function renderBills() {
     adminTabletGridViewBtn.hidden = true;
   }
   if (adminCreditCardFinderBtn) adminCreditCardFinderBtn.hidden = !isAdminClient();
+  const adminBillRecordsBtn = document.querySelector("#adminBillRecordsBtn");
+  if (adminBillRecordsBtn) adminBillRecordsBtn.hidden = !isAdminClient();
   if (cellphoneBillingHistoryBtn) cellphoneBillingHistoryBtn.hidden = !isAdminClient();
   if (adminNotesRemindersBtn) adminNotesRemindersBtn.hidden = !isAdminClient();
   document.querySelector("#hospitalBillBtn").hidden = !isAdminClient();

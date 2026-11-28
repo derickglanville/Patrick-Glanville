@@ -220,3 +220,11 @@ html[data-theme="dark"] :where(.work-schedule-hours-change-banner,
 @media (max-width: 680px) {
   .theme-toggle { min-height: 40px; }
 }
+
+html[data-theme="dark"] #adminBillRecordsDialog { background: #101d2c; color: #edf6ff; border-color: #3a5870; }
+html[data-theme="dark"] #adminBillRecordsDialog select { background: #14263a; color: #edf6ff; border-color: #52738e; }
+html[data-theme="dark"] #adminBillRecordsDialog .bill-records-scroll,
+html[data-theme="dark"] #adminBillRecordsDialog .bill-records-grid :where(th, td) { border-color: #3a5870; }
+html[data-theme="dark"] #adminBillRecordsDialog .bill-records-grid th { background: #24425c; color: #edf6ff; }
+html[data-theme="dark"] #adminBillRecordsDialog .bill-records-grid tbody tr { background: #14263a; color: #edf6ff; }
+html[data-theme="dark"] #adminBillRecordsDialog .bill-records-grid tbody tr:nth-child(even) { background: #1b3249; }

@@ -6866,3 +6866,19 @@ html[data-theme="dark"] .heating-boiler-photo summary { color: #d6ecfc; }
 
 /* Keep section controls clear of the dashboard scrollbar at the right edge. */
 #toggleHiddenBillsBtn, #toggleBudgetSnapshotsBtn { margin-inline-end: clamp(24px, 2.5vw, 48px); }
+
+/* Compact saved bill history. */
+#adminBillRecordsDialog { width: min(760px, 96vw); max-width: 96vw; max-height: 90vh; padding: 0; }
+.admin-bill-records-dialog { width: 100%; padding: 14px; }
+.bill-records-picker { display: flex; align-items: center; gap: 12px; font-weight: 700; margin: 10px 0 5px; }
+.bill-records-picker select { width: min(360px, 72vw); }
+.bill-records-count { margin: 5px 0 8px; font-size: 12px; }
+.bill-records-scroll { max-height: 67vh; overflow: auto; border: 1px solid #bdd2e2; border-radius: 6px; }
+.bill-records-grid { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12px; }
+.bill-records-grid th, .bill-records-grid td { padding: 5px 7px; border: 1px solid #c9d8e3; text-align: left; white-space: nowrap; height: auto; line-height: 1.25; }
+.bill-records-grid th:nth-child(1) { width: 25%; }
+.bill-records-grid th:nth-child(2) { width: 35%; }
+.bill-records-grid th:nth-child(3), .bill-records-grid th:nth-child(4) { width: 20%; }
+.bill-records-grid th:nth-child(n+3), .bill-records-grid td:nth-child(n+3) { text-align: right; }
+.bill-records-grid th { position: sticky; top: 0; z-index: 1; background: #dcebf5; }
+.bill-records-grid tbody tr:nth-child(even) { background: #f4f8fb; }
